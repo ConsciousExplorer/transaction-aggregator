@@ -31,6 +31,42 @@ echo "Creating SCRAM credentials..."
 
 echo "SCRAM credentials created: producer, consumer, admin"
 
+# --- ACLs ---
+# StandardAuthorizer is default-deny: SASL principals can do NOTHING until
+# granted here. admin is a super user (see docker-compose) and needs no ACLs —
+# only admins can create topics. NOTE: deliberately NOT using the kafka-acls
+# --producer convenience flag; it would also grant CREATE on the topic.
+
+echo "Applying ACLs..."
+
+# producer: write-only on transaction topics (prefix covers transactions + transactions.dlq)
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+  --allow-principal User:producer \
+  --operation Write --operation Describe \
+  --topic transactions --resource-pattern-type prefixed
+
+# Belt-and-braces: explicit DENY on topic creation for producer. Default-deny
+# already blocks it, but a DENY ACL outranks any ALLOW someone adds later.
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+  --deny-principal User:producer \
+  --operation Create --topic '*'
+
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+  --deny-principal User:producer \
+  --operation Create --cluster
+
+# consumer: read-only on transaction topics, any consumer group
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+  --allow-principal User:consumer \
+  --operation Read --operation Describe \
+  --topic transactions --resource-pattern-type prefixed
+
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+  --allow-principal User:consumer \
+  --operation Read --group '*'
+
+echo "ACLs applied."
+
 # --- Topics ---
 # Auto-create is disabled on the broker. Create application topics explicitly
 # so producers and consumers can attach on first startup.

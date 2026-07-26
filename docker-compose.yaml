@@ -37,6 +37,14 @@ services:
       KAFKA_LISTENER_NAME_EXTERNAL_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
       KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/jaas/kafka_server_jaas.conf"
 
+      # AuthZ: default-deny for SASL principals without ACLs (kafka-init grants them).
+      # Super users: admin (SASL) + ANONYMOUS = the PLAINTEXT INTERNAL/CONTROLLER
+      # listeners (inter-broker, healthcheck, schema-registry, kafbat-ui, kafka-init)
+      # — those listeners never leave the private compose network. Prod (MSK) uses
+      # SCRAM over TLS everywhere instead.
+      KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+      KAFKA_SUPER_USERS: User:admin;User:ANONYMOUS
+
       # Single node → RF 1 for internal topics
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -52,6 +60,9 @@ services:
     volumes:
       - kafka1-data:/var/lib/kafka/data
       - ./infrastructure/kafka/kafka_server_jaas.conf:/etc/kafka/jaas/kafka_server_jaas.conf:ro
+      # File input of the apache/kafka image: broker defaults + topic guardrails.
+      # KAFKA_* env vars above override entries in this file.
+      - ./infrastructure/kafka/server.properties:/mnt/shared/config/server.properties:ro
     healthcheck:
       test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1
       start_period: 30s
@@ -277,6 +288,31 @@ services:
     networks: [txn-network]
 
   # ──────────────────────── Optional: ui profile ─────────────────────────
+  # Tiny LDAP directory backing kafbat-ui logins. kafbat has no static
+  # multi-user store (auth.type supports only DISABLED/LOGIN_FORM/LDAP/OAUTH2,
+  # and LOGIN_FORM is single-user), so multiple UI users require LDAP or OAuth.
+  # Users/groups seeded from infrastructure/ldap/users.ldif:
+  #   admin/admin   (group: admins  → full UI access)
+  #   viewer/viewer (group: viewers → read-only UI access)
+  ldap:
+    profiles: ["ui"]
+    image: osixia/openldap:1.5.0
+    container_name: ldap
+    command: ["--copy-service"]
+    environment:
+      LDAP_ORGANISATION: Transaction Aggregator
+      LDAP_DOMAIN: txn.local
+      LDAP_ADMIN_PASSWORD: admin-ldap
+    volumes:
+      - ./infrastructure/ldap/users.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/users.ldif:ro
+    healthcheck:
+      test: ldapsearch -x -H ldap://localhost -D cn=admin,dc=txn,dc=local -w admin-ldap -b dc=txn,dc=local -s base > /dev/null
+      start_period: 15s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [txn-network]
+
   kafbat-ui:
     profiles: ["ui"]
     image: kafbat/kafka-ui:v1.1.0
@@ -284,29 +320,34 @@ services:
     ports:
       - "8080:8080"
     environment:
-      #1. Define Kafka clusters for the UI to connect to
+      # 1. Kafka clusters for the UI to connect to (PLAINTEXT internal listener)
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092
       KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
 
-      # 2. Enable RBAC and Local Authentication
-      AUTH_TYPE: LOGIN_FORM
-      SPRING_SECURITY_USER_NAME: admin
-      SPRING_SECURITY_USER_PASSWORD: admin
+      # 2. Authentication against the ldap sidecar.
+      #    OAUTH2_LDAP_ACTIVEDIRECTORY must be explicitly "false": kafbat's LDAP
+      #    authenticator bean is @ConditionalOnProperty(havingValue = "false")
+      #    with no matchIfMissing — omit it and the UI crashes on startup with
+      #    "An LdapAuthenticator must be supplied".
+      AUTH_TYPE: LDAP
+      OAUTH2_LDAP_ACTIVEDIRECTORY: "false"
+      SPRING_LDAP_URLS: ldap://ldap:389
+      SPRING_LDAP_BASE: uid={0},ou=people,dc=txn,dc=local
+      SPRING_LDAP_ADMIN_USER: cn=admin,dc=txn,dc=local
+      SPRING_LDAP_ADMIN_PASSWORD: admin-ldap
+      SPRING_LDAP_USER_FILTER_SEARCH_BASE: ou=people,dc=txn,dc=local
+      SPRING_LDAP_USER_FILTER_SEARCH_FILTER: "(&(uid={0})(objectClass=inetOrgPerson))"
+      SPRING_LDAP_GROUP_FILTER_SEARCH_BASE: ou=groups,dc=txn,dc=local
 
-      # 3. Define Roles inline via Spring environment mapping
-      AUTH_LOCAL_ROLES_0_NAME: acl-manager
-      AUTH_LOCAL_ROLES_0_SUBJECTS_0_PROVIDER: LOCAL
-      AUTH_LOCAL_ROLES_0_SUBJECTS_0_TYPE: USER
-      AUTH_LOCAL_ROLES_0_SUBJECTS_0_VALUE: admin
-
-      # 4. Map Clusters and Permissions to the role
-      AUTH_LOCAL_ROLES_0_CLUSTERS_0: local
-      AUTH_LOCAL_ROLES_0_PERMISSIONS_0_RESOURCE: acl
-      AUTH_LOCAL_ROLES_0_PERMISSIONS_0_ACTIONS_0: view
-      AUTH_LOCAL_ROLES_0_PERMISSIONS_0_ACTIONS_1: edit
+      # 3. RBAC: LDAP group → UI permissions, defined in infrastructure/kafbat/rbac.yml
+      #    (admins = full access incl. topic create; viewers = read-only)
+      SPRING_CONFIG_ADDITIONAL_LOCATION: /etc/kafkaui/rbac.yml
+    volumes:
+      - ./infrastructure/kafbat/rbac.yml:/etc/kafkaui/rbac.yml:ro
     depends_on:
       kafka1: { condition: service_healthy }
+      ldap: { condition: service_healthy }
     networks: [txn-network]
 
 networks:
