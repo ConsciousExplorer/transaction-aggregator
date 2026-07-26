@@ -1,0 +1,57 @@
+# kafbat-ui RBAC: maps LDAP groups (infrastructure/ldap/users.ldif) to UI permissions.
+# admins — full control, including topic create/delete.
+# viewers — read-only: browse topics/messages/schemas, no create/edit/delete.
+rbac:
+  roles:
+    - name: "admins"
+      clusters: ["local"]
+      subjects:
+        - provider: ldap
+          type: group
+          value: "admins"
+      permissions:
+        - resource: applicationconfig
+          actions: all
+        - resource: clusterconfig
+          actions: all
+        - resource: topic
+          value: ".*"
+          actions: all
+        - resource: consumer
+          value: ".*"
+          actions: all
+        - resource: schema
+          value: ".*"
+          actions: all
+        - resource: connect
+          value: ".*"
+          actions: all
+        - resource: ksql
+          actions: all
+        - resource: acl
+          actions: all
+        - resource: audit
+          actions: all
+
+    - name: "viewers"
+      clusters: ["local"]
+      subjects:
+        - provider: ldap
+          type: group
+          value: "viewers"
+      permissions:
+        - resource: clusterconfig
+          actions: [view]
+        - resource: topic
+          value: ".*"
+          actions: [view, messages_read, analysis_view]
+        - resource: consumer
+          value: ".*"
+          actions: [view]
+        - resource: schema
+          value: ".*"
+          actions: [view]
+        - resource: acl
+          actions: [view]
+        - resource: audit
+          actions: [view]

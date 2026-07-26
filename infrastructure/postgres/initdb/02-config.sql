@@ -1,0 +1,10 @@
+\connect transaction_aggregator;
+
+CREATE SCHEMA IF NOT EXISTS partman AUTHORIZATION postgres;
+
+CREATE EXTENSION IF NOT EXISTS pg_partman SCHEMA partman;
+GRANT ALL ON SCHEMA partman to admin;
+GRANT ALL ON ALL TABLES IN SCHEMA partman TO admin;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA partman TO admin;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA partman TO admin;
+GRANT ALL ON ALL PROCEDURES IN SCHEMA partman TO admin;

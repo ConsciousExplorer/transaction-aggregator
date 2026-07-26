@@ -1,0 +1,20 @@
+Table transactions {
+    transaction_id uuid [pk]
+    user_id uuid
+    source text
+    source_id text
+    occured_at timestamp
+
+
+}
+
+Table transaction_categories {
+    transaction_id uuid [ref: > transactions.id]
+    category_id uuid [ref: > categories.id]
+}
+
+Table categories {
+    category_id uuid [pk]
+    name text
+
+}

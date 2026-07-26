@@ -1,0 +1,319 @@
+# Transaction Aggregation platform — docker compose
+#
+# Core services have NO profile: `docker compose up` must bring the whole system up.
+#
+# The profiles can be set in the .env file (COMPOSE_PROFILES=obs,ui,cache) or via CLI:
+#   docker compose --profile obs --profile ui up
+# obs, ui, cache — optional
+#
+# Broker topology:
+# DEV: ONE combined KRaft node locally (RF 1).
+# PROD: 3 KRaft nodes, RF 3, min.insync.replicas=2, SCRAM over TLS (MSK).
+
+services:
+  # ──────────────────────────────── Kafka ────────────────────────────────
+  kafka1:
+    image: apache/kafka:4.0.0
+    hostname: kafka1
+    container_name: kafka-01
+    ports:
+      - "29092:29092" # EXTERNAL (host clients, SASL)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:9093
+      # Listeners:
+      #   INTERNAL  9092 — inter-broker, PLAINTEXT (private network)
+      #   CONTROLLER 9093 — KRaft quorum
+      #   CLIENT    9094 — SASL/SCRAM for services INSIDE the compose network
+      #                    (the listener our apps actually use — mirrors MSK auth)
+      #   EXTERNAL 29092 — SASL/SCRAM for host tools, advertised as localhost
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,CLIENT://0.0.0.0:9094,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:9092,CLIENT://kafka1:9094,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,CLIENT:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_NAME_CLIENT_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
+      KAFKA_LISTENER_NAME_EXTERNAL_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/jaas/kafka_server_jaas.conf"
+
+      # Single node → RF 1 for internal topics
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # Governance: topics are created explicitly by kafka-init (12 partitions);
+      # a typo'd topic name must FAIL, not materialize a default-partitioned orphan.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+      - ./infrastructure/kafka/kafka_server_jaas.conf:/etc/kafka/jaas/kafka_server_jaas.conf:ro
+    healthcheck:
+      test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1
+      start_period: 30s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks: [txn-network]
+
+  # One-shot: SCRAM credentials (app-worker, app-generator, host-admin) + the five
+  # application topics (txn.{card,loan,transfer,airtime}.v1, txn.dlq.v1 — 12 partitions).
+  kafka-init:
+    image: apache/kafka:4.0.0
+    container_name: kafka-init
+    depends_on:
+      kafka1: { condition: service_healthy }
+    entrypoint: ["/bin/bash", "/infrastructure/kafka/init-kafka.sh"]
+    restart: "no"
+    volumes:
+      - ./infrastructure/kafka/:/infrastructure/kafka:ro
+    networks: [txn-network]
+
+  # ─────────────────────────── Schema Registry ───────────────────────────
+  # Replaces Redpanda's built-in SR after the broker swap (ADR-005/011).
+  # Both serdes (confluent-kafka, @platformatic/kafka) point here; the hermetic
+  # CI compat gate hits the same REST API.
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.0.0
+    container_name: schema-registry
+    depends_on:
+      kafka1: { condition: service_healthy }
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka1:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: curl -fs http://localhost:8081/subjects > /dev/null
+      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [txn-network]
+
+  # One-shot: strip generator annotations (arg.properties / avo-datagen keys),
+  # set subject compatibility BACKWARD, register /schemas/*.avsc (ADR-011).
+  # schemas-register:
+  #   image: python:3.12-alpine
+  #   container_name: schemas-register
+  #   depends_on:
+  #     schema-registry: { condition: service_healthy }
+  #   entrypoint: ["python", "/infrastructure/schemas/register.py"]
+  #   environment:
+  #     SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  #   restart: "no"
+  #   volumes:
+  #     - ./infrastructure/schemas/:/infrastructure/schemas:ro
+  #     - ./schemas/:/schemas:ro
+  #   networks: [txn-network]
+
+  # ────────────────────────────── Postgres ───────────────────────────────
+  # Custom build = postgres:18 base (pinned) + pg_cron + pg_stat_statements.
+  # initdb/ holds superuser bootstrap ONLY (CREATE EXTENSION ...); it runs solely
+  # on an EMPTY volume — all schema lives in Flyway (drift trap otherwise).
+  postgres:
+    build:
+      context: ./infrastructure/postgres
+      dockerfile: Dockerfile
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    command: >
+      postgres
+      -c shared_preload_libraries='pg_stat_statements,pg_cron'
+      -c pg_stat_statements.track=all
+      -c cron.database_name=postgres
+    volumes:
+      - ./infrastructure/postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U postgres -d postgres
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [txn-network]
+
+  # Versioned schema: V__ migrations + R__ seeds; also schedules the pg_cron
+  # partition-lifecycle job (create next month UTC bounds / drop >18 months).
+  # migrate:
+  #   image: flyway/flyway:11-alpine
+  #   container_name: flyway-migrate
+  #   depends_on:
+  #     postgres: { condition: service_healthy }
+  #   command: -connectRetries=30 migrate
+  #   environment:
+  #     FLYWAY_URL: jdbc:postgresql://postgres:5432/postgres
+  #     FLYWAY_USER: postgres
+  #     FLYWAY_PASSWORD: postgres
+  #   restart: "no"
+  #   volumes:
+  #     - ./db/migrations:/flyway/sql:ro
+  #   networks: [txn-network]
+
+  # ─────────────────────────── Applications ──────────────────────────────
+  # ingest-worker:
+  #   build: { context: ./apps/ingest-worker }
+  #   container_name: ingest-worker
+  #   depends_on:
+  #     migrate: { condition: service_completed_successfully }
+  #     schemas-register: { condition: service_completed_successfully }
+  #     kafka-init: { condition: service_completed_successfully }
+  #   environment:
+  #     KAFKA_BROKERS: kafka1:9094
+  #     KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+  #     KAFKA_SASL_USERNAME: app-worker
+  #     KAFKA_SASL_PASSWORD: app-worker-secret # dev only; .env in real use
+  #     SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  #     WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  #     OTEL_TRACES_SAMPLER: always_on
+  #   networks: [txn-network]
+
+  # api:
+  #   build: { context: ./apps/api }
+  #   container_name: api
+  #   depends_on:
+  #     migrate: { condition: service_completed_successfully }
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     READER_DSN: postgres://api_role:api@postgres:5432/postgres
+  #     JWT_SECRET: dev-secret-change-me
+  #     KAFKA_BROKERS: kafka1:9094 # admin stats (lag, DLQ depth)
+  #     KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+  #     KAFKA_SASL_USERNAME: app-worker
+  #     KAFKA_SASL_PASSWORD: app-worker-secret
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  #     OTEL_TRACES_SAMPLER: always_on
+  #   networks: [txn-network]
+
+  # gen-card: &generator
+  #   build: { context: ./apps/generator }
+  #   container_name: gen-card
+  #   depends_on:
+  #     kafka-init: { condition: service_completed_successfully }
+  #     schemas-register: { condition: service_completed_successfully }
+  #   environment: &generator-env
+  #     SOURCE: card
+  #     KAFKA_BROKERS: kafka1:9094
+  #     KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+  #     KAFKA_SASL_USERNAME: app-generator
+  #     KAFKA_SASL_PASSWORD: app-generator-secret
+  #     SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  #     RATE: "40"
+  #     SEED: "42"
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  #   networks: [txn-network]
+
+  # gen-loan:
+  #   <<: *generator
+  #   container_name: gen-loan
+  #   environment: { <<: *generator-env, SOURCE: loan }
+
+  # gen-transfer:
+  #   <<: *generator
+  #   container_name: gen-transfer
+  #   environment: { <<: *generator-env, SOURCE: transfer }
+
+  # gen-airtime:
+  #   <<: *generator
+  #   container_name: gen-airtime
+  #   environment: { <<: *generator-env, SOURCE: airtime }
+
+  # ─────────────────────── Optional: cache profile ───────────────────────
+  redis:
+    profiles: ["cache"]
+    image: redis:7.4-alpine
+    container_name: redis
+    networks: [txn-network]
+
+  # ──────────────────────── Optional: obs profile ────────────────────────
+  otel-collector:
+    profiles: ["obs"]
+    image: otel/opentelemetry-collector-contrib:0.116.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infrastructure/obs/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    networks: [txn-network]
+
+  tempo:
+    profiles: ["obs"]
+    image: grafana/tempo:2.6.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./infrastructure/obs/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks: [txn-network]
+
+  prometheus:
+    profiles: ["obs"]
+    image: prom/prometheus:v3.1.0
+    container_name: prometheus
+    volumes:
+      - ./infrastructure/obs/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+    networks: [txn-network]
+
+  grafana:
+    profiles: ["obs"]
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./infrastructure/obs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks: [txn-network]
+
+  # ──────────────────────── Optional: ui profile ─────────────────────────
+  kafbat-ui:
+    profiles: ["ui"]
+    image: kafbat/kafka-ui:v1.1.0
+    container_name: kafbat-ui
+    ports:
+      - "8080:8080"
+    environment:
+      #1. Define Kafka clusters for the UI to connect to
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+
+      # 2. Enable RBAC and Local Authentication
+      AUTH_TYPE: LOGIN_FORM
+      SPRING_SECURITY_USER_NAME: admin
+      SPRING_SECURITY_USER_PASSWORD: admin
+
+      # 3. Define Roles inline via Spring environment mapping
+      AUTH_LOCAL_ROLES_0_NAME: acl-manager
+      AUTH_LOCAL_ROLES_0_SUBJECTS_0_PROVIDER: LOCAL
+      AUTH_LOCAL_ROLES_0_SUBJECTS_0_TYPE: USER
+      AUTH_LOCAL_ROLES_0_SUBJECTS_0_VALUE: admin
+
+      # 4. Map Clusters and Permissions to the role
+      AUTH_LOCAL_ROLES_0_CLUSTERS_0: local
+      AUTH_LOCAL_ROLES_0_PERMISSIONS_0_RESOURCE: acl
+      AUTH_LOCAL_ROLES_0_PERMISSIONS_0_ACTIONS_0: view
+      AUTH_LOCAL_ROLES_0_PERMISSIONS_0_ACTIONS_1: edit
+    depends_on:
+      kafka1: { condition: service_healthy }
+    networks: [txn-network]
+
+networks:
+  txn-network:
+    driver: bridge
+
+volumes:
+  kafka1-data:
+  postgres-data:
+  tempo-data:
