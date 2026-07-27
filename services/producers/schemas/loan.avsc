@@ -1,0 +1,48 @@
+{
+  "type": "record",
+  "name": "LoanTransaction",
+  "namespace": "txn.raw.v1",
+  "doc": "Loan-book movement: disbursement to customer or customer repayment.",
+  "fields": [
+    { "name": "transactionId", "type": { "type": "string", "logicalType": "uuid" } },
+    { "name": "sourceType",    "type": "string", "arg.properties": { "options": ["loan"] } },
+    { "name": "customerId",    "type": { "type": "string", "logicalType": "uuid" }, "arg.properties": { "pool": 50 } },
+    { "name": "loanAccountId", "type": { "type": "string", "logicalType": "uuid" } },
+    { "name": "loanType",      "type": "string", "arg.properties": { "options": ["personal", "personal", "personal", "home", "vehicle", "credit-card"] } },
+    { "name": "operation",     "type": "string", "arg.properties": { "options": ["repayment", "repayment", "repayment", "repayment", "disbursement"] } },
+    {
+      "name": "amount",
+      "type": "long",
+      "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.",
+      "arg.properties": {
+        "rules": [
+          { "when": { "field": "loanType", "equals": "personal" },    "then": { "range": { "min": 50000,  "max": 1500000 } } },
+          { "when": { "field": "loanType", "equals": "home" },        "then": { "range": { "min": 500000, "max": 3500000 } } },
+          { "when": { "field": "loanType", "equals": "vehicle" },     "then": { "range": { "min": 200000, "max": 1200000 } } },
+          { "when": { "field": "loanType", "equals": "credit-card" }, "then": { "range": { "min": 20000,  "max": 800000 } } }
+        ]
+      }
+    },
+    { "name": "principalAmount", "type": "long",   "doc": "Principal in ZAC (South African cents).", "arg.properties": { "range": { "min": 10000, "max": 2500000 } } },
+    { "name": "interestAmount",  "type": "long",   "doc": "Interest in ZAC (South African cents).", "arg.properties": { "range": { "min": 5000,  "max": 1000000 } } },
+    { "name": "currency",        "type": "string", "arg.properties": { "options": ["ZAC"] } },
+    {
+      "name": "transactionType",
+      "type": "string",
+      "arg.properties": {
+        "rules": [
+          { "when": { "field": "operation", "equals": "disbursement" }, "then": { "options": ["credit"] } },
+          { "when": { "field": "operation", "equals": "repayment" },    "then": { "options": ["debit"] } }
+        ]
+      }
+    },
+    { "name": "description",  "type": "string", "arg.properties": { "template": "{loanType} loan {operation}" } },
+    {
+      "name": "status",
+      "type": "string",
+      "doc": "Higher PENDING ratio — loan disbursements settle slower.",
+      "arg.properties": { "options": ["COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "PENDING", "PENDING", "PENDING", "REVERSED", "FAILED"] }
+    },
+    { "name": "timestamp",    "type": { "type": "long", "logicalType": "timestamp-millis" }, "arg.properties": { "range": { "min": "-30d", "max": "now" } } }
+  ]
+}

@@ -1,0 +1,268 @@
+{
+  "type": "record",
+  "name": "CardTransaction",
+  "namespace": "txn.raw.v1",
+  "doc": "Card-present / card-not-present debit/credit card purchase.",
+  "fields": [
+    {
+      "name": "transactionId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "sourceType",
+      "type": "string",
+      "arg.properties": { "options": ["card"] }
+    },
+    {
+      "name": "customerId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "arg.properties": { "pool": 50 }
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "doc": "Generation hint only — consumer derives category from mccCode/merchantName. Consumer Zod schema should strip this field.",
+      "arg.properties": {
+        "options": [
+          "GROCERIES",
+          "GROCERIES",
+          "GROCERIES",
+          "DINING",
+          "DINING",
+          "TRANSPORT",
+          "RETAIL",
+          "RETAIL",
+          "ENTERTAINMENT",
+          "HEALTHCARE"
+        ]
+      }
+    },
+    {
+      "name": "merchantName",
+      "type": "string",
+      "arg.properties": {
+        "rules": [
+          {
+            "when": { "field": "category", "equals": "GROCERIES" },
+            "then": {
+              "options": [
+                "Pick n Pay",
+                "Checkers",
+                "Woolworths Food",
+                "Spar",
+                "Shoprite"
+              ]
+            }
+          },
+          {
+            "when": { "field": "category", "equals": "DINING" },
+            "then": {
+              "options": [
+                "Nando's",
+                "Spur",
+                "KFC",
+                "McDonald's",
+                "Ocean Basket",
+                "Steers"
+              ]
+            }
+          },
+          {
+            "when": { "field": "category", "equals": "TRANSPORT" },
+            "then": {
+              "options": ["Shell", "Engen", "BP", "Caltex", "Uber SA", "Bolt"]
+            }
+          },
+          {
+            "when": { "field": "category", "equals": "RETAIL" },
+            "then": {
+              "options": [
+                "Mr Price",
+                "Edgars",
+                "PEP",
+                "Ackermans",
+                "Truworths",
+                "Woolworths"
+              ]
+            }
+          },
+          {
+            "when": { "field": "category", "equals": "ENTERTAINMENT" },
+            "then": {
+              "options": [
+                "Ster-Kinekor",
+                "Nu Metro",
+                "Takealot",
+                "Netflix SA",
+                "Spotify"
+              ]
+            }
+          },
+          {
+            "when": { "field": "category", "equals": "HEALTHCARE" },
+            "then": {
+              "options": [
+                "Dis-Chem",
+                "Clicks Pharmacy",
+                "Netcare",
+                "Mediclinic"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "mccCode",
+      "type": "string",
+      "arg.properties": {
+        "rules": [
+          {
+            "when": { "field": "category", "equals": "GROCERIES" },
+            "then": { "options": ["5411", "5422", "5451"] }
+          },
+          {
+            "when": { "field": "category", "equals": "DINING" },
+            "then": { "options": ["5812", "5813", "5814"] }
+          },
+          {
+            "when": { "field": "category", "equals": "TRANSPORT" },
+            "then": { "options": ["5541", "5542", "4121"] }
+          },
+          {
+            "when": { "field": "category", "equals": "RETAIL" },
+            "then": { "options": ["5311", "5611", "5651"] }
+          },
+          {
+            "when": { "field": "category", "equals": "ENTERTAINMENT" },
+            "then": { "options": ["5815", "7832", "7841"] }
+          },
+          {
+            "when": { "field": "category", "equals": "HEALTHCARE" },
+            "then": { "options": ["5912", "8011", "8021"] }
+          }
+        ]
+      }
+    },
+    {
+      "name": "amount",
+      "type": "long",
+      "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.",
+      "arg.properties": {
+        "rules": [
+          {
+            "when": { "field": "category", "equals": "GROCERIES" },
+            "then": { "range": { "min": 3500, "max": 450000 } }
+          },
+          {
+            "when": { "field": "category", "equals": "DINING" },
+            "then": { "range": { "min": 2500, "max": 120000 } }
+          },
+          {
+            "when": { "field": "category", "equals": "TRANSPORT" },
+            "then": { "range": { "min": 1500, "max": 250000 } }
+          },
+          {
+            "when": { "field": "category", "equals": "RETAIL" },
+            "then": { "range": { "min": 2000, "max": 800000 } }
+          },
+          {
+            "when": { "field": "category", "equals": "ENTERTAINMENT" },
+            "then": { "range": { "min": 2900, "max": 150000 } }
+          },
+          {
+            "when": { "field": "category", "equals": "HEALTHCARE" },
+            "then": { "range": { "min": 8000, "max": 1500000 } }
+          }
+        ]
+      }
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "arg.properties": { "options": ["ZAC"] }
+    },
+    {
+      "name": "transactionType",
+      "type": "string",
+      "arg.properties": {
+        "options": ["debit", "debit", "debit", "debit", "debit", "credit"]
+      }
+    },
+    {
+      "name": "cardLast4",
+      "type": "string",
+      "arg.properties": { "faker": "numerify", "args": { "text": "####" } }
+    },
+    {
+      "name": "cardNetwork",
+      "type": "string",
+      "arg.properties": {
+        "options": ["visa", "visa", "mastercard", "mastercard", "amex"]
+      }
+    },
+    {
+      "name": "posEntryMode",
+      "type": "string",
+      "arg.properties": {
+        "options": [
+          "chip",
+          "chip",
+          "contactless",
+          "contactless",
+          "ecom",
+          "swipe"
+        ]
+      }
+    },
+    {
+      "name": "authCode",
+      "type": "string",
+      "arg.properties": { "faker": "numerify", "args": { "text": "######" } }
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "arg.properties": {
+        "rules": [
+          {
+            "when": { "field": "transactionType", "equals": "credit" },
+            "then": { "template": "Refund from {merchantName}" }
+          },
+          {
+            "when": { "field": "transactionType", "equals": "debit" },
+            "then": { "template": "Purchase at {merchantName}" }
+          }
+        ]
+      }
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "arg.properties": {
+        "options": [
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "PENDING",
+          "PENDING",
+          "PENDING",
+          "REVERSED",
+          "REVERSED",
+          "FAILED"
+        ]
+      }
+    },
+    {
+      "name": "timestamp",
+      "type": { "type": "long", "logicalType": "timestamp-millis" },
+      "arg.properties": { "range": { "min": "-30d", "max": "now" } }
+    }
+  ]
+}
