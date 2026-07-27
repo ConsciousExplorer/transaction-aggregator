@@ -172,6 +172,31 @@ services:
   #   networks: [txn-network]
 
   # ─────────────────────────── Applications ──────────────────────────────
+  # One-shot: generates GENERATOR_COUNT card transactions (Avro, schema from the
+  # registry) onto KAFKA_TOPIC via the in-network CLIENT listener, then exits.
+  # Re-run alone with: docker compose up --no-deps producer-card
+  producer-card:
+    build: { context: ./services/producers }
+    container_name: producer-card
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      schema-registry: { condition: service_healthy }
+    restart: "no"
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.card
+      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SCHEMA_REGISTRY_SCHEMA_NAME: transactions.card.v1
+      GENERATOR_SCHEMA_PATH: ./schemas/card.avsc
+      GENERATOR_COUNT: "500"
+      GENERATOR_SEED: "42"
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
   # ingest-worker:
   #   build: { context: ./apps/ingest-worker }
   #   container_name: ingest-worker

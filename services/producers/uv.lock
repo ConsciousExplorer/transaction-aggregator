@@ -804,7 +804,7 @@ name = "producers"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "avro-datagen", extra = ["ui"] },
+    { name = "avro-datagen" },
     { name = "confluent-kafka", extra = ["avro"] },
     { name = "dotenv" },
     { name = "pydantic" },
@@ -813,6 +813,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "avro-datagen", extra = ["ui"] },
     { name = "poethepoet" },
     { name = "pyright" },
     { name = "ruff" },
@@ -820,7 +821,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "avro-datagen", extras = ["ui"], specifier = ">=0.3.2" },
+    { name = "avro-datagen", specifier = ">=0.3.2" },
     { name = "confluent-kafka", extras = ["avro"], specifier = ">=2.15.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "pydantic", specifier = ">=2.13.4" },
@@ -829,6 +830,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "avro-datagen", extras = ["ui"], specifier = ">=0.3.2" },
     { name = "poethepoet", specifier = ">=0.48.0" },
     { name = "pyright", specifier = ">=1.1.411" },
     { name = "ruff", specifier = ">=0.16.0" },
