@@ -18,11 +18,11 @@ echo "Kafka is ready."
 echo "Creating SCRAM credentials..."
 
 /opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:9092 \
-  --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=producer-secret]' \
+  --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=producer-password]' \
   --entity-type users --entity-name producer
 
 /opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:9092 \
-  --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=consumer-secret]' \
+  --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=consumer-password]' \
   --entity-type users --entity-name consumer
 
 /opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:9092 \
