@@ -6,26 +6,26 @@
 set -e
 
 echo "Waiting for Kafka to be ready..."
-until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka1:9092 > /dev/null 2>&1; do
+until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka1:29092 > /dev/null 2>&1; do
   sleep 2
 done
 echo "Kafka is ready."
 
 # --- SCRAM-SHA-512 credentials ---
 # These users authenticate on the EXTERNAL (SASL_PLAINTEXT) listener.
-# Services running on the host use these credentials to connect to localhost:29092.
+# Services running on the host use these credentials to connect to localhost:9092.
 
 echo "Creating SCRAM credentials..."
 
-/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:9092 \
+/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:29092 \
   --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=producer-password]' \
   --entity-type users --entity-name producer
 
-/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:9092 \
+/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:29092 \
   --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=consumer-password]' \
   --entity-type users --entity-name consumer
 
-/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:9092 \
+/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka1:29092 \
   --alter --add-config 'SCRAM-SHA-512=[iterations=8192,password=admin]' \
   --entity-type users --entity-name admin
 
@@ -40,28 +40,28 @@ echo "SCRAM credentials created: producer, consumer, admin"
 echo "Applying ACLs..."
 
 # producer: write-only on transaction topics (prefix covers transactions + transactions.dlq)
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --allow-principal User:producer \
   --operation Write --operation Describe \
   --topic transactions --resource-pattern-type prefixed
 
 # Belt-and-braces: explicit DENY on topic creation for producer. Default-deny
 # already blocks it, but a DENY ACL outranks any ALLOW someone adds later.
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --deny-principal User:producer \
   --operation Create --topic '*'
 
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --deny-principal User:producer \
   --operation Create --cluster
 
 # consumer: read-only on transaction topics, any consumer group
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --allow-principal User:consumer \
   --operation Read --operation Describe \
   --topic transactions --resource-pattern-type prefixed
 
-/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:9092 --add \
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --allow-principal User:consumer \
   --operation Read --group '*'
 
@@ -73,7 +73,7 @@ echo "ACLs applied."
 
 echo "Creating topics..."
 
-/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:9092 \
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
   --topic transactions \
   --partitions 12 \
@@ -81,7 +81,7 @@ echo "Creating topics..."
   --config retention.ms=604800000 \
   --config compression.type=producer
 
-/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:9092 \
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
   --topic transactions.dlq \
   --partitions 3 \
