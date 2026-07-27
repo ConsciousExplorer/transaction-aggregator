@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "avro-datagen[ui]>=0.3.2",
-    "confluent-kafka>=2.15.0",
+    "confluent-kafka[avro]>=2.15.0",
     "dotenv>=0.9.9",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",

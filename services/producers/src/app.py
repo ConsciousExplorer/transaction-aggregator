@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from collections.abc import Sequence
@@ -6,6 +5,12 @@ from typing import Any
 
 from avro_datagen import generate
 from confluent_kafka import KafkaException, Producer
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroSerializer
+from confluent_kafka.serialization import (
+    MessageField,
+    SerializationContext,
+)
 
 from config import get_config
 
@@ -21,10 +26,12 @@ def kafka_delivery_callback(err, msg):
     else:
         key = msg.key().decode("utf-8") if msg.key() else None
         logger.debug(
-            "Produced event to topic %s: key=%s value=%s",
+            "Delivered to %s [%d] @ offset %d: key=%s (%d bytes)",
             msg.topic(),
+            msg.partition(),
+            msg.offset(),
             key,
-            msg.value().decode("utf-8"),
+            len(msg.value()),
         )
 
 
@@ -47,7 +54,30 @@ def main():
 
     logger.info("starting producer for topic %s", config.kafka.topic)
 
-    producer = Producer(config.kafka.to_producer_config())
+    sr = SchemaRegistryClient({"url": config.schemaRegistry.url})
+    registered_schema = sr.get_latest_version(config.schemaRegistry.schema_name)
+
+    # pyright can't see AvroSerializer's real signature (__init__ = __init_impl alias)
+    avro_serializer = AvroSerializer(
+        sr,  # pyright: ignore[reportCallIssue]
+        schema_str=registered_schema.schema.schema_str,  # the REGISTRY's text, deliberately
+        conf={
+            "auto.register.schemas": False,
+            "use.latest.version": False,
+            # Look up the schema under the subject named in .env instead of the
+            # default topic-name strategy ("<topic>-value", which isn't registered).
+            "subject.name.strategy": lambda ctx, record_name: (
+                config.schemaRegistry.schema_name
+            ),
+        },
+    )
+    ser_ctx = SerializationContext(config.kafka.topic, MessageField.VALUE)
+
+    producer = Producer(
+        {
+            **config.kafka.to_producer_config(),
+        }
+    )
 
     produced = 0
     errors = 0
@@ -60,7 +90,7 @@ def main():
             count=config.generator.count,
             seed=config.generator.seed,
         ):
-            value = json.dumps(record).encode("utf-8")
+            value = avro_serializer(record, ser_ctx)
             key = extract_key(record, config.kafka.key_fields)
 
             try:
