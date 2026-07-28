@@ -1,33 +1,118 @@
 {
   "type": "record",
   "name": "EftTransaction",
-  "namespace": "txn.raw.v1",
+  "namespace": "transactions",
   "doc": "Electronic Funds Transfer — standard inter-bank credit push.",
   "fields": [
-    { "name": "transactionId", "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "sourceType",    "type": "string", "arg.properties": { "options": ["eft"] } },
-    { "name": "customerId",    "type": { "type": "string", "logicalType": "uuid" }, "arg.properties": { "pool": 50 } },
-    { "name": "beneficiaryName",          "type": "string", "arg.properties": { "faker": "name" } },
-    { "name": "beneficiaryAccountNumber", "type": "string", "arg.properties": { "faker": "numerify", "args": { "text": "##########" } } },
+    {
+      "name": "transactionId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "sourceType",
+      "type": "string",
+      "arg.properties": { "options": ["eft"] }
+    },
+    {
+      "name": "customerId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "arg.properties": { "pool": 50 }
+    },
+    {
+      "name": "beneficiaryName",
+      "type": "string",
+      "arg.properties": { "faker": "name" }
+    },
+    {
+      "name": "beneficiaryAccountNumber",
+      "type": "string",
+      "arg.properties": {
+        "faker": "numerify",
+        "args": { "text": "##########" }
+      }
+    },
     {
       "name": "beneficiaryBank",
       "type": "string",
       "arg.properties": {
-        "options": ["ABSA", "Standard Bank", "FNB", "Nedbank", "Capitec", "Investec", "TymeBank", "African Bank", "Discovery Bank"]
+        "options": [
+          "ABSA",
+          "Standard Bank",
+          "FNB",
+          "Nedbank",
+          "Capitec",
+          "Investec",
+          "TymeBank",
+          "African Bank",
+          "Discovery Bank"
+        ]
       }
     },
-    { "name": "branchCode",   "type": "string", "arg.properties": { "faker": "numerify", "args": { "text": "######" } } },
-    { "name": "reference",    "type": "string", "arg.properties": { "faker": "sentence", "args": { "nb_words": 3 } } },
-    { "name": "amount",       "type": "long",   "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.", "arg.properties": { "range": { "min": 10000, "max": 5000000 } } },
-    { "name": "currency",     "type": "string", "arg.properties": { "options": ["ZAC"] } },
-    { "name": "transactionType", "type": "string", "arg.properties": { "options": ["debit"] } },
-    { "name": "clearingType", "type": "string", "arg.properties": { "options": ["standard", "standard", "standard", "same-day"] } },
-    { "name": "description",  "type": "string", "arg.properties": { "template": "EFT to {beneficiaryName}" } },
+    {
+      "name": "branchCode",
+      "type": "string",
+      "arg.properties": { "faker": "numerify", "args": { "text": "######" } }
+    },
+    {
+      "name": "reference",
+      "type": "string",
+      "arg.properties": { "faker": "sentence", "args": { "nb_words": 3 } }
+    },
+    {
+      "name": "amount",
+      "type": "long",
+      "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.",
+      "arg.properties": { "range": { "min": 10000, "max": 5000000 } }
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "arg.properties": { "options": ["ZAC"] }
+    },
+    {
+      "name": "transactionType",
+      "type": "string",
+      "arg.properties": { "options": ["debit"] }
+    },
+    {
+      "name": "clearingType",
+      "type": "string",
+      "arg.properties": {
+        "options": ["standard", "standard", "standard", "same-day"]
+      }
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "arg.properties": { "template": "EFT to {beneficiaryName}" }
+    },
     {
       "name": "status",
       "type": "string",
-      "arg.properties": { "options": ["COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "PENDING", "PENDING", "PENDING", "REVERSED", "REVERSED", "FAILED"] }
+      "arg.properties": {
+        "options": [
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "PENDING",
+          "PENDING",
+          "PENDING",
+          "REVERSED",
+          "REVERSED",
+          "FAILED"
+        ]
+      }
     },
-    { "name": "timestamp",    "type": { "type": "long", "logicalType": "timestamp-millis" }, "arg.properties": { "range": { "min": "-30d", "max": "now" } } }
+    {
+      "name": "timestamp",
+      "type": { "type": "long", "logicalType": "timestamp-millis" },
+      "arg.properties": { "range": { "min": "-30d", "max": "now" } }
+    }
   ]
 }

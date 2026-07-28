@@ -1,25 +1,95 @@
 {
   "type": "record",
   "name": "InternalTransferTransaction",
-  "namespace": "txn.raw.v1",
+  "namespace": "transactions",
   "doc": "Movement of funds between two accounts held by the same customer.",
   "fields": [
-    { "name": "transactionId",  "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "sourceType",     "type": "string", "arg.properties": { "options": ["internalTransfer"] } },
-    { "name": "customerId",     "type": { "type": "string", "logicalType": "uuid" }, "arg.properties": { "pool": 50 } },
-    { "name": "fromAccountId",  "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "toAccountId",    "type": { "type": "string", "logicalType": "uuid" } },
-    { "name": "fromAccountType","type": "string", "arg.properties": { "options": ["current", "current", "savings", "credit", "money-market"] } },
-    { "name": "toAccountType",  "type": "string", "arg.properties": { "options": ["savings", "savings", "current", "credit", "money-market"] } },
-    { "name": "amount",         "type": "long",   "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.", "arg.properties": { "range": { "min": 5000, "max": 2500000 } } },
-    { "name": "currency",       "type": "string", "arg.properties": { "options": ["ZAC"] } },
-    { "name": "transactionType","type": "string", "arg.properties": { "options": ["debit"] } },
-    { "name": "description",    "type": "string", "arg.properties": { "template": "Transfer from {fromAccountType} to {toAccountType}" } },
+    {
+      "name": "transactionId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "sourceType",
+      "type": "string",
+      "arg.properties": { "options": ["internalTransfer"] }
+    },
+    {
+      "name": "customerId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "arg.properties": { "pool": 50 }
+    },
+    {
+      "name": "fromAccountId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "toAccountId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "fromAccountType",
+      "type": "string",
+      "arg.properties": {
+        "options": ["current", "current", "savings", "credit", "money-market"]
+      }
+    },
+    {
+      "name": "toAccountType",
+      "type": "string",
+      "arg.properties": {
+        "options": ["savings", "savings", "current", "credit", "money-market"]
+      }
+    },
+    {
+      "name": "amount",
+      "type": "long",
+      "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.",
+      "arg.properties": { "range": { "min": 5000, "max": 2500000 } }
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "arg.properties": { "options": ["ZAC"] }
+    },
+    {
+      "name": "transactionType",
+      "type": "string",
+      "arg.properties": { "options": ["debit"] }
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "arg.properties": {
+        "template": "Transfer from {fromAccountType} to {toAccountType}"
+      }
+    },
     {
       "name": "status",
       "type": "string",
-      "arg.properties": { "options": ["COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "COMPLETED", "PENDING", "PENDING", "PENDING", "REVERSED", "REVERSED", "FAILED"] }
+      "arg.properties": {
+        "options": [
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "PENDING",
+          "PENDING",
+          "PENDING",
+          "REVERSED",
+          "REVERSED",
+          "FAILED"
+        ]
+      }
     },
-    { "name": "timestamp",      "type": { "type": "long", "logicalType": "timestamp-millis" }, "arg.properties": { "range": { "min": "-30d", "max": "now" } } }
+    {
+      "name": "timestamp",
+      "type": { "type": "long", "logicalType": "timestamp-millis" },
+      "arg.properties": { "range": { "min": "-30d", "max": "now" } }
+    }
   ]
 }
