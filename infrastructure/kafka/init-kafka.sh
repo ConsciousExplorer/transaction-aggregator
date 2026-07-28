@@ -123,7 +123,7 @@ echo "Creating topics..."
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
-  --topic transactions.card.dlq \
+  --topic transactions.debit-order.dlq \
   --partitions 3 \
   --replication-factor 1 \
   --config retention.ms=2592000000 \

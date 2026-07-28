@@ -107,21 +107,20 @@ services:
       retries: 5
     networks: [txn-network]
 
-  # One-shot: strip generator annotations (arg.properties / avo-datagen keys),
-  # set subject compatibility BACKWARD, register /schemas/*.avsc (ADR-011).
-  # schemas-register:
-  #   image: python:3.12-alpine
-  #   container_name: schemas-register
-  #   depends_on:
-  #     schema-registry: { condition: service_healthy }
-  #   entrypoint: ["python", "/infrastructure/schemas/register.py"]
-  #   environment:
-  #     SCHEMA_REGISTRY_URL: http://schema-registry:8081
-  #   restart: "no"
-  #   volumes:
-  #     - ./infrastructure/schemas/:/infrastructure/schemas:ro
-  #     - ./schemas/:/schemas:ro
-  #   networks: [txn-network]
+  # One-shot: strip generator annotations (arg.properties / avro-datagen keys),
+  # set subject compatibility BACKWARD, register the producers' *.avsc under
+  # TopicNameStrategy subjects (<topic>-value) — ADR-011.
+  schemas-register:
+    build: { context: ./infrastructure/schemas }
+    container_name: schemas-register
+    depends_on:
+      schema-registry: { condition: service_healthy }
+    environment:
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    restart: "no"
+    volumes:
+      - ./services/producers/schemas/:/schemas:ro
+    networks: [txn-network]
 
   # ────────────────────────────── Postgres ───────────────────────────────
   # Custom build = postgres:18 base (pinned) + pg_cron + pg_stat_statements.
@@ -180,7 +179,9 @@ services:
     container_name: producer-card
     depends_on:
       kafka-init: { condition: service_completed_successfully }
-      schema-registry: { condition: service_healthy }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
     restart: "no"
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
