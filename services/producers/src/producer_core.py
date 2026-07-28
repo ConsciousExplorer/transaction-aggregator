@@ -128,7 +128,9 @@ def produce_records(
             value = serializer(record, serializer_context)
             key = extract_key(record, key_fields)
 
-            headers = {**(static_headers or {}), "x-correlation-id": str(uuid.uuid4())}
+            # We are not using UUIDv7, we are not inserting into postgres that will do page splits.
+            # This UUID will only be used for tracing.
+            headers = {**(static_headers or {}), "x-correlation-id": str(uuid.uuid4())}  
 
             try:
                 producer.produce(
