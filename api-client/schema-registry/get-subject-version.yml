@@ -1,0 +1,22 @@
+info:
+  name: get-subject-version
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{schema-registry}}/subjects/:subject-name/versions/:version"
+  params:
+    - name: version
+      value: "1"
+      type: path
+    - name: subject-name
+      value: transactions.card-value
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
