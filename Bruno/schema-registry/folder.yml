@@ -1,0 +1,7 @@
+info:
+  name: schema-registry
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
