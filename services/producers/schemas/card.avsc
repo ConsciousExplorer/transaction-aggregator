@@ -2,6 +2,7 @@
   "type": "record",
   "name": "CardTransaction",
   "namespace": "txn.raw.v1",
+  "partitionKey": "customerId",
   "doc": "Card-present / card-not-present debit/credit card purchase.",
   "fields": [
     {

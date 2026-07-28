@@ -28,7 +28,7 @@ class GeneratorSettings(BaseSettings):
     seed: int = Field(default=42, validation_alias="GENERATOR_SEED")
 
 
-class schemaRegistrySettings(BaseSettings):
+class SchemaRegistrySettings(BaseSettings):
     """initialises the schema registry settings from the environment variables on startup."""
 
     model_config = SettingsConfigDict(
@@ -37,10 +37,9 @@ class schemaRegistrySettings(BaseSettings):
 
     # Required environment variables
     url: str = Field(validation_alias="SCHEMA_REGISTRY_URL")
-    schema_name: str = Field(validation_alias="SCHEMA_REGISTRY_SCHEMA_NAME")
 
 
-class kafkaSettings(BaseSettings):
+class KafkaSettings(BaseSettings):
     """initialises the kafka settings from the environment variables on startup."""
 
     model_config = SettingsConfigDict(
@@ -104,8 +103,8 @@ class AppConfig(BaseModel):
     """initialises the app settings from the environment variables on startup."""
 
     app: AppSettings
-    kafka: kafkaSettings
-    schemaRegistry: schemaRegistrySettings
+    kafka: KafkaSettings
+    schemaRegistry: SchemaRegistrySettings
     generator: GeneratorSettings
 
 
@@ -113,7 +112,7 @@ def get_config() -> AppConfig:
     """Returns the app settings from the environment variables"""
     return AppConfig(
         app=AppSettings(),
-        kafka=kafkaSettings(),  # pyright: ignore[reportCallIssue]
-        schemaRegistry=schemaRegistrySettings(),  # pyright: ignore[reportCallIssue]
+        kafka=KafkaSettings(),  # pyright: ignore[reportCallIssue]
+        schemaRegistry=SchemaRegistrySettings(),  # pyright: ignore[reportCallIssue]
         generator=GeneratorSettings(),
     )

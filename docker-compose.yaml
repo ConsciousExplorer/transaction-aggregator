@@ -190,7 +190,6 @@ services:
       KAFKA_TOPIC: transactions.card
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      SCHEMA_REGISTRY_SCHEMA_NAME: transactions.card.v1
       GENERATOR_SCHEMA_PATH: ./schemas/card.avsc
       GENERATOR_COUNT: "500"
       GENERATOR_SEED: "42"
