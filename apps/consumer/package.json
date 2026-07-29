@@ -24,6 +24,8 @@
 	},
 	"dependencies": {
 		"@platformatic/kafka": "^2.8.0",
+		"@types/pg": "^8.20.0",
+		"pg": "^8.22.0",
 		"zod": "^4.4.3"
 	}
 }
