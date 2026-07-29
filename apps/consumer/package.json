@@ -1,0 +1,29 @@
+{
+	"name": "consumer",
+	"version": "1.0.0",
+	"description": "A consumer that is responsible for categorizing transactions and persising them to postgres",
+	"license": "ISC",
+	"author": "Edwin Stoltz",
+	"type": "module",
+	"main": "src/app.ts",
+	"scripts": {
+		"check-circular-deps": "npx madge --circular src/",
+		"start": "node src/app.ts",
+		"test": "node --test src/*.test.ts",
+		"lint": "npx @biomejs/biome check --write src/",
+		"format": "npx @biomejs/biome format src/",
+		"fmc": "npm run lint && npm run format"
+	},
+	"imports": {
+		"#src/*": "./src/*",
+		"#types": "./src/types/*"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.6",
+		"@types/node": "^24.11.0"
+	},
+	"dependencies": {
+		"@platformatic/kafka": "^2.8.0",
+		"zod": "^4.4.3"
+	}
+}
