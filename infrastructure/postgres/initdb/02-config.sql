@@ -1,4 +1,4 @@
-\connect transaction_aggregator;
+\connect txn_agg;
 
 CREATE SCHEMA IF NOT EXISTS partman AUTHORIZATION postgres;
 

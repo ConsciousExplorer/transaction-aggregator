@@ -10,8 +10,14 @@ Start all the services
 docker compose up
 ```
 
-Start an individual producer
+# Start an individual producer
 
 ```
 docker compose up --no-deps producer-card
+```
+
+# Get a shell inside flyway
+
+```
+docker compose run --rm --entrypoint sh migrate
 ```

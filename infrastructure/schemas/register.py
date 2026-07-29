@@ -64,6 +64,25 @@ def wait_for_registry(deadline_s: int = 60) -> None:
             time.sleep(2)
 
 
+def request_retrying(
+    method: str, path: str, payload: dict | None = None, deadline_s: int = 60
+) -> Any:
+    """Adding a retry mechanism if schema registry start up too slow"""
+    deadline = time.monotonic() + deadline_s
+    while True:
+        try:
+            return request(method, path, payload)
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500 or time.monotonic() >= deadline:
+                raise
+            print(f"registry not ready ({exc.code} on {path}), retrying...", flush=True)
+        except OSError as exc:
+            if time.monotonic() >= deadline:
+                sys.exit(f"schema registry unreachable after {deadline_s}s: {exc}")
+            print(f"registry connection failed ({exc}), retrying...", flush=True)
+        time.sleep(2)
+
+
 def main() -> None:
     files = sorted(SCHEMAS_DIR.glob("*.avsc"))
     if not files:

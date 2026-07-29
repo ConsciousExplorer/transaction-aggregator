@@ -101,10 +101,13 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
     healthcheck:
       test: curl -fs http://localhost:8081/subjects > /dev/null
-      start_period: 20s
+      # SR is a JVM booting alongside Kafka's JVM; cold starts can exceed a
+      # tight window, and an "unhealthy" verdict aborts every dependent
+      # (schemas-register → producers). Failures during start_period are free.
+      start_period: 60s
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
     networks: [txn-network]
 
   # One-shot: strip generator annotations (arg.properties / avro-datagen keys),
@@ -119,7 +122,7 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
     restart: "no"
     volumes:
-      - ./services/producers/schemas/:/schemas:ro
+      - ./apps/producers/schemas/:/schemas:ro
     networks: [txn-network]
 
   # ────────────────────────────── Postgres ───────────────────────────────
@@ -144,7 +147,7 @@ services:
       -c cron.database_name=postgres
     volumes:
       - ./infrastructure/postgres/initdb:/docker-entrypoint-initdb.d:ro
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: pg_isready -U postgres -d postgres
       start_period: 10s
@@ -155,27 +158,27 @@ services:
 
   # Versioned schema: V__ migrations + R__ seeds; also schedules the pg_cron
   # partition-lifecycle job (create next month UTC bounds / drop >18 months).
-  # migrate:
-  #   image: flyway/flyway:11-alpine
-  #   container_name: flyway-migrate
-  #   depends_on:
-  #     postgres: { condition: service_healthy }
-  #   command: -connectRetries=30 migrate
-  #   environment:
-  #     FLYWAY_URL: jdbc:postgresql://postgres:5432/postgres
-  #     FLYWAY_USER: postgres
-  #     FLYWAY_PASSWORD: postgres
-  #   restart: "no"
-  #   volumes:
-  #     - ./db/migrations:/flyway/sql:ro
-  #   networks: [txn-network]
+  migrate:
+    image: flyway/flyway:11-alpine
+    container_name: flyway-migrate
+    depends_on:
+      postgres: { condition: service_healthy }
+    command: -connectRetries=30 migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/txn_agg
+      FLYWAY_USER: admin
+      FLYWAY_PASSWORD: admin
+    restart: "no"
+    volumes:
+      - ./db/migrations:/flyway/sql:ro
+    networks: [txn-network]
 
   # ─────────────────────────── Applications ──────────────────────────────
   # One-shot: generates GENERATOR_COUNT card transactions (Avro, schema from the
   # registry) onto KAFKA_TOPIC via the in-network CLIENT listener, then exits.
   # Re-run alone with: docker compose up --no-deps producer-card
   producer-card:
-    build: { context: ./services/producers }
+    build: { context: ./apps/producers }
     container_name: producer-card
     depends_on:
       kafka-init: { condition: service_completed_successfully }
