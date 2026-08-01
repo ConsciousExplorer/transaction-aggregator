@@ -343,7 +343,7 @@ services:
 
   kafbat-ui:
     profiles: ["ui"]
-    image: kafbat/kafka-ui:v1.1.0
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
     container_name: kafbat-ui
     ports:
       - "8080:8080"
