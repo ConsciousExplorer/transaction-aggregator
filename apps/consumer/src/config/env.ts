@@ -7,5 +7,5 @@ const EnvSchema = z.object({
 
 	DATABASE_URL: z.url(),
 
-	LOG_,
+	LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info")
 });

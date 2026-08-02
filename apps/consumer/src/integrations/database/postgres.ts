@@ -6,7 +6,7 @@ export async function createPool(config: PoolConfig): Promise<Pool> {
 		max: 20,
 		idleTimeoutMillis: 30_000,
 		connectionTimeoutMillis: 10_000,
-		...config,
+		...config
 	});
 
 	// Ensure that a connection is established and we can connect

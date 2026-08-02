@@ -115,6 +115,7 @@ services:
   # TopicNameStrategy subjects (<topic>-value) — ADR-011.
   schemas-register:
     build: { context: ./infrastructure/schemas }
+    pull_policy: build
     container_name: schemas-register
     depends_on:
       schema-registry: { condition: service_healthy }
@@ -133,6 +134,7 @@ services:
     build:
       context: ./infrastructure/postgres
       dockerfile: Dockerfile
+    pull_policy: build
     container_name: postgres
     ports:
       - "5432:5432"
@@ -179,6 +181,9 @@ services:
   # Re-run alone with: docker compose up --no-deps producer-card
   producer-card:
     build: { context: ./apps/producers }
+    # Rebuild on every `up` so the image can never lag the source tree.
+    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    pull_policy: build
     container_name: producer-card
     depends_on:
       kafka-init: { condition: service_completed_successfully }

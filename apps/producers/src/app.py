@@ -40,7 +40,9 @@ def main():
         config.kafka.topic,
         records,
         key_fields,
-        static_headers={"x-producer": f"producers/{version('producers')}"},
+        static_headers={
+            "x-producer": f"producers/{version('producers')}",
+        },
     )
     logger.info(
         "produced %d records (%d errors, %d undelivered) in %.1fs",

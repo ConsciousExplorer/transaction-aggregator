@@ -8,11 +8,13 @@
 	"main": "src/app.ts",
 	"scripts": {
 		"check-circular-deps": "npx madge --circular src/",
+		"lib:update": "npx npm-check-updates --interactive --format group",
+		"lib:audit": "npm audit",
 		"start": "node src/app.ts",
 		"test": "node --test src/*.test.ts",
-		"lint": "npx @biomejs/biome check --write src/",
-		"format": "npx @biomejs/biome format src/",
 		"fmc": "npm run lint && npm run format",
+		"format": "npx @biomejs/biome format src/",
+		"lint": "npx @biomejs/biome check --write src/",
 		"biome:migrate": "npx @biomejs/biome migrate --write"
 	},
 	"imports": {
