@@ -6,29 +6,35 @@
 import process from "node:process";
 import { MessagesStreamModes, stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
-import { config } from "./config.ts";
+import type { Logger } from "pino";
+import { loadConfig } from "./config.ts";
 import { createPool } from "./integrations/database/postgres.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
 import { createKafkaConsumer } from "./integrations/events/kafka.ts";
-import { getSubjectVersion } from "./integrations/events/schema-registry.ts";
+import { createLogger } from "./logger.ts";
+
+// Load config and fail if there are aby errors
+const config = loadConfig(process.env);
+const baseLogger = createLogger(config.logging);
 
 // Dependencies
 let writerPool: Pool;
 
 export async function startupCheck<T>(
 	name: string,
-	action: () => Promise<T>
+	action: () => Promise<T>,
+	logger: Logger
 ): Promise<T> {
 	const start = performance.now();
 
 	try {
 		const result = await action();
 
-		console.log(`✓ ${name} (${Math.round(performance.now() - start)}ms)`);
+		logger.info(`✓ ${name} (${Math.round(performance.now() - start)}ms)`);
 
 		return result;
 	} catch (err) {
-		console.log({ err }, `✗ ${name}`);
+		logger.error({ err }, `✗ ${name}`);
 		process.exit(1);
 	}
 }
@@ -40,21 +46,27 @@ export async function gracefulShudown() {
 
 await startupCheck(
 	"test",
-	() => new Promise((resolve) => setTimeout(resolve, 2000))
+	() => new Promise((resolve) => setTimeout(resolve, 2000)),
+	baseLogger
 );
+
+// Create Logger
 
 try {
 	// Create database pool to manage connections
-	writerPool = await startupCheck("PostgreSQL", () =>
-		createPool({
-			min: 3,
-			max: 10,
-			database: config.database.database,
-			host: config.database.host,
-			port: config.database.port,
-			user: config.database.user,
-			password: config.database.password
-		})
+	writerPool = await startupCheck(
+		"PostgreSQL",
+		() =>
+			createPool({
+				min: 3,
+				max: 10,
+				database: config.database.database,
+				host: config.database.host,
+				port: config.database.port,
+				user: config.database.user,
+				password: config.database.password
+			}),
+		baseLogger
 	);
 
 	const avroDeserializer = await createAvroDeserializer(
@@ -89,11 +101,12 @@ try {
 
 	// Async iterator consumption
 	for await (const message of stream) {
-		console.log(`Received: ${message.key} -> ${message.value}`);
+		// console.log(`Received: ${message.key} -> ${message.value}`);
+		baseLogger.info(message);
 		// Process message...
 	}
 } catch (error) {
-	console.error("Startup failed", error);
+	baseLogger.error({ error }, "Startup failed");
 }
 
 // #region Graceful shutdown

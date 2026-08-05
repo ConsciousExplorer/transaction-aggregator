@@ -1,6 +1,6 @@
-import process from "node:process";
 import { SASLMechanisms } from "@platformatic/kafka";
 import { z } from "zod";
+import { LOG_LEVELS } from "./logger.ts";
 
 const configSchema = z
 	.object({
@@ -11,15 +11,25 @@ const configSchema = z
 		HOST: z.string().default("0.0.0.0"),
 		PORT: z.coerce.number().int().positive().default(6000),
 
-		LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
 		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
 		LOG_PRETTY: z.stringbool().default(false),
+		LOG_REDACTED_FIELDS: z
+			.string()
+			.default("")
+			.transform((field) =>
+				field
+					.split(",")
+					.map((f) => f.trim())
+					.filter(Boolean)
+			),
+		LOG_REDACT_DEPTH: z.coerce.number().int().positive().default(3),
 
 		DATABASE_HOST: z.string().default("localhost"),
 		DATABASE_NAME: z.string().default("txn_agg"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
-		DATABASE_USER: z.string().default("admin"),
-		DATABASE_PASSWORD: z.string().default("admin"),
+		DATABASE_USER: z.string(),
+		DATABASE_PASSWORD: z.string(),
 		DATABASE_SSL: z.stringbool().default(false),
 		DATABASE_POOL_MIN: z.coerce.number().int().min(0).default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
@@ -27,8 +37,8 @@ const configSchema = z
 		SCHEMA_REGISTRY_URL: z.url().default("http://localhost:8081"),
 
 		KAFKA_BROKERS: z.string(),
-		KAFKA_USERNAME: z.string().default("admin"),
-		KAFKA_PASSWORD: z.string().default("admin"),
+		KAFKA_USERNAME: z.string(),
+		KAFKA_PASSWORD: z.string(),
 		KAFKA_SASL_MECHANISM: z.enum(SASLMechanisms).default("SCRAM-SHA-512"),
 		KAFKA_GROUP_ID: z.string().default("transaction-aggregator-group"),
 		KAFKA_TOPICS: z.string().default("transactions.card")
@@ -45,7 +55,9 @@ const configSchema = z
 			logging: Object.freeze({
 				level: e.LOG_LEVEL,
 				format: e.LOG_FORMAT,
-				pretty: e.LOG_PRETTY
+				pretty: e.LOG_PRETTY,
+				redactedFields: e.LOG_REDACTED_FIELDS,
+				redactDepth: e.LOG_REDACT_DEPTH
 			}),
 			database: Object.freeze({
 				host: e.DATABASE_HOST,
@@ -74,15 +86,17 @@ const configSchema = z
 		})
 	);
 
-const result = configSchema.safeParse(process.env);
-
-if (!result.success) {
-	console.error("Invalid configuration:");
-	for (const issue of result.error.issues) {
-		console.error(`  ${issue.path.join(".")}: ${issue.message}`);
+export function loadConfig(
+	env: Record<string, string | undefined>
+): z.infer<typeof configSchema> {
+	const result = configSchema.safeParse(env);
+	if (!result.success) {
+		const detail = result.error.issues
+			.map((i) => `  ${i.path.join(".")}: ${i.message}`)
+			.join("\n");
+		throw new Error(`Invalid configuration:\n${detail}`);
 	}
-	process.exit(1);
+	return result.data;
 }
 
-export type Config = z.infer<typeof configSchema>;
-export const config: Config = result.data;
+export type ConfigSchema = z.infer<typeof configSchema>;
