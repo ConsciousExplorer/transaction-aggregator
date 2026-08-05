@@ -1,6 +1,6 @@
 
 
-CREATE TYPE source_type AS ENUM ('card','loan','transfer', 'airtime');
+CREATE TYPE source_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
 CREATE TYPE direction_type AS ENUM ('debit','credit');
 
 CREATE TABLE categories (
@@ -22,7 +22,7 @@ CREATE TABLE transactions (
     user_id UUID NOT NULL,
     source source_type NOT NULL,
     external_id TEXT NOT NULL,
-    occured_at TIMESTAMPTZ NOT NULL, -- Partition key, each transaction should have a time
+    occurred_at TIMESTAMPTZ NOT NULL, -- Partition key, each transaction should have a time
     posted_at TIMESTAMPTZ,
     direction direction_type NOT NULL,
     amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
@@ -34,7 +34,32 @@ CREATE TABLE transactions (
     rule_version INT NOT NULL,
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metadata JSONB,
-    PRIMARY KEY (id, occured_at),
-    UNIQUE (source, external_id, occured_at)
-) PARTITION BY RANGE (occured_at);
+    PRIMARY KEY (id, occurred_at),
+    UNIQUE (source, external_id, occurred_at)
+) PARTITION BY RANGE (occurred_at);
+
+CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, id DESC)
+  INCLUDE (source, direction, amount_minor, currency, category_id, merchant_name);
+
+DO $$
+BEGIN
+IF NOT EXISTS (SELECT 1 FROM partman.part_config WHERE parent_table = 'public.transactions')
+  THEN 
+    PERFORM 
+       partman.create_parent(
+          p_parent_table := 'public.transactions',
+          p_control := 'occurred_at',
+          p_type := 'range',
+          p_interval := '1 month',
+          p_premake := 2
+      );
+    END IF;
+END $$;
+
+UPDATE partman.part_config 
+SET 
+  infinite_time_partitions = true,
+  retention = '24 month',
+  retention_keep_table = false
+WHERE parent_table = 'public.transactions';
 

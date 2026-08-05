@@ -3,7 +3,7 @@ Table transactions {
     user_id uuid
     source text
     source_id text
-    occured_at timestamp
+    occurred_at timestamp
 
 
 }

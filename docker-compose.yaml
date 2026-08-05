@@ -123,7 +123,7 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
     restart: "no"
     volumes:
-      - ./apps/producers/schemas/:/schemas:ro
+      - ./schemas/:/schemas:ro
     networks: [txn-network]
 
   # ────────────────────────────── Postgres ───────────────────────────────
@@ -191,6 +191,8 @@ services:
       # version at startup — the subject must exist before it boots.
       schemas-register: { condition: service_completed_successfully }
     restart: "no"
+    volumes:
+      - ./schemas:/schemas:ro
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
@@ -199,7 +201,7 @@ services:
       KAFKA_TOPIC: transactions.card
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      GENERATOR_SCHEMA_PATH: ./schemas/card.avsc
+      GENERATOR_SCHEMA_PATH: /schemas/card.avsc
       GENERATOR_COUNT: "500"
       GENERATOR_SEED: "42"
       LOG_LEVEL: INFO
@@ -240,39 +242,6 @@ services:
   #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   #     OTEL_TRACES_SAMPLER: always_on
   #   networks: [txn-network]
-
-  # gen-card: &generator
-  #   build: { context: ./apps/generator }
-  #   container_name: gen-card
-  #   depends_on:
-  #     kafka-init: { condition: service_completed_successfully }
-  #     schemas-register: { condition: service_completed_successfully }
-  #   environment: &generator-env
-  #     SOURCE: card
-  #     KAFKA_BROKERS: kafka1:9094
-  #     KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-  #     KAFKA_SASL_USERNAME: app-generator
-  #     KAFKA_SASL_PASSWORD: app-generator-secret
-  #     SCHEMA_REGISTRY_URL: http://schema-registry:8081
-  #     RATE: "40"
-  #     SEED: "42"
-  #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-  #   networks: [txn-network]
-
-  # gen-loan:
-  #   <<: *generator
-  #   container_name: gen-loan
-  #   environment: { <<: *generator-env, SOURCE: loan }
-
-  # gen-transfer:
-  #   <<: *generator
-  #   container_name: gen-transfer
-  #   environment: { <<: *generator-env, SOURCE: transfer }
-
-  # gen-airtime:
-  #   <<: *generator
-  #   container_name: gen-airtime
-  #   environment: { <<: *generator-env, SOURCE: airtime }
 
   # ─────────────────────── Optional: cache profile ───────────────────────
   redis:

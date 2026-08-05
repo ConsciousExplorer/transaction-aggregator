@@ -23,8 +23,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.6",
-		"@types/node": "^24.11.0",
-		"avro-to-json-schema": "^0.1.0"
+		"@types/node": "24.x"
 	},
 	"dependencies": {
 		"@platformatic/kafka": "^2.8.0",

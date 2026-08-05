@@ -1,3 +1,8 @@
+\connect postgres
+
+CREATE EXTENSION pg_cron;
+
+
 \connect txn_agg;
 
 CREATE SCHEMA IF NOT EXISTS partman AUTHORIZATION postgres;
