@@ -1,16 +1,48 @@
 // Native schema registry
 
-export async function fetchSchema(schemaId: number): Promise<void> {
-	const response = await fetch(`${registryUrl}/schemas/ids/${schemaId}`);
+import { UserError } from "@platformatic/kafka";
+import { z } from "zod";
+import { AvroSchemaObject } from "#src/schemas/avro.ts";
+
+export class SchemaRegistryError extends Error {
+	constructor(message: string, options?: { cause?: unknown }) {
+		super(message, options);
+		this.name = "SchemaRegistryError";
+	}
+}
+
+async function registryFetch<S extends z.ZodType>(
+	url: string,
+	schema: S
+): Promise<z.infer<S>> {
+	const response = await fetch(url);
 
 	if (!response.ok) {
-		throw new UserError(`Failed to fetch schema: [HTTP ${response.status}]`, {
-			cause: await response.json()
-		});
+		throw new UserError(
+			`Schema registry request failed: [HTTP ${response.status}] ${url}`,
+			{
+				cause: await response.json().catch(() => undefined)
+			}
+		);
 	}
 
-	const schemaData = await response.json();
+	return schema.parse(await response.json());
+}
 
-	debug("RECEIVED SCHEMA", schemaId);
-	localSchemas[schemaId] = avro.Type.forSchema(JSON.parse(schemaData.schema));
+export function getSubjectVersion(
+	registryUrl: string,
+	subject: string,
+	version: number
+) {
+	return registryFetch(
+		`${registryUrl}/subjects/${subject}/versions/${version}`,
+		AvroSchemaObject
+	);
+}
+
+export function getSubjectVersions(registryUrl: string, subject: string) {
+	return registryFetch(
+		`${registryUrl}/subjects/${subject}/versions`,
+		z.array(z.number().int().positive())
+	);
 }

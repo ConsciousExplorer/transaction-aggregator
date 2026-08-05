@@ -1,16 +1,9 @@
 // Create consumer client singleton
-// import { Consumer, ConsumerOptions, Deserializers } from "@platformatic/kafka";
-import { SchemaRegistry } from "@platformatic/kafka";
+// import { SchemaRegistry } from "@platformatic/kafka";
+import { Consumer, type ConsumerOptions } from "@platformatic/kafka";
 
-// export function createKafkaConsumer(
-// 	config: ConsumerOptions<string, string, string, string>,
-// 	deserializers: Deserializers<string, string, string, string>
-// ): Consumer {
-// 	const consumer = new Consumer({
-// 		groupId: config.groupId,
-// 		clientId: config.clientId,
-// 		bootstrapBrokers: config.bootstrapBrokers,
-// 		deserializers: stringDeserializers
-// 	});
-// 	return consumer;
-// }
+export function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
+	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>
+): Consumer<Key, Value, HeaderKey, HeaderValue> {
+	return new Consumer(options);
+}
