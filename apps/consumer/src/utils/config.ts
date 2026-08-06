@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { SASLMechanisms } from "@platformatic/kafka";
 import { z } from "zod";
 import { LOG_LEVELS } from "./logger.ts";
@@ -10,6 +12,7 @@ const configSchema = z
 		APP_NAME: z.string().default("transaction-aggregator"),
 		HOST: z.string().default("0.0.0.0"),
 		PORT: z.coerce.number().int().positive().default(6000),
+		SECRET_DIR: z.string().default("/secrets"),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
 		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
@@ -29,7 +32,7 @@ const configSchema = z
 		DATABASE_NAME: z.string().default("txn_agg"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
 		DATABASE_USER: z.string(),
-		DATABASE_PASSWORD: z.string(),
+		DATABASE_PASSWORD_SECRET_NAME: z.string(),
 		DATABASE_SSL: z.stringbool().default(false),
 		DATABASE_POOL_MIN: z.coerce.number().int().min(0).default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
@@ -38,7 +41,7 @@ const configSchema = z
 
 		KAFKA_BROKERS: z.string(),
 		KAFKA_USERNAME: z.string(),
-		KAFKA_PASSWORD: z.string(),
+		KAFKA_PASSWORD_SECRET_NAME: z.string(),
 		KAFKA_SASL_MECHANISM: z.enum(SASLMechanisms).default("SCRAM-SHA-512"),
 		KAFKA_GROUP_ID: z.string().default("transaction-aggregator-group"),
 		KAFKA_TOPICS: z.string().default("transactions.card")
@@ -64,7 +67,6 @@ const configSchema = z
 				port: e.DATABASE_PORT,
 				database: e.DATABASE_NAME,
 				user: e.DATABASE_USER,
-				password: e.DATABASE_PASSWORD,
 				ssl: e.DATABASE_SSL,
 				min: e.DATABASE_POOL_MIN,
 				max: e.DATABASE_POOL_MAX
@@ -75,28 +77,53 @@ const configSchema = z
 				clientId: e.APP_NAME,
 				sasl: Object.freeze({
 					mechanism: e.KAFKA_SASL_MECHANISM,
-					username: e.KAFKA_USERNAME,
-					password: e.KAFKA_PASSWORD
+					username: e.KAFKA_USERNAME
 				}),
 				topics: Object.freeze({
 					card: e.KAFKA_TOPICS
 				})
 			}),
-			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL }
+			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
+
+			// Keeping secrets separate to ensure they are not logged out by mistake
+			secrets: Object.freeze({
+				database_password: readSecretFromFile(
+					e.SECRET_DIR,
+					e.DATABASE_PASSWORD_SECRET_NAME
+				),
+				kafka_password: readSecretFromFile(
+					e.SECRET_DIR,
+					e.KAFKA_PASSWORD_SECRET_NAME
+				)
+			})
 		})
 	);
 
+export function readSecretFromFile(dir: string, fileName: string): string {
+	const path = join(dir, fileName);
+
+	try {
+		return readFileSync(path, "utf-8").trim();
+	} catch (error) {
+		throw new Error(`Unable to read secret "${fileName}" from ${path}`, {
+			cause: error
+		});
+	}
+}
+
+export type ConfigSchema = z.infer<typeof configSchema>;
+
 export function loadConfig(
 	env: Record<string, string | undefined>
-): z.infer<typeof configSchema> {
-	const result = configSchema.safeParse(env);
-	if (!result.success) {
-		const detail = result.error.issues
+): ConfigSchema {
+	const config = configSchema.safeParse(env);
+
+	if (!config.success) {
+		const detail = config.error.issues
 			.map((i) => `  ${i.path.join(".")}: ${i.message}`)
 			.join("\n");
 		throw new Error(`Invalid configuration:\n${detail}`);
 	}
-	return result.data;
-}
 
-export type ConfigSchema = z.infer<typeof configSchema>;
+	return config.data;
+}

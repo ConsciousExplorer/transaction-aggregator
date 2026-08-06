@@ -46,3 +46,14 @@ export function getSubjectVersions(registryUrl: string, subject: string) {
 		z.array(z.number().int().positive())
 	);
 }
+
+export function getLatestSubjectVersion(registryUrl: string, subject: string) {
+	return registryFetch(
+		`${registryUrl}/subjects/${subject}/versions/latest`,
+		AvroSchemaObject
+	);
+}
+
+export function getSchemaById(registryUrl: string, id: number) {
+	return registryFetch(`${registryUrl}/schemas/ids/${id}`, AvroSchemaObject);
+}

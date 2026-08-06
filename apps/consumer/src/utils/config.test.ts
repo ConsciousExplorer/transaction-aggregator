@@ -1,6 +1,14 @@
 import assert from "node:assert";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { suite, test } from "node:test";
-import { loadConfig } from "#src/config.ts";
+import { loadConfig } from "#src/utils/config.ts";
+
+// Secrets are read while the config parses, so every load needs files on disk.
+const secretsDir = mkdtempSync(join(tmpdir(), "config-secrets-"));
+writeFileSync(join(secretsDir, "db_password"), "db-pw-from-file\n");
+writeFileSync(join(secretsDir, "kafka_password"), "  kafka-pw-from-file  ");
 
 const sampleEnv: Record<string, string | undefined> = {
 	// # NODE and APP configuration
@@ -10,7 +18,7 @@ const sampleEnv: Record<string, string | undefined> = {
 	PORT: "6000",
 
 	// # Secrets and certs
-	SECRETS_DIR: "./secrets",
+	SECRETS_DIR: secretsDir,
 
 	// # Logging configuration
 	LOG_LEVEL: "info",
@@ -22,7 +30,7 @@ const sampleEnv: Record<string, string | undefined> = {
 	DATABASE_NAME: "txn_agg",
 	DATABASE_PORT: "5432",
 	DATABASE_USER: "kafka_consumer",
-	DATABASE_PASSWORD: "kafka_consumer_password",
+	DATABASE_PASSWORD_SECRET_NAME: "db_password",
 	DATABASE_POOL_MIN: "2",
 	DATABASE_POOL_MAX: "10",
 	DATABASE_IDLE_TIMEOUT: "30000",
@@ -34,7 +42,7 @@ const sampleEnv: Record<string, string | undefined> = {
 	// # KAFKA configuration
 	KAFKA_BROKERS: "localhost:9092",
 	KAFKA_USERNAME: "consumer",
-	KAFKA_PASSWORD: "consumer-password",
+	KAFKA_PASSWORD_SECRET_NAME: "kafka_password",
 	KAFKA_SASL_MECHANISM: "SCRAM-SHA-512",
 	KAFKA_GROUP_ID: "transaction-aggregator-group",
 	KAFKA_TOPICS: "transactions.card"
@@ -47,7 +55,7 @@ suite("loadConfig", () => {
 	});
 
 	test("should fail validation required vars are not passed", () => {
-		const { DATABASE_USER, KAFKA_USER, ...rest } = sampleEnv;
+		const { DATABASE_USER, KAFKA_USERNAME, ...rest } = sampleEnv;
 		assert.throws(() => loadConfig(rest), {
 			name: "Error"
 		});
@@ -77,5 +85,30 @@ suite("loadConfig", () => {
 			5
 		);
 		assert.throws(() => loadConfig({ ...sampleEnv, LOG_REDACT_DEPTH: "0" }));
+	});
+
+	test("reads each secret from the file named by its env var", () => {
+		const config = loadConfig(sampleEnv);
+
+		assert.strictEqual(config.secrets.database_password, "db-pw-from-file");
+		assert.strictEqual(config.secrets.kafka_password, "kafka-pw-from-file");
+	});
+
+	test("secrets are kept out of the loggable config sections", () => {
+		const config = loadConfig(sampleEnv);
+
+		assert.ok(!("password" in config.database));
+		assert.ok(!("password" in config.kafka.sasl));
+	});
+
+	test("fails when the named secret file is missing", () => {
+		assert.throws(
+			() =>
+				loadConfig({
+					...sampleEnv,
+					DATABASE_PASSWORD_SECRET_NAME: "not_mounted"
+				}),
+			/Unable to read secret "not_mounted"/
+		);
 	});
 });

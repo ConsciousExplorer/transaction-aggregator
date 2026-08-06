@@ -4,7 +4,7 @@ export const AvroSchemaObject = z.object({
 	subject: z.string(),
 	version: z.number().int().positive(),
 	id: z.number().int().positive(),
-	schemaType: z.literal("AVRO"),
+	schemaType: z.literal("AVRO").default("AVRO"),
 
 	// Validates that the field is a valid JSON string and an AVRO record
 	schema: z.string().refine(

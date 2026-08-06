@@ -14,7 +14,7 @@
 		"fmc": "npm run lint && npm run format",
 		"format": "npx @biomejs/biome format src/",
 		"lint": "npx @biomejs/biome check --write src/",
-		"schemas:codegen": "node scripts/generate-avro-types.ts",
+		"scripts:generate-avro": "node scripts/generate-avro-types.ts",
 		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
 		"biome:migrate": "npx @biomejs/biome migrate --write"
@@ -27,8 +27,9 @@
 		"@biomejs/biome": "2.5.6",
 		"@types/node": "24.x",
 		"@types/pg": "^8.20.4",
-		"avro-typescript": "^1.3.0",
-		"pino-pretty": "^13.1.3"
+		"avro-typescript": "1.3.0",
+		"pino-pretty": "^13.1.3",
+		"typescript": "7.0.2"
 	},
 	"dependencies": {
 		"@platformatic/kafka": "^2.8.0",

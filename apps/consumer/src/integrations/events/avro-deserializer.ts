@@ -1,6 +1,9 @@
 import { UserError } from "@platformatic/kafka";
 import avsc from "avsc";
+import { fileLogger } from "#src/utils/index.ts";
 import { getSubjectVersion, getSubjectVersions } from "./schema-registry.ts";
+
+const logger = fileLogger(import.meta.url);
 
 const MAGIC_BYTE = 0;
 const WIRE_HEADER_BYTES = 5; // magic byte + int32 schema id
@@ -9,7 +12,7 @@ export async function createAvroDeserializer<T>(
 	registryUrl: string,
 	subjects: string[]
 ): Promise<(data?: Buffer) => T | undefined> {
-	const types: Map<number, avsc.Type> = new Map();
+	const types = new Map<number, avsc.Type>();
 
 	await Promise.all(
 		subjects.map(async (subject) => {
@@ -27,7 +30,10 @@ export async function createAvroDeserializer<T>(
 		})
 	);
 
-	console.log(types);
+	logger.info(
+		{ subjects, schemaIds: [...types.keys()] },
+		`Loaded ${types.size} Avro schema(s)`
+	);
 
 	return function deserialize(data?: Buffer): T | undefined {
 		if (!data?.length) return undefined;
