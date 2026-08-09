@@ -12,7 +12,10 @@ import type { Pool } from "pg";
 import { createPool } from "./integrations/database/postgres.ts";
 import { loadActiveRules } from "./integrations/database/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
-import { createKafkaConsumer } from "./integrations/events/kafka.ts";
+import {
+	createKafkaConsumer,
+	startBatchConsumer
+} from "./integrations/events/kafka.ts";
 import { config, fileLogger } from "./runtime.ts";
 
 const logger = fileLogger(import.meta.url);
@@ -104,20 +107,7 @@ try {
 		}
 	});
 
-	// const stream = await kafkaConsumer.consume({
-	// 	mode: MessagesStreamModes.EARLIEST,
-	// 	autocommit: true,
-	// 	topics: [config.kafka.topics.card],
-	// 	sessionTimeout: 10000,
-	// 	heartbeatInterval: 500
-	// });
-
-	// // Async iterator consumption
-	// for await (const message of stream) {
-	// 	// console.log(`Received: ${message.key} -> ${message.value}`);
-	// 	// logger.info(message);
-	// 	// Process message...
-	// }
+	await startBatchConsumer(kafkaConsumer, Array(config.kafka.topics.card));
 } catch (error) {
 	logger.error({ error }, "Startup failed");
 }
