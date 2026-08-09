@@ -4,17 +4,23 @@
  *
  */
 import process from "node:process";
-import { MessagesStreamModes, stringDeserializer } from "@platformatic/kafka";
+import {
+	// type Consumer,
+	stringDeserializer
+} from "@platformatic/kafka";
 import type { Pool } from "pg";
 import { createPool } from "./integrations/database/postgres.ts";
+import { loadActiveRules } from "./integrations/database/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
 import { createKafkaConsumer } from "./integrations/events/kafka.ts";
-import { baseLogger, config } from "./utils/index.ts";
+import { config, fileLogger } from "./runtime.ts";
 
-const logger = baseLogger;
+const logger = fileLogger(import.meta.url);
 
 // Dependencies
 let writerPool: Pool;
+// biome-ignore lint/suspicious/noExplicitAny: Define later #TODO
+let kafkaConsumer: any;
 
 export async function startupCheck<T>(
 	name: string,
@@ -36,15 +42,25 @@ export async function startupCheck<T>(
 
 export async function gracefulShudown() {
 	await writerPool?.end();
+	await kafkaConsumer.close();
 	process.exit(0);
 }
+
+// #region: Kill Processes
+process.on("SIGTERM", async () => {
+	await gracefulShudown();
+});
+
+process.on("SIGINT", async () => {
+	await gracefulShudown();
+});
 
 await startupCheck(
 	"test",
 	() => new Promise((resolve) => setTimeout(resolve, 2000))
 );
 
-// Create Logger
+// Create baseLogger
 
 try {
 	// Create database pool to manage connections
@@ -60,12 +76,18 @@ try {
 		})
 	);
 
+	const rules = await loadActiveRules(writerPool);
+	console.log(rules);
+	// for (const rule in rules) {
+	// 	console.log(rule);
+	// }
+
 	const avroDeserializer = await createAvroDeserializer(
 		config.schemaRegistry.url,
 		["transactions.card-value"]
 	);
 
-	const kafkaConsumer = createKafkaConsumer({
+	kafkaConsumer = createKafkaConsumer({
 		groupId: config.kafka.groupId,
 		clientId: config.kafka.clientId,
 		bootstrapBrokers: Array(config.kafka.brokers),
@@ -82,25 +104,22 @@ try {
 		}
 	});
 
-	const stream = await kafkaConsumer.consume({
-		mode: MessagesStreamModes.EARLIEST,
-		autocommit: true,
-		topics: [config.kafka.topics.card],
-		sessionTimeout: 10000,
-		heartbeatInterval: 500
-	});
+	// const stream = await kafkaConsumer.consume({
+	// 	mode: MessagesStreamModes.EARLIEST,
+	// 	autocommit: true,
+	// 	topics: [config.kafka.topics.card],
+	// 	sessionTimeout: 10000,
+	// 	heartbeatInterval: 500
+	// });
 
-	// Async iterator consumption
-	for await (const message of stream) {
-		// console.log(`Received: ${message.key} -> ${message.value}`);
-		baseLogger.info(message);
-		// Process message...
-	}
+	// // Async iterator consumption
+	// for await (const message of stream) {
+	// 	// console.log(`Received: ${message.key} -> ${message.value}`);
+	// 	// logger.info(message);
+	// 	// Process message...
+	// }
 } catch (error) {
-	baseLogger.error({ error }, "Startup failed");
+	logger.error({ error }, "Startup failed");
 }
 
-// #region Graceful shutdown
-process.on("SIGTERM", async () => {
-	await gracefulShudown();
-});
+// #endregion

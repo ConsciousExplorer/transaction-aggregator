@@ -2,7 +2,7 @@
 
 import { UserError } from "@platformatic/kafka";
 import { z } from "zod";
-import { AvroSchemaObject } from "#src/schemas/avro.ts";
+import { AvroSchemaObject } from "../../schemas/avro.ts";
 
 export class SchemaRegistryError extends Error {
 	constructor(message: string, options?: { cause?: unknown }) {

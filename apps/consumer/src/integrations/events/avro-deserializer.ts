@@ -1,6 +1,6 @@
 import { UserError } from "@platformatic/kafka";
 import avsc from "avsc";
-import { fileLogger } from "#src/utils/index.ts";
+import { fileLogger } from "../../runtime.ts";
 import { getSubjectVersion, getSubjectVersions } from "./schema-registry.ts";
 
 const logger = fileLogger(import.meta.url);

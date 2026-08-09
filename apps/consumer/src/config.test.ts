@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { suite, test } from "node:test";
-import { loadConfig } from "#src/utils/config.ts";
+import { loadConfig } from "#src/config.ts";
 
 // Secrets are read while the config parses, so every load needs files on disk.
 const secretsDir = mkdtempSync(join(tmpdir(), "config-secrets-"));
@@ -18,7 +18,7 @@ const sampleEnv: Record<string, string | undefined> = {
 	PORT: "6000",
 
 	// # Secrets and certs
-	SECRETS_DIR: secretsDir,
+	SECRET_DIR: secretsDir,
 
 	// # Logging configuration
 	LOG_LEVEL: "info",
