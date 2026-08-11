@@ -8,6 +8,7 @@ import {
 	type ConsumeOptions,
 	Consumer,
 	type ConsumerOptions,
+	MessagesStreamFallbackModes,
 	MessagesStreamModes
 } from "@platformatic/kafka";
 
@@ -25,11 +26,11 @@ export async function startBatchConsumer(
 ) {
 	const messageStream = await consumer.consume({
 		topics: topics,
-		// Replays the whole log on every run. This client only reads committed
-		// group offsets when mode is COMMITTED, so EARLIEST rewinds even after
-		// the group has made progress. The default is LATEST, which shows only
-		// what is produced after we connect.
+		// COMMITTED is the only mode that reads the group's committed offsets;
+		// every other mode ignores them and re-reads from the log ends.
 		mode: MessagesStreamModes.COMMITTED,
+		// Using the Earlies fallback method will read all messages if none were comitted
+		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
 		...options,
 		autocommit: false
 	});
@@ -41,23 +42,32 @@ export async function startBatchConsumer(
 	// biome-ignore lint/suspicious/noExplicitAny: # TODO: implement types
 	let messageBatch: any[] = []; // TODO: this should be the deserialised payload
 
-	function flushBatch(): void {
+	async function flushBatch(): Promise<void> {
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 			timeoutId = null;
 		}
 
-		logger.info(`Processing a batch of ${messageBatch.length} messages...`);
+		if (messageBatch.length === 0) return;
+
+		// Taken before the first await so a timer firing mid-flush cannot
+		// process the same messages twice.
+		const batch = messageBatch;
+		messageBatch = [];
+
+		logger.info(`Processing a batch of ${batch.length} messages...`);
 
 		try {
-			console.log(messageBatch);
-			// const lastMessage = messageBatch[messageBatch.length - 1]
-			// consumer.commit(lastMessage);
+			console.log(batch);
+			// Commit only once the batch is durably handled. Every message
+			// carries its own commit bound to its offset + 1, so committing the
+			// last one covers the batch.
+			// await batch[batch.length - 1].commit();
 		} catch (error) {
-			console.error("Failed to process batch:", error);
-			throw error;
-		} finally {
-			messageBatch = [];
+			// This also runs from a timer, where an uncaught throw would take
+			// the process down. Nothing was committed, so the batch is replayed
+			// on the next run.
+			logger.error({ error, size: batch.length }, "Failed to process batch");
 		}
 	}
 
@@ -65,16 +75,19 @@ export async function startBatchConsumer(
 		console.log("HERE:", message);
 		messageBatch.push(message);
 
+		// First message of a batch starts the clock, so a partial batch still
+		// gets processed on a quiet topic.
 		if (messageBatch.length === 1) {
 			timeoutId = setTimeout(() => {
-				flushBatch();
+				void flushBatch();
 			}, MAX_BATCH_TIME_MS);
+		}
+
+		if (messageBatch.length >= BATCH_SIZE) {
+			await flushBatch();
 		}
 	}
 
-	if (messageBatch.length >= BATCH_SIZE) {
-		flushBatch();
-	}
-
-	// console.log(messageBatch);
+	// The stream ended - whatever is left is still a batch worth processing.
+	await flushBatch();
 }

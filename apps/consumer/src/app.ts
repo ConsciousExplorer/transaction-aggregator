@@ -10,7 +10,7 @@ import {
 } from "@platformatic/kafka";
 import type { Pool } from "pg";
 import { createPool } from "./integrations/database/postgres.ts";
-import { loadActiveRules } from "./integrations/database/rule-repository.ts";
+import { loadActiveRules } from "./integrations/database/respository/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
 import {
 	createKafkaConsumer,
@@ -21,7 +21,7 @@ import { config, fileLogger } from "./runtime.ts";
 const logger = fileLogger(import.meta.url);
 
 // Dependencies
-let writerPool: Pool;
+let writerPool: Pool | undefined;
 // biome-ignore lint/suspicious/noExplicitAny: Define later #TODO
 let kafkaConsumer: any;
 
