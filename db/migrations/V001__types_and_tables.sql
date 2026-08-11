@@ -29,7 +29,7 @@ CREATE TABLE transactions (
     currency CHAR(3) NOT NULL,
     description TEXT,
     merchant_name TEXT,
-    mcc SMALLINT,
+    mcc CHAR(4) CHECK (mcc ~ '^[0-9]{4}$'), -- ISO 18245: 4-digit CODE, not a number — leading zeros are real (0742)
     category_id SMALLINT NOT NULL REFERENCES categories(category_id),
     rule_version INT NOT NULL,
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

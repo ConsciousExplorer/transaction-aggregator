@@ -28,7 +28,7 @@ export const canonicalTransactionSchema = z.object({
 	// Assuming we will always pay a merchant or make internal transfers
 	description: z.string().nullable(),
 	merchantName: z.string().nullable(),
-	mcc: z.number().int().min(0).max(9999).nullable(), // Use ISO 18245:2023
+	mcc: z.string().nullable(), // Use ISO 18245:2023
 	metadata: z.record(z.string(), z.unknown())
 
 	// All other relevant transaction fields
