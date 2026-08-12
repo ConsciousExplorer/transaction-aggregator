@@ -12,6 +12,7 @@ import type { Pool } from "pg";
 import { createPool } from "./integrations/database/postgres.ts";
 import { loadActiveRules } from "./integrations/database/respository/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
+import { transactionBatchHandler } from "./integrations/events/handlers/batchHandler.ts";
 import {
 	createKafkaConsumer,
 	startBatchConsumer
@@ -79,15 +80,15 @@ try {
 		})
 	);
 
-	const rules = await loadActiveRules(writerPool);
-	console.log(rules);
+	// const rules = await loadActiveRules(writerPool);
 	// for (const rule in rules) {
 	// 	console.log(rule);
 	// }
 
-	const avroDeserializer = await createAvroDeserializer(
-		config.schemaRegistry.url,
-		["transactions.card-value"]
+	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
+		createAvroDeserializer(config.schemaRegistry.url, [
+			"transactions.card-value"
+		])
 	);
 
 	kafkaConsumer = createKafkaConsumer({
@@ -107,7 +108,12 @@ try {
 		}
 	});
 
-	await startBatchConsumer(kafkaConsumer, Array(config.kafka.topics.card));
+	await startBatchConsumer(
+		kafkaConsumer,
+		Array(config.kafka.topics.card),
+		writerPool,
+		transactionBatchHandler
+	);
 } catch (error) {
 	logger.error({ error }, "Startup failed");
 }

@@ -1,0 +1,30 @@
+import type z from "zod";
+import type {
+	canonicalTransactionSchema,
+	directionSchema
+} from "#src/domain/transaction.ts";
+import type { CardTransaction } from "#src/generated/card.ts";
+
+export function normaliseCard(
+	record: CardTransaction
+): z.infer<typeof canonicalTransactionSchema> {
+	return {
+		userId: record.customerId,
+		source: "card", // can also be the topic name etc. Depending on domain
+		externalId: record.transactionId,
+		occuredAt: new Date(record.timestamp).toISOString(),
+		postedAt: null,
+		description: record.description,
+		mcc: record.mccCode,
+		merchantName: record.merchantName,
+		currency: record.currency,
+		amountMinor: record.amount,
+		direction: record.transactionType as z.infer<typeof directionSchema>,
+		metadata: {
+			pan: record.cardLast4,
+			cardNetwork: record.cardNetwork,
+			authCode: record.authCode,
+			posEntryMode: record.posEntryMode
+		}
+	};
+}

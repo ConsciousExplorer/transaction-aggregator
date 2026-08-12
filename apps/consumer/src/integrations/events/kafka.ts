@@ -1,3 +1,4 @@
+import type { Pool } from "pg";
 import { fileLogger } from "../../runtime.ts";
 
 const logger = fileLogger(import.meta.url);
@@ -15,20 +16,29 @@ import {
 export function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>
 ): Consumer<Key, Value, HeaderKey, HeaderValue> {
-	return new Consumer(options);
+	const kafkaConsumer = new Consumer(options);
+
+	// Register listerners
+	kafkaConsumer.addListener("consumer:group:rebalance", () =>
+		console.log("Preparing a rebalance")
+	);
+	return kafkaConsumer;
 }
 
 export async function startBatchConsumer(
 	consumer: ReturnType<typeof createKafkaConsumer>,
 	topics: string[],
-	// batchHandler: () => void
+	pool: Pool,
+	// biome-ignore lint/suspicious/noExplicitAny: // TODO: implement message boundary
+	batchHandler: (pool: Pool, messages: any) => Promise<void>,
 	options?: Partial<ConsumeOptions<unknown, unknown, unknown, unknown>>
 ) {
 	const messageStream = await consumer.consume({
 		topics: topics,
 		// COMMITTED is the only mode that reads the group's committed offsets;
 		// every other mode ignores them and re-reads from the log ends.
-		mode: MessagesStreamModes.COMMITTED,
+		// TODO: change to commited when we are done testing, enabling this setting means we read from the beginning always
+		mode: MessagesStreamModes.EARLIEST,
 		// Using the Earlies fallback method will read all messages if none were comitted
 		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
 		...options,
@@ -50,29 +60,23 @@ export async function startBatchConsumer(
 
 		if (messageBatch.length === 0) return;
 
-		// Taken before the first await so a timer firing mid-flush cannot
-		// process the same messages twice.
-		const batch = messageBatch;
-		messageBatch = [];
-
-		logger.info(`Processing a batch of ${batch.length} messages...`);
-
 		try {
-			console.log(batch);
+			await batchHandler(pool, messageBatch);
 			// Commit only once the batch is durably handled. Every message
-			// carries its own commit bound to its offset + 1, so committing the
-			// last one covers the batch.
-			// await batch[batch.length - 1].commit();
+			await messageBatch[messageBatch.length - 1].commit();
+			messageBatch = [];
 		} catch (error) {
 			// This also runs from a timer, where an uncaught throw would take
 			// the process down. Nothing was committed, so the batch is replayed
 			// on the next run.
-			logger.error({ error, size: batch.length }, "Failed to process batch");
+			logger.error(
+				{ error, size: messageBatch.length },
+				"Failed to process batch"
+			);
 		}
 	}
 
 	for await (const message of messageStream) {
-		console.log("HERE:", message);
 		messageBatch.push(message);
 
 		// First message of a batch starts the clock, so a partial batch still
