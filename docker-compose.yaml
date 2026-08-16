@@ -345,11 +345,36 @@ services:
       # 3. RBAC: LDAP group → UI permissions, defined in infrastructure/kafbat/rbac.yml
       #    (admins = full access incl. topic create; viewers = read-only)
       SPRING_CONFIG_ADDITIONAL_LOCATION: /etc/kafkaui/rbac.yml
+
+      # 4. Session lifetime: Spring WebFlux defaults to a 30-minute idle timeout,
+      #    which forces constant re-logins. 12h ≈ one working day. Cookie max-age
+      #    matches so the login also survives a browser restart. Sessions are
+      #    in-memory — recreating the container still logs everyone out.
+      SERVER_REACTIVE_SESSION_TIMEOUT: 12h
+      SERVER_REACTIVE_SESSION_COOKIE_MAX_AGE: 12h
     volumes:
       - ./infrastructure/kafbat/rbac.yml:/etc/kafkaui/rbac.yml:ro
     depends_on:
       kafka1: { condition: service_healthy }
       ldap: { condition: service_healthy }
+    networks: [txn-network]
+
+  # Schema sample preview: avro-datagen's Streamlit UI over /schemas — generate
+  # example records to copy/paste while writing normalizers/tests. Kafka producer
+  # section is NOT enabled (no --kafka flag, no broker access needed); the mount
+  # is read-only, so contract changes still go through git review, never the UI.
+  # Run alone with: docker compose up avro-datagen-ui  →  http://localhost:6500
+  avro-datagen-ui:
+    profiles: ["ui"]
+    build: { context: ./infrastructure/avro-datagen-ui }
+    pull_policy: build
+    container_name: avro-datagen-ui
+    environment:
+      PORT: "6500" # compose owns the port; the image hardcodes nothing
+    ports:
+      - "6500:6500"
+    volumes:
+      - ./schemas/:/schemas:ro
     networks: [txn-network]
 
 networks:

@@ -1,20 +1,20 @@
 /**
  * App main entrypoint
- *
- *
  */
 import process from "node:process";
-import {
-	// type Consumer,
-	stringDeserializer
-} from "@platformatic/kafka";
+import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
+import type { CardTransaction } from "./generated/card.ts";
 import { createPool } from "./integrations/database/postgres.ts";
 import { loadActiveRules } from "./integrations/database/respository/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
 import { transactionBatchHandler } from "./integrations/events/handlers/batchHandler.ts";
+import { deserializationErrorHandler } from "./integrations/events/handlers/deserialisationHandler.ts";
 import {
+	type CardConsumer,
 	createKafkaConsumer,
+	createKafkaDlqProducer,
+	type DlqProducer,
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
 import { config, fileLogger } from "./runtime.ts";
@@ -22,9 +22,9 @@ import { config, fileLogger } from "./runtime.ts";
 const logger = fileLogger(import.meta.url);
 
 // Dependencies
-let writerPool: Pool | undefined;
-// biome-ignore lint/suspicious/noExplicitAny: Define later #TODO
-let kafkaConsumer: any;
+let writerPool: Pool;
+let kafkaConsumer: CardConsumer;
+let kafkaDlqProducer: DlqProducer;
 
 export async function startupCheck<T>(
 	name: string,
@@ -35,7 +35,9 @@ export async function startupCheck<T>(
 	try {
 		const result = await action();
 
-		logger.info(`✓ ${name} (${Math.round(performance.now() - start)}ms)`);
+		logger.info(
+			`Dependency: ${name} (${Math.round(performance.now() - start)}ms)`
+		);
 
 		return result;
 	} catch (err) {
@@ -44,28 +46,41 @@ export async function startupCheck<T>(
 	}
 }
 
-export async function gracefulShudown() {
-	await writerPool?.end();
-	await kafkaConsumer.close();
-	process.exit(0);
+export async function gracefulShutdown(code = 0): Promise<never> {
+	// Consumer first: close() sends LeaveGroup, which is what stops the next
+	// start from waiting out the session timeout on a zombie member.
+	try {
+		await kafkaConsumer.close();
+	} catch (err) {
+		logger.error({ err }, "Consumer close failed");
+	}
+
+	try {
+		await writerPool?.end();
+	} catch (err) {
+		logger.error({ err }, "Pool close failed");
+	}
+
+	try {
+		await kafkaDlqProducer.close();
+	} catch (err) {
+		logger.error({ err }, "Producer close failed");
+	}
+
+	process.exit(code);
 }
 
 // #region: Kill Processes
-process.on("SIGTERM", async () => {
-	await gracefulShudown();
-});
-
-process.on("SIGINT", async () => {
-	await gracefulShudown();
-});
+process.on("SIGTERM", () => void gracefulShutdown());
+process.on("SIGINT", () => void gracefulShutdown());
 
 await startupCheck(
 	"test",
 	() => new Promise((resolve) => setTimeout(resolve, 2000))
 );
+// #endregion
 
-// Create baseLogger
-
+// #region: Main entrypoint
 try {
 	// Create database pool to manage connections
 	writerPool = await startupCheck("PostgreSQL", () =>
@@ -80,21 +95,26 @@ try {
 		})
 	);
 
-	// const rules = await loadActiveRules(writerPool);
-	// for (const rule in rules) {
-	// 	console.log(rule);
-	// }
+	const rules = await loadActiveRules(writerPool);
+	logger.info(`Loaded ${rules.length} rules`);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
-		createAvroDeserializer(config.schemaRegistry.url, [
+		createAvroDeserializer<CardTransaction>(config.schemaRegistry.url, [
 			"transactions.card-value"
 		])
 	);
 
-	kafkaConsumer = createKafkaConsumer({
+	kafkaConsumer = await createKafkaConsumer({
 		groupId: config.kafka.groupId,
-		clientId: config.kafka.clientId,
-		bootstrapBrokers: Array(config.kafka.brokers),
+		clientId: `${config.kafka.clientId}_consumer`,
+		bootstrapBrokers: config.kafka.brokers,
+
+		// Kafka group membership
+		sessionTimeout: config.kafka.sessionTimeout,
+		heartbeatInterval: config.kafka.heartbeatInterval, // 5_000
+		rebalanceTimeout: config.kafka.rebalanceTimeout, // 30_000
+		requestTimeout: config.kafka.requestTimeout,
+
 		sasl: {
 			mechanism: config.kafka.sasl.mechanism,
 			username: config.kafka.sasl.username,
@@ -108,14 +128,47 @@ try {
 		}
 	});
 
+	kafkaDlqProducer = await createKafkaDlqProducer({
+		clientId: `${config.kafka.clientId}_producer`,
+		bootstrapBrokers: config.kafka.brokers,
+		sasl: {
+			mechanism: config.kafka.sasl.mechanism,
+			username: config.kafka.sasl.username,
+			password: config.secrets.kafka_password
+		}
+	});
+} catch (err) {
+	logger.error({ err }, "Startup failed");
+	await gracefulShutdown(1);
+	process.exit(1);
+}
+
+try {
+	logger.info(
+		{ topics: config.kafka.topics.card, mode: config.kafka.readMode },
+		"Starting consumer"
+	);
+
 	await startBatchConsumer(
 		kafkaConsumer,
-		Array(config.kafka.topics.card),
+		kafkaDlqProducer,
+		config.kafka.topics.dlq,
 		writerPool,
-		transactionBatchHandler
+		transactionBatchHandler,
+		deserializationErrorHandler,
+		{
+			topics: config.kafka.topics.card,
+			mode: config.kafka.readMode,
+			maxWaitTime: config.kafka.maxWaitTime,
+			batchSize: config.kafka.batchSize,
+			lingerMs: config.kafka.lingerMs,
+			maxRetries: config.kafka.maxRetries,
+			retryBaseDelayMs: config.kafka.retryBaseDelayMs
+		}
 	);
-} catch (error) {
-	logger.error({ error }, "Startup failed");
+} catch (err) {
+	logger.error({ err }, "Consumer stopped on an unrecoverable error");
+	await gracefulShutdown(1);
 }
 
 // #endregion

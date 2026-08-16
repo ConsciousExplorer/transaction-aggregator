@@ -143,6 +143,8 @@ vite.config.ts.timestamp-*
 .vite/
 
 research/*
+*/research/*
+**/research/*
 
 
 # Byte-compiled / optimized / DLL files

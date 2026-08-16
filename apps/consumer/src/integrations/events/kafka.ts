@@ -6,51 +6,200 @@ const logger = fileLogger(import.meta.url);
 // Create consumer client singleton
 // import { SchemaRegistry } from "@platformatic/kafka";
 import {
+	type BeforeHookPayloadType,
 	type ConsumeOptions,
 	Consumer,
 	type ConsumerOptions,
+	type DeserializationErrorHandler,
+	type Message,
 	MessagesStreamFallbackModes,
-	MessagesStreamModes
+	type MessagesStreamModeValue,
+	ProduceAcks,
+	Producer,
+	type ProducerOptions,
+	stringSerializer
 } from "@platformatic/kafka";
+import type { CardTransaction } from "#src/generated/card.ts";
 
-export function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
+/**
+ * Value is `CardTransaction`, not `CardTransaction | undefined`, because that is
+ * what TypeScript infers from the deserializer at the call site — the `| undefined`
+ * in its return type is not carried into `Value`.
+ *
+ * Two cases make that optimistic at runtime: a tombstone (empty payload) returns
+ * undefined, and a CONTINUE'd message carries the raw Buffer instead. Anything
+ * reading `message.value` must check `hasDeserialisationFailure` first and cope
+ * with a missing value.
+ */
+export type CardConsumer = Consumer<string, CardTransaction, string, string>;
+export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>
-): Consumer<Key, Value, HeaderKey, HeaderValue> {
+): Promise<Consumer<Key, Value, HeaderKey, HeaderValue>> {
 	const kafkaConsumer = new Consumer(options);
+
+	// Connects and authenticates. Same as postgres select 1
+	await kafkaConsumer.metadata({ forceUpdate: true });
 
 	// Register listerners
 	kafkaConsumer.addListener("consumer:group:rebalance", () =>
-		console.log("Preparing a rebalance")
+		logger.warn("Preparing a rebalance")
 	);
+
+	kafkaConsumer.addListener("client:broker:disconnect", () => {
+		logger.warn("Consumer disconnected");
+	});
+
 	return kafkaConsumer;
 }
 
-export async function startBatchConsumer(
-	consumer: ReturnType<typeof createKafkaConsumer>,
-	topics: string[],
-	pool: Pool,
-	// biome-ignore lint/suspicious/noExplicitAny: // TODO: implement message boundary
-	batchHandler: (pool: Pool, messages: any) => Promise<void>,
-	options?: Partial<ConsumeOptions<unknown, unknown, unknown, unknown>>
-) {
-	const messageStream = await consumer.consume({
-		topics: topics,
-		// COMMITTED is the only mode that reads the group's committed offsets;
-		// every other mode ignores them and re-reads from the log ends.
-		// TODO: change to commited when we are done testing, enabling this setting means we read from the beginning always
-		mode: MessagesStreamModes.EARLIEST,
-		// Using the Earlies fallback method will read all messages if none were comitted
-		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
+/**
+ * Creates a DLQ kafka producer
+ * No serializers should be passed.
+ * Raw messages should be persisted as is
+ */
+export type DlqProducer = Producer<string, Buffer, string, string>;
+export async function createKafkaDlqProducer(
+	options: Omit<ProducerOptions<string, Buffer, string, string>, "serializers">
+): Promise<DlqProducer> {
+	const kafkaDlqProducer = new Producer({
 		...options,
-		autocommit: false
+		acks: ProduceAcks.ALL,
+		serializers: {
+			key: stringSerializer,
+			headerKey: stringSerializer,
+			headerValue: stringSerializer
+		}
+	});
+	// Connects and authenticates. Same as postgres select 1
+	await kafkaDlqProducer.metadata({});
+
+	return kafkaDlqProducer;
+}
+
+export async function sendToDLQ<Key, Value, HeaderKey, HeaderValue>(
+	dlqProducer: DlqProducer,
+	dlqTopic: string,
+	messages: readonly Message<Key, Value, HeaderKey, HeaderValue>[]
+): Promise<void> {
+	if (messages.length === 0) return;
+
+	await dlqProducer.send({
+		messages: messages.map((message) => {
+			const failure = deserialisationFailureOf(message);
+
+			return {
+				topic: dlqTopic,
+				// Unique and traceable, and it spreads evenly across DLQ partitions.
+				key: `${message.topic}-${message.partition}-${message.offset}`,
+				// Already a Buffer: CONTINUE hands back record.value verbatim
+				// (messages-stream.js:671), which is the whole point of the DLQ.
+				value: message.value as Buffer,
+				headers: {
+					"x-dlq-reason": "deserialization",
+					"x-dlq-payload-type": failure?.payloadType ?? "unknown",
+					"x-dlq-error":
+						failure?.error instanceof Error
+							? failure.error.message
+							: String(failure?.error),
+					"x-source-topic": message.topic,
+					"x-source-partition": String(message.partition),
+					// bigint -> string: header values must be strings, and
+					// JSON.stringify throws on a raw bigint anyway.
+					"x-source-offset": message.offset.toString()
+				}
+			};
+		})
+	});
+}
+
+export interface CommittableMessage {
+	topic: string;
+	partition: number;
+	offset: bigint;
+	commit(): void | Promise<void>;
+}
+
+export async function commitBatch(
+	messages: readonly CommittableMessage[]
+): Promise<void> {
+	const highest = new Map<string, CommittableMessage>();
+	for (const message of messages) {
+		const key = `${message.topic}:${message.partition}`;
+		const current = highest.get(key);
+
+		if (!current || message.offset > current.offset) {
+			highest.set(key, message);
+		}
+	}
+
+	await Promise.all([...highest.values()].map((message) => message.commit()));
+}
+
+export interface BatchConsumerOptions {
+	topics: string[];
+	mode: MessagesStreamModeValue;
+	maxWaitTime: number;
+	batchSize: number;
+	lingerMs: number;
+	maxRetries: number;
+	retryBaseDelayMs: number;
+}
+
+/**
+ * What the stream writes onto `metadata` when the handler returned CONTINUE
+ * (messages-stream.js:673). `Message.metadata` is `Record<string, unknown>`, so
+ * this narrows rather than blindly casting.
+ */
+export interface DeserialisationFailure {
+	error: unknown;
+	payloadType: BeforeHookPayloadType;
+}
+
+export function deserialisationFailureOf(message: {
+	metadata: Record<string, unknown>;
+}): DeserialisationFailure | undefined {
+	const failure = message.metadata.deserializationError;
+
+	return failure && typeof failure === "object"
+		? (failure as DeserialisationFailure)
+		: undefined;
+}
+
+export function hasDeserialisationFailure(message: {
+	metadata: Record<string, unknown>;
+}): boolean {
+	return deserialisationFailureOf(message) !== undefined;
+}
+
+export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
+	consumer: Consumer<Key, Value, HeaderKey, HeaderValue>,
+	dlqProducer: DlqProducer,
+	dlqTopic: string,
+	pool: Pool,
+	batchHandler: (
+		pool: Pool,
+		messages: Message<Key, Value, HeaderKey, HeaderValue>[]
+	) => Promise<void>,
+	deserialisationErrorHandler: DeserializationErrorHandler,
+	options: BatchConsumerOptions,
+	overrides?: Partial<ConsumeOptions<Key, Value, HeaderKey, HeaderValue>>
+) {
+	type ConsumedMessage = Message<Key, Value, HeaderKey, HeaderValue>;
+
+	const messageStream = await consumer.consume({
+		topics: options.topics,
+		mode: options.mode,
+		// Only consulted when the group has no committed offset for a partition.
+		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
+		maxWaitTime: options.maxWaitTime,
+		...overrides,
+		autocommit: false,
+		onDeserializationError: deserialisationErrorHandler
 	});
 
 	// Creating our own batch handler
-	const BATCH_SIZE = 100;
-	const MAX_BATCH_TIME_MS = 2000;
+	let messageBatch: ConsumedMessage[] = [];
 	let timeoutId: NodeJS.Timeout | null = null;
-	// biome-ignore lint/suspicious/noExplicitAny: # TODO: implement types
-	let messageBatch: any[] = []; // TODO: this should be the deserialised payload
 
 	async function flushBatch(): Promise<void> {
 		if (timeoutId) {
@@ -60,18 +209,51 @@ export async function startBatchConsumer(
 
 		if (messageBatch.length === 0) return;
 
+		// Create a new batch of messages and clear the old ones.
+		// We create a copy so that the existing one does not grow on failure
+		const batch = messageBatch;
+		messageBatch = [];
+
+		// Setup failure and clean messages
+		const poison = batch.filter((message) =>
+			hasDeserialisationFailure(message)
+		);
+		const valid = batch.filter(
+			(message) => !hasDeserialisationFailure(message)
+		);
+
 		try {
-			await batchHandler(pool, messageBatch);
-			// Commit only once the batch is durably handled. Every message
-			await messageBatch[messageBatch.length - 1].commit();
-			messageBatch = [];
-		} catch (error) {
-			// This also runs from a timer, where an uncaught throw would take
-			// the process down. Nothing was committed, so the batch is replayed
-			// on the next run.
+			// Both have to be durable before a single offset moves: the rows in
+			// Postgres, and the undeserialisable records on the DLQ topic.
+			await batchHandler(pool, valid);
+			await sendToDLQ(dlqProducer, dlqTopic, poison);
+		} catch (err) {
+			// Rethrow rather than swallow. Falling through to the commit below
+			// would advance offsets past rows that were never inserted — the
+			// batch replays on the next run instead.
 			logger.error(
-				{ error, size: messageBatch.length },
-				"Failed to process batch"
+				{ err, size: batch.length, valid: valid.length, poison: poison.length },
+				"Batch failed — not committing"
+			);
+
+			throw err;
+		}
+
+		if (poison.length > 0) {
+			logger.warn(
+				{ size: poison.length, dlqTopic },
+				"Dead-lettered undeserialisable messages"
+			);
+		}
+
+		try {
+			// Commit only once the batch is durably handled — including the
+			// poison records, which are now safely on the DLQ topic.
+			await commitBatch(batch);
+		} catch (error) {
+			logger.warn(
+				{ err: error, size: batch.length },
+				"Commit failed after a successful insert — offsets will replay"
 			);
 		}
 	}
@@ -83,11 +265,18 @@ export async function startBatchConsumer(
 		// gets processed on a quiet topic.
 		if (messageBatch.length === 1) {
 			timeoutId = setTimeout(() => {
-				void flushBatch();
-			}, MAX_BATCH_TIME_MS);
+				flushBatch().catch((error: unknown) => {
+					// flushBatch throws now, and a timer rejection has nobody to
+					// propagate to. Destroying the stream makes the for-await
+					// below rethrow it on the caller's stack instead.
+					messageStream.destroy(
+						error instanceof Error ? error : new Error(String(error))
+					);
+				});
+			}, options.lingerMs);
 		}
 
-		if (messageBatch.length >= BATCH_SIZE) {
+		if (messageBatch.length >= options.batchSize) {
 			await flushBatch();
 		}
 	}
