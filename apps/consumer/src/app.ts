@@ -6,7 +6,12 @@ import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
-import type { RuleRow } from "./domain/categorisation/categoriser.ts";
+import {
+	createRuleCategorizer,
+	type Rule,
+	type RuleCategorizer,
+	type RuleSet
+} from "./domain/categorisation/rule-categorizer.ts";
 import type { CardTransaction } from "./generated/card.ts";
 import { transactionBatchHandler } from "./handlers/batchHandler.ts";
 import { deserializationErrorHandler } from "./handlers/deserialisationHandler.ts";
@@ -33,7 +38,9 @@ let writerPool: Pool;
 let kafkaConsumer: CardConsumer;
 let kafkaDlqProducer: DlqProducer;
 let server: Server;
-let rules: RuleRow[];
+let rules: Rule[];
+let uncategorizedId: number;
+let ruleCategorizer: RuleCategorizer;
 
 export async function startupCheck<T>(
 	name: string,
@@ -153,6 +160,14 @@ try {
 		}
 	});
 
+	const ruleset = {
+		version: 1,
+		rules: rules,
+		uncategorizedId: uncategorizedId
+	} as RuleSet;
+
+	ruleCategorizer = createRuleCategorizer(ruleset);
+
 	server = await createServer();
 	server.listen(config.app.port);
 } catch (err) {
@@ -173,7 +188,7 @@ try {
 		kafkaDlqProducer,
 		config.kafka.topics.dlq,
 		writerPool,
-		rules,
+		ruleCategorizer,
 		transactionBatchHandler,
 		deserializationErrorHandler,
 		{

@@ -1,10 +1,10 @@
 import type { Pool } from "pg";
 import z from "zod";
-import type { RuleRow } from "#src/domain/categorisation/categoriser.ts";
+import type { Rule } from "#src/domain/categorisation/rule-categorizer.ts";
 
 const ruleSchema = z.object({
 	categorization_rule_id: z.string(),
-	version: z.number(),
+	ruleset_version: z.number(),
 	priority: z.number(),
 	matcher_type: z.string(),
 	pattern: z.string(),
@@ -15,7 +15,7 @@ const categorySchema = z.object({
 	category_id: z.number()
 });
 
-export async function loadActiveRules(pool: Pool): Promise<RuleRow[]> {
+export async function loadActiveRules(pool: Pool): Promise<Rule[]> {
 	const { rows } = await pool.query<z.infer<typeof ruleSchema>>(
 		`
 		SELECT 	r.priority, r.matcher_type, r.pattern, r.category_id,
@@ -31,8 +31,9 @@ export async function loadActiveRules(pool: Pool): Promise<RuleRow[]> {
 				priority: r.priority,
 				matcherType: r.matcher_type,
 				pattern: r.pattern,
-				categoryId: r.category_id
-			}) as RuleRow
+				categoryId: r.category_id,
+				version: r.ruleset_version
+			}) as Rule
 	);
 }
 

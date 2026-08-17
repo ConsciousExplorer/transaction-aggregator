@@ -79,7 +79,7 @@ FROM (VALUES
   (500, 'source_txn_type', 'loan:repayment',    'loan_repayment'),
   (501, 'source_txn_type', 'loan:disbursement', 'income'),
 
-  -- source_default → floor per source; makes 'uncategorized' a genuine anomaly signal
+  -- source_default: default for each transactino source
   (900, 'source_default', 'card',              'uncategorized'),
   (901, 'source_default', 'loan',              'loan_repayment'),
   (902, 'source_default', 'debit_order',       'recurring_payments'),

@@ -15,7 +15,7 @@ export function normaliseCard(
 		occuredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
-		mcc: record.mccCode,
+		mcc: record.mccCode || null,
 		merchantName: record.merchantName,
 		currency: record.currency,
 		amountMinor: record.amount,

@@ -39,10 +39,13 @@ CREATE TABLE transactions (
   mcc           char(4)     CHECK (mcc ~ '^[0-9]{4}$'),  -- ISO 18245; leading zeros are real
   category_id   smallint    NOT NULL REFERENCES categories(category_id),
   rule_version  int         NOT NULL REFERENCES rule_sets(version),
+  rule_priority int,        -- lineage: with rule_version, names the EXACT rule that fired; NULL = engine fallback (no rule matched)
   ingested_at   timestamptz NOT NULL DEFAULT now(),
   metadata      jsonb,
   PRIMARY KEY (id, occurred_at),
-  UNIQUE (source, external_id, occurred_at) -- Source and externalId must be unique, assume we have internal control
+  UNIQUE (source, external_id, occurred_at), -- Source and externalId must be unique, assume we have internal control
+  FOREIGN KEY (rule_version, rule_priority)  -- stamped lineage must reference a real rule (skipped when rule_priority IS NULL)
+    REFERENCES categorization_rules (ruleset_version, priority)
 ) PARTITION BY RANGE (occurred_at);
 
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, id DESC)
@@ -83,7 +86,7 @@ END $$;
 UPDATE partman.part_config 
 SET 
   infinite_time_partitions = true,
-  retention = '24 month',
+  retention = '18 month',  -- the brief's number (SPEC §2.3); v1 shipped 24 by drift
   retention_keep_table = false
 WHERE parent_table = 'public.transactions';
 
