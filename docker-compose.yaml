@@ -203,7 +203,7 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
       GENERATOR_COUNT: "500"
-      GENERATOR_SEED: "42"
+      # GENERATOR_SEED: "42" -- Removing seed value
       LOG_LEVEL: INFO
     networks: [txn-network]
 

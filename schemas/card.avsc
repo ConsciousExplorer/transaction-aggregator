@@ -181,7 +181,7 @@
     {
       "name": "currency",
       "type": "string",
-      "arg.properties": { "options": ["ZAC"] }
+      "arg.properties": { "options": ["ZAR"] }
     },
     {
       "name": "transactionType",

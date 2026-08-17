@@ -2,6 +2,7 @@
   "type": "record",
   "name": "InternalTransferTransaction",
   "namespace": "transactions",
+  "partitionKey": "customerId",
   "doc": "Movement of funds between two accounts held by the same customer.",
   "fields": [
     {
@@ -49,7 +50,7 @@
     {
       "name": "currency",
       "type": "string",
-      "arg.properties": { "options": ["ZAC"] }
+      "arg.properties": { "options": ["ZAR"] }
     },
     {
       "name": "transactionType",

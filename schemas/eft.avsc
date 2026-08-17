@@ -2,6 +2,7 @@
   "type": "record",
   "name": "EftTransaction",
   "namespace": "transactions",
+  "partitionKey": "customerId",
   "doc": "Electronic Funds Transfer — standard inter-bank credit push.",
   "fields": [
     {
@@ -67,7 +68,7 @@
     {
       "name": "currency",
       "type": "string",
-      "arg.properties": { "options": ["ZAC"] }
+      "arg.properties": { "options": ["ZAR"] }
     },
     {
       "name": "transactionType",

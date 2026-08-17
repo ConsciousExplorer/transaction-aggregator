@@ -2,6 +2,7 @@
   "type": "record",
   "name": "LoanTransaction",
   "namespace": "transactions",
+  "partitionKey": "customerId",
   "doc": "Loan-book movement: disbursement to customer or customer repayment.",
   "fields": [
     {
@@ -52,7 +53,7 @@
     {
       "name": "amount",
       "type": "long",
-      "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.",
+      "doc": "Amount in ZAR (South African cents). Divide by 100 for display in ZAR.",
       "arg.properties": {
         "rules": [
           {
@@ -77,19 +78,19 @@
     {
       "name": "principalAmount",
       "type": "long",
-      "doc": "Principal in ZAC (South African cents).",
+      "doc": "Principal in ZAR (South African cents).",
       "arg.properties": { "range": { "min": 10000, "max": 2500000 } }
     },
     {
       "name": "interestAmount",
       "type": "long",
-      "doc": "Interest in ZAC (South African cents).",
+      "doc": "Interest in ZAR (South African cents).",
       "arg.properties": { "range": { "min": 5000, "max": 1000000 } }
     },
     {
       "name": "currency",
       "type": "string",
-      "arg.properties": { "options": ["ZAC"] }
+      "arg.properties": { "options": ["ZAR"] }
     },
     {
       "name": "transactionType",

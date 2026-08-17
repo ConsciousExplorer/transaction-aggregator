@@ -1,15 +1,21 @@
 /**
  * App main entrypoint
  */
+
+import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
+import type { RuleRow } from "./domain/categorisation/categoriser.ts";
 import type { CardTransaction } from "./generated/card.ts";
-import { createPool } from "./integrations/database/postgres.ts";
-import { loadActiveRules } from "./integrations/database/respository/rule-repository.ts";
+import { transactionBatchHandler } from "./handlers/batchHandler.ts";
+import { deserializationErrorHandler } from "./handlers/deserialisationHandler.ts";
+import { createPool } from "./integrations/database/pool.ts";
+import {
+	loadActiveRules,
+	loadUncategorizedId
+} from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
-import { transactionBatchHandler } from "./integrations/events/handlers/batchHandler.ts";
-import { deserializationErrorHandler } from "./integrations/events/handlers/deserialisationHandler.ts";
 import {
 	type CardConsumer,
 	createKafkaConsumer,
@@ -17,6 +23,7 @@ import {
 	type DlqProducer,
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
+import { createServer } from "./integrations/http/server.ts";
 import { config, fileLogger } from "./runtime.ts";
 
 const logger = fileLogger(import.meta.url);
@@ -25,6 +32,8 @@ const logger = fileLogger(import.meta.url);
 let writerPool: Pool;
 let kafkaConsumer: CardConsumer;
 let kafkaDlqProducer: DlqProducer;
+let server: Server;
+let rules: RuleRow[];
 
 export async function startupCheck<T>(
 	name: string,
@@ -67,6 +76,12 @@ export async function gracefulShutdown(code = 0): Promise<never> {
 		logger.error({ err }, "Producer close failed");
 	}
 
+	try {
+		server.close();
+	} catch (err) {
+		logger.error({ err }, "Producer close failed");
+	}
+
 	process.exit(code);
 }
 
@@ -95,8 +110,8 @@ try {
 		})
 	);
 
-	const rules = await loadActiveRules(writerPool);
-	logger.info(`Loaded ${rules.length} rules`);
+	rules = await loadActiveRules(writerPool);
+	uncategorizedId = await loadUncategorizedId(writerPool);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
 		createAvroDeserializer<CardTransaction>(config.schemaRegistry.url, [
@@ -137,12 +152,16 @@ try {
 			password: config.secrets.kafka_password
 		}
 	});
+
+	server = await createServer();
+	server.listen(config.app.port);
 } catch (err) {
 	logger.error({ err }, "Startup failed");
 	await gracefulShutdown(1);
 	process.exit(1);
 }
 
+// The consumer closes the loop for subsequent calls. Server.listen must be called earlier
 try {
 	logger.info(
 		{ topic: config.kafka.topics.main, mode: config.kafka.readMode },
@@ -154,6 +173,7 @@ try {
 		kafkaDlqProducer,
 		config.kafka.topics.dlq,
 		writerPool,
+		rules,
 		transactionBatchHandler,
 		deserializationErrorHandler,
 		{

@@ -1,18 +1,12 @@
-// export interface RuleRow {
-// 	id: number;
-// 	version: number;
-// 	priority: number;
-// 	matcherType: "mcc" | "keyword" | "source_txn_type" | "source_default";
-// 	pattern: string;
-// 	categoryId: number;
-// }
-// export interface Verdict {
-// 	categoryId: number;
-// 	ruleVersion: number;
-// }
-// export interface Categorizer {
-// 	categorize(txn: CanonicalTransaction): Verdict;
-// }
-// export class RulesCategorizer implements Categorizer {
-// 	constructor(rules: RuleRow[], uncategorizedId: number) {}
-// }
+export interface RuleRow {
+	priority: number;
+	matcherType: "mcc" | "keyword" | "source_txn_type" | "source_default";
+	pattern: string;
+	categoryId: number;
+}
+export interface Verdict {
+	categoryId: number;
+	ruleVersion: number;
+}
+
+// How the categoriser works. Basically like a database cross join and selecting the first priority
