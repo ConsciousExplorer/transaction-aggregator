@@ -145,7 +145,7 @@ try {
 
 try {
 	logger.info(
-		{ topics: config.kafka.topics.card, mode: config.kafka.readMode },
+		{ topic: config.kafka.topics.main, mode: config.kafka.readMode },
 		"Starting consumer"
 	);
 
@@ -157,7 +157,7 @@ try {
 		transactionBatchHandler,
 		deserializationErrorHandler,
 		{
-			topics: config.kafka.topics.card,
+			topics: Array(config.kafka.topics.main),
 			mode: config.kafka.readMode,
 			maxWaitTime: config.kafka.maxWaitTime,
 			batchSize: config.kafka.batchSize,

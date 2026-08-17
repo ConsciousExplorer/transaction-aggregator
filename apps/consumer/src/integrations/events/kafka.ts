@@ -19,6 +19,11 @@ import {
 	type ProducerOptions,
 	stringSerializer
 } from "@platformatic/kafka";
+import {
+	NonRetryableError,
+	RetryableError
+} from "#src/errors/consumer-errors.ts";
+import { classifyPostgresError } from "#src/errors/postgres.ts";
 import type { CardTransaction } from "#src/generated/card.ts";
 
 /**
@@ -227,16 +232,39 @@ export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
 			// Postgres, and the undeserialisable records on the DLQ topic.
 			await batchHandler(pool, valid);
 			await sendToDLQ(dlqProducer, dlqTopic, poison);
-		} catch (err) {
+		} catch (error) {
+			// Classify errors
+			const failure = classifyPostgresError(error, "Batch insert failed");
+
+			// TODO: Check retry and error logic
+			if (failure instanceof NonRetryableError) {
+				logger.error(
+					{ error },
+					"A non retryable error was encountered, not halting"
+				);
+				await sendToDLQ(dlqProducer, dlqTopic, batch);
+			}
+
+			if (failure instanceof RetryableError) {
+				logger.error(
+					"We encountered a retyrable error, a consumer restart will fix"
+				);
+
+				throw error;
+			}
+
 			// Rethrow rather than swallow. Falling through to the commit below
 			// would advance offsets past rows that were never inserted — the
 			// batch replays on the next run instead.
 			logger.error(
-				{ err, size: batch.length, valid: valid.length, poison: poison.length },
+				{
+					error,
+					size: batch.length,
+					valid: valid.length,
+					poison: poison.length
+				},
 				"Batch failed — not committing"
 			);
-
-			throw err;
 		}
 
 		if (poison.length > 0) {

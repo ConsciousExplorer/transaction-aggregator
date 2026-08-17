@@ -61,6 +61,12 @@ echo "Applying ACLs..."
   --operation Read --operation Describe \
   --topic transactions --resource-pattern-type prefixed
 
+# consumer: write-only on transaction topics, needed for dlq writes
+/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
+  --allow-principal User:consumer \
+  --operation Write --operation Describe \
+  --topic transactions --resource-pattern-type prefixed
+
 /opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --allow-principal User:consumer \
   --operation Read --group '*'

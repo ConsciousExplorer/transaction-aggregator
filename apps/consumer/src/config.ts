@@ -50,7 +50,7 @@ const configSchema = z
 		KAFKA_PASSWORD_SECRET_NAME: z.string(),
 		KAFKA_SASL_MECHANISM: z.enum(SASLMechanisms).default("SCRAM-SHA-512"),
 		KAFKA_GROUP_ID: z.string().default("transaction-aggregator-group"),
-		KAFKA_TOPICS: z.string().default("transactions.card").transform(csv),
+		KAFKA_TOPIC: z.string().default("transactions.card"),
 		KAFKA_DLQ_TOPIC: z.string().default("transactions.card.dlq"), // TODO: define more dlq topics
 
 		KAFKA_SESSION_TIMEOUT_MS: z.coerce
@@ -145,7 +145,7 @@ const configSchema = z
 					username: e.KAFKA_USERNAME
 				}),
 				topics: Object.freeze({
-					card: e.KAFKA_TOPICS, // string[] now
+					main: e.KAFKA_TOPIC, // string[] now
 					dlq: e.KAFKA_DLQ_TOPIC
 				}),
 				sessionTimeout: e.KAFKA_SESSION_TIMEOUT_MS,

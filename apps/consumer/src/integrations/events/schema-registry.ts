@@ -4,13 +4,6 @@ import { UserError } from "@platformatic/kafka";
 import { z } from "zod";
 import { AvroSchemaObject } from "../../schemas/avro.ts";
 
-export class SchemaRegistryError extends Error {
-	constructor(message: string, options?: { cause?: unknown }) {
-		super(message, options);
-		this.name = "SchemaRegistryError";
-	}
-}
-
 async function registryFetch<S extends z.ZodType>(
 	url: string,
 	schema: S
