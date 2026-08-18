@@ -12,6 +12,11 @@ import {
 	type RuleCategorizer,
 	type RuleSet
 } from "./domain/categorisation/rule-categorizer.ts";
+import {
+	createNormaliser,
+	type Normaliser,
+	type SourceTypes
+} from "./domain/normaliser/normaliser.ts";
 import type { CardTransaction } from "./generated/card.ts";
 import { transactionBatchHandler } from "./handlers/batchHandler.ts";
 import { deserializationErrorHandler } from "./handlers/deserialisationHandler.ts";
@@ -40,6 +45,7 @@ let kafkaDlqProducer: DlqProducer;
 let server: Server;
 let rules: Rule[];
 let uncategorizedId: number;
+let transactionNormaliser: Normaliser;
 let ruleCategorizer: RuleCategorizer;
 
 export async function startupCheck<T>(
@@ -166,6 +172,9 @@ try {
 		uncategorizedId: uncategorizedId
 	} as RuleSet;
 
+	transactionNormaliser = createNormaliser(
+		config.tranactionNormaliser as SourceTypes
+	); // TODO: need to get this from the topic somehow
 	ruleCategorizer = createRuleCategorizer(ruleset);
 
 	server = await createServer();
@@ -188,6 +197,7 @@ try {
 		kafkaDlqProducer,
 		config.kafka.topics.dlq,
 		writerPool,
+		transactionNormaliser,
 		ruleCategorizer,
 		transactionBatchHandler,
 		deserializationErrorHandler,

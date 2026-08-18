@@ -34,3 +34,9 @@ export const canonicalTransactionSchema = z.object({
 		.transform((value) => (value === "" ? null : value)),
 	metadata: z.record(z.string(), z.unknown())
 });
+
+export const categorizedTransactionSchema = canonicalTransactionSchema.extend({
+	categoryId: z.number(),
+	ruleVersion: z.number(),
+	rulePriority: z.number().nullable()
+});

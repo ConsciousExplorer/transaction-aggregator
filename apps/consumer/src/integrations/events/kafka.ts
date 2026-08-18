@@ -20,6 +20,7 @@ import {
 	stringSerializer
 } from "@platformatic/kafka";
 import type { RuleCategorizer } from "#src/domain/categorisation/rule-categorizer.ts";
+import type { Normaliser } from "#src/domain/normaliser/normaliser.ts";
 import {
 	NonRetryableError,
 	RetryableError
@@ -182,10 +183,12 @@ export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
 	dlqProducer: DlqProducer,
 	dlqTopic: string,
 	pool: Pool,
+	transactionNormaliser: Normaliser,
 	ruleCategorizer: RuleCategorizer,
 	batchHandler: (
 		pool: Pool,
 		messages: Message<Key, Value, HeaderKey, HeaderValue>[],
+		transactionNormaliser: Normaliser,
 		ruleCategorizer: RuleCategorizer
 	) => Promise<void>,
 	deserialisationErrorHandler: DeserializationErrorHandler,
@@ -233,7 +236,7 @@ export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
 		try {
 			// Both have to be durable before a single offset moves: the rows in
 			// Postgres, and the undeserialisable records on the DLQ topic.
-			await batchHandler(pool, valid, ruleCategorizer);
+			await batchHandler(pool, valid, transactionNormaliser, ruleCategorizer);
 			await sendToDLQ(dlqProducer, dlqTopic, poison);
 		} catch (error) {
 			// Classify errors

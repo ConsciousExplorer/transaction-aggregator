@@ -1,16 +1,12 @@
 import type { Pool } from "pg";
 import type z from "zod";
-import type { canonicalTransactionSchema } from "#src/domain/transaction.ts";
-
-// Fallback - TODO - implement categorsation and then remove the fallback! NB!
-const FALLBACK_CATEGORY = "uncategorized";
-const ruleVersion = 1; // TODO: Update from categorser
+import type { categorizedTransactionSchema } from "#src/domain/transaction.ts";
 
 export async function batchInsertTransactions(
 	pool: Pool,
-	txns: z.infer<typeof canonicalTransactionSchema>[]
+	transactions: z.infer<typeof categorizedTransactionSchema>[]
 ): Promise<{ attempted: number; inserted: number }> {
-	if (txns.length === 0) return { attempted: 0, inserted: 0 };
+	if (transactions.length === 0) return { attempted: 0, inserted: 0 };
 
 	const result = await pool.query(
 		`
@@ -29,6 +25,7 @@ export async function batchInsertTransactions(
 			mcc,
 			category_id,
         	rule_version,
+			rule_priority,
 			metadata
 		)
         SELECT
@@ -43,8 +40,9 @@ export async function batchInsertTransactions(
 			t.description,
 			t.merchant_name,
 			t.mcc,
-			(SELECT category_id FROM categories WHERE name = $13),
-			$14::int,
+			t.category_id,
+			t.rule_version,
+			t.rule_priority,
 			t.metadata
 		FROM unnest(
         	$1::uuid[],
@@ -58,7 +56,10 @@ export async function batchInsertTransactions(
 			$9::text[],
 			$10::text[],
 			$11::char(4)[],
-        	$12::jsonb[])
+			$12::bigint[],
+			$13::bigint[],
+			$14::bigint[],
+        	$15::jsonb[])
 		AS t (
 			user_id,
 			source,
@@ -71,28 +72,30 @@ export async function batchInsertTransactions(
 			description,
 			merchant_name,
 			mcc,
+			category_id,
+			rule_version,
+			rule_priority,
 			metadata
 		)
         ON CONFLICT (source, external_id, occurred_at) DO NOTHING
         RETURNING 1`,
 		[
-			txns.map((t) => t.userId), // 1
-			txns.map((t) => t.source), // 2
-			txns.map((t) => t.externalId), // 3
-			txns.map((t) => t.occuredAt), // 4
-			txns.map((t) => t.postedAt), // 5
-			txns.map((t) => t.direction), // 6
-			txns.map((t) => t.amountMinor), // 7
-			txns.map((t) => t.currency), // 8
-			txns.map((t) => t.description), // 9
-			txns.map((t) => t.merchantName), // 10
-			txns.map((t) => t.mcc), // 11
-			txns.map((t) => JSON.stringify(t.metadata)), // 12 — string[] cast by $12::jsonb[]
-
-			// TODO: implement categorization
-			FALLBACK_CATEGORY, // 13 — scalar, same for the whole batch
-			ruleVersion // 14 — scalar, same for the whole batch
+			transactions.map((t) => t.userId), // 1
+			transactions.map((t) => t.source), // 2
+			transactions.map((t) => t.externalId), // 3
+			transactions.map((t) => t.occuredAt), // 4
+			transactions.map((t) => t.postedAt), // 5
+			transactions.map((t) => t.direction), // 6
+			transactions.map((t) => t.amountMinor), // 7
+			transactions.map((t) => t.currency), // 8
+			transactions.map((t) => t.description), // 9
+			transactions.map((t) => t.merchantName), // 10
+			transactions.map((t) => t.mcc), // 11
+			transactions.map((t) => t.categoryId), // 12
+			transactions.map((t) => t.ruleVersion), // 13
+			transactions.map((t) => t.rulePriority), // 14
+			transactions.map((t) => JSON.stringify(t.metadata)) // 15 — string[] cast by $15::jsonb[]
 		]
 	);
-	return { attempted: txns.length, inserted: result.rowCount ?? 0 };
+	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };
 }

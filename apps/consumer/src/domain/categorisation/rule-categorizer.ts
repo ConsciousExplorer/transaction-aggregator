@@ -1,6 +1,7 @@
 import type z from "zod";
 import type { canonicalTransactionSchema } from "../transaction.ts";
 
+export const KEYWORD_SOURCES = new Set(["card", "debit_order"]);
 export const MATCHER_TYPES = [
 	"mcc",
 	"keyword",
@@ -19,6 +20,7 @@ export interface Rule {
 export interface Verdict {
 	categoryId: number;
 	ruleVersion: number;
+	rulePriority: number | null;
 	matcherType: MatcherType | "fallback";
 }
 
@@ -33,15 +35,8 @@ export interface RuleCategorizer {
 }
 
 export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
-	// This is where the hard logic loves. The categorizer uses the closure to do the hard work once
-	const KEYWORD_SOURCES = new Set(["card", "debit_order"]);
-	// const TIER_ORDER = [
-	// 	"mcc",
-	// 	"keyword",
-	// 	"source_txn_type",
-	// 	"source_default"
-	// ] as const;
-
+	// Compile step: O(r log r) sort + O(r) map builds, paid once at boot —
+	// categorize() does no per-message setup.
 	const sorted = [...ruleset.rules].sort((a, b) => a.priority - b.priority);
 
 	const mccMap = new Map<string, Rule>();
@@ -71,11 +66,13 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 	const fallback: Verdict = {
 		categoryId: ruleset.uncategorizedId,
 		ruleVersion: ruleset.version,
+		rulePriority: null,
 		matcherType: "fallback"
 	};
 	const verdictOf = (rule: Rule): Verdict => ({
 		categoryId: rule.categoryId,
 		ruleVersion: version,
+		rulePriority: rule.priority,
 		matcherType: rule.matcherType
 	});
 
@@ -83,14 +80,15 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 		categorize(
 			transaction: z.infer<typeof canonicalTransactionSchema>
 		): Verdict {
-			// Search order
-			// 1. MCC first
-			// 2. Keywords
-			// 3. source type
-			// 4. source defaults
-			// 5. Fallback
+			// Search order and per-transaction cost (Map.get is a hash
+			// lookup: O(1) average, not O(n)):
+			// 1. MCC             — O(1) map lookup
+			// 2. Keywords        — O(k·m): k terms scanned in priority order
+			// 3. source:txn_type — O(1) map lookup
+			// 4. source defaults — O(1) map lookup
+			// 5. Fallback        — O(1), always succeeds
 
-			// 1
+			// 1. MCC
 			if (transaction.mcc !== null) {
 				const rule = mccMap.get(transaction.mcc);
 				if (rule) {
@@ -98,7 +96,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				}
 			}
 
-			// 2
+			// 2. Keywords
 			if (KEYWORD_SOURCES.has(transaction.source)) {
 				const terms =
 					`${transaction.merchantName ?? ""} ${transaction.description ?? ""}`.toLowerCase();
@@ -107,17 +105,18 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				}
 			}
 
-			// 3
+			// 3. source:txn_type
 			const txnType = transaction.metadata.txn_type;
 			if (typeof txnType === "string") {
 				const rule = sttMap.get(`${transaction.source}:${txnType}`);
 				if (rule) return verdictOf(rule);
 			}
 
-			// 4
+			// 4. source defaults
 			const rule = defaultMap.get(transaction.source);
 			if (rule) return verdictOf(rule);
 
+			// 5. Fallback
 			return fallback;
 		}
 	};

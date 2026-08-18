@@ -45,6 +45,8 @@ const configSchema = z
 
 		SCHEMA_REGISTRY_URL: z.url().default("http://localhost:8081"),
 
+		TRANSACTION_NORMALISER: z.string().default("card"),
+
 		KAFKA_BROKERS: z.string().transform(csv),
 		KAFKA_USERNAME: z.string(),
 		KAFKA_PASSWORD_SECRET_NAME: z.string(),
@@ -160,6 +162,7 @@ const configSchema = z
 				retryBaseDelayMs: e.KAFKA_RETRY_BASE_DELAY_MS
 			}),
 			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
+			tranactionNormaliser: e.TRANSACTION_NORMALISER,
 
 			// Keeping secrets separate to ensure they are not logged out by mistake
 			secrets: Object.freeze({
