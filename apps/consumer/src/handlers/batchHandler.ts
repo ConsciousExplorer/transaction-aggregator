@@ -31,16 +31,15 @@ export async function transactionBatchHandler(
 		transactions.push(categorizedTransaction);
 	}
 
-	try {
-		const result = await batchInsertTransactions(pool, transactions);
-		const duplicates = result.attempted - result.inserted;
-		if (duplicates > 0) {
-			logger.warn(
-				{ attempted: result.attempted, inserted: result.inserted, duplicates },
-				"There were some duplicates"
-			);
-		}
-	} catch (error) {
-		logger.error(error, "Some error occured here"); // TODO: update error
+	// Don't catch errors here. If we do, we need to throw them again.
+	// Errors should propagate to the kafka layer to hanndle and commit
+	const result = await batchInsertTransactions(pool, transactions);
+
+	const duplicates = result.attempted - result.inserted;
+	if (duplicates > 0) {
+		logger.warn(
+			{ attempted: result.attempted, inserted: result.inserted, duplicates },
+			"There were some duplicates"
+		);
 	}
 }
