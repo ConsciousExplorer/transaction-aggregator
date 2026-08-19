@@ -1,4 +1,4 @@
-.PHONY: up down clean logs generate-card
+.PHONY: up down clean logs generate-card generate-eft
 
 up:
 	docker compose up
@@ -8,3 +8,6 @@ down:
 
 generate-card: 
 	docker compose up --no-deps producer-card
+
+generate-eft: 
+	docker compose up --no-deps producer-eft

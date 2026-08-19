@@ -3,29 +3,30 @@ import type {
 	canonicalTransactionSchema,
 	directionSchema
 } from "#src/domain/transaction.ts";
-import type { EftTransaction } from "#src/generated/eft.ts";
+import type { DebitOrderTransaction } from "#src/generated/debit_order.ts";
 
-export function normaliseEft(
-	record: EftTransaction
+export function normaliseDebitOrder(
+	record: DebitOrderTransaction
 ): z.infer<typeof canonicalTransactionSchema> {
 	return {
 		userId: record.customerId,
-		source: "eft", // can also be the topic name etc. Depending on domain
+		source: "debit_order",
 		externalId: record.transactionId,
 		occuredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
-		merchantName: null,
+		// debit_order is keyword-scoped: the creditor feeds the keyword haystack
+		merchantName: record.creditorName,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			beneficiary_name: record.beneficiaryName,
-			beneficiary_accountNumber: record.beneficiaryAccountNumber,
-			beneficiary_bank: record.beneficiaryBank,
-			branch_code: record.branchCode,
-			reference: record.reference
+			mandate_id: record.mandateId,
+			category: record.category,
+			creditor_abbrev_name: record.creditorAbbrevName,
+			collection_type: record.collectionType,
+			frequency: record.frequency
 		}
 	};
 }

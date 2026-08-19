@@ -3,14 +3,14 @@ import type {
 	canonicalTransactionSchema,
 	directionSchema
 } from "#src/domain/transaction.ts";
-import type { EftTransaction } from "#src/generated/eft.ts";
+import type { InternalTransferTransaction } from "#src/generated/internal_transfer.ts";
 
-export function normaliseEft(
-	record: EftTransaction
+export function normaliseInternalTransfer(
+	record: InternalTransferTransaction
 ): z.infer<typeof canonicalTransactionSchema> {
 	return {
 		userId: record.customerId,
-		source: "eft", // can also be the topic name etc. Depending on domain
+		source: "internal_transfer",
 		externalId: record.transactionId,
 		occuredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
@@ -21,11 +21,10 @@ export function normaliseEft(
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			beneficiary_name: record.beneficiaryName,
-			beneficiary_accountNumber: record.beneficiaryAccountNumber,
-			beneficiary_bank: record.beneficiaryBank,
-			branch_code: record.branchCode,
-			reference: record.reference
+			from_account_id: record.fromAccountId,
+			to_account_id: record.toAccountId,
+			from_account_type: record.fromAccountType,
+			to_account_type: record.toAccountType
 		}
 	};
 }

@@ -5,7 +5,7 @@ export const KEYWORD_SOURCES = new Set(["card", "debit_order"]);
 export const MATCHER_TYPES = [
 	"mcc",
 	"keyword",
-	"source_txn_type",
+	"source_type",
 	"source_default"
 ] as const;
 export type MatcherType = (typeof MATCHER_TYPES)[number];
@@ -49,7 +49,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 			case "mcc":
 				if (!mccMap.has(rule.pattern)) mccMap.set(rule.pattern, rule);
 				break;
-			case "source_txn_type":
+			case "source_type":
 				if (!sttMap.has(rule.pattern)) sttMap.set(rule.pattern, rule);
 				break;
 			case "keyword":
@@ -105,10 +105,10 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				}
 			}
 
-			// 3. source:txn_type
-			const txnType = transaction.metadata.txn_type;
-			if (typeof txnType === "string") {
-				const rule = sttMap.get(`${transaction.source}:${txnType}`);
+			// 3. source_type:txn_type
+			const transactionType = transaction.metadata.source_type;
+			if (typeof transactionType === "string") {
+				const rule = sttMap.get(`${transaction.source}:${transactionType}`);
 				if (rule) return verdictOf(rule);
 			}
 
