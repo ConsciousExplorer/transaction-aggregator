@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SASLMechanisms } from "@platformatic/kafka";
 import { z } from "zod";
+import { SOURCE_TYPES } from "./domain/normaliser/normaliser.ts";
 import { LOG_LEVELS } from "./logger.ts";
 
 const csv = (value: string) =>
@@ -45,15 +46,14 @@ const configSchema = z
 
 		SCHEMA_REGISTRY_URL: z.url().default("http://localhost:8081"),
 
-		TRANSACTION_NORMALISER: z.string().default("card"),
+		// One consumer instance per source. Topic, DLQ topic, group id and the
+		// normaliser are all derived from this single value so they can never drift.
+		SOURCE: z.enum(SOURCE_TYPES).default("card"),
 
 		KAFKA_BROKERS: z.string().transform(csv),
 		KAFKA_USERNAME: z.string(),
 		KAFKA_PASSWORD_SECRET_NAME: z.string(),
 		KAFKA_SASL_MECHANISM: z.enum(SASLMechanisms).default("SCRAM-SHA-512"),
-		KAFKA_GROUP_ID: z.string().default("transaction-aggregator-group"),
-		KAFKA_TOPIC: z.string().default("transactions.card"),
-		KAFKA_DLQ_TOPIC: z.string().default("transactions.card.dlq"), // TODO: define more dlq topics
 
 		KAFKA_SESSION_TIMEOUT_MS: z.coerce
 			.number()
@@ -138,17 +138,18 @@ const configSchema = z
 				min: e.DATABASE_POOL_MIN,
 				max: e.DATABASE_POOL_MAX
 			}),
+			source: e.SOURCE,
 			kafka: Object.freeze({
 				brokers: e.KAFKA_BROKERS, // string[] now
-				groupId: e.KAFKA_GROUP_ID,
+				groupId: `transaction-consumer-${e.SOURCE}`,
 				clientId: e.APP_NAME,
 				sasl: Object.freeze({
 					mechanism: e.KAFKA_SASL_MECHANISM,
 					username: e.KAFKA_USERNAME
 				}),
 				topics: Object.freeze({
-					main: e.KAFKA_TOPIC, // string[] now
-					dlq: e.KAFKA_DLQ_TOPIC
+					main: `transactions.${e.SOURCE}`,
+					dlq: `transactions.${e.SOURCE}.dlq`
 				}),
 				sessionTimeout: e.KAFKA_SESSION_TIMEOUT_MS,
 				heartbeatInterval: e.KAFKA_HEARTBEAT_INTERVAL_MS,
@@ -162,7 +163,6 @@ const configSchema = z
 				retryBaseDelayMs: e.KAFKA_RETRY_BASE_DELAY_MS
 			}),
 			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
-			tranactionNormaliser: e.TRANSACTION_NORMALISER,
 
 			// Keeping secrets separate to ensure they are not logged out by mistake
 			secrets: Object.freeze({

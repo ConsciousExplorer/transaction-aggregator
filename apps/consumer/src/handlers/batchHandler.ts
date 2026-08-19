@@ -18,16 +18,17 @@ export async function transactionBatchHandler(
 	// Main handler logic
 	const transactions = [];
 	for (const message of messages) {
-		if (message.topic === "transactions.card") {
-			const transaction = transactionNormaliser(message.value);
+		// Tombstones and empty payloads carry no record to normalise.
+		if (message.value == null) continue;
 
-			const categorizedTransaction = {
-				...transaction,
-				...ruleCategorizer.categorize(transaction)
-			};
+		const transaction = transactionNormaliser(message.value);
 
-			transactions.push(categorizedTransaction);
-		}
+		const categorizedTransaction = {
+			...transaction,
+			...ruleCategorizer.categorize(transaction)
+		};
+
+		transactions.push(categorizedTransaction);
 	}
 
 	try {

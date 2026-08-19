@@ -18,7 +18,7 @@ CREATE TABLE categorization_rules (
   categorization_rule_id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   ruleset_version int  NOT NULL REFERENCES rule_sets(version),
   priority        int  NOT NULL,
-  matcher_type    text NOT NULL CHECK (matcher_type IN ('mcc','keyword','source_txn_type','source_default')),
+  matcher_type    text NOT NULL CHECK (matcher_type IN ('mcc','keyword','source_transaction_type','source_default')),
   pattern         text NOT NULL,
   category_id     smallint NOT NULL REFERENCES categories(category_id),
   UNIQUE (ruleset_version, priority)

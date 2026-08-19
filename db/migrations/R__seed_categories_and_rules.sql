@@ -75,9 +75,9 @@ FROM (VALUES
   (351, 'keyword', 'wesbank',           'loan_repayment'),
   (352, 'keyword', 'mfc',               'loan_repayment'),
 
-  -- source_txn_type:  matches "{source}:{metadata.txn_type}"
-  (500, 'source_txn_type', 'loan:repayment',    'loan_repayment'),
-  (501, 'source_txn_type', 'loan:disbursement', 'income'),
+  -- source_transaction_type: matches "{source}:{metadata.transaction_type}"
+  (500, 'source_transaction_type', 'loan:repayment',    'loan_repayment'),
+  (501, 'source_transaction_type', 'loan:disbursement', 'income'),
 
   -- source_default: default for each transactino source
   (900, 'source_default', 'card',              'uncategorized'),

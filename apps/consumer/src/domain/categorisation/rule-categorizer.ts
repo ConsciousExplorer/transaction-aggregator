@@ -5,7 +5,7 @@ export const KEYWORD_SOURCES = new Set(["card", "debit_order"]);
 export const MATCHER_TYPES = [
 	"mcc",
 	"keyword",
-	"source_type",
+	"source_transaction_type",
 	"source_default"
 ] as const;
 export type MatcherType = (typeof MATCHER_TYPES)[number];
@@ -41,7 +41,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 
 	const mccMap = new Map<string, Rule>();
 	const keywordRules: Array<{ term: string; rule: Rule }> = [];
-	const sttMap = new Map<string, Rule>();
+	const sourceTransactionTypeMap = new Map<string, Rule>();
 	const defaultMap = new Map<string, Rule>();
 
 	for (const rule of sorted) {
@@ -49,8 +49,8 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 			case "mcc":
 				if (!mccMap.has(rule.pattern)) mccMap.set(rule.pattern, rule);
 				break;
-			case "source_type":
-				if (!sttMap.has(rule.pattern)) sttMap.set(rule.pattern, rule);
+			case "source_transaction_type":
+				if (!sourceTransactionTypeMap.has(rule.pattern)) sourceTransactionTypeMap.set(rule.pattern, rule);
 				break;
 			case "keyword":
 				keywordRules.push({ term: rule.pattern.toLowerCase(), rule });
@@ -84,7 +84,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 			// lookup: O(1) average, not O(n)):
 			// 1. MCC             — O(1) map lookup
 			// 2. Keywords        — O(k·m): k terms scanned in priority order
-			// 3. source:txn_type — O(1) map lookup
+			// 3. source:transaction_type — O(1) map lookup
 			// 4. source defaults — O(1) map lookup
 			// 5. Fallback        — O(1), always succeeds
 
@@ -105,10 +105,10 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				}
 			}
 
-			// 3. source_type:txn_type
-			const transactionType = transaction.metadata.source_type;
+			// 3. source:transaction_type
+			const transactionType = transaction.metadata.transaction_type;
 			if (typeof transactionType === "string") {
-				const rule = sttMap.get(`${transaction.source}:${transactionType}`);
+				const rule = sourceTransactionTypeMap.get(`${transaction.source}:${transactionType}`);
 				if (rule) return verdictOf(rule);
 			}
 

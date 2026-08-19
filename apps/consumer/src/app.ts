@@ -14,8 +14,7 @@ import {
 } from "./domain/categorisation/rule-categorizer.ts";
 import {
 	createNormaliser,
-	type Normaliser,
-	type SourceTypes
+	type Normaliser
 } from "./domain/normaliser/normaliser.ts";
 import type { CardTransaction } from "./generated/card.ts";
 import type { EftTransaction } from "./generated/eft.ts";
@@ -131,7 +130,7 @@ try {
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
 		createAvroDeserializer<CardTransaction | EftTransaction>(
 			config.schemaRegistry.url,
-			["transactions.card-value"]
+			[`${config.kafka.topics.main}-value`]
 		)
 	);
 
@@ -175,9 +174,7 @@ try {
 		uncategorizedId: uncategorizedId
 	} as RuleSet;
 
-	transactionNormaliser = createNormaliser(
-		config.tranactionNormaliser as SourceTypes
-	); // TODO: need to get this from the topic somehow
+	transactionNormaliser = createNormaliser(config.source);
 	ruleCategorizer = createRuleCategorizer(ruleset);
 
 	server = await createServer();

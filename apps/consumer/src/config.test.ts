@@ -43,15 +43,26 @@ const sampleEnv: Record<string, string | undefined> = {
 	KAFKA_BROKERS: "localhost:9092",
 	KAFKA_USERNAME: "consumer",
 	KAFKA_PASSWORD_SECRET_NAME: "kafka_password",
-	KAFKA_SASL_MECHANISM: "SCRAM-SHA-512",
-	KAFKA_GROUP_ID: "transaction-aggregator-group",
-	KAFKA_TOPICS: "transactions.card"
+	KAFKA_SASL_MECHANISM: "SCRAM-SHA-512"
 };
 
 suite("loadConfig", () => {
 	test("config loads correctly when all values are loaded", () => {
 		const config = loadConfig(sampleEnv);
 		assert.strictEqual(config.database.user, "kafka_consumer");
+	});
+
+	test("SOURCE derives the topic, DLQ topic, and group id", () => {
+		const config = loadConfig({ ...sampleEnv, SOURCE: "loan" });
+
+		assert.strictEqual(config.source, "loan");
+		assert.strictEqual(config.kafka.topics.main, "transactions.loan");
+		assert.strictEqual(config.kafka.topics.dlq, "transactions.loan.dlq");
+		assert.strictEqual(config.kafka.groupId, "transaction-consumer-loan");
+	});
+
+	test("rejects an unknown SOURCE", () => {
+		assert.throws(() => loadConfig({ ...sampleEnv, SOURCE: "bitcoin" }));
 	});
 
 	test("should fail validation required vars are not passed", () => {

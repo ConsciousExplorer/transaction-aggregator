@@ -11,3 +11,12 @@ generate-card:
 
 generate-eft: 
 	docker compose up --no-deps producer-eft
+
+generate-loan: 
+	docker compose up --no-deps producer-loan
+
+generate-internal-transfer: 
+	docker compose up --no-deps producer-internal-transfer
+
+generate-debit-order: 
+	docker compose up --no-deps producer-debit-order

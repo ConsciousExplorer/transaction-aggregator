@@ -235,6 +235,90 @@ services:
       LOG_LEVEL: INFO
     networks: [txn-network]
 
+  producer-loan:
+    build: { context: ./apps/producers }
+    # Rebuild on every `up` so the image can never lag the source tree.
+    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    pull_policy: build
+    container_name: producer-loan
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ./schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.loan
+      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
+      GENERATOR_COUNT: "500"
+      # GENERATOR_SEED: "42" -- Removing seed value
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
+  producer-internal-transfer:
+    build: { context: ./apps/producers }
+    # Rebuild on every `up` so the image can never lag the source tree.
+    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    pull_policy: build
+    container_name: producer-internal-transfer
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ./schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.loan
+      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/internal_transfer.avsc
+      GENERATOR_COUNT: "500"
+      # GENERATOR_SEED: "42" -- Removing seed value
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
+  producer-debit-order:
+    build: { context: ./apps/producers }
+    # Rebuild on every `up` so the image can never lag the source tree.
+    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    pull_policy: build
+    container_name: producer-debit-order
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ./schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.loan
+      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/debit_order.avsc
+      GENERATOR_COUNT: "500"
+      # GENERATOR_SEED: "42" -- Removing seed value
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
   # ingest-worker:
   #   build: { context: ./apps/ingest-worker }
   #   container_name: ingest-worker

@@ -57,6 +57,7 @@ suite("creation", () => {
 		assert.deepStrictEqual(categorizer.categorize(makeTransaction()), {
 			categoryId: 999,
 			ruleVersion: 7,
+			rulePriority: null,
 			matcherType: "fallback"
 		});
 	});
@@ -69,7 +70,7 @@ suite("tier 1: mcc", () => {
 		);
 		assert.deepStrictEqual(
 			categorizer.categorize(makeTransaction({ mcc: "5411" })),
-			{ categoryId: 10, ruleVersion: 7, matcherType: "mcc" }
+			{ categoryId: 10, ruleVersion: 7, rulePriority: 100, matcherType: "mcc" }
 		);
 	});
 
@@ -105,7 +106,12 @@ suite("tier 2: keyword", () => {
 		const categorizer = createRuleCategorizer(makeRuleSet([uberRule]));
 		assert.deepStrictEqual(
 			categorizer.categorize(makeTransaction({ merchantName: "UBER *TRIP" })),
-			{ categoryId: 20, ruleVersion: 7, matcherType: "keyword" }
+			{
+				categoryId: 20,
+				ruleVersion: 7,
+				rulePriority: 305,
+				matcherType: "keyword"
+			}
 		);
 	});
 
@@ -152,39 +158,44 @@ suite("tier 2: keyword", () => {
 	});
 });
 
-suite("tier 3: source_txn_type", () => {
+suite("tier 3: source_transaction_type", () => {
 	const repaymentRule = makeRule({
-		matcherType: "source_txn_type",
+		matcherType: "source_transaction_type",
 		pattern: "loan:repayment",
 		priority: 505,
 		categoryId: 30
 	});
 
-	test("matches on source plus metadata.txn_type", () => {
+	test("matches on source plus metadata.transaction_type", () => {
 		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
 		assert.deepStrictEqual(
 			categorizer.categorize(
 				makeTransaction({
 					source: "loan",
-					metadata: { txn_type: "repayment" }
+					metadata: { transaction_type: "repayment" }
 				})
 			),
-			{ categoryId: 30, ruleVersion: 7, matcherType: "source_txn_type" }
+			{
+				categoryId: 30,
+				ruleVersion: 7,
+				rulePriority: 505,
+				matcherType: "source_transaction_type"
+			}
 		);
 	});
 
-	test("same txn_type on a different source does not match", () => {
+	test("same transaction_type on a different source does not match", () => {
 		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
 		const verdict = categorizer.categorize(
-			makeTransaction({ source: "eft", metadata: { txn_type: "repayment" } })
+			makeTransaction({ source: "eft", metadata: { transaction_type: "repayment" } })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 
-	test("non-string txn_type is ignored", () => {
+	test("non-string transaction_type is ignored", () => {
 		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
 		const verdict = categorizer.categorize(
-			makeTransaction({ source: "loan", metadata: { txn_type: 42 } })
+			makeTransaction({ source: "loan", metadata: { transaction_type: 42 } })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
@@ -204,7 +215,12 @@ suite("tier 4: source_default", () => {
 		);
 		assert.deepStrictEqual(
 			categorizer.categorize(makeTransaction({ source: "internal_transfer" })),
-			{ categoryId: 40, ruleVersion: 7, matcherType: "source_default" }
+			{
+				categoryId: 40,
+				ruleVersion: 7,
+				rulePriority: 905,
+				matcherType: "source_default"
+			}
 		);
 	});
 
@@ -243,7 +259,7 @@ suite("tier precedence", () => {
 		assert.strictEqual(verdict.matcherType, "mcc");
 	});
 
-	test("keyword beats source_txn_type", () => {
+	test("keyword beats source_transaction_type", () => {
 		const categorizer = createRuleCategorizer(
 			makeRuleSet([
 				makeRule({
@@ -253,7 +269,7 @@ suite("tier precedence", () => {
 					categoryId: 20
 				}),
 				makeRule({
-					matcherType: "source_txn_type",
+					matcherType: "source_transaction_type",
 					pattern: "card:purchase",
 					priority: 505,
 					categoryId: 30
@@ -263,17 +279,17 @@ suite("tier precedence", () => {
 		const verdict = categorizer.categorize(
 			makeTransaction({
 				merchantName: "SPAR",
-				metadata: { txn_type: "purchase" }
+				metadata: { transaction_type: "purchase" }
 			})
 		);
 		assert.strictEqual(verdict.matcherType, "keyword");
 	});
 
-	test("source_txn_type beats source_default", () => {
+	test("source_transaction_type beats source_default", () => {
 		const categorizer = createRuleCategorizer(
 			makeRuleSet([
 				makeRule({
-					matcherType: "source_txn_type",
+					matcherType: "source_transaction_type",
 					pattern: "card:purchase",
 					priority: 505,
 					categoryId: 30
@@ -287,9 +303,9 @@ suite("tier precedence", () => {
 			])
 		);
 		const verdict = categorizer.categorize(
-			makeTransaction({ metadata: { txn_type: "purchase" } })
+			makeTransaction({ metadata: { transaction_type: "purchase" } })
 		);
-		assert.strictEqual(verdict.matcherType, "source_txn_type");
+		assert.strictEqual(verdict.matcherType, "source_transaction_type");
 	});
 });
 
