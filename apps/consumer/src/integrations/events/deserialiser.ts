@@ -4,7 +4,7 @@ import {
 	type DeserializationErrorContext
 } from "@platformatic/kafka";
 
-export function deserializationErrorHandler(
+export function deserialisationErrorHandler(
 	_context: DeserializationErrorContext
 ): DeserializationErrorAction {
 	// Platformatic version 2.9 added CONTINUE

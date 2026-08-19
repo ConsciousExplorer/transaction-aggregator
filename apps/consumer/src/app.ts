@@ -18,19 +18,21 @@ import {
 	type SourceTypes
 } from "./domain/normaliser/normaliser.ts";
 import type { CardTransaction } from "./generated/card.ts";
+import type { EftTransaction } from "./generated/eft.ts";
 import { transactionBatchHandler } from "./handlers/batchHandler.ts";
-import { deserializationErrorHandler } from "./handlers/deserialisationHandler.ts";
 import { createPool } from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
 	loadUncategorizedId
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
+import { deserialisationErrorHandler } from "./integrations/events/deserialiser.ts";
 import {
-	type CardConsumer,
+	// type CardConsumer,
 	createKafkaConsumer,
 	createKafkaDlqProducer,
 	type DlqProducer,
+	type KafkaConsumer,
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
@@ -40,7 +42,7 @@ const logger = fileLogger(import.meta.url);
 
 // Dependencies
 let writerPool: Pool;
-let kafkaConsumer: CardConsumer;
+let kafkaConsumer: KafkaConsumer;
 let kafkaDlqProducer: DlqProducer;
 let server: Server;
 let rules: Rule[];
@@ -127,9 +129,10 @@ try {
 	uncategorizedId = await loadUncategorizedId(writerPool);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
-		createAvroDeserializer<CardTransaction>(config.schemaRegistry.url, [
-			"transactions.card-value"
-		])
+		createAvroDeserializer<CardTransaction | EftTransaction>(
+			config.schemaRegistry.url,
+			["transactions.card-value"]
+		)
 	);
 
 	kafkaConsumer = await createKafkaConsumer({
@@ -200,7 +203,7 @@ try {
 		transactionNormaliser,
 		ruleCategorizer,
 		transactionBatchHandler,
-		deserializationErrorHandler,
+		deserialisationErrorHandler,
 		{
 			topics: Array(config.kafka.topics.main),
 			mode: config.kafka.readMode,

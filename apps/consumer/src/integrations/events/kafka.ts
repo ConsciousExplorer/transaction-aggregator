@@ -27,6 +27,8 @@ import {
 } from "#src/errors/consumer-errors.ts";
 import { classifyPostgresError } from "#src/errors/postgres.ts";
 import type { CardTransaction } from "#src/generated/card.ts";
+import type { EftTransaction } from "#src/generated/eft.ts";
+// import type { CardTransaction } from "#src/generated/card.ts";
 
 /**
  * Value is `CardTransaction`, not `CardTransaction | undefined`, because that is
@@ -38,7 +40,12 @@ import type { CardTransaction } from "#src/generated/card.ts";
  * reading `message.value` must check `hasDeserialisationFailure` first and cope
  * with a missing value.
  */
-export type CardConsumer = Consumer<string, CardTransaction, string, string>;
+export type KafkaConsumer = Consumer<
+	string,
+	CardTransaction | EftTransaction,
+	string,
+	string
+>;
 export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>
 ): Promise<Consumer<Key, Value, HeaderKey, HeaderValue>> {
