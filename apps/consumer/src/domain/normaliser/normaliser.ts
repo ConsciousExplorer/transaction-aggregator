@@ -15,8 +15,8 @@ export const SOURCE_TYPES = [
 	"card",
 	"eft",
 	"loan",
-	"debit_order",
-	"internal_transfer"
+	"debit-order",
+	"internal-transfer"
 ] as const;
 export type SourceTypes = (typeof SOURCE_TYPES)[number];
 export type Normaliser = (
@@ -27,8 +27,9 @@ const NORMALIZERS: Partial<Record<SourceTypes, Normaliser>> = {
 	card: (record) => normaliseCard(record as CardTransaction),
 	eft: (record) => normaliseEft(record as EftTransaction),
 	loan: (record) => normaliseLoan(record as LoanTransaction),
-	debit_order: (record) => normaliseDebitOrder(record as DebitOrderTransaction),
-	internal_transfer: (record) =>
+	"debit-order": (record) =>
+		normaliseDebitOrder(record as DebitOrderTransaction),
+	"internal-transfer": (record) =>
 		normaliseInternalTransfer(record as InternalTransferTransaction)
 };
 

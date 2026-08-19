@@ -282,10 +282,10 @@ services:
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
-      KAFKA_TOPIC: transactions.loan
+      KAFKA_TOPIC: transactions.internal-transfer
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      GENERATOR_SCHEMA_PATH: /schemas/internal_transfer.avsc
+      GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
       GENERATOR_COUNT: "500"
       # GENERATOR_SEED: "42" -- Removing seed value
       LOG_LEVEL: INFO
@@ -310,10 +310,10 @@ services:
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
-      KAFKA_TOPIC: transactions.loan
+      KAFKA_TOPIC: transactions.debit-order
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      GENERATOR_SCHEMA_PATH: /schemas/debit_order.avsc
+      GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
       GENERATOR_COUNT: "500"
       # GENERATOR_SEED: "42" -- Removing seed value
       LOG_LEVEL: INFO
