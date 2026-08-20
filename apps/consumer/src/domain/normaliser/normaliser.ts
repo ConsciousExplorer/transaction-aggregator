@@ -4,6 +4,7 @@ import type { DebitOrderTransaction } from "#src/generated/debit_order.ts";
 import type { EftTransaction } from "#src/generated/eft.ts";
 import type { InternalTransferTransaction } from "#src/generated/internal_transfer.ts";
 import type { LoanTransaction } from "#src/generated/loan.ts";
+import type { SourceTypes } from "../source.ts";
 import type { canonicalTransactionSchema } from "../transaction.ts";
 import { normaliseCard } from "./domain/card.ts";
 import { normaliseDebitOrder } from "./domain/debit_order.ts";
@@ -11,14 +12,6 @@ import { normaliseEft } from "./domain/eft.ts";
 import { normaliseInternalTransfer } from "./domain/internal_transfer.ts";
 import { normaliseLoan } from "./domain/loan.ts";
 
-export const SOURCE_TYPES = [
-	"card",
-	"eft",
-	"loan",
-	"debit-order",
-	"internal-transfer"
-] as const;
-export type SourceTypes = (typeof SOURCE_TYPES)[number];
 export type Normaliser = (
 	record: unknown
 ) => z.infer<typeof canonicalTransactionSchema>;

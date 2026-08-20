@@ -1,9 +1,18 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SASLMechanisms } from "@platformatic/kafka";
+import {
+	type MessagesStreamModeValue,
+	SASLMechanisms
+} from "@platformatic/kafka";
 import { z } from "zod";
-import { SOURCE_TYPES } from "./domain/normaliser/normaliser.ts";
+import { SOURCE_TYPES } from "./domain/source.ts";
 import { LOG_LEVELS } from "./logger.ts";
+
+const KAFKA_READ_MODES = [
+	"earliest",
+	"latest",
+	"committed"
+] as const satisfies readonly MessagesStreamModeValue[];
 
 const csv = (value: string) =>
 	value
@@ -80,9 +89,7 @@ const configSchema = z
 		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(1_000),
 		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(100),
 		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
-		KAFKA_READ_MODE: z
-			.enum(["earliest", "latest", "committed"])
-			.default("earliest"),
+		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("earliest"),
 
 		// Retry policy for retryable (infrastructure) batch failures.
 		KAFKA_MAX_RETRIES: z.coerce.number().int().min(0).default(5),
