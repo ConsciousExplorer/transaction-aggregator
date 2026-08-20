@@ -12,7 +12,7 @@ export function normaliseDebitOrder(
 		userId: record.customerId,
 		source: "debit_order",
 		externalId: record.transactionId,
-		occuredAt: new Date(record.timestamp).toISOString(),
+		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
 		// debit_order is keyword-scoped: the creditor feeds the keyword haystack

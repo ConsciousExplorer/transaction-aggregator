@@ -34,7 +34,7 @@ const makeTransaction = (
 	userId: "3f1d3aa4-8a3e-4a6e-9c93-2b9f6f1d8c11",
 	source: "card",
 	externalId: "txn-1",
-	occuredAt: "2026-08-18",
+	occurredAt: "2026-08-18",
 	postedAt: null,
 	direction: "debit",
 	currency: "ZAR",

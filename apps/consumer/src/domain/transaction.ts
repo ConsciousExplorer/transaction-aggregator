@@ -17,7 +17,7 @@ export const canonicalTransactionSchema = z.object({
 	// External source name and string - used for idempotency
 	source: z.string(),
 	externalId: z.string(),
-	occuredAt: z.iso.date(),
+	occurredAt: z.iso.date(),
 
 	// Top level financation information
 	postedAt: z.iso.date().nullable(),

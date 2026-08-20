@@ -3,6 +3,7 @@
 import type { Pool } from "pg";
 import type { RuleCategorizer } from "#src/domain/categorisation/rule-categorizer.ts";
 import type { Normaliser } from "#src/domain/normaliser/normaliser.ts";
+import { canonicalTransactionSchema } from "#src/domain/transaction.ts";
 import { batchInsertTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { fileLogger } from "#src/runtime.ts";
 
@@ -23,9 +24,11 @@ export async function transactionBatchHandler(
 
 		const transaction = transactionNormaliser(message.value);
 
+		const validatedTransaction = canonicalTransactionSchema.parse(transaction);
+
 		const categorizedTransaction = {
-			...transaction,
-			...ruleCategorizer.categorize(transaction)
+			...validatedTransaction,
+			...ruleCategorizer.categorize(validatedTransaction)
 		};
 
 		transactions.push(categorizedTransaction);

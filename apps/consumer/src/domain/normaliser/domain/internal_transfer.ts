@@ -12,7 +12,7 @@ export function normaliseInternalTransfer(
 		userId: record.customerId,
 		source: "internal_transfer",
 		externalId: record.transactionId,
-		occuredAt: new Date(record.timestamp).toISOString(),
+		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
 		merchantName: null,

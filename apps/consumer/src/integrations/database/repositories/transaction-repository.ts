@@ -83,7 +83,7 @@ export async function batchInsertTransactions(
 			transactions.map((t) => t.userId), // 1
 			transactions.map((t) => t.source), // 2
 			transactions.map((t) => t.externalId), // 3
-			transactions.map((t) => t.occuredAt), // 4
+			transactions.map((t) => t.occurredAt), // 4
 			transactions.map((t) => t.postedAt), // 5
 			transactions.map((t) => t.direction), // 6
 			transactions.map((t) => t.amountMinor), // 7

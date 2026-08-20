@@ -12,7 +12,7 @@ export function normaliseCard(
 		userId: record.customerId,
 		source: "card", // can also be the topic name etc. Depending on domain
 		externalId: record.transactionId,
-		occuredAt: new Date(record.timestamp).toISOString(),
+		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
 		mcc: record.mccCode || null,
