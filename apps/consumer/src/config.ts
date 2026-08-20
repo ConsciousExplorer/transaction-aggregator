@@ -82,7 +82,7 @@ const configSchema = z
 		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
 		KAFKA_READ_MODE: z
 			.enum(["earliest", "latest", "committed"])
-			.default("committed"),
+			.default("earliest"),
 
 		// Retry policy for retryable (infrastructure) batch failures.
 		KAFKA_MAX_RETRIES: z.coerce.number().int().min(0).default(5),
