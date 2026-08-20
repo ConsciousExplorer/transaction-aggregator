@@ -1,4 +1,8 @@
-.PHONY: up down clean logs generate-card generate-eft
+.PHONY: up down clean logs generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order
+
+# All five sources in one run (random seeds unless GENERATOR_SEED is set)
+generate:
+	docker compose up --no-deps producer-card producer-eft producer-loan producer-internal-transfer producer-debit-order
 
 up:
 	docker compose up

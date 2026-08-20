@@ -50,7 +50,8 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				if (!mccMap.has(rule.pattern)) mccMap.set(rule.pattern, rule);
 				break;
 			case "source_transaction_type":
-				if (!sourceTransactionTypeMap.has(rule.pattern)) sourceTransactionTypeMap.set(rule.pattern, rule);
+				if (!sourceTransactionTypeMap.has(rule.pattern))
+					sourceTransactionTypeMap.set(rule.pattern, rule);
 				break;
 			case "keyword":
 				keywordRules.push({ term: rule.pattern.toLowerCase(), rule });
@@ -108,7 +109,9 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 			// 3. source:transaction_type
 			const transactionType = transaction.metadata.transaction_type;
 			if (typeof transactionType === "string") {
-				const rule = sourceTransactionTypeMap.get(`${transaction.source}:${transactionType}`);
+				const rule = sourceTransactionTypeMap.get(
+					`${transaction.source}:${transactionType}`
+				);
 				if (rule) return verdictOf(rule);
 			}
 

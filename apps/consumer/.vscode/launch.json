@@ -38,12 +38,45 @@
 			"program": "${workspaceFolder}/src/app.ts",
 			"runtimeArgs": ["--env-file=.env"],
 			"env": { "SOURCE": "loan", "PORT": "3002" }
-		}
+		},
+		{
+			"name": "consumer: debit-order",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "debit-order", "PORT": "3003" },
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "consumer: eft",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "eft", "PORT": "3004" },
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "consumer: internal-transfer",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "internal-transfer", "PORT": "3005" },
+			"cwd": "${workspaceFolder}"
+		},
 	],
 	"compounds": [
 		{
-			"name": "card + loan consumers",
-			"configurations": ["consumer: card", "consumer: loan"]
+			"name": "card + loan consumers + eft + internal-transfer + debit-order",
+			"configurations": [
+				"consumer: card", 
+				"consumer: loan",
+				"consumer: eft",
+				"consumer: internal-transfer",
+				"consumer: debit-order",
+			]
 		}
 	]
 }

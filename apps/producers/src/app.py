@@ -1,4 +1,5 @@
 import logging
+import secrets
 from importlib.metadata import version
 
 from avro_datagen import generate
@@ -29,10 +30,25 @@ def main():
 
     producer = Producer(config.kafka.to_producer_config())
 
+    # The seed should be random for chaos and tests.
+    # For reproduceable tests, a seed value should be set to ensure 
+    # all test records are not randomised. 
+    seed = config.generator.seed
+    seed_source = "env"
+    if seed is None:
+        seed = secrets.randbelow(2**31)
+        seed_source = "random"
+    logger.info(
+        "generator seed %d (%s) — rerun with GENERATOR_SEED=%d to reproduce this corpus",
+        seed,
+        seed_source,
+        seed,
+    )
+
     records = generate(
         schema_path=config.generator.schema_path,
         count=config.generator.count,
-        seed=config.generator.seed,
+        seed=seed,
     )
     stats = produce_records(
         producer,

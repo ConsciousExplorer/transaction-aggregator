@@ -13,7 +13,12 @@ import { normaliseInternalTransfer } from "./domain/internal_transfer.ts";
 import { normaliseLoan } from "./domain/loan.ts";
 
 export type Normaliser = (
-	record: CardTransaction | LoanTransaction | EftTransaction | DebitOrderTransaction | InternalTransferTransaction
+	record:
+		| CardTransaction
+		| LoanTransaction
+		| EftTransaction
+		| DebitOrderTransaction
+		| InternalTransferTransaction
 ) => z.infer<typeof canonicalTransactionSchema>;
 
 const NORMALIZERS: Partial<Record<SourceTypes, Normaliser>> = {

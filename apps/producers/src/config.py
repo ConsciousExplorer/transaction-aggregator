@@ -25,7 +25,15 @@ class GeneratorSettings(BaseSettings):
         default="./schemas", validation_alias="GENERATOR_SCHEMA_PATH"
     )
     count: int = Field(default=500, ge=1, validation_alias="GENERATOR_COUNT")
-    seed: int = Field(default=42, validation_alias="GENERATOR_SEED")
+    # None (unset or empty env) = a fresh random seed per run, chosen and logged in app.py.
+    # Pin GENERATOR_SEED explicitly for deterministic corpora (E2E, replay proofs).
+    seed: int | None = Field(default=None, validation_alias="GENERATOR_SEED")
+
+    @field_validator("seed", mode="before")
+    @classmethod
+    def _empty_seed_is_none(cls, v: object) -> object:
+        # compose passes GENERATOR_SEED: ${GENERATOR_SEED:-} — an unset shell var arrives as ""
+        return None if isinstance(v, str) and v.strip() == "" else v
 
 
 class SchemaRegistrySettings(BaseSettings):

@@ -202,8 +202,9 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
-      GENERATOR_COUNT: "500"
-      # GENERATOR_SEED: "42" -- Removing seed value
+      GENERATOR_COUNT: "20000"
+      # Add a seed value for stable reproducible tests
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -230,8 +231,9 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
-      GENERATOR_COUNT: "500"
-      # GENERATOR_SEED: "42" -- Removing seed value
+      GENERATOR_COUNT: "2000"
+      # Add a seed value for stable reproducible tests
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -258,8 +260,9 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
-      GENERATOR_COUNT: "500"
-      # GENERATOR_SEED: "42" -- Removing seed value
+      GENERATOR_COUNT: "20000"
+      # Add a seed value for stable reproducible tests
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -286,8 +289,9 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
-      GENERATOR_COUNT: "500"
-      # GENERATOR_SEED: "42" -- Removing seed value
+      GENERATOR_COUNT: "20000"
+      # Add a seed value for stable reproducible tests
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -314,8 +318,10 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
-      GENERATOR_COUNT: "500"
-      # GENERATOR_SEED: "42" -- Removing seed value
+      GENERATOR_COUNT: "20000"
+      # Add a seed value for stable reproducible tests, for random chaos, don't add a 
+      # seed value. No seed is added to ensure we get random data in kafka
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 

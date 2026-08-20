@@ -187,7 +187,10 @@ suite("tier 3: source_transaction_type", () => {
 	test("same transaction_type on a different source does not match", () => {
 		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
 		const verdict = categorizer.categorize(
-			makeTransaction({ source: "eft", metadata: { transaction_type: "repayment" } })
+			makeTransaction({
+				source: "eft",
+				metadata: { transaction_type: "repayment" }
+			})
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});

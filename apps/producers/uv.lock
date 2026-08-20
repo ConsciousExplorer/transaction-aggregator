@@ -80,14 +80,14 @@ wheels = [
 
 [[package]]
 name = "avro-datagen"
-version = "0.3.2"
+version = "0.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "faker" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/03/a4b60eb9639a98d60edca73782f57a866ca69792ab250b59e4c1975b8a6e/avro_datagen-0.3.2.tar.gz", hash = "sha256:351e7c19234e4d5c874ec7ebf8907093c31949556ddef4c55bf7d399443e3de8", size = 125627, upload-time = "2026-05-05T13:49:02.584Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/ec/addd4565f22a44950efb33b470aa364bfd9e0a78c1c8a7430a8cb542bc9e/avro_datagen-0.4.2.tar.gz", hash = "sha256:187298a2092e8f97df5d3b0e8e2c9afad454a1807c6fbc00c1b77a8b0cd7273c", size = 149987, upload-time = "2026-08-15T12:15:17.859Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/71/681d2a65cfdedcd0a5f643bf2b0682682a566c403601f072bf5acbcfb9c9/avro_datagen-0.3.2-py3-none-any.whl", hash = "sha256:ea28bd518c72cd946258b8e3db7ec3abf0f0b9b83a545d76c164d7eaf34868a3", size = 29356, upload-time = "2026-05-05T13:49:01.051Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/d1/5dbc4255beeb1baa815b654febf5265043d30059d9ef665f39e9fd3f7514/avro_datagen-0.4.2-py3-none-any.whl", hash = "sha256:642c52b246f343adc4a15c0ee37848de41345658eafa220d1de83cd1f6250b44", size = 36140, upload-time = "2026-08-15T12:15:16.548Z" },
 ]
 
 [package.optional-dependencies]
@@ -797,7 +797,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "avro-datagen", specifier = ">=0.3.2" },
+    { name = "avro-datagen", specifier = ">=0.4.2" },
     { name = "confluent-kafka", extras = ["avro"], specifier = ">=2.15.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "pydantic", specifier = ">=2.13.4" },
@@ -806,7 +806,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "avro-datagen", extras = ["ui"], specifier = ">=0.3.2" },
+    { name = "avro-datagen", extras = ["ui"], specifier = ">=0.4.2" },
     { name = "poethepoet", specifier = ">=0.48.0" },
     { name = "pyright", specifier = ">=1.1.411" },
     { name = "ruff", specifier = ">=0.16.0" },

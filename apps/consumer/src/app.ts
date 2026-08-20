@@ -18,14 +18,14 @@ import {
 } from "./domain/normaliser/normaliser.ts";
 import type { CardTransaction } from "./generated/card.ts";
 import type { EftTransaction } from "./generated/eft.ts";
-import { transactionBatchHandler } from "./handlers/batchHandler.ts";
+import { deserialisationErrorHandler } from "./handlers/deserialiserErrorHandler.ts";
+import { transactionBatchHandler } from "./handlers/transactionHandler.ts";
 import { createPool } from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
 	loadUncategorizedId
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
-import { deserialisationErrorHandler } from "./integrations/events/deserialiser.ts";
 import {
 	// type CardConsumer,
 	createKafkaConsumer,
