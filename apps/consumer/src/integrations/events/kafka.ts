@@ -229,43 +229,35 @@ export async function startBatchConsumer(
 		// We create a copy so that the existing one does not grow on failure
 		const batch = messageBatch;
 		messageBatch = [];
+		if (batch.length === 0) return;
 
-		try {
-			// Both have to be durable before a single offset moves: the rows in
-			// Postgres, and the undeserialisable records on the DLQ topic.
-			await batchHandler(
-				pool,
-				batch,
-				dlqProducer,
-				dlqTopic,
-				transactionNormaliser,
-				ruleCategorizer
-			);
-		} catch (error) {
-			logger.error(error);
-			throw error;
+		await batchHandler(
+			pool,
+			batch,
+			dlqProducer,
+			dlqTopic,
+			transactionNormaliser,
+			ruleCategorizer
+		);
+	}
+
+	for await (const message of messageStream) {
+		messageBatch.push(message);
+
+		// First message of a batch starts the clock, so a partial batch still
+		// gets processed on a quiet topic.
+		if (messageBatch.length === 1) {
+			timeoutId = setTimeout(() => {
+				flushBatch().catch((error: unknown) => {
+					messageStream.destroy(
+						error instanceof Error ? error : new Error(String(error))
+					);
+				});
+			}, options.lingerMs);
 		}
-		for await (const message of messageStream) {
-			messageBatch.push(message);
 
-			// First message of a batch starts the clock, so a partial batch still
-			// gets processed on a quiet topic.
-			if (messageBatch.length === 1) {
-				timeoutId = setTimeout(() => {
-					flushBatch().catch((error: unknown) => {
-						// flushBatch throws now, and a timer rejection has nobody to
-						// propagate to. Destroying the stream makes the for-await
-						// below rethrow it on the caller's stack instead.
-						messageStream.destroy(
-							error instanceof Error ? error : new Error(String(error))
-						);
-					});
-				}, options.lingerMs);
-			}
-
-			if (messageBatch.length >= options.batchSize) {
-				await flushBatch();
-			}
+		if (messageBatch.length >= options.batchSize) {
+			await flushBatch();
 		}
 	}
 
