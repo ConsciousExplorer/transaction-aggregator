@@ -16,8 +16,6 @@ import {
 	createNormaliser,
 	type Normaliser
 } from "./domain/normaliser/normaliser.ts";
-import type { CardTransaction } from "./generated/card.ts";
-import type { EftTransaction } from "./generated/eft.ts";
 import { deserialisationErrorHandler } from "./handlers/deserialiserErrorHandler.ts";
 import { transactionBatchHandler } from "./handlers/transactionHandler.ts";
 import { createPool } from "./integrations/database/pool.ts";
@@ -27,7 +25,8 @@ import {
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
 import {
-	// type CardConsumer,
+	type ConsumedTransaction,
+	type ConsumedValue,
 	createKafkaConsumer,
 	createKafkaDlqProducer,
 	type DlqProducer,
@@ -128,13 +127,19 @@ try {
 	uncategorizedId = await loadUncategorizedId(writerPool);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
-		createAvroDeserializer<CardTransaction | EftTransaction>(
-			config.schemaRegistry.url,
-			[`${config.kafka.topics.main}-value`]
-		)
+		createAvroDeserializer<ConsumedTransaction>(config.schemaRegistry.url, [
+			`${config.kafka.topics.main}-value`
+		])
 	);
 
-	kafkaConsumer = await createKafkaConsumer({
+	// Explicit type arguments: `Value` must include `undefined` (tombstones),
+	// but inference absorbs the deserializer's `| undefined` into the generic.
+	kafkaConsumer = await createKafkaConsumer<
+		string,
+		ConsumedValue,
+		string,
+		string
+	>({
 		groupId: config.kafka.groupId,
 		clientId: `${config.kafka.clientId}_consumer`,
 		bootstrapBrokers: config.kafka.brokers,

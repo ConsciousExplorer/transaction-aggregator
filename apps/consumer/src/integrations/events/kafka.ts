@@ -21,31 +21,31 @@ import {
 } from "@platformatic/kafka";
 import type { RuleCategorizer } from "#src/domain/categorisation/rule-categorizer.ts";
 import type { Normaliser } from "#src/domain/normaliser/normaliser.ts";
-import {
-	NonRetryableError,
-	RetryableError
-} from "#src/errors/consumer-errors.ts";
-import { classifyPostgresError } from "#src/errors/postgres.ts";
 import type { CardTransaction } from "#src/generated/card.ts";
+import type { DebitOrderTransaction } from "#src/generated/debit_order.ts";
 import type { EftTransaction } from "#src/generated/eft.ts";
+import type { InternalTransferTransaction } from "#src/generated/internal_transfer.ts";
+import type { LoanTransaction } from "#src/generated/loan.ts";
 // import type { CardTransaction } from "#src/generated/card.ts";
 
+export type ConsumedTransaction =
+	| CardTransaction
+	| EftTransaction
+	| DebitOrderTransaction
+	| InternalTransferTransaction
+	| LoanTransaction;
+
 /**
- * Value is `CardTransaction`, not `CardTransaction | undefined`, because that is
- * what TypeScript infers from the deserializer at the call site — the `| undefined`
- * in its return type is not carried into `Value`.
- *
- * Two cases make that optimistic at runtime: a tombstone (empty payload) returns
- * undefined, and a CONTINUE'd message carries the raw Buffer instead. Anything
- * reading `message.value` must check `hasDeserialisationFailure` first and cope
- * with a missing value.
+ * `undefined` is a tombstone or empty payload. A CONTINUE'd poison message
+ * instead carries the raw Buffer with `metadata.deserializationError` set, so
+ * anything reading `message.value` must check `hasDeserialisationFailure`
+ * first and cope with a missing value.
  */
-export type KafkaConsumer = Consumer<
-	string,
-	CardTransaction | EftTransaction,
-	string,
-	string
->;
+export type ConsumedValue = ConsumedTransaction | undefined;
+
+export type ConsumedMessage = Message<string, ConsumedValue, string, string>;
+
+export type KafkaConsumer = Consumer<string, ConsumedValue, string, string>;
 export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>
 ): Promise<Consumer<Key, Value, HeaderKey, HeaderValue>> {
@@ -185,8 +185,8 @@ export function hasDeserialisationFailure(message: {
 	return deserialisationFailureOf(message) !== undefined;
 }
 
-export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
-	consumer: Consumer<Key, Value, HeaderKey, HeaderValue>,
+export async function startBatchConsumer(
+	consumer: KafkaConsumer,
 	dlqProducer: DlqProducer,
 	dlqTopic: string,
 	pool: Pool,
@@ -194,16 +194,16 @@ export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
 	ruleCategorizer: RuleCategorizer,
 	batchHandler: (
 		pool: Pool,
-		messages: Message<Key, Value, HeaderKey, HeaderValue>[],
+		messages: ConsumedMessage[],
+		dlqProducer: DlqProducer,
+		dlqTopic: string,
 		transactionNormaliser: Normaliser,
 		ruleCategorizer: RuleCategorizer
 	) => Promise<void>,
 	deserialisationErrorHandler: DeserializationErrorHandler,
 	options: BatchConsumerOptions,
-	overrides?: Partial<ConsumeOptions<Key, Value, HeaderKey, HeaderValue>>
+	overrides?: Partial<ConsumeOptions<string, ConsumedValue, string, string>>
 ) {
-	type ConsumedMessage = Message<Key, Value, HeaderKey, HeaderValue>;
-
 	const messageStream = await consumer.consume({
 		topics: options.topics,
 		mode: options.mode,
@@ -225,100 +225,47 @@ export async function startBatchConsumer<Key, Value, HeaderKey, HeaderValue>(
 			timeoutId = null;
 		}
 
-		if (messageBatch.length === 0) return;
-
 		// Create a new batch of messages and clear the old ones.
 		// We create a copy so that the existing one does not grow on failure
 		const batch = messageBatch;
 		messageBatch = [];
 
-		// Setup failure and clean messages
-		const poison = batch.filter((message) =>
-			hasDeserialisationFailure(message)
-		);
-		const valid = batch.filter(
-			(message) => !hasDeserialisationFailure(message)
-		);
-
 		try {
 			// Both have to be durable before a single offset moves: the rows in
 			// Postgres, and the undeserialisable records on the DLQ topic.
-			await batchHandler(pool, valid, transactionNormaliser, ruleCategorizer);
-			await sendToDLQ(dlqProducer, dlqTopic, poison);
+			await batchHandler(
+				pool,
+				batch,
+				dlqProducer,
+				dlqTopic,
+				transactionNormaliser,
+				ruleCategorizer
+			);
 		} catch (error) {
-			// Classify errors
-			const failure = classifyPostgresError(error, "Batch insert failed");
+			logger.error(error);
+			throw error;
+		}
+		for await (const message of messageStream) {
+			messageBatch.push(message);
 
-			// TODO: Check
-			if (failure instanceof NonRetryableError) {
-				logger.error(
-					{ error },
-					"A non retryable error was encountered, not halting"
-				);
-				await sendToDLQ(dlqProducer, dlqTopic, batch);
+			// First message of a batch starts the clock, so a partial batch still
+			// gets processed on a quiet topic.
+			if (messageBatch.length === 1) {
+				timeoutId = setTimeout(() => {
+					flushBatch().catch((error: unknown) => {
+						// flushBatch throws now, and a timer rejection has nobody to
+						// propagate to. Destroying the stream makes the for-await
+						// below rethrow it on the caller's stack instead.
+						messageStream.destroy(
+							error instanceof Error ? error : new Error(String(error))
+						);
+					});
+				}, options.lingerMs);
 			}
 
-			if (failure instanceof RetryableError) {
-				logger.error(
-					"We encountered a retyrable error, a consumer restart will fix"
-				);
-
-				throw error;
+			if (messageBatch.length >= options.batchSize) {
+				await flushBatch();
 			}
-
-			// Rethrow rather than swallow. Falling through to the commit below
-			// would advance offsets past rows that were never inserted — the
-			// batch replays on the next run instead.
-			logger.error(
-				{
-					error,
-					size: batch.length,
-					valid: valid.length,
-					poison: poison.length
-				},
-				"Batch failed — not committing"
-			);
-		}
-
-		if (poison.length > 0) {
-			logger.warn(
-				{ size: poison.length, dlqTopic },
-				"Dead-lettered undeserialisable messages"
-			);
-		}
-
-		try {
-			// Commit only once the batch is durably handled — including the
-			// poison records, which are now safely on the DLQ topic.
-			await commitBatch(batch);
-		} catch (error) {
-			logger.warn(
-				{ err: error, size: batch.length },
-				"Commit failed after a successful insert — offsets will replay"
-			);
-		}
-	}
-
-	for await (const message of messageStream) {
-		messageBatch.push(message);
-
-		// First message of a batch starts the clock, so a partial batch still
-		// gets processed on a quiet topic.
-		if (messageBatch.length === 1) {
-			timeoutId = setTimeout(() => {
-				flushBatch().catch((error: unknown) => {
-					// flushBatch throws now, and a timer rejection has nobody to
-					// propagate to. Destroying the stream makes the for-await
-					// below rethrow it on the caller's stack instead.
-					messageStream.destroy(
-						error instanceof Error ? error : new Error(String(error))
-					);
-				});
-			}, options.lingerMs);
-		}
-
-		if (messageBatch.length >= options.batchSize) {
-			await flushBatch();
 		}
 	}
 
