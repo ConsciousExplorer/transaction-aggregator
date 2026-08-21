@@ -1,13 +1,5 @@
 import { z } from "zod";
 
-export const sourceSchema = z.enum([
-	"card",
-	"loan",
-	"debit_order",
-	"eft",
-	"internal_transfer"
-]);
-
 export const directionSchema = z.enum(["debit", "credit"]);
 
 export const canonicalTransactionSchema = z.object({
