@@ -9,10 +9,13 @@ export const canonicalTransactionSchema = z.object({
 	// External source name and string - used for idempotency
 	source: z.string(),
 	externalId: z.string(),
-	occurredAt: z.iso.date(),
+	// Full ISO datetime: normalisers emit `new Date(ts).toISOString()`, and
+	// date-only would collapse the dedup key (source, externalId, occurredAt)
+	// to day granularity.
+	occurredAt: z.iso.datetime(),
 
 	// Top level financation information
-	postedAt: z.iso.date().nullable(),
+	postedAt: z.iso.datetime().nullable(),
 	direction: directionSchema,
 	currency: z.string(),
 	amountMinor: z.number(), // Always use cents

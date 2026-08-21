@@ -1,7 +1,21 @@
-import { Pool, type PoolClient, type PoolConfig } from "pg";
+import {
+	Pool,
+	type PoolClient,
+	type PoolConfig,
+	type QueryResult,
+	type QueryResultRow
+} from "pg";
 import { fileLogger } from "../../runtime.ts";
 
 const logger = fileLogger(import.meta.url);
+
+// Minimal common interface — both Pool and PoolClient satisfy this
+export interface Queryable {
+	query<R extends QueryResultRow = QueryResultRow>(
+		text: string,
+		values?: unknown[]
+	): Promise<QueryResult<R>>;
+}
 
 export async function createPool(config: PoolConfig): Promise<Pool> {
 	const pool = new Pool({

@@ -1,6 +1,6 @@
-import type { PoolClient } from "pg";
 import z from "zod";
 import type { Rule } from "#src/domain/categorisation/rule-categorizer.ts";
+import type { Queryable } from "../pool.ts";
 
 const ruleSchema = z.object({
 	categorization_rule_id: z.string(),
@@ -15,8 +15,8 @@ const categorySchema = z.object({
 	category_id: z.number()
 });
 
-export async function loadActiveRules(client: PoolClient): Promise<Rule[]> {
-	const { rows } = await client.query<z.infer<typeof ruleSchema>>(
+export async function loadActiveRules(db: Queryable): Promise<Rule[]> {
+	const { rows } = await db.query<z.infer<typeof ruleSchema>>(
 		`
 		SELECT 	r.priority, r.matcher_type, r.pattern, r.category_id,
 				r.ruleset_version
@@ -37,8 +37,8 @@ export async function loadActiveRules(client: PoolClient): Promise<Rule[]> {
 	);
 }
 
-export async function loadUncategorizedId(client: PoolClient): Promise<number> {
-	const { rows } = await client.query<z.infer<typeof categorySchema>>(
+export async function loadUncategorizedId(db: Queryable): Promise<number> {
+	const { rows } = await db.query<z.infer<typeof categorySchema>>(
 		`
 		SELECT 	category_id
 		FROM 	categories

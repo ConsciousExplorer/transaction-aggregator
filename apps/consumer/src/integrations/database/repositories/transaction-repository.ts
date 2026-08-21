@@ -1,14 +1,14 @@
-import type { PoolClient } from "pg";
 import type z from "zod";
 import type { categorizedTransactionSchema } from "#src/domain/transaction.ts";
+import type { Queryable } from "../pool.ts";
 
 export async function batchInsertTransactions(
-	client: PoolClient,
+	db: Queryable,
 	transactions: z.infer<typeof categorizedTransactionSchema>[]
 ): Promise<{ attempted: number; inserted: number }> {
 	if (transactions.length === 0) return { attempted: 0, inserted: 0 };
 
-	const result = await client.query(
+	const result = await db.query(
 		`
         INSERT INTO transactions
         (

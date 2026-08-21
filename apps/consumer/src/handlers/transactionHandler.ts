@@ -15,7 +15,7 @@ import {
 import { classifyPostgresError } from "#src/errors/postgres.ts";
 import { withTransaction } from "#src/integrations/database/pool.ts";
 import {
-	ProgressReport,
+	type ProgressReport,
 	updateProgressReport
 } from "#src/integrations/database/repositories/progress-repository.ts";
 import { batchInsertTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
@@ -39,7 +39,8 @@ export async function transactionBatchHandler(
 	transactionNormaliser: Normaliser,
 	ruleCategorizer: RuleCategorizer
 ) {
-	if (messages.length === 0) return;
+	const [firstMessage] = messages;
+	if (!firstMessage) return;
 
 	const tombstoneMessage = messages.filter(
 		(message) => !hasDeserialisationFailure(message) && message.value == null
@@ -52,7 +53,13 @@ export async function transactionBatchHandler(
 			!hasDeserialisationFailure(message) && message.value != null
 	);
 
-	const transactionBatch: z.infer<typeof categorizedTransactionSchema>[] = [];
+	// Rows stay grouped by partition: ingest_progress is keyed on
+	// (topic, partition), so inserted/duplicate counts are only attributable
+	// when each partition's rows are inserted separately.
+	const rowsByPartition = new Map<
+		number,
+		z.infer<typeof categorizedTransactionSchema>[]
+	>();
 
 	try {
 		for (const message of validMessages) {
@@ -63,13 +70,34 @@ export async function transactionBatchHandler(
 				...validatedTransaction,
 				...ruleCategorizer.categorize(validatedTransaction)
 			};
-			transactionBatch.push(categorizedTransaction);
+
+			const rows = rowsByPartition.get(message.partition) ?? [];
+			rows.push(categorizedTransaction);
+			rowsByPartition.set(message.partition, rows);
 		}
-		// Normalise message
+
 		const insertResult = await withTransaction(pool, async (client) => {
-			const result = await batchInsertTransactions(client, transactionBatch);
-			// await updateProgressReport(client, progressReport);
-			return result;
+			const totals = { attempted: 0, inserted: 0 };
+
+			// Every partition seen in the batch gets a progress row — including
+			// ones carrying only tombstones or poison, whose offsets still move.
+			for (const partition of new Set(messages.map((m) => m.partition))) {
+				const rows = rowsByPartition.get(partition) ?? [];
+				const result = await batchInsertTransactions(client, rows);
+				totals.attempted += result.attempted;
+				totals.inserted += result.inserted;
+
+				await updateProgressReport(
+					client,
+					buildProgressReport(firstMessage.topic, partition, rows, result, {
+						messages,
+						tombstones: tombstoneMessage,
+						poison: poisonMessages
+					})
+				);
+			}
+
+			return totals;
 		});
 
 		const duplicates = insertResult.attempted - insertResult.inserted;
@@ -143,4 +171,50 @@ export async function transactionBatchHandler(
 	} finally {
 		console.log("Hanlded Batch");
 	}
+}
+
+function buildProgressReport(
+	topic: string,
+	partition: number,
+	rows: z.infer<typeof categorizedTransactionSchema>[],
+	insert: { attempted: number; inserted: number },
+	batch: {
+		messages: ConsumedMessage[];
+		tombstones: ConsumedMessage[];
+		poison: ConsumedMessage[];
+	}
+): ProgressReport {
+	const inPartition = (message: ConsumedMessage) =>
+		message.partition === partition;
+	const partitionMessages = batch.messages.filter(inPartition);
+
+	// Offsets advance for every message, not only inserted rows.
+	let lastOffset = -1n;
+	for (const message of partitionMessages) {
+		if (message.offset > lastOffset) lastOffset = message.offset;
+	}
+
+	// ISO strings order lexicographically, so max() needs no Date parsing.
+	let lastOccurredAt: string | null = null;
+	for (const row of rows) {
+		if (!lastOccurredAt || row.occurredAt > lastOccurredAt) {
+			lastOccurredAt = row.occurredAt;
+		}
+	}
+
+	return {
+		topic,
+		partition,
+		lastOffset: Number(lastOffset),
+		counts: {
+			messagesTotal: partitionMessages.length,
+			rowsInsertedTotal: insert.inserted,
+			duplicatesTotal: insert.attempted - insert.inserted,
+			dlqTotal: batch.poison.filter(inPartition).length,
+			tombstonesTotal: batch.tombstones.filter(inPartition).length,
+			// No status gate yet — nothing is filtered before normalisation.
+			filteredTotal: 0,
+			lastOccurredAt
+		}
+	};
 }

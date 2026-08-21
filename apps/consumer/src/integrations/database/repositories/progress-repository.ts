@@ -1,27 +1,36 @@
-import type { PoolClient } from "pg";
+import { z } from "zod";
+import type { Queryable } from "../pool.ts";
 
-export interface ProgressCounts {
-	messagesTotal: number;
-	rowsInsertedTotal: number;
-	duplicatesTotal: number;
-	dlqTotal: number;
-	tombstonesTotal: number;
-	filteredTotal: number;
-	lastOccurredAt: Date | null;
-}
+const countSchema = z.number().int().min(0);
 
-export interface ProgressReport {
-	topic: string;
-	partition: number;
-	lastOffset: number;
-	counts: ProgressCounts;
-}
+export const progressCountsSchema = z.object({
+	messagesTotal: countSchema,
+	rowsInsertedTotal: countSchema,
+	duplicatesTotal: countSchema,
+	dlqTotal: countSchema,
+	tombstonesTotal: countSchema,
+	filteredTotal: countSchema,
+	lastOccurredAt: z.iso.datetime().nullable()
+});
+
+export const progressReportSchema = z.object({
+	topic: z.string().min(1),
+	partition: z.number().int().min(0),
+	lastOffset: z.number().int().min(0),
+	counts: progressCountsSchema
+});
+
+export type ProgressCounts = z.infer<typeof progressCountsSchema>;
+export type ProgressReport = z.infer<typeof progressReportSchema>;
 
 export async function updateProgressReport(
-	client: PoolClient,
-	report: ProgressReport
+	db: Queryable,
+	input: ProgressReport
 ): Promise<{ inserted: number }> {
-	const result = await client.query(
+	// The data boundary is validated here, not by the caller's types.
+	const report = progressReportSchema.parse(input);
+
+	const result = await db.query(
 		`
                 INSERT INTO ingest_progress (
                     topic,
