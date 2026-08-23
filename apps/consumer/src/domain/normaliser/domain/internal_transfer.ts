@@ -1,7 +1,8 @@
 import type z from "zod";
-import type {
-	canonicalTransactionSchema,
-	directionSchema
+import {
+	type canonicalTransactionSchema,
+	type directionSchema,
+	sourceSchema
 } from "#src/domain/transaction.ts";
 import type { InternalTransferTransaction } from "#src/generated/internal_transfer.ts";
 
@@ -11,7 +12,7 @@ export function normaliseInternalTransfer(
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
-		source: "internal_transfer",
+		source: sourceSchema.enum.internal_transfer,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,

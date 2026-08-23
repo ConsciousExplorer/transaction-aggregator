@@ -2,6 +2,15 @@ import { z } from "zod";
 
 export const directionSchema = z.enum(["debit", "credit"]);
 
+export const CANONICAL_SOURCES = [
+	"card",
+	"eft",
+	"loan",
+	"debit_order",
+	"internal_transfer"
+] as const;
+export const sourceSchema = z.enum(CANONICAL_SOURCES);
+
 export const canonicalTransactionSchema = z.object({
 	// Used for user transaction identification
 	userId: z.uuid(),
@@ -9,8 +18,8 @@ export const canonicalTransactionSchema = z.object({
 	// several accounts.
 	accountId: z.uuid(),
 
-	// External source name and string - used for idempotency
-	source: z.string(),
+	// External source name - used for idempotency
+	source: sourceSchema,
 	externalId: z.string(),
 	// Full ISO datetime: normalisers emit `new Date(ts).toISOString()`, and
 	// date-only would collapse the dedup key (source, externalId, occurredAt)

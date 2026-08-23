@@ -1,7 +1,8 @@
 import type z from "zod";
-import type {
-	canonicalTransactionSchema,
-	directionSchema
+import {
+	type canonicalTransactionSchema,
+	type directionSchema,
+	sourceSchema
 } from "#src/domain/transaction.ts";
 import type { LoanTransaction } from "#src/generated/loan.ts";
 
@@ -11,7 +12,7 @@ export function normaliseLoan(
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
-		source: "loan",
+		source: sourceSchema.enum.loan,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
