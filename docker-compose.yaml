@@ -296,7 +296,8 @@ services:
     networks: [txn-network]
 
   producer-debit-order:
-    build: { context: ./apps/producers }
+    build: 
+      context: ./apps/producers
     # Rebuild on every `up` so the image can never lag the source tree.
     # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
     pull_policy: build
@@ -325,23 +326,306 @@ services:
       LOG_LEVEL: INFO
     networks: [txn-network]
 
-  # ingest-worker:
-  #   build: { context: ./apps/ingest-worker }
-  #   container_name: ingest-worker
-  #   depends_on:
-  #     migrate: { condition: service_completed_successfully }
-  #     schemas-register: { condition: service_completed_successfully }
-  #     kafka-init: { condition: service_completed_successfully }
-  #   environment:
-  #     KAFKA_BROKERS: kafka1:9094
-  #     KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-  #     KAFKA_SASL_USERNAME: app-worker
-  #     KAFKA_SASL_PASSWORD: app-worker-secret # dev only; .env in real use
-  #     SCHEMA_REGISTRY_URL: http://schema-registry:8081
-  #     WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
-  #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-  #     OTEL_TRACES_SAMPLER: always_on
-  #   networks: [txn-network]
+  # consumer-card
+  consumer-card:
+    build:
+      context: ./apps/consumer
+    pull_policy: build
+    container_name: consumer-card
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      schemas-register: { condition: service_completed_successfully }
+      kafka-init: { condition: service_completed_successfully }
+    volumes:
+      - ./secrets:/secrets:ro
+    environment:
+      # NODE and APP configuration
+      NODE_ENV: production
+      APP_NAME: "transaction-aggregator"
+      HOST: 0.0.0.0
+      PORT: 3001
+      # Secrets and certs
+      SECRET_DIR: "./secrets"
+      SOURCE: card
+      # Logging configuration
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LOG_PRETTY: false
+      # Postgres configuration
+      DATABASE_HOST: localhost
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_USER: 'kafka_consumer'
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 10
+      DATABASE_IDLE_TIMEOUT: 30000
+      DATABASE_CONNECTION_TIMEOUT: 5000
+      # Schema Registry configuration
+      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      # KAFKA configuration
+      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_USERNAME: consumer
+      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+      # Kafka group membership — library defaults (60s session) stall restarts
+      KAFKA_SESSION_TIMEOUT_MS: 15000
+      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
+      KAFKA_REBALANCE_TIMEOUT_MS: 30000
+      KAFKA_REQUEST_TIMEOUT_MS: 40000
+      # Fetch and batching
+      KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_BATCH_SIZE: 100
+      KAFKA_BATCH_LINGER_MS: 2000
+      KAFKA_READ_MODE: earliest
+      # Retry policy for infrastructure failures
+      KAFKA_MAX_RETRIES: 5
+      KAFKA_RETRY_BASE_DELAY_MS: 500
+      # Secrets 
+      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
+      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+    networks: [txn-network]
+
+  consumer-eft:
+    build:
+      context: ./apps/consumer
+    pull_policy: build
+    container_name: consumer-eft
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      schemas-register: { condition: service_completed_successfully }
+      kafka-init: { condition: service_completed_successfully }
+    volumes:
+      - ./secrets:/secrets:ro
+    environment:
+      # NODE and APP configuration
+      NODE_ENV: production
+      APP_NAME: "transaction-aggregator"
+      HOST: 0.0.0.0
+      PORT: 3002
+      # Secrets and certs
+      SECRET_DIR: "./secrets"
+      SOURCE: eft
+      # Logging configuration
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LOG_PRETTY: false
+      # Postgres configuration
+      DATABASE_HOST: localhost
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_USER: 'kafka_consumer'
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 10
+      DATABASE_IDLE_TIMEOUT: 30000
+      DATABASE_CONNECTION_TIMEOUT: 5000
+      # Schema Registry configuration
+      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      # KAFKA configuration
+      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_USERNAME: consumer
+      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+      # Kafka group membership — library defaults (60s session) stall restarts
+      KAFKA_SESSION_TIMEOUT_MS: 15000
+      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
+      KAFKA_REBALANCE_TIMEOUT_MS: 30000
+      KAFKA_REQUEST_TIMEOUT_MS: 40000
+      # Fetch and batching
+      KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_BATCH_SIZE: 100
+      KAFKA_BATCH_LINGER_MS: 2000
+      KAFKA_READ_MODE: earliest
+      # Retry policy for infrastructure failures
+      KAFKA_MAX_RETRIES: 5
+      KAFKA_RETRY_BASE_DELAY_MS: 500
+      # Secrets 
+      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
+      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+    networks: [txn-network]
+
+  consumer-internal-transfer:
+    build:
+      context: ./apps/consumer
+    pull_policy: build
+    container_name: consumer-internal-transfer
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      schemas-register: { condition: service_completed_successfully }
+      kafka-init: { condition: service_completed_successfully }
+    volumes:
+      - ./secrets:/secrets:ro
+    environment:
+      # NODE and APP configuration
+      NODE_ENV: production
+      APP_NAME: "transaction-aggregator"
+      HOST: 0.0.0.0
+      PORT: 3003
+      # Secrets and certs
+      SECRET_DIR: "./secrets"
+      SOURCE: internal-transfer
+      # Logging configuration
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LOG_PRETTY: false
+      # Postgres configuration
+      DATABASE_HOST: localhost
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_USER: 'kafka_consumer'
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 10
+      DATABASE_IDLE_TIMEOUT: 30000
+      DATABASE_CONNECTION_TIMEOUT: 5000
+      # Schema Registry configuration
+      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      # KAFKA configuration
+      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_USERNAME: consumer
+      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+      # Kafka group membership — library defaults (60s session) stall restarts
+      KAFKA_SESSION_TIMEOUT_MS: 15000
+      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
+      KAFKA_REBALANCE_TIMEOUT_MS: 30000
+      KAFKA_REQUEST_TIMEOUT_MS: 40000
+      # Fetch and batching
+      KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_BATCH_SIZE: 100
+      KAFKA_BATCH_LINGER_MS: 2000
+      KAFKA_READ_MODE: earliest
+      # Retry policy for infrastructure failures
+      KAFKA_MAX_RETRIES: 5
+      KAFKA_RETRY_BASE_DELAY_MS: 500
+      # Secrets 
+      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
+      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+    networks: [txn-network]
+
+  consumer-debit-order:
+    build:
+      context: ./apps/consumer
+    pull_policy: build
+    container_name: consumer-debit-order
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      schemas-register: { condition: service_completed_successfully }
+      kafka-init: { condition: service_completed_successfully }
+    volumes:
+      - ./secrets:/secrets:ro
+    environment:
+      # NODE and APP configuration
+      NODE_ENV: production
+      APP_NAME: "transaction-aggregator"
+      HOST: 0.0.0.0
+      PORT: 3004
+      # Secrets and certs
+      SECRET_DIR: "./secrets"
+      SOURCE: debit-order
+      # Logging configuration
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LOG_PRETTY: false
+      # Postgres configuration
+      DATABASE_HOST: localhost
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_USER: 'kafka_consumer'
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 10
+      DATABASE_IDLE_TIMEOUT: 30000
+      DATABASE_CONNECTION_TIMEOUT: 5000
+      # Schema Registry configuration
+      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      # KAFKA configuration
+      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_USERNAME: consumer
+      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+      # Kafka group membership — library defaults (60s session) stall restarts
+      KAFKA_SESSION_TIMEOUT_MS: 15000
+      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
+      KAFKA_REBALANCE_TIMEOUT_MS: 30000
+      KAFKA_REQUEST_TIMEOUT_MS: 40000
+      # Fetch and batching
+      KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_BATCH_SIZE: 100
+      KAFKA_BATCH_LINGER_MS: 2000
+      KAFKA_READ_MODE: earliest
+      # Retry policy for infrastructure failures
+      KAFKA_MAX_RETRIES: 5
+      KAFKA_RETRY_BASE_DELAY_MS: 500
+      # Secrets 
+      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
+      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+    networks: [txn-network]
+
+  consumer-loan:
+    build:
+      context: ./apps/consumer
+    pull_policy: build
+    container_name: consumer-loan
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      schemas-register: { condition: service_completed_successfully }
+      kafka-init: { condition: service_completed_successfully }
+    volumes:
+      - ./secrets:/secrets:ro
+    environment:
+      # NODE and APP configuration
+      NODE_ENV: production
+      APP_NAME: "transaction-aggregator"
+      HOST: 0.0.0.0
+      PORT: 3005
+      # Secrets and certs
+      SECRET_DIR: "./secrets"
+      SOURCE: loan
+      # Logging configuration
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LOG_PRETTY: false
+      # Postgres configuration
+      DATABASE_HOST: localhost
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_USER: 'kafka_consumer'
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 10
+      DATABASE_IDLE_TIMEOUT: 30000
+      DATABASE_CONNECTION_TIMEOUT: 5000
+      # Schema Registry configuration
+      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      # KAFKA configuration
+      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_USERNAME: consumer
+      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+      # Kafka group membership — library defaults (60s session) stall restarts
+      KAFKA_SESSION_TIMEOUT_MS: 15000
+      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
+      KAFKA_REBALANCE_TIMEOUT_MS: 30000
+      KAFKA_REQUEST_TIMEOUT_MS: 40000
+      # Fetch and batching
+      KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_BATCH_SIZE: 100
+      KAFKA_BATCH_LINGER_MS: 2000
+      KAFKA_READ_MODE: earliest
+      # Retry policy for infrastructure failures
+      KAFKA_MAX_RETRIES: 5
+      KAFKA_RETRY_BASE_DELAY_MS: 500
+      # Secrets 
+      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
+      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+    networks: [txn-network]
 
   # api:
   #   build: { context: ./apps/api }
