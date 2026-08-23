@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "avro-datagen>=0.4.2",
+    "avro-datagen>=0.5.0",
     "confluent-kafka[avro]>=2.15.0",
     "dotenv>=0.9.9",
     "pydantic>=2.13.4",
@@ -25,7 +25,7 @@ sources = ["src"]
 
 [dependency-groups]
 dev = [
-    "avro-datagen[ui]>=0.4.2", # streamlit preview UI: local only, not in the image
+    "avro-datagen[ui]>=0.5.0", # streamlit preview UI: local only, not in the image
     "poethepoet>=0.48.0",
     "pyright>=1.1.411",
     "ruff>=0.16.0",

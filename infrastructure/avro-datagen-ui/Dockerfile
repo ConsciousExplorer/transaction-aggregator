@@ -3,7 +3,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 ENV PYTHONUNBUFFERED=1
 
 # [ui] extra pulls Streamlit; pin floor matches apps/producers' pyproject.
-RUN uv pip install --system --no-cache "avro-datagen[ui]>=0.4.2,<0.5"
+RUN uv pip install --system --no-cache "avro-datagen[ui]>=0.5.0,<0.6"
 
 # Bind avro schemas
 ENV SCHEMA_DIR=/schemas \

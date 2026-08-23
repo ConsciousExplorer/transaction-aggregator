@@ -17,13 +17,13 @@
     {
       "name": "customerId",
       "type": { "type": "string", "logicalType": "uuid" },
-      "arg.properties": { "pool": 50 }
+      "arg.properties": { "pool": { "size": 50, "seed": "customers-v1" } }
     },
     {
       "name": "accountId",
       "type": { "type": "string", "logicalType": "uuid" },
       "doc": "Customer account the transaction occurred on.",
-      "arg.properties": { "pool": 100 }
+      "arg.properties": { "pool": { "size": 3, "per": "customerId", "seed": "accounts-v1" } }
     },
     {
       "name": "fromAccountId",
