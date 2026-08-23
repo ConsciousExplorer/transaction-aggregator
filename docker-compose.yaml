@@ -202,7 +202,7 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
-      GENERATOR_COUNT: "20000"
+      GENERATOR_COUNT: "50000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
@@ -363,7 +363,7 @@ services:
       # Schema Registry configuration
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'kafka:9094'
+      KAFKA_BROKERS: 'kafka1:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -382,7 +382,6 @@ services:
       # Secrets 
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
     networks: [txn-network]
@@ -423,7 +422,7 @@ services:
       # Schema Registry configuration
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'kafka:9094'
+      KAFKA_BROKERS: 'kafka1:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -442,7 +441,6 @@ services:
       # Secrets 
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
     networks: [txn-network]
@@ -483,7 +481,7 @@ services:
       # Schema Registry configuration
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'kafka:9094'
+      KAFKA_BROKERS: 'kafka1:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -502,7 +500,6 @@ services:
       # Secrets 
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
     networks: [txn-network]
@@ -543,7 +540,7 @@ services:
       # Schema Registry configuration
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'kafka:9094'
+      KAFKA_BROKERS: 'kafka1:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -562,7 +559,6 @@ services:
       # Secrets 
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
     networks: [txn-network]
@@ -603,7 +599,7 @@ services:
       # Schema Registry configuration
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'kafka:9094'
+      KAFKA_BROKERS: 'kafka1:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -622,7 +618,6 @@ services:
       # Secrets 
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      WRITER_DSN: postgres://worker_role:worker@postgres:5432/postgres
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
     networks: [txn-network]
