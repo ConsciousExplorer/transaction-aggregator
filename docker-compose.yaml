@@ -345,25 +345,25 @@ services:
       HOST: 0.0.0.0
       PORT: 3001
       # Secrets and certs
-      SECRET_DIR: "./secrets"
+      SECRET_DIR: "/secrets"
       SOURCE: card
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
       LOG_PRETTY: false
       # Postgres configuration
-      DATABASE_HOST: localhost
+      DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
       DATABASE_PORT: 5432
       DATABASE_USER: 'kafka_consumer'
       DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 10
+      DATABASE_POOL_MAX: 3
       DATABASE_IDLE_TIMEOUT: 30000
       DATABASE_CONNECTION_TIMEOUT: 5000
       # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_BROKERS: 'kafka:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -405,25 +405,25 @@ services:
       HOST: 0.0.0.0
       PORT: 3002
       # Secrets and certs
-      SECRET_DIR: "./secrets"
+      SECRET_DIR: "/secrets"
       SOURCE: eft
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
       LOG_PRETTY: false
       # Postgres configuration
-      DATABASE_HOST: localhost
+      DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
       DATABASE_PORT: 5432
       DATABASE_USER: 'kafka_consumer'
       DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 10
+      DATABASE_POOL_MAX: 3
       DATABASE_IDLE_TIMEOUT: 30000
       DATABASE_CONNECTION_TIMEOUT: 5000
       # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_BROKERS: 'kafka:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -465,25 +465,25 @@ services:
       HOST: 0.0.0.0
       PORT: 3003
       # Secrets and certs
-      SECRET_DIR: "./secrets"
+      SECRET_DIR: "/secrets"
       SOURCE: internal-transfer
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
       LOG_PRETTY: false
       # Postgres configuration
-      DATABASE_HOST: localhost
+      DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
       DATABASE_PORT: 5432
       DATABASE_USER: 'kafka_consumer'
       DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 10
+      DATABASE_POOL_MAX: 3
       DATABASE_IDLE_TIMEOUT: 30000
       DATABASE_CONNECTION_TIMEOUT: 5000
       # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_BROKERS: 'kafka:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -525,25 +525,25 @@ services:
       HOST: 0.0.0.0
       PORT: 3004
       # Secrets and certs
-      SECRET_DIR: "./secrets"
+      SECRET_DIR: "/secrets"
       SOURCE: debit-order
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
       LOG_PRETTY: false
       # Postgres configuration
-      DATABASE_HOST: localhost
+      DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
       DATABASE_PORT: 5432
       DATABASE_USER: 'kafka_consumer'
       DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 10
+      DATABASE_POOL_MAX: 3
       DATABASE_IDLE_TIMEOUT: 30000
       DATABASE_CONNECTION_TIMEOUT: 5000
       # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_BROKERS: 'kafka:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
@@ -585,25 +585,25 @@ services:
       HOST: 0.0.0.0
       PORT: 3005
       # Secrets and certs
-      SECRET_DIR: "./secrets"
+      SECRET_DIR: "/secrets"
       SOURCE: loan
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
       LOG_PRETTY: false
       # Postgres configuration
-      DATABASE_HOST: localhost
+      DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
       DATABASE_PORT: 5432
       DATABASE_USER: 'kafka_consumer'
       DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 10
+      DATABASE_POOL_MAX: 3
       DATABASE_IDLE_TIMEOUT: 30000
       DATABASE_CONNECTION_TIMEOUT: 5000
       # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: 'http://localhost:8081'
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
       # KAFKA configuration
-      KAFKA_BROKERS: 'localhost:9092'
+      KAFKA_BROKERS: 'kafka:9094'
       KAFKA_USERNAME: consumer
       KAFKA_SASL_MECHANISM: SCRAM-SHA-512
       # Kafka group membership — library defaults (60s session) stall restarts
