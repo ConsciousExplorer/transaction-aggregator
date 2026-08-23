@@ -3,6 +3,7 @@ export interface EftTransaction {
 	transactionId: string;
 	sourceType: string;
 	customerId: string;
+	accountId: string;
 	beneficiaryName: string;
 	beneficiaryAccountNumber: string;
 	beneficiaryBank: string;

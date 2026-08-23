@@ -20,6 +20,12 @@
       "arg.properties": { "pool": 50 }
     },
     {
+      "name": "accountId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "doc": "Customer account the transaction occurred on.",
+      "arg.properties": { "pool": 100 }
+    },
+    {
       "name": "fromAccountId",
       "type": { "type": "string", "logicalType": "uuid" }
     },

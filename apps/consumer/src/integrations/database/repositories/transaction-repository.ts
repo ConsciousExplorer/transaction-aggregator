@@ -13,6 +13,7 @@ export async function batchInsertTransactions(
         INSERT INTO transactions
         (
 			user_id,
+			account_id,
 			source,
 			external_id,
 			occurred_at,
@@ -30,6 +31,7 @@ export async function batchInsertTransactions(
 		)
         SELECT
 			t.user_id,
+			t.account_id,
 			t.source,
 			t.external_id,
 			t.occurred_at,
@@ -46,22 +48,24 @@ export async function batchInsertTransactions(
 			t.metadata
 		FROM unnest(
         	$1::uuid[],
-			$2::source_type[],
-			$3::text[],
-			$4::timestamptz[],
-        	$5::timestamptz[],
-			$6::direction_type[],
-			$7::bigint[],
-			$8::text[],
+			$2::uuid[],
+			$3::source_type[],
+			$4::text[],
+			$5::timestamptz[],
+        	$6::timestamptz[],
+			$7::direction_type[],
+			$8::bigint[],
 			$9::text[],
 			$10::text[],
-			$11::char(4)[],
-			$12::bigint[],
+			$11::text[],
+			$12::char(4)[],
 			$13::bigint[],
 			$14::bigint[],
-        	$15::jsonb[])
+			$15::bigint[],
+        	$16::jsonb[])
 		AS t (
 			user_id,
+			account_id,
 			source,
 			external_id,
 			occurred_at,
@@ -81,20 +85,21 @@ export async function batchInsertTransactions(
         RETURNING 1`,
 		[
 			transactions.map((t) => t.userId), // 1
-			transactions.map((t) => t.source), // 2
-			transactions.map((t) => t.externalId), // 3
-			transactions.map((t) => t.occurredAt), // 4
-			transactions.map((t) => t.postedAt), // 5
-			transactions.map((t) => t.direction), // 6
-			transactions.map((t) => t.amountMinor), // 7
-			transactions.map((t) => t.currency), // 8
-			transactions.map((t) => t.description), // 9
-			transactions.map((t) => t.merchantName), // 10
-			transactions.map((t) => t.mcc), // 11
-			transactions.map((t) => t.categoryId), // 12
-			transactions.map((t) => t.ruleVersion), // 13
-			transactions.map((t) => t.rulePriority), // 14
-			transactions.map((t) => JSON.stringify(t.metadata)) // 15 — string[] cast by $15::jsonb[]
+			transactions.map((t) => t.accountId), // 2
+			transactions.map((t) => t.source), // 3
+			transactions.map((t) => t.externalId), // 4
+			transactions.map((t) => t.occurredAt), // 5
+			transactions.map((t) => t.postedAt), // 6
+			transactions.map((t) => t.direction), // 7
+			transactions.map((t) => t.amountMinor), // 8
+			transactions.map((t) => t.currency), // 9
+			transactions.map((t) => t.description), // 10
+			transactions.map((t) => t.merchantName), // 11
+			transactions.map((t) => t.mcc), // 12
+			transactions.map((t) => t.categoryId), // 13
+			transactions.map((t) => t.ruleVersion), // 14
+			transactions.map((t) => t.rulePriority), // 15
+			transactions.map((t) => JSON.stringify(t.metadata)) // 16 — string[] cast by $16::jsonb[]
 		]
 	);
 	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };

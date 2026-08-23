@@ -3,6 +3,7 @@ export interface CardTransaction {
 	transactionId: string;
 	sourceType: string;
 	customerId: string;
+	accountId: string;
 	category: string;
 	merchantName: string;
 	mccCode: string;

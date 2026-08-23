@@ -20,6 +20,12 @@
       "arg.properties": { "pool": 50 }
     },
     {
+      "name": "accountId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "doc": "Customer account the transaction occurred on.",
+      "arg.properties": { "pool": 100 }
+    },
+    {
       "name": "category",
       "type": "string",
       "doc": "Generation hint only — consumer derives category from mccCode/merchantName. Consumer Zod schema should strip this field.",

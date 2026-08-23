@@ -3,6 +3,7 @@ export interface DebitOrderTransaction {
 	transactionId: string;
 	sourceType: string;
 	customerId: string;
+	accountId: string;
 	mandateId: string;
 	category: string;
 	creditorName: string;

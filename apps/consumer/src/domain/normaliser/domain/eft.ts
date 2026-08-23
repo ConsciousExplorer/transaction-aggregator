@@ -10,6 +10,7 @@ export function normaliseEft(
 ): z.infer<typeof canonicalTransactionSchema> {
 	return {
 		userId: record.customerId,
+		accountId: record.accountId,
 		source: "eft", // can also be the topic name etc. Depending on domain
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),

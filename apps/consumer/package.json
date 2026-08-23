@@ -22,7 +22,14 @@
 	},
 	"imports": {
 		"#src/*": "./src/*",
-		"#types": "./src/types/*"
+		"#types": "./src/types/*",
+		"#domain": "./src/domain/*",
+		"#generated": "./src/generated/*",
+		"#handlers": "./src/handlers/*",
+		"#integrations": "./src/integrations/*",
+		"#schemas": "./src/schemas/*",
+		"#telemetry": "./src/telemetry/*",
+		"#errors": "./src/errors/*"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.8",

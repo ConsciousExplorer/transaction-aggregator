@@ -32,6 +32,7 @@ const makeTransaction = (
 	over: Partial<CanonicalTransaction> = {}
 ): CanonicalTransaction => ({
 	userId: "3f1d3aa4-8a3e-4a6e-9c93-2b9f6f1d8c11",
+	accountId: "0d4f3a52-9c1b-4f6e-8a2d-5b7c9e1f3a60",
 	source: "card",
 	externalId: "txn-1",
 	occurredAt: "2026-08-18",

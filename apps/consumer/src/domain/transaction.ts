@@ -5,6 +5,9 @@ export const directionSchema = z.enum(["debit", "credit"]);
 export const canonicalTransactionSchema = z.object({
 	// Used for user transaction identification
 	userId: z.uuid(),
+	// The customer account the transaction occurred on — a user can hold
+	// several accounts.
+	accountId: z.uuid(),
 
 	// External source name and string - used for idempotency
 	source: z.string(),

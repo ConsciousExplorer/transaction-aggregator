@@ -3,6 +3,7 @@ export interface InternalTransferTransaction {
 	transactionId: string;
 	sourceType: string;
 	customerId: string;
+	accountId: string;
 	fromAccountId: string;
 	toAccountId: string;
 	fromAccountType: string;

@@ -27,6 +27,7 @@ CREATE TABLE categorization_rules (
 CREATE TABLE transactions (
   id            uuid        NOT NULL DEFAULT uuidv7(),   -- PG18 native; DB-layer UUIDv7 (brief)
   user_id       uuid        NOT NULL, -- opaque; no users table exists, the assumption is that users are controlled in their own database
+  account_id    uuid        NOT NULL, -- the customer account the transaction occurred on; a user can hold several accounts. Opaque like user_id: accounts live in their own system
   source        source_type NOT NULL,
   external_id   text        NOT NULL,
   occurred_at   timestamptz NOT NULL, -- partition key; transaction time

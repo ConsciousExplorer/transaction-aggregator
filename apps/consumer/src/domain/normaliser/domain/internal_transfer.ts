@@ -10,6 +10,7 @@ export function normaliseInternalTransfer(
 ): z.infer<typeof canonicalTransactionSchema> {
 	return {
 		userId: record.customerId,
+		accountId: record.accountId,
 		source: "internal_transfer",
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),

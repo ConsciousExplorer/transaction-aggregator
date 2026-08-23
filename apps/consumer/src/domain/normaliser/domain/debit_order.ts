@@ -10,6 +10,7 @@ export function normaliseDebitOrder(
 ): z.infer<typeof canonicalTransactionSchema> {
 	return {
 		userId: record.customerId,
+		accountId: record.accountId,
 		source: "debit_order",
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),

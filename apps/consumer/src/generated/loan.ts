@@ -3,6 +3,7 @@ export interface LoanTransaction {
 	transactionId: string;
 	sourceType: string;
 	customerId: string;
+	accountId: string;
 	loanAccountId: string;
 	loanType: string;
 	operation: string;

@@ -3,6 +3,7 @@ import type {
 	canonicalTransactionSchema,
 	directionSchema
 } from "#src/domain/transaction.ts";
+import { SOURCE_TYPES } from "#src/domain/source.ts";
 import type { CardTransaction } from "#src/generated/card.ts";
 
 export function normaliseCard(
@@ -10,7 +11,8 @@ export function normaliseCard(
 ): z.infer<typeof canonicalTransactionSchema> {
 	return {
 		userId: record.customerId,
-		source: "card", // can also be the topic name etc. Depending on domain
+		accountId: record.accountId,
+		source: Object.entries(SOURCE_TYPES),
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
