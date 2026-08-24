@@ -202,7 +202,7 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
-      GENERATOR_COUNT: "50000"
+      GENERATOR_COUNT: "60000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
@@ -231,7 +231,7 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
-      GENERATOR_COUNT: "2000"
+      GENERATOR_COUNT: "20000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
@@ -289,7 +289,7 @@ services:
       KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
-      GENERATOR_COUNT: "20000"
+      GENERATOR_COUNT: "10000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO

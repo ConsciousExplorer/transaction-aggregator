@@ -22,16 +22,13 @@ const configSchema = z
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
 		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
 		LOG_PRETTY: z.stringbool().default(false),
-		LOG_REDACTED_FIELDS: z
-			.string()
-			.default("")
-			.transform((field) =>
-				field
-					.split(",")
-					.map((f) => f.trim())
-					.filter(Boolean)
-			),
-		LOG_REDACT_DEPTH: z.coerce.number().int().positive().default(3)
+
+		DATABASE_HOST: z.string().default("localhost"),
+		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
+		DATABASE_NAME: z.string().default("txn_agg"),
+		DATABASE_USER: z.string().default("api_reader"), // SELECT-only login — proven by reader-role.test.ts
+		DATABASE_PASSWORD_SECRET_NAME: z.string(),
+		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10)
 	})
 	.transform((e) =>
 		Object.freeze({
@@ -45,9 +42,20 @@ const configSchema = z
 			logging: Object.freeze({
 				level: e.LOG_LEVEL,
 				format: e.LOG_FORMAT,
-				pretty: e.LOG_PRETTY,
-				redactedFields: e.LOG_REDACTED_FIELDS,
-				redactDepth: e.LOG_REDACT_DEPTH
+				pretty: e.LOG_PRETTY
+			}),
+			database: Object.freeze({
+				host: e.DATABASE_HOST,
+				port: e.DATABASE_PORT,
+				database: e.DATABASE_NAME,
+				user: e.DATABASE_USER,
+				max: e.DATABASE_POOL_MAX
+			}),
+			secrets: Object.freeze({
+				database_password: readSecretFromFile(
+					e.SECRET_DIR,
+					e.DATABASE_PASSWORD_SECRET_NAME
+				)
 			})
 		})
 	);
