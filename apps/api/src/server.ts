@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import fastifyAutoload from "@fastify/autoload";
 import {
 	serializerCompiler,
 	validatorCompiler,
@@ -28,6 +30,12 @@ export async function buildServer(dependencies: ServerDependencies) {
 
 	// OpenAPI spec
 	await server.register(swaggerPlugin, dependencies);
+
+	await server.register(fastifyAutoload, {
+		dir: join(import.meta.dirname, "routes"),
+		dirNameRoutePrefix: true,
+		matchFilter: /route\.(ts|js)$/
+	});
 
 	// await app.register(metricsPlugin, deps); // TODO: Enable for metrics
 

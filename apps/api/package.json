@@ -37,6 +37,7 @@
 		"typescript": "^7.0.2"
 	},
 	"dependencies": {
+		"@fastify/autoload": "6.5.0",
 		"@fastify/swagger": "9.8.1",
 		"@fastify/swagger-ui": "6.1.1",
 		"@fastify/type-provider-zod": "1.0.0",
