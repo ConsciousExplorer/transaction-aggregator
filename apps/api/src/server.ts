@@ -5,9 +5,8 @@ import {
 	validatorCompiler,
 	type ZodTypeProvider
 } from "@fastify/type-provider-zod";
-import type { FastifyServerOptions } from "fastify";
+import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import fastify from "fastify";
-import { join } from "path";
 import type { Logger } from "pino";
 import type { ConfigSchema } from "./config.ts";
 import { problemJson } from "./plugins/problem-json.ts";
@@ -31,7 +30,7 @@ export async function buildServer({
 }: {
 	serverOptions: FastifyServerOptions;
 	dependencies: ServerDependencies;
-}) {
+}): Promise<FastifyInstance> {
 	const server = fastify({
 		loggerInstance: dependencies.logger,
 		...serverOptions
@@ -49,10 +48,17 @@ export async function buildServer({
 
 	await server.register(fastifyAutoload, {
 		...dependencies.autoLoadParameters
-		// dir: join(import.meta.dirname, dependencies.autoLoadParameters.dir)
 	});
 
 	// await app.register(metricsPlugin, deps); // TODO: Enable for metrics
+
+	// rewrite / to /docs
+	server.get("/", {
+		schema: { hide: true },
+		handler: async (_request, reply) => {
+			reply.redirect("/docs");
+		}
+	});
 
 	return server;
 }

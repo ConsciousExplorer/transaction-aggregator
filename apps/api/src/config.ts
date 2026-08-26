@@ -29,7 +29,7 @@ const configSchema = z
 		DATABASE_HOST: z.string().default("localhost"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
 		DATABASE_NAME: z.string().default("txn_agg"),
-		DATABASE_USER: z.string().default("api_reader"), // SELECT-only login — proven by reader-role.test.ts
+		DATABASE_USER: z.string().default("api_write"), // SELECT-only login — proven by reader-role.test.ts
 		DATABASE_PASSWORD_SECRET_NAME: z.string(),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10)
 	})
@@ -59,6 +59,7 @@ const configSchema = z
 				port: e.DATABASE_PORT,
 				database: e.DATABASE_NAME,
 				user: e.DATABASE_USER,
+				min: 3,
 				max: e.DATABASE_POOL_MAX
 			}),
 			secrets: Object.freeze({

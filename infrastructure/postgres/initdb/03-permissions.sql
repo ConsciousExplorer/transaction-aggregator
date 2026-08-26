@@ -14,14 +14,24 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'kafka_consumer') THEN
         CREATE ROLE kafka_consumer LOGIN PASSWORD 'kafka_consumer_password';
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'api_write') THEN
+        CREATE ROLE api_write LOGIN PASSWORD 'api_write_password';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'api_read') THEN
+        CREATE ROLE api_read LOGIN PASSWORD 'api_read_password';
+    END IF;
 END
 $$;
 
 -- Writers can do everything readers can.
 GRANT txn_agg_read TO txn_agg_write;
+GRANT txn_agg_read TO api_read;
+GRANT txn_agg_read TO api_write;
 
 -- The Kafka consumer writes to the database.
 GRANT txn_agg_write TO kafka_consumer;
+GRANT txn_agg_write TO api_write;
 
 \connect txn_agg;
 
