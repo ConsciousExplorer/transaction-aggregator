@@ -1,12 +1,18 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
+import { config } from "#src/runtime.ts";
 
 const infoCheckResponseSchema = z.object({
-	status: z.literal("ok")
+	title: z.string(),
+	version: z.string(),
+	author: z.string(),
+	description: z.string(),
+	dependencies: z.record(z.string(), z.string())
 });
+
 /**
- * A basic health check route
+ * A basic info route
  */
 export default async (fastify: FastifyInstance) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
@@ -20,7 +26,11 @@ export default async (fastify: FastifyInstance) => {
 		},
 		handler: async (_request, reply) => {
 			reply.send({
-				status: "ok"
+				title: config.info.title,
+				version: config.info.version,
+				author: config.info.auhor,
+				description: config.info.description,
+				dependencies: config.info.dependencies
 			});
 		}
 	});

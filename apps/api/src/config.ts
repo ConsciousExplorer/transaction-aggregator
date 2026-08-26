@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import z from "zod";
+import data from ".././package.json" with { type: "json" };
 import { LOG_LEVELS } from "./logger.ts";
+
+const appInfo = data;
 
 const csv = (value: string) =>
 	value
@@ -32,6 +35,13 @@ const configSchema = z
 	})
 	.transform((e) =>
 		Object.freeze({
+			info: Object.freeze({
+				title: appInfo.name,
+				version: appInfo.version,
+				description: appInfo.description,
+				auhor: appInfo.author,
+				dependencies: appInfo.dependencies
+			}),
 			app: Object.freeze({
 				env: e.NODE_ENV,
 				name: e.APP_NAME,

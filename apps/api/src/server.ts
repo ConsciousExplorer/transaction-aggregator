@@ -1,5 +1,5 @@
-import { join } from "node:path";
-import fastifyAutoload from "@fastify/autoload";
+import { type AutoloadPluginOptions, fastifyAutoload } from "@fastify/autoload";
+
 import {
 	serializerCompiler,
 	validatorCompiler,
@@ -7,20 +7,31 @@ import {
 } from "@fastify/type-provider-zod";
 import type { FastifyServerOptions } from "fastify";
 import fastify from "fastify";
+import { join } from "path";
 import type { Logger } from "pino";
 import type { ConfigSchema } from "./config.ts";
 import { problemJson } from "./plugins/problem-json.ts";
 import { swaggerPlugin } from "./plugins/swagger.ts";
 
+export type AutoLoadParameters = {
+	routesDirectories: string;
+	dirNameRoutePrefix: boolean;
+	matchFilter: string;
+};
+
 export type ServerDependencies = {
 	config: ConfigSchema;
 	logger: Logger;
+	autoLoadParameters: AutoloadPluginOptions;
 };
 
-export async function buildServer(
-	serverOptions: FastifyServerOptions,
-	dependencies: ServerDependencies
-) {
+export async function buildServer({
+	serverOptions,
+	dependencies
+}: {
+	serverOptions: FastifyServerOptions;
+	dependencies: ServerDependencies;
+}) {
 	const server = fastify({
 		loggerInstance: dependencies.logger,
 		...serverOptions
@@ -37,10 +48,8 @@ export async function buildServer(
 	await server.register(swaggerPlugin, dependencies);
 
 	await server.register(fastifyAutoload, {
-		dir: join(import.meta.dirname, "routes"),
-		dirNameRoutePrefix: true,
-
-		matchFilter: /route\.(ts|js)$/
+		...dependencies.autoLoadParameters
+		// dir: join(import.meta.dirname, dependencies.autoLoadParameters.dir)
 	});
 
 	// await app.register(metricsPlugin, deps); // TODO: Enable for metrics
