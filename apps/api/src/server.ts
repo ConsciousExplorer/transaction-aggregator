@@ -5,6 +5,7 @@ import {
 	validatorCompiler,
 	type ZodTypeProvider
 } from "@fastify/type-provider-zod";
+import type { FastifyServerOptions } from "fastify";
 import fastify from "fastify";
 import type { Logger } from "pino";
 import type { ConfigSchema } from "./config.ts";
@@ -16,9 +17,13 @@ export type ServerDependencies = {
 	logger: Logger;
 };
 
-export async function buildServer(dependencies: ServerDependencies) {
+export async function buildServer(
+	serverOptions: FastifyServerOptions,
+	dependencies: ServerDependencies
+) {
 	const server = fastify({
-		loggerInstance: dependencies.logger
+		loggerInstance: dependencies.logger,
+		...serverOptions
 	}).withTypeProvider<ZodTypeProvider>();
 
 	// TODO: Explain what this means?
@@ -34,6 +39,7 @@ export async function buildServer(dependencies: ServerDependencies) {
 	await server.register(fastifyAutoload, {
 		dir: join(import.meta.dirname, "routes"),
 		dirNameRoutePrefix: true,
+
 		matchFilter: /route\.(ts|js)$/
 	});
 

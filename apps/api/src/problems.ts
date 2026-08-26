@@ -1,5 +1,7 @@
 // RFC 9457 (titled Problem Details for HTTP APIs)
 
+// TODO: Check this again!! NB! I don't know what this is
+
 export class Problem extends Error {
 	payload: {
 		type: string;

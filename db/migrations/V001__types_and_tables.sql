@@ -24,8 +24,32 @@ CREATE TABLE categorization_rules (
   UNIQUE (ruleset_version, priority)
 );
 
+-- The API supports crud operations and a user should be able to categorize their own transactions
+CREATE TABLE user_category_overrides (
+  user_id          uuid        NOT NULL,
+  from_category_id smallint    NOT NULL REFERENCES categories(category_id),
+  to_category_id   smallint    NOT NULL REFERENCES categories(category_id),
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, from_category_id),               -- one remap per source category per user
+  CHECK (from_category_id <> to_category_id)             -- self-remap is meaningless
+);
+
+-- Single-transaction override: the precise correction; beats the remap at read time (SPEC §2.5).
+CREATE TABLE user_transaction_overrides (
+  user_id        uuid        NOT NULL,
+  transaction_id uuid        NOT NULL,
+  occurred_at    timestamptz NOT NULL,   -- copied from the transaction at write time; enables cheap retention pruning (D28)
+  category_id    smallint    NOT NULL REFERENCES categories(category_id),
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (transaction_id, occurred_at)
+  -- Deliberately not adding a FK constraint. 
+  -- The tables partition can be dropped independently
+) PARTITION BY RANGE (occurred_at);
+
 CREATE TABLE transactions (
-  id            uuid        NOT NULL DEFAULT uuidv7(),   -- PG18 native; DB-layer UUIDv7 (brief)
+  transaction_id            uuid NOT NULL DEFAULT uuidv7(),   -- PG18 native; DB-layer UUIDv7 (brief)
   user_id       uuid        NOT NULL, -- opaque; no users table exists, the assumption is that users are controlled in their own database
   account_id    uuid        NOT NULL, -- the customer account the transaction occurred on; a user can hold several accounts. Opaque like user_id: accounts live in their own system
   source        source_type NOT NULL,
@@ -43,16 +67,17 @@ CREATE TABLE transactions (
   rule_priority int,        -- lineage: with rule_version, names the EXACT rule that fired; NULL = engine fallback (no rule matched)
   ingested_at   timestamptz NOT NULL DEFAULT now(),
   metadata      jsonb,
-  PRIMARY KEY (id, occurred_at),
+  PRIMARY KEY (transaction_id, occurred_at),
   UNIQUE (source, external_id, occurred_at), -- Source and externalId must be unique, assume we have internal control
   FOREIGN KEY (rule_version, rule_priority)  -- stamped lineage must reference a real rule (skipped when rule_priority IS NULL)
     REFERENCES categorization_rules (ruleset_version, priority)
 ) PARTITION BY RANGE (occurred_at);
 
-CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, id DESC)
+CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
   INCLUDE (source, direction, amount_minor, currency, category_id, merchant_name);
 
 -- Admin 
+-- This table is for long term metrics. OTEL will typically not store months worth of data
 CREATE TABLE ingest_progress (
   topic               text   NOT NULL,
   partition           int    NOT NULL,
@@ -84,10 +109,34 @@ IF NOT EXISTS (SELECT 1 FROM partman.part_config WHERE parent_table = 'public.tr
     END IF;
 END $$;
 
-UPDATE partman.part_config 
-SET 
+UPDATE partman.part_config
+SET
   infinite_time_partitions = true,
   retention = '18 month',  -- the brief's number (SPEC §2.3); v1 shipped 24 by drift
   retention_keep_table = false
 WHERE parent_table = 'public.transactions';
+
+-- overrides partitioned on the same calendar; no FK → drops need no cross-table ordering
+DO $$
+BEGIN
+IF NOT EXISTS (SELECT 1 FROM partman.part_config WHERE parent_table = 'public.user_transaction_overrides')
+  THEN
+    PERFORM
+       partman.create_parent(
+          p_parent_table := 'public.user_transaction_overrides',
+          p_control := 'occurred_at',
+          p_type := 'range',
+          p_interval := '1 month',
+          p_premake := 2,
+          p_start_partition := (now() - interval '19 months')::text
+      );
+    END IF;
+END $$;
+
+UPDATE partman.part_config
+SET
+  infinite_time_partitions = true,
+  retention = '18 month',  -- aligned with transactions by convention, not by constraint
+  retention_keep_table = false
+WHERE parent_table = 'public.user_transaction_overrides';
 
