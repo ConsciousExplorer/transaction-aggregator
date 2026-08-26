@@ -11,10 +11,10 @@ const logger = fileLogger(import.meta.url);
 
 // Minimal common interface — both Pool and PoolClient satisfy this
 export interface Queryable {
-	query<R extends QueryResultRow = QueryResultRow>(
+	query<T extends QueryResultRow = QueryResultRow>(
 		text: string,
 		values?: unknown[]
-	): Promise<QueryResult<R>>;
+	): Promise<QueryResult<T>>;
 }
 
 export async function createPool(config: PoolConfig): Promise<Pool> {
