@@ -29,3 +29,11 @@ docker compose run --rm migrate migrate
 docker compose run --rm migrate validate
 docker compose run --rm migrate repair
 ```
+
+# Generate DBML schema
+```
+npm install -g @dbml/cli
+
+make db-diagram
+```
+

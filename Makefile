@@ -1,4 +1,4 @@
-.PHONY: up down clean logs generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order
+.PHONY: up down clean logs generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order db-diagram
 
 # All five sources in one run (random seeds unless GENERATOR_SEED is set)
 generate:
@@ -24,3 +24,7 @@ generate-internal-transfer:
 
 generate-debit-order: 
 	docker compose up --no-deps producer-debit-order
+
+db-diagram:
+	@chmod +x ./scripts/db-diagram.sh
+	@./scripts/db-diagram.sh

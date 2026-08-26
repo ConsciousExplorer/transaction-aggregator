@@ -1,0 +1,58 @@
+{
+  "version": "3.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "currentViewName": null,
+  "defaultView": {
+    "detailLevel": "All",
+    "relationshipMode": "All",
+    "tablePositions": [
+      {
+        "name": "categories",
+        "schemaName": "public",
+        "x": 153.17630984342838,
+        "y": 653.992904552859
+      },
+      {
+        "name": "rule_sets",
+        "schemaName": "public",
+        "x": 877.0581377184923,
+        "y": 875.3907076399646
+      },
+      {
+        "name": "categorization_rules",
+        "schemaName": "public",
+        "x": 510.4392994348237,
+        "y": 1079.5477235713374
+      },
+      {
+        "name": "user_category_overrides",
+        "schemaName": "public",
+        "x": 883.7590526033608,
+        "y": -76.08606145994574
+      },
+      {
+        "name": "user_transaction_overrides",
+        "schemaName": "public",
+        "x": 1309.6195951448015,
+        "y": 58.50286065289606
+      },
+      {
+        "name": "transactions",
+        "schemaName": "public",
+        "x": 1305.4692045198015,
+        "y": 382.5543609713627
+      },
+      {
+        "name": "ingest_progress",
+        "schemaName": "public",
+        "x": 170.56054032427147,
+        "y": 64.18448162570951
+      }
+    ],
+    "tableGroupCollapseStates": [],
+    "stickyNoteLayouts": [],
+    "referencePaths": []
+  },
+  "views": {}
+}
