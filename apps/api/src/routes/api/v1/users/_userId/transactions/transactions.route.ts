@@ -1,24 +1,12 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
-import { createPool } from "#src/integrations/database/pool.ts";
+import type { Queryable } from "#src/integrations/database/pool.ts";
 import { getUserTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { config } from "#src/runtime.ts";
 import { sourceSchema } from "#src/schemas/common.ts";
 import { listResponseSchema } from "#src/schemas/transactions.ts";
 
 // import { transactionListItemSchema } from "#src/schemas/transactions.ts";
-
-// Own pool. delete this
-const writerPool = await createPool({
-	min: config.database.min,
-	max: config.database.max,
-	database: config.database.database,
-	host: config.database.host,
-	port: config.database.port,
-	user: config.database.user,
-	password: config.secrets.database_password
-});
 
 const routeParamsSchema = z.object({
 	userId: z.string()
@@ -27,7 +15,10 @@ const routeParamsSchema = z.object({
 /**
  * A basic info route
  */
-export default async (fastify: FastifyInstance) => {
+export default async (
+	fastify: FastifyInstance,
+	opts: { database: Queryable }
+) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
@@ -55,7 +46,7 @@ export default async (fastify: FastifyInstance) => {
 			}
 		},
 		handler: async (request, reply) => {
-			const result = await getUserTransactions(writerPool, {
+			const result = await getUserTransactions(opts.database, {
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,

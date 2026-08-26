@@ -9,6 +9,7 @@ import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import fastify from "fastify";
 import type { Logger } from "pino";
 import type { ConfigSchema } from "./config.ts";
+import type { Queryable } from "./integrations/database/pool.ts";
 import { problemJson } from "./plugins/problem-json.ts";
 import { swaggerPlugin } from "./plugins/swagger.ts";
 
@@ -21,16 +22,17 @@ export type AutoLoadParameters = {
 export type ServerDependencies = {
 	config: ConfigSchema;
 	logger: Logger;
+	database: Queryable;
 	autoLoadParameters: AutoloadPluginOptions;
 };
 
-export async function buildServer({
+export function buildServer({
 	serverOptions,
 	dependencies
 }: {
 	serverOptions: FastifyServerOptions;
 	dependencies: ServerDependencies;
-}): Promise<FastifyInstance> {
+}): FastifyInstance {
 	const server = fastify({
 		loggerInstance: dependencies.logger,
 		...serverOptions
@@ -41,13 +43,14 @@ export async function buildServer({
 	server.setSerializerCompiler(serializerCompiler);
 
 	// used to log problems based on RFC
-	await server.register(problemJson, dependencies);
+	server.register(problemJson, dependencies);
 
 	// OpenAPI spec
-	await server.register(swaggerPlugin, dependencies);
+	server.register(swaggerPlugin, dependencies);
 
-	await server.register(fastifyAutoload, {
-		...dependencies.autoLoadParameters
+	server.register(fastifyAutoload, {
+		...dependencies.autoLoadParameters,
+		options: { database: dependencies.database, config: dependencies.config }
 	});
 
 	// await app.register(metricsPlugin, deps); // TODO: Enable for metrics

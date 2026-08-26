@@ -1,51 +1,18 @@
-import { join } from "node:path";
-import { asValue, createContainer } from "awilix";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
-import { createPool } from "./integrations/database/pool.ts";
-import { baseLogger, config } from "./runtime.ts";
-import { buildServer } from "./server.ts";
+import { buildContainer } from "#src/container.ts";
+import { config, baseLogger as logger } from "#src/runtime.ts";
 
-const logger = baseLogger;
-
-const container = createContainer();
-
-let server: FastifyInstance;
-let writerPool: Pool;
+const container = await buildContainer();
 
 try {
-	// Create database pool to manage connections
-	writerPool = await createPool({
-		min: config.database.min,
-		max: config.database.max,
-		database: config.database.database,
-		host: config.database.host,
-		port: config.database.port,
-		user: config.database.user,
-		password: config.secrets.database_password
-	});
+	// Get the server from the container
+	const server: FastifyInstance = container.cradle.server;
 
-	server = await buildServer({
-		serverOptions: {},
-		dependencies: {
-			config: config,
-			logger: baseLogger,
-			autoLoadParameters: {
-				dir: join(import.meta.dirname, "routes"),
-				dirNameRoutePrefix: true,
-				routeParams: true,
-				matchFilter: /route\.(ts|js)$/
-			}
-		}
-	});
-
-	// Register dependecies
-	container.register({
-		database: asValue(writerPool)
-	});
-} catch (error) {
-	logger.error(error, "Something broke here");
+	// All the dependencies has been registered. Start listening for requests
+	await server.listen({ host: config.app.host, port: config.app.port });
+	logger.info({ event: "app.start", port: config.app.port });
+} catch (err) {
+	logger.fatal({ err }, "boot failed");
+	await container.dispose(); // drains the pool even on failed boot
 	process.exit(1);
 }
-
-server.listen({ port: config.app.port });
