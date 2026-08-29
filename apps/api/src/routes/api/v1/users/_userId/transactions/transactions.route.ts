@@ -54,14 +54,14 @@ export default async (
 			});
 
 			const data = result.map((row) => ({
-				id: row.transaction_id,
-				occurredAt: row.occurred_at.toISOString(),
+				id: row.transactionId,
+				occurredAt: new Date(row.occurredAt).toISOString(),
 				source: row.source,
 				direction: row.direction,
-				amountMinor: row.amount_minor,
+				amountMinor: row.amountMinor,
 				currency: row.currency,
-				categoryId: row.category_id,
-				merchantName: row.merchant_name
+				categoryId: row.categoryId,
+				merchantName: row.merchantName
 			}));
 
 			const cursor = null;

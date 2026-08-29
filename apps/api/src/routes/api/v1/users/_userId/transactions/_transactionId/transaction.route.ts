@@ -41,7 +41,7 @@ export default async (
 
 			return reply.send({
 				id: row.transactionId,
-				occurredAt: row.occurredAt,
+				occurredAt: new Date(row.occurredAt).toISOString(),
 				source: row.source,
 				direction: row.direction,
 				amountMinor: row.amountMinor,

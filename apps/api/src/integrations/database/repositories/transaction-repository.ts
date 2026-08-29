@@ -1,14 +1,19 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lt, lte, SQL, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import z from "zod";
+import { sourceSchema } from "#src/schemas/common.ts";
 import type { Queryable } from "../pool.ts";
-import { transactions } from "../schemas/partitioned.ts";
+import {
+	transactions,
+	userTransactionOverrides
+} from "../schemas/partitioned.ts";
+import { userCategoryOverrides } from "../schemas/schema.ts";
 
 export const userTransactionFilter = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
-	source: z.string().optional(),
+	source: sourceSchema.optional(), // must be the enum literal union: eq(transactions.source, …) is typed by the pgEnum
 	categoryId: z.number().int().optional(),
 	direction: z.enum(["debit", "credit"]).optional(),
 	amountMin: z.number().int().optional(),
@@ -23,17 +28,6 @@ export const userTransactionDetailFilter = z.object({
 	transactionId: z.string()
 });
 
-const databaseResponseSchema = z.object({
-	transaction_id: z.uuid(),
-	occurred_at: z.coerce.date(),
-	source: z.string(),
-	direction: z.enum(["debit", "credit"]),
-	amount_minor: z.coerce.number(),
-	currency: z.string(),
-	category_id: z.number().int(),
-	merchant_name: z.string().nullable()
-});
-
 export type UserTransactionFilter = z.infer<typeof userTransactionFilter>;
 export type UserTransactionDetailFilter = z.infer<
 	typeof userTransactionDetailFilter
@@ -43,47 +37,66 @@ export async function getUserTransactions(
 	db: Queryable,
 	filter: UserTransactionFilter
 ) {
-	const result = await db.query<z.infer<typeof databaseResponseSchema>>(
-		`
-        SELECT t.transaction_id, t.occurred_at,
-            t.source, 
-            t.direction, 
-            t.amount_minor, 
-            t.currency,
-            COALESCE(txo.category_id, uco.to_category_id, t.category_id) AS category_id,  -- v3: effective (parent §2.5)
-            t.merchant_name
-        FROM   transactions t
-        LEFT JOIN user_transaction_overrides txo ON txo.transaction_id = t.transaction_id AND txo.occurred_at = t.occurred_at
-        LEFT JOIN user_category_overrides   uco ON uco.user_id = t.user_id AND uco.from_category_id = t.category_id
-        WHERE  t.user_id = $1
-        AND  t.occurred_at >= $2 AND t.occurred_at < $3
-        AND  ($4::source_type    IS NULL OR t.source    = $4)
-        AND  ($5::smallint       IS NULL OR COALESCE(txo.category_id, uco.to_category_id, t.category_id) = $5)  -- filter on EFFECTIVE
-        AND  ($6::direction_type IS NULL OR t.direction = $6)
-        AND  ($7::bigint         IS NULL OR t.amount_minor >= $7)
-        AND  ($8::bigint         IS NULL OR t.amount_minor <= $8)
-        AND  ($9::timestamptz    IS NULL OR (t.occurred_at, t.transaction_id) < ($9, $10::uuid))   -- keyset: strictly before cursor row
-        ORDER BY t.occurred_at DESC, t.transaction_id DESC
-        LIMIT  $11;  
-        `,
-		[
-			filter.userId, // 1
-			filter.fromDate, // 2
-			filter.toDate, // 3
-			filter.source ?? null, // 4
-			filter.categoryId ?? null, // 5
-			filter.direction ?? null, // 6
-			filter.amountMin ?? null, // 7
-			filter.amountMax ?? null, // 8
-			filter.cursorOccurredAt ?? null, // 9
-			filter.cursorTransactionId ?? null, // 10
-			filter.limit // 11
-		]
-	);
+	// Referenced twice (select + where); define once so both stay in sync.
+	const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
-	// Parse database rows at the boundary
-	const parsedRecord = databaseResponseSchema.array().parse(result.rows);
-	return parsedRecord;
+	const conditions: (SQL | undefined)[] = [
+		eq(transactions.userId, filter.userId),
+		gte(transactions.occurredAt, filter.fromDate),
+		lt(transactions.occurredAt, filter.toDate),
+		filter.source !== undefined
+			? eq(transactions.source, filter.source)
+			: undefined,
+		filter.direction !== undefined
+			? eq(transactions.direction, filter.direction)
+			: undefined,
+		filter.amountMin !== undefined
+			? gte(transactions.amountMinor, filter.amountMin)
+			: undefined,
+		filter.amountMax !== undefined
+			? lte(transactions.amountMinor, filter.amountMax)
+			: undefined,
+		filter.categoryId !== undefined
+			? eq(effectiveCategoryId, filter.categoryId)
+			: undefined,
+		filter.cursorOccurredAt !== undefined &&
+		filter.cursorTransactionId !== undefined
+			? sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
+			: undefined
+	];
+
+	const result = drizzle(db)
+		.select({
+			transactionId: transactions.transactionId,
+			occurredAt: transactions.occurredAt,
+			source: transactions.source,
+			direction: transactions.direction,
+			amountMinor: transactions.amountMinor,
+			currency: transactions.currency,
+			categoryId: effectiveCategoryId.as("category_id"),
+			merchantName: transactions.merchantName
+		})
+		.from(transactions)
+		.leftJoin(
+			userTransactionOverrides,
+			and(
+				eq(userTransactionOverrides.transactionId, transactions.transactionId),
+				eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+			)
+		)
+		.leftJoin(
+			userCategoryOverrides,
+			and(
+				eq(userCategoryOverrides.userId, transactions.userId),
+				eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+			)
+		)
+		.where(and(...conditions))
+		.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
+		.limit(filter.limit);
+
+	console.log(result);
+	return result;
 }
 
 export async function getUserTransactionDetail(
@@ -100,5 +113,5 @@ export async function getUserTransactionDetail(
 			)
 		);
 
-	return result[0] ?? null;
+	return result[0];
 }
