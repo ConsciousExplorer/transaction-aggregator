@@ -51,9 +51,6 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 ): Promise<Consumer<Key, Value, HeaderKey, HeaderValue>> {
 	const kafkaConsumer = new Consumer(options);
 
-	// Connects and authenticates. Same as postgres select 1
-	await kafkaConsumer.metadata({ forceUpdate: true });
-
 	// Register listerners
 	kafkaConsumer.addListener("consumer:group:rebalance", () =>
 		logger.warn("Preparing a rebalance")
@@ -84,8 +81,6 @@ export async function createKafkaDlqProducer(
 			headerValue: stringSerializer
 		}
 	});
-	// Connects and authenticates. Same as postgres select 1
-	await kafkaDlqProducer.metadata({});
 
 	return kafkaDlqProducer;
 }

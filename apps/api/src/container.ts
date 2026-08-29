@@ -29,6 +29,9 @@ export async function buildContainer() {
 		password: config.secrets.database_password
 	});
 
+	// Ensure the database can connect by establishing a connection and releasing it again
+	await database.query("SELECT 1");
+
 	container.register({
 		config: asValue(config),
 
@@ -57,7 +60,7 @@ export async function buildContainer() {
 				})
 		)
 			.singleton()
-			.disposer((app) => app.close()) // FastifyInstance
+			.disposer((app) => app.close())
 	});
 
 	return container;

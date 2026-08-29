@@ -12,7 +12,8 @@ try {
 	await server.listen({ host: config.app.host, port: config.app.port });
 	logger.info({ event: "app.start", port: config.app.port });
 } catch (err) {
-	logger.fatal({ err }, "boot failed");
-	await container.dispose(); // drains the pool even on failed boot
+	logger.error({ err }, "boot failed");
+	// drains the pool even on failed boot
+	await container.dispose();
 	process.exit(1);
 }

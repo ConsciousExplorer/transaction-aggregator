@@ -111,8 +111,8 @@ await startupCheck(
 // #region: Main entrypoint
 try {
 	// Create database pool to manage connections
-	writerPool = await startupCheck("PostgreSQL", () =>
-		createPool({
+	writerPool = await startupCheck("PostgreSQL", async () => {
+		const pool = await createPool({
 			min: config.database.min,
 			max: config.database.max,
 			database: config.database.database,
@@ -120,8 +120,13 @@ try {
 			port: config.database.port,
 			user: config.database.user,
 			password: config.secrets.database_password
-		})
-	);
+		});
+
+		// Force a real connection and release client directly
+		await pool.query("SELECT 1");
+
+		return pool;
+	});
 
 	rules = await loadActiveRules(writerPool);
 	uncategorizedId = await loadUncategorizedId(writerPool);
@@ -181,6 +186,12 @@ try {
 
 	transactionNormaliser = createNormaliser(config.source);
 	ruleCategorizer = createRuleCategorizer(ruleset);
+
+	Promise.all([
+		// Connects and authenticates. Same as postgres select 1
+		await kafkaDlqProducer.metadata({ forceUpdate: true }),
+		await kafkaConsumer.metadata({ forceUpdate: true })
+	]);
 
 	server = await createServer();
 	server.listen(config.app.port);

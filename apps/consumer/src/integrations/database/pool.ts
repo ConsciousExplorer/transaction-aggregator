@@ -30,9 +30,6 @@ export async function createPool(config: PoolConfig): Promise<Pool> {
 		logger.error({ err }, "Idle client error");
 	});
 
-	// Ensure that a connection is established and we can connect
-	await pool.query("SELECT 1");
-
 	return pool;
 }
 
