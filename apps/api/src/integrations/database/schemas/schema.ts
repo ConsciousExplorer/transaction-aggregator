@@ -2,11 +2,9 @@ import { sql } from "drizzle-orm";
 import {
 	bigint,
 	boolean,
-	char,
 	foreignKey,
 	index,
 	integer,
-	jsonb,
 	pgEnum,
 	pgTable,
 	smallint,
@@ -164,93 +162,3 @@ export const ingestProgress = pgTable("ingest_progress", {
 		.defaultNow()
 		.notNull()
 });
-
-export const transactionsDefault = pgTable(
-	"transactions_default",
-	{
-		transactionId: uuid("transaction_id").default(sql`uuidv7()`).notNull(),
-		userId: uuid("user_id").notNull(),
-		accountId: uuid("account_id").notNull(),
-		source: sourceType().notNull(),
-		externalId: text("external_id").notNull(),
-		occurredAt: timestamp("occurred_at", {
-			withTimezone: true,
-			mode: "string"
-		}).notNull(),
-		postedAt: timestamp("posted_at", { withTimezone: true, mode: "string" }),
-		direction: directionType().notNull(),
-		// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
-		currency: char({ length: 3 }).notNull(),
-		description: text(),
-		merchantName: text("merchant_name"),
-		mcc: char({ length: 4 }),
-		categoryId: smallint("category_id").notNull(),
-		ruleVersion: integer("rule_version").notNull(),
-		rulePriority: integer("rule_priority"),
-		ingestedAt: timestamp("ingested_at", { withTimezone: true, mode: "string" })
-			.defaultNow()
-			.notNull(),
-		metadata: jsonb()
-	},
-	(table) => [
-		index(
-			"transactions_default_user_id_occurred_at_transaction_id_sou_idx"
-		).using(
-			"btree",
-			table.userId.asc().nullsLast().op("timestamptz_ops"),
-			table.occurredAt.desc().nullsFirst().op("timestamptz_ops"),
-			table.transactionId.desc().nullsFirst().op("timestamptz_ops"),
-			table.source.asc().nullsLast().op("uuid_ops"),
-			table.direction.asc().nullsLast().op("timestamptz_ops"),
-			table.amountMinor.asc().nullsLast().op("timestamptz_ops"),
-			table.currency.asc().nullsLast().op("timestamptz_ops"),
-			table.categoryId.asc().nullsLast().op("timestamptz_ops"),
-			table.merchantName.asc().nullsLast().op("timestamptz_ops")
-		),
-		foreignKey({
-			columns: [table.categoryId],
-			foreignColumns: [categories.categoryId],
-			name: "transactions_category_id_fkey"
-		}),
-		foreignKey({
-			columns: [table.ruleVersion],
-			foreignColumns: [ruleSets.version],
-			name: "transactions_rule_version_fkey"
-		}),
-		foreignKey({
-			columns: [table.ruleVersion, table.rulePriority],
-			foreignColumns: [
-				categorizationRules.rulesetVersion,
-				categorizationRules.priority
-			],
-			name: "transactions_rule_version_rule_priority_fkey"
-		})
-	]
-);
-
-export const userTransactionOverridesDefault = pgTable(
-	"user_transaction_overrides_default",
-	{
-		userId: uuid("user_id").notNull(),
-		transactionId: uuid("transaction_id").notNull(),
-		occurredAt: timestamp("occurred_at", {
-			withTimezone: true,
-			mode: "string"
-		}).notNull(),
-		categoryId: smallint("category_id").notNull(),
-		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-			.defaultNow()
-			.notNull(),
-		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-			.defaultNow()
-			.notNull()
-	},
-	(table) => [
-		foreignKey({
-			columns: [table.categoryId],
-			foreignColumns: [categories.categoryId],
-			name: "user_transaction_overrides_category_id_fkey"
-		})
-	]
-);

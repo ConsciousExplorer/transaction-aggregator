@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { buildContainer } from "#src/container.ts";
 import { config, baseLogger as logger } from "#src/runtime.ts";
 
-const container = await buildContainer();
+export const container = await buildContainer();
 
 try {
 	// Get the server from the container

@@ -3,14 +3,12 @@ import {
 	categories,
 	categorizationRules,
 	ruleSets,
-	transactionsDefault,
-	userCategoryOverrides,
-	userTransactionOverridesDefault
-} from "./schema.js";
+	userCategoryOverrides
+} from "./schema.ts";
 
 export const categorizationRulesRelations = relations(
 	categorizationRules,
-	({ one, many }) => ({
+	({ one }) => ({
 		category: one(categories, {
 			fields: [categorizationRules.categoryId],
 			references: [categories.categoryId]
@@ -18,8 +16,7 @@ export const categorizationRulesRelations = relations(
 		ruleSet: one(ruleSets, {
 			fields: [categorizationRules.rulesetVersion],
 			references: [ruleSets.version]
-		}),
-		transactionsDefaults: many(transactionsDefault)
+		})
 	})
 );
 
@@ -30,14 +27,11 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
 	}),
 	userCategoryOverrides_toCategoryId: many(userCategoryOverrides, {
 		relationName: "userCategoryOverrides_toCategoryId_categories_categoryId"
-	}),
-	transactionsDefaults: many(transactionsDefault),
-	userTransactionOverridesDefaults: many(userTransactionOverridesDefault)
+	})
 }));
 
 export const ruleSetsRelations = relations(ruleSets, ({ many }) => ({
-	categorizationRules: many(categorizationRules),
-	transactionsDefaults: many(transactionsDefault)
+	categorizationRules: many(categorizationRules)
 }));
 
 export const userCategoryOverridesRelations = relations(
@@ -52,34 +46,6 @@ export const userCategoryOverridesRelations = relations(
 			fields: [userCategoryOverrides.toCategoryId],
 			references: [categories.categoryId],
 			relationName: "userCategoryOverrides_toCategoryId_categories_categoryId"
-		})
-	})
-);
-
-export const transactionsDefaultRelations = relations(
-	transactionsDefault,
-	({ one }) => ({
-		category: one(categories, {
-			fields: [transactionsDefault.categoryId],
-			references: [categories.categoryId]
-		}),
-		ruleSet: one(ruleSets, {
-			fields: [transactionsDefault.ruleVersion],
-			references: [ruleSets.version]
-		}),
-		categorizationRule: one(categorizationRules, {
-			fields: [transactionsDefault.ruleVersion],
-			references: [categorizationRules.rulesetVersion]
-		})
-	})
-);
-
-export const userTransactionOverridesDefaultRelations = relations(
-	userTransactionOverridesDefault,
-	({ one }) => ({
-		category: one(categories, {
-			fields: [userTransactionOverridesDefault.categoryId],
-			references: [categories.categoryId]
 		})
 	})
 );

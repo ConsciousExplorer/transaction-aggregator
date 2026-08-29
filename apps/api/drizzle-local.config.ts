@@ -1,7 +1,7 @@
 // drizzle.config.ts
 import { defineConfig } from "drizzle-kit";
 
-import { readSecretFromFile } from "#src/config.ts";
+import { readSecretFromFile } from "#src/utils/secrets.ts";
 
 const DB_USER = 'api_read'
 const DB_HOST = 'localhost'
@@ -13,6 +13,7 @@ const DB_PASSWORD = readSecretFromFile('./secrets', 'api_read_password' )
 export default defineConfig({
     dialect: "postgresql",
     out: "./src/integrations/database/schemas",
+    schema: "./src/integrations/database/schemas/*.ts", 
     dbCredentials: {
             host: DB_HOST,
             port: DB_PORT,
@@ -22,5 +23,5 @@ export default defineConfig({
             ssl: false
             },
     schemaFilter: ['public'],
-    tablesFilter: ["!*_p2025*", "!*_p2026*"]
+    tablesFilter: ["*", "!*_default", "!transactions_p*", "!user_transaction_overrides_p*"],
 });

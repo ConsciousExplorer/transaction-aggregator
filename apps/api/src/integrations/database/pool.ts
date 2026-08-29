@@ -1,21 +1,18 @@
-import {
-	Pool,
-	type PoolClient,
-	type PoolConfig,
-	type QueryResult,
-	type QueryResultRow
-} from "pg";
-import { fileLogger } from "../../runtime.js";
+import type { NodePgClient } from "drizzle-orm/node-postgres";
+import { Pool, type PoolClient, type PoolConfig } from "pg";
+import { fileLogger } from "../../runtime.ts";
 
 const logger = fileLogger(import.meta.url);
 
 // Minimal common interface — both Pool and PoolClient satisfy this
-export interface Queryable {
-	query<T extends QueryResultRow = QueryResultRow>(
-		text: string,
-		values?: unknown[]
-	): Promise<QueryResult<T>>;
-}
+// export interface Queryable {
+// 	query<T extends QueryResultRow = QueryResultRow>(
+// 		text: string,
+// 		values?: unknown[]
+// 	): Promise<QueryResult<T>>;
+// }
+
+export type Queryable = NodePgClient; // Pool | PoolClient | Client
 
 export async function createPool(config: PoolConfig): Promise<Pool> {
 	const pool = new Pool({

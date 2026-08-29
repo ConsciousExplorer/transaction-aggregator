@@ -18,7 +18,7 @@
 		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
 		"biome:migrate": "npx @biomejs/biome migrate --write",
-		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle-local.config.ts",
+		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle-local.config.ts && node scripts/cleanup-drizzle-pull.ts",
 		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle-local.config.ts"
 	},
 	"imports": {
@@ -36,6 +36,7 @@
 		"@biomejs/biome": "^2.5.10",
 		"@types/node": "24.x",
 		"@types/pg": "8.23.1",
+		"cspell": "10.1.1",
 		"drizzle-kit": "0.31.10",
 		"tsx": "^4.23.12",
 		"typescript": "^7.0.2"
@@ -46,7 +47,6 @@
 		"@fastify/swagger-ui": "6.1.1",
 		"@fastify/type-provider-zod": "1.0.0",
 		"awilix": "13.0.5",
-		"cspell": "10.1.1",
 		"drizzle-orm": "0.45.2",
 		"fastify": "^5.12.1",
 		"fastify-plugin": "6.0.0",

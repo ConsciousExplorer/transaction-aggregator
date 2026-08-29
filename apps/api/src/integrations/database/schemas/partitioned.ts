@@ -1,0 +1,64 @@
+import { sql } from "drizzle-orm";
+import {
+	bigint,
+	char,
+	integer,
+	jsonb,
+	pgTable,
+	primaryKey,
+	smallint,
+	text,
+	timestamp,
+	uuid
+} from "drizzle-orm/pg-core";
+import { directionType, sourceType } from "./schema.ts";
+
+export const transactions = pgTable(
+	"transactions",
+	{
+		transactionId: uuid("transaction_id").default(sql`uuidv7()`).notNull(),
+		userId: uuid("user_id").notNull(),
+		accountId: uuid("account_id").notNull(),
+		source: sourceType().notNull(),
+		externalId: text("external_id").notNull(),
+		occurredAt: timestamp("occurred_at", {
+			withTimezone: true,
+			mode: "string"
+		}).notNull(),
+		postedAt: timestamp("posted_at", { withTimezone: true, mode: "string" }),
+		direction: directionType().notNull(),
+		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+		currency: char({ length: 3 }).notNull(),
+		description: text(),
+		merchantName: text("merchant_name"),
+		mcc: char({ length: 4 }),
+		categoryId: smallint("category_id").notNull(),
+		ruleVersion: integer("rule_version").notNull(),
+		rulePriority: integer("rule_priority"),
+		ingestedAt: timestamp("ingested_at", { withTimezone: true, mode: "string" })
+			.defaultNow()
+			.notNull(),
+		metadata: jsonb()
+	},
+	(t) => [primaryKey({ columns: [t.occurredAt, t.transactionId] })] // match your real PK
+);
+
+export const userTransactionOverrides = pgTable(
+	"user_transaction_overrides",
+	{
+		userId: uuid("user_id").notNull(),
+		transactionId: uuid("transaction_id").notNull(),
+		occurredAt: timestamp("occurred_at", {
+			withTimezone: true,
+			mode: "string"
+		}).notNull(),
+		categoryId: smallint("category_id").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+			.defaultNow()
+			.notNull()
+	},
+	(t) => [primaryKey({ columns: [t.userId, t.transactionId, t.occurredAt] })] // match your real PK
+);

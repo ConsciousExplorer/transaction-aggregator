@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import z from "zod";
-import data from ".././package.js" with { type: "json" };
-import { LOG_LEVELS } from "./logger.js";
+import { readSecretFromFile } from "#src/utils/secrets.ts";
+import data from ".././package.json" with { type: "json" };
+import { LOG_LEVELS } from "./logger.ts";
 
 const appInfo = data;
 
@@ -72,18 +71,6 @@ const configSchema = z
 	);
 
 export type ConfigSchema = z.infer<typeof configSchema>;
-
-export function readSecretFromFile(dir: string, fileName: string): string {
-	const path = join(dir, fileName);
-
-	try {
-		return readFileSync(path, "utf-8").trim();
-	} catch (error) {
-		throw new Error(`Unable to read secret "${fileName}" from ${path}`, {
-			cause: error
-		});
-	}
-}
 
 export function loadConfig(
 	env: Record<string, string | undefined>

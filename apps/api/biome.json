@@ -19,7 +19,12 @@
 			"correctness": {
 				"useImportExtensions": {
 					"level": "error",
-					"options": { "forceJsExtensions": true }
+					"options": {
+						"extensionMappings": {
+							"ts": "ts",
+							"tsx": "js"
+						}
+					}
 				}
 			}
 		}
