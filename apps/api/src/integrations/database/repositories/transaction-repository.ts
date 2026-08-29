@@ -100,9 +100,5 @@ export async function getUserTransactionDetail(
 			)
 		);
 
-	console.log(result);
-
-	// Parse database rows at the boundary
-	const parsedResponse = databaseResponseSchema.parse(result[0]);
-	return parsedResponse;
+	return result[0] ?? null;
 }

@@ -3,7 +3,8 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { Queryable } from "#src/integrations/database/pool.ts";
 import { getUserTransactionDetail } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { listResponseSchema } from "#src/schemas/transactions.ts";
+import { notFound } from "#src/problems.ts";
+import { transactionListItemSchema } from "#src/schemas/transactions.ts";
 
 // import { transactionListItemSchema } from "#src/schemas/transactions.ts";
 
@@ -26,17 +27,19 @@ export default async (
 			hide: false,
 			params: routeParamsSchema,
 			response: {
-				200: listResponseSchema
+				200: transactionListItemSchema
 			}
 		},
 		handler: async (request, reply) => {
-			console.log(request.params);
-			const result = await getUserTransactionDetail(opts.database, {
+			const row = await getUserTransactionDetail(opts.database, {
 				userId: request.params.userId,
 				transactionId: request.params.transactionId
 			});
 
-			const data = result.map((row) => ({
+			// Problem instances are turned into RFC 9457 responses by the problemJson plugin
+			if (!row) throw notFound();
+
+			return reply.send({
 				id: row.transactionId,
 				occurredAt: row.occurredAt,
 				source: row.source,
@@ -45,13 +48,6 @@ export default async (
 				currency: row.currency,
 				categoryId: row.categoryId,
 				merchantName: row.merchantName
-			}));
-
-			const cursor = null;
-
-			return reply.send({
-				data: data,
-				nextCursor: cursor
 			});
 		}
 	});
