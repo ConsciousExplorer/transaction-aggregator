@@ -1,5 +1,5 @@
 import z from "zod";
-import { sourceSchema } from "./common.ts";
+import { sourceSchema } from "./common.js";
 
 export const listQuerySchema = z.object({
 	from: z.iso.datetime().optional(), // route defaults: to=now, from=to−30d (parent §7)

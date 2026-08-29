@@ -8,10 +8,10 @@ import {
 import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import fastify from "fastify";
 import type { Logger } from "pino";
-import type { ConfigSchema } from "./config.ts";
-import type { Queryable } from "./integrations/database/pool.ts";
-import { problemJson } from "./plugins/problem-json.ts";
-import { swaggerPlugin } from "./plugins/swagger.ts";
+import type { ConfigSchema } from "./config.js";
+import type { Queryable } from "./integrations/database/pool.js";
+import { problemJson } from "./plugins/problem-json.js";
+import { swaggerPlugin } from "./plugins/swagger.js";
 
 export type AutoLoadParameters = {
 	routesDirectories: string;

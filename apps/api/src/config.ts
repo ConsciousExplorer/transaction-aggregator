@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import z from "zod";
-import data from ".././package.json" with { type: "json" };
-import { LOG_LEVELS } from "./logger.ts";
+import data from ".././package.js" with { type: "json" };
+import { LOG_LEVELS } from "./logger.js";
 
 const appInfo = data;
 

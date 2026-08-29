@@ -1,5 +1,5 @@
 import z from "zod";
-import type { Queryable } from "../pool.ts";
+import type { Queryable } from "../pool.js";
 
 export const userTransactionFilter = z.object({
 	userId: z.string(),
@@ -87,28 +87,28 @@ export async function getUserTransactionDetail(
 	db: Queryable,
 	filter: UserTransactionDetailFilter
 ) {
-	// const result = await db.query<z.infer<typeof databaseResponseSchema>>(
-	// 	`
-	//     SELECT
-	//             t.transaction_id,
-	//             t.occurred_at,
-	//             t.source,
-	//             t.direction,
-	//             t.amount_minor,
-	//             t.currency,
-	//             COALESCE(txo.category_id, uco.to_category_id, t.category_id) AS category_id,  -- v3: effective (parent §2.5)
-	//             t.merchant_name
-	//     FROM    transactions t
-	//     LEFT JOIN user_transaction_overrides txo ON txo.transaction_id = t.transaction_id AND txo.occurred_at = t.occurred_at
-	//     LEFT JOIN user_category_overrides   uco ON uco.user_id = t.user_id AND uco.from_category_id = t.category_id
-	//     WHERE   t.user_id = $1
-	//     AND     t.transaction_id = $2
-	//     `,
-	// 	[
-	// 		filter.userId, // 1
-	// 		filter.transactionId // 2
-	// 	]
-	// );
+	const result = await db.query<z.infer<typeof databaseResponseSchema>>(
+		`
+	    SELECT
+	            t.transaction_id,
+	            t.occurred_at,
+	            t.source,
+	            t.direction,
+	            t.amount_minor,
+	            t.currency,
+	            COALESCE(txo.category_id, uco.to_category_id, t.category_id) AS category_id,  -- v3: effective (parent §2.5)
+	            t.merchant_name
+	    FROM    transactions t
+	    LEFT JOIN user_transaction_overrides txo ON txo.transaction_id = t.transaction_id AND txo.occurred_at = t.occurred_at
+	    LEFT JOIN user_category_overrides   uco ON uco.user_id = t.user_id AND uco.from_category_id = t.category_id
+	    WHERE   t.user_id = $1
+	    AND     t.transaction_id = $2
+	    `,
+		[
+			filter.userId, // 1
+			filter.transactionId // 2
+		]
+	);
 
 	// const record = db.select().from(thTa);
 

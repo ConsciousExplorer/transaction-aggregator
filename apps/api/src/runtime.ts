@@ -2,8 +2,8 @@ import { basename } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Logger } from "pino";
-import { loadConfig } from "./config.ts";
-import { createLogger } from "./logger.ts";
+import { loadConfig } from "./config.js";
+import { createLogger } from "./logger.js";
 
 export const config = loadConfig(process.env);
 

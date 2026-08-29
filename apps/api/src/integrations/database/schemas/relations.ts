@@ -6,7 +6,7 @@ import {
 	transactionsDefault,
 	userCategoryOverrides,
 	userTransactionOverridesDefault
-} from "./schema";
+} from "./schema.js";
 
 export const categorizationRulesRelations = relations(
 	categorizationRules,

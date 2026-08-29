@@ -5,7 +5,7 @@ import {
 	type QueryResult,
 	type QueryResultRow
 } from "pg";
-import { fileLogger } from "../../runtime.ts";
+import { fileLogger } from "../../runtime.js";
 
 const logger = fileLogger(import.meta.url);
 
