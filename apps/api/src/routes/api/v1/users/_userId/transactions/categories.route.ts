@@ -47,14 +47,14 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 					userId,
 					transactionId
 				});
-				if (!originalTransaction) throw notFound(); // missing OR other-user → same 404
+				if (!originalTransaction) throw notFound();
 
 				const overrideTransaction = await upsertUserTransactionCategory(
 					client,
 					{
 						userId,
 						transactionId,
-						occurredAt: originalTransaction.occurredAt, // from the owned row — D28
+						occurredAt: originalTransaction.occurredAt,
 						categoryId
 					}
 				);
