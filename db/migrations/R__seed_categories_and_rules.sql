@@ -1,29 +1,42 @@
--- Add initial actegories
-INSERT INTO categories (name) VALUES
-  ('uncategorized'),
-  ('groceries'),
-  ('dining'),
-  ('transport'),
-  ('retail'),
-  ('entertainment'),
-  ('healthcare'),
-  ('utilities'),
-  ('transfers'),
-  ('loan_repayment'),
-  ('income'),
-  ('insurance'),
-  ('subscriptions'),
-  ('fitness'),
-  ('education'),
-  ('recurring_payments')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO categories (category_id, name, label) OVERRIDING SYSTEM VALUE VALUES
+  ( 1, 'uncategorized',      'Uncategorized'),
+  ( 2, 'groceries',          'Groceries'),
+  ( 3, 'dining',             'Dining'),
+  ( 4, 'transport',          'Transport'),
+  ( 5, 'retail',             'Retail'),
+  ( 6, 'entertainment',      'Entertainment'),
+  ( 7, 'healthcare',         'Healthcare'),
+  ( 8, 'utilities',          'Utilities'),
+  ( 9, 'transfers',          'Transfers'),
+  (10, 'loan_repayment',     'Loan repayment'),
+  (11, 'income',             'Income'),
+  (12, 'insurance',          'Insurance'),
+  (13, 'subscriptions',      'Subscriptions'),
+  (14, 'fitness',            'Fitness'),
+  (15, 'education',          'Education'),
+  (16, 'recurring_payments', 'Recurring payments')
+ON CONFLICT (category_id) DO UPDATE
+  SET name       = EXCLUDED.name,
+      label      = EXCLUDED.label,
+      updated_at = now()
+  WHERE categories.name  IS DISTINCT FROM EXCLUDED.name
+     OR categories.label IS DISTINCT FROM EXCLUDED.label;
 
--- 2. Ruleset
+-- Keep the identity sequence ahead of the pinned ids so an organically
+SELECT setval(
+  pg_get_serial_sequence('categories', 'category_id'),
+  GREATEST((SELECT max(category_id) FROM categories), 16)
+);
+
+-- 2. Ruleset — VERSIONED reference data: the opposite convergence rule from
+-- categories. Rows under an existing version are immutable; DO NOTHING here is
+-- an idempotency guard, not drift. A changed rule ships as a NEW version.
 INSERT INTO rule_sets (version, notes) VALUES
   (1, 'Initial ruleset: 100% coverage of generator-emitted MCCs and debit-order creditors; every source has a default.')
 ON CONFLICT (version) DO NOTHING;
 
--- 3. Rules
+-- 3. Rules — immutable under their version (see above). The join resolves the
+-- category by slug; slugs are stable because the seed above converges them.
 INSERT INTO categorization_rules (ruleset_version, priority, matcher_type, pattern, category_id)
 SELECT 1, v.priority, v.matcher_type, v.pattern, c.category_id
 FROM (VALUES
@@ -79,7 +92,7 @@ FROM (VALUES
   (500, 'source_transaction_type', 'loan:repayment',    'loan_repayment'),
   (501, 'source_transaction_type', 'loan:disbursement', 'income'),
 
-  -- source_default: default for each transactino source
+  -- source_default: default for each transaction source
   (900, 'source_default', 'card',              'uncategorized'),
   (901, 'source_default', 'loan',              'loan_repayment'),
   (902, 'source_default', 'debit_order',       'recurring_payments'),

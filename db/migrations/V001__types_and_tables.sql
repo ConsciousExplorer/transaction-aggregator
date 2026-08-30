@@ -5,7 +5,10 @@ CREATE TYPE direction_type AS ENUM ('debit','credit');
 
 CREATE TABLE categories (
   category_id   SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE
+  name          TEXT NOT NULL UNIQUE,
+  label         TEXT NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now() 
 );
 
 CREATE TABLE rule_sets (
@@ -21,6 +24,8 @@ CREATE TABLE categorization_rules (
   matcher_type    text NOT NULL CHECK (matcher_type IN ('mcc','keyword','source_transaction_type','source_default')),
   pattern         text NOT NULL,
   category_id     smallint NOT NULL REFERENCES categories(category_id),
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
   UNIQUE (ruleset_version, priority)
 );
 
