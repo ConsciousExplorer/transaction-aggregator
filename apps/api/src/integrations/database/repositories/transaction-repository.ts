@@ -7,14 +7,14 @@ import {
 	transactions,
 	userTransactionOverrides
 } from "../schemas/partitioned.ts";
-import { userCategoryOverrides } from "../schemas/schema.ts";
+import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 
 export const userTransactionFilter = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
 	source: sourceSchema.optional(), // must be the enum literal union: eq(transactions.source, …) is typed by the pgEnum
-	categoryId: z.number().int().optional(),
+	category: z.string().optional(),
 	direction: z.enum(["debit", "credit"]).optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
@@ -66,8 +66,8 @@ export async function getUserTransactions(
 		filter.amountMax !== undefined
 			? lte(transactions.amountMinor, filter.amountMax)
 			: undefined,
-		filter.categoryId !== undefined
-			? eq(effectiveCategoryId, filter.categoryId)
+		filter.category !== undefined
+			? eq(effectiveCategoryId, filter.category)
 			: undefined,
 		filter.cursorOccurredAt !== undefined &&
 		filter.cursorTransactionId !== undefined
@@ -75,7 +75,7 @@ export async function getUserTransactions(
 			: undefined
 	];
 
-	const result = drizzle(db)
+	const result = await drizzle(db)
 		.select({
 			transactionId: transactions.transactionId,
 			occurredAt: transactions.occurredAt,
@@ -83,7 +83,7 @@ export async function getUserTransactions(
 			direction: transactions.direction,
 			amountMinor: transactions.amountMinor,
 			currency: transactions.currency,
-			categoryId: effectiveCategoryId.as("category_id"),
+			category: categories.name, // D32: the slug, straight from the join
 			merchantName: transactions.merchantName
 		})
 		.from(transactions)
@@ -101,6 +101,7 @@ export async function getUserTransactions(
 				eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
 			)
 		)
+		.innerJoin(categories, eq(categories.name, effectiveCategoryId)) // LAST — its ON references both left joins
 		.where(and(...conditions))
 		.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
 		.limit(filter.limit);

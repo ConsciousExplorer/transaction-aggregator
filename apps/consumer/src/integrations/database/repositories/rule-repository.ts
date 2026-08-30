@@ -42,7 +42,7 @@ export async function loadUncategorizedId(db: Queryable): Promise<number> {
 		`
 		SELECT 	category_id
 		FROM 	categories
-		WHERE 	name = $1
+		WHERE 	category = $1
 		`,
 		["uncategorized"]
 	);

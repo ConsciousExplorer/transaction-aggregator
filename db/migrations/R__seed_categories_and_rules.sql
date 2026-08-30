@@ -1,4 +1,4 @@
-INSERT INTO categories (category_id, name, label) OVERRIDING SYSTEM VALUE VALUES
+INSERT INTO categories (category_id, category, label) OVERRIDING SYSTEM VALUE VALUES
   ( 1, 'uncategorized',      'Uncategorized'),
   ( 2, 'groceries',          'Groceries'),
   ( 3, 'dining',             'Dining'),
@@ -16,11 +16,11 @@ INSERT INTO categories (category_id, name, label) OVERRIDING SYSTEM VALUE VALUES
   (15, 'education',          'Education'),
   (16, 'recurring_payments', 'Recurring payments')
 ON CONFLICT (category_id) DO UPDATE
-  SET name       = EXCLUDED.name,
+  SET category   = EXCLUDED.category,
       label      = EXCLUDED.label,
       updated_at = now()
-  WHERE categories.name  IS DISTINCT FROM EXCLUDED.name
-     OR categories.label IS DISTINCT FROM EXCLUDED.label;
+  WHERE categories.category IS DISTINCT FROM EXCLUDED.category
+     OR categories.label    IS DISTINCT FROM EXCLUDED.label;
 
 -- Keep the identity sequence ahead of the pinned ids so an organically
 SELECT setval(
@@ -99,5 +99,5 @@ FROM (VALUES
   (903, 'source_default', 'eft',               'transfers'),
   (904, 'source_default', 'internal_transfer', 'transfers')
 ) AS v(priority, matcher_type, pattern, category_name)
-JOIN categories c ON c.name = v.category_name
+JOIN categories c ON c.category = v.category_name
 ON CONFLICT (ruleset_version, priority) DO NOTHING;

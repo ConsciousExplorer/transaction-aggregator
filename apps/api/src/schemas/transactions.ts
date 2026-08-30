@@ -21,7 +21,7 @@ export const transactionItemSchema = z.object({
 	direction: z.union([z.string(), z.enum(["debit", "credit"])]),
 	amountMinor: z.number().int(),
 	currency: z.string(),
-	categoryId: z.number().int(),
+	category: z.string(),
 	merchantName: z.string().nullable()
 });
 

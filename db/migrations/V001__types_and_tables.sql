@@ -5,7 +5,7 @@ CREATE TYPE direction_type AS ENUM ('debit','credit');
 
 CREATE TABLE categories (
   category_id   SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name          TEXT NOT NULL UNIQUE,
+  category      TEXT NOT NULL UNIQUE,
   label         TEXT NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now() 
