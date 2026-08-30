@@ -16,7 +16,7 @@ const responseSchema = z.object({
 	transactionId: z.uuid(),
 	category: z.string(),
 	isOverridden: z.boolean(),
-	updatedAt: z.string()
+	updatedAt: z.iso.datetime()
 });
 /**
  * A basic info route
@@ -69,7 +69,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 				transactionId: owned.overrideTransaction.transactionId,
 				category: category,
 				isOverridden: owned.originalTransaction.category !== category,
-				updatedAt: owned.overrideTransaction.updatedAt
+				updatedAt: new Date(owned.overrideTransaction.updatedAt).toISOString()
 			});
 		}
 	});

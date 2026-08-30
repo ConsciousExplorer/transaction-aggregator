@@ -36,6 +36,7 @@ CREATE TABLE user_category_overrides (
   to_category_id   smallint    NOT NULL REFERENCES categories(category_id),
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
+  archived_at      timestamptz,                          -- soft delete (D33): NULL = active; DELETE endpoints archive, never remove
   PRIMARY KEY (user_id, from_category_id),               -- one remap per source category per user
   CHECK (from_category_id <> to_category_id)             -- self-remap is meaningless
 );
@@ -48,6 +49,7 @@ CREATE TABLE user_transaction_overrides (
   category_id    smallint    NOT NULL REFERENCES categories(category_id),
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
+  archived_at    timestamptz,             -- soft delete (D33): NULL = active; DELETE endpoints archive, never remove
   PRIMARY KEY (transaction_id, occurred_at)
   -- Deliberately not adding a FK constraint. 
   -- The tables partition can be dropped independently

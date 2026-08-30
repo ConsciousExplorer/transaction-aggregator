@@ -32,7 +32,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 					.describe("The accountId")
 					.optional(),
 				source: sourceSchema.optional(),
-				categoryId: z.coerce.number().int().optional(),
+				category: z.coerce.string().optional(),
 				direction: z.enum(["debit", "credit"]).optional(),
 				amountMin: z.coerce.number().int().optional(),
 				amountMax: z.coerce.number().int().optional(),
@@ -50,6 +50,12 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,
+				category: request.query.category,
+				direction: request.query.direction,
+				amountMin: request.query.amountMin,
+				amountMax: request.query.amountMax,
+				cursorOccurredAt: request.query.cursorOccurredAt,
+				cursorTransactionId: request.query.cursorTransactionId,
 				limit: request.query.limit
 			});
 
