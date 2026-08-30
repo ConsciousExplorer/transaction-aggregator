@@ -1,5 +1,5 @@
 info:
-  name: put api/v1/users/:userId/trasnaction/:transactionId
+  name: put api/v1/users/:userId/transactions/:transactionId
   type: http
   seq: 2
 
@@ -8,7 +8,7 @@ http:
   url: "{{api}}/api/v1/users/:userId/transactions/:transactionId/category"
   params:
     - name: transactionId
-      value: 01a03ed0-3379-7c2e-9307-c92c04ae39e2
+      value: 01a05441-4a6c-7d7c-b255-c8b6170c5451
       type: path
     - name: userId
       value: 30440930-4207-4d26-bc11-1d65c07fe6c3
@@ -17,7 +17,7 @@ http:
     type: json
     data: |-
       {
-        "category": "uncategorized"
+        "category": "groceries"
       }
   auth: inherit
 

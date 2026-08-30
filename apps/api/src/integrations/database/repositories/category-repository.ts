@@ -9,11 +9,11 @@ export async function getCategories(db: Queryable) {
 }
 export async function resolveCategoryId(
 	db: Queryable,
-	slug: string
+	category: string
 ): Promise<number | null> {
 	const [row] = await drizzle(db)
 		.select({ categoryId: categories.categoryId })
 		.from(categories)
-		.where(eq(categories.name, slug));
+		.where(eq(categories.category, category));
 	return row?.categoryId ?? null;
 }

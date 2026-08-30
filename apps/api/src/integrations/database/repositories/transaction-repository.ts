@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, lte, SQL, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, lte, type SQL, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import z from "zod";
 import { sourceSchema } from "#src/schemas/common.ts";
@@ -83,7 +83,7 @@ export async function getUserTransactions(
 			direction: transactions.direction,
 			amountMinor: transactions.amountMinor,
 			currency: transactions.currency,
-			category: categories.name, // D32: the slug, straight from the join
+			category: categories.category, // D32: the slug, straight from the join
 			merchantName: transactions.merchantName
 		})
 		.from(transactions)
@@ -101,7 +101,7 @@ export async function getUserTransactions(
 				eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
 			)
 		)
-		.innerJoin(categories, eq(categories.name, effectiveCategoryId)) // LAST — its ON references both left joins
+		.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
 		.where(and(...conditions))
 		.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
 		.limit(filter.limit);
@@ -113,9 +113,35 @@ export async function getUserTransactionDetail(
 	db: Queryable,
 	filter: UserTransactionDetailFilter
 ) {
+	const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
+
 	const result = await drizzle(db)
-		.select()
+		.select({
+			transactionId: transactions.transactionId,
+			occurredAt: transactions.occurredAt,
+			source: transactions.source,
+			direction: transactions.direction,
+			amountMinor: transactions.amountMinor,
+			currency: transactions.currency,
+			category: categories.category, // D32: the slug, straight from the join
+			merchantName: transactions.merchantName
+		})
 		.from(transactions)
+		.leftJoin(
+			userTransactionOverrides,
+			and(
+				eq(userTransactionOverrides.transactionId, transactions.transactionId),
+				eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+			)
+		)
+		.leftJoin(
+			userCategoryOverrides,
+			and(
+				eq(userCategoryOverrides.userId, transactions.userId),
+				eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+			)
+		)
+		.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
 		.where(
 			and(
 				eq(transactions.userId, filter.userId),

@@ -14,8 +14,7 @@ const paramsSchema = z.object({ userId: z.uuid(), transactionId: z.uuid() });
 const bodySchema = z.object({ category: z.string() });
 const responseSchema = z.object({
 	transactionId: z.uuid(),
-	originalCategory: z.string(),
-	overrideCategory: z.string(),
+	category: z.string(),
 	isOverridden: z.boolean(),
 	updatedAt: z.string()
 });
@@ -30,8 +29,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			params: paramsSchema,
 			body: bodySchema,
 			response: {
-				200: responseSchema,
-				201: responseSchema
+				200: responseSchema
 			}
 		},
 		handler: async (request, reply) => {
@@ -45,32 +43,33 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 						{ path: ["category"], message: `unknown category "${category}"` }
 					]);
 
-				const row = await getUserTransactionDetail(client, {
+				const originalTransaction = await getUserTransactionDetail(client, {
 					userId,
 					transactionId
 				});
-				if (!row) throw notFound(); // missing OR other-user → same 404
+				if (!originalTransaction) throw notFound(); // missing OR other-user → same 404
 
 				const overrideTransaction = await upsertUserTransactionCategory(
 					client,
 					{
 						userId,
 						transactionId,
-						occurredAt: row.occurredAt, // from the owned row — D28
+						occurredAt: originalTransaction.occurredAt, // from the owned row — D28
 						categoryId
 					}
 				);
-				return overrideTransaction;
+				return { originalTransaction, overrideTransaction };
 			});
 
 			if (!owned) throw notFound();
 
+			if (!owned.overrideTransaction) throw notFound();
+
 			return reply.send({
-				transactionId: owned.transactionId,
-				originalCategory: category,
-				overrideCategory: String(owned.categoryId),
-				isOverridden: category === String(owned.categoryId),
-				updatedAt: owned.updatedAt
+				transactionId: owned.overrideTransaction.transactionId,
+				category: category,
+				isOverridden: owned.originalTransaction.category !== category,
+				updatedAt: owned.overrideTransaction.updatedAt
 			});
 		}
 	});

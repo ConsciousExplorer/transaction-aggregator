@@ -43,7 +43,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 				direction: row.direction,
 				amountMinor: row.amountMinor,
 				currency: row.currency,
-				categoryId: row.categoryId,
+				category: row.category,
 				merchantName: row.merchantName
 			});
 		}

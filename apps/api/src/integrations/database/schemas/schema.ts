@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import {
 	bigint,
 	boolean,
@@ -72,7 +71,13 @@ export const categorizationRules = pgTable(
 		priority: integer().notNull(),
 		matcherType: text("matcher_type").notNull(),
 		pattern: text().notNull(),
-		categoryId: smallint("category_id").notNull()
+		categoryId: smallint("category_id").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+			.defaultNow()
+			.notNull()
 	},
 	(table) => [
 		foreignKey({
@@ -97,7 +102,14 @@ export const categories = pgTable("categories", {
 		maxValue: 32767,
 		cache: 1
 	}),
-	name: text().notNull()
+	category: text().notNull(),
+	label: text().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+		.defaultNow()
+		.notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+		.defaultNow()
+		.notNull()
 });
 
 export const userCategoryOverrides = pgTable(

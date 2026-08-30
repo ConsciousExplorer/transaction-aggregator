@@ -26,7 +26,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			if (!result) throw notFound();
 
 			return reply.send({
-				data: result.map((category) => category.name)
+				data: result.map((category) => category.category)
 			});
 		}
 	});
