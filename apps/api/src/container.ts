@@ -47,9 +47,9 @@ export async function buildContainer() {
 					// SYNC — register() only queues plugins (§3)
 					serverOptions: {},
 					dependencies: {
-						config,
-						logger,
-						database, // ← threads into autoload (§3)
+						config: config,
+						logger: logger,
+						database: database, // ← threads into autoload (§3)
 						autoLoadParameters: {
 							dir: join(import.meta.dirname, "routes"),
 							dirNameRoutePrefix: true,

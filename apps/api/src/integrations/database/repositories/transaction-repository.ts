@@ -23,6 +23,13 @@ export const userTransactionFilter = z.object({
 	limit: z.number().int().min(1).max(100).default(50)
 });
 
+export const userTransactionUpdateDetail = z.object({
+	userId: z.string(),
+	transactionId: z.string(),
+	occurredAt: z.iso.datetime(),
+	categoryId: z.number().int()
+});
+
 export const userTransactionDetailFilter = z.object({
 	userId: z.string(),
 	transactionId: z.string()
@@ -31,6 +38,9 @@ export const userTransactionDetailFilter = z.object({
 export type UserTransactionFilter = z.infer<typeof userTransactionFilter>;
 export type UserTransactionDetailFilter = z.infer<
 	typeof userTransactionDetailFilter
+>;
+export type UserTransactionUpdateDetail = z.infer<
+	typeof userTransactionUpdateDetail
 >;
 
 export async function getUserTransactions(
@@ -95,7 +105,6 @@ export async function getUserTransactions(
 		.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
 		.limit(filter.limit);
 
-	console.log(result);
 	return result;
 }
 
@@ -112,6 +121,30 @@ export async function getUserTransactionDetail(
 				eq(transactions.transactionId, filter.transactionId)
 			)
 		);
+
+	return result[0];
+}
+
+export async function upsertUserTransactionCategory(
+	db: Queryable,
+	transaction: UserTransactionUpdateDetail
+) {
+	const result = await drizzle(db)
+		.insert(userTransactionOverrides)
+		.values({
+			userId: transaction.userId,
+			transactionId: transaction.transactionId,
+			occurredAt: transaction.occurredAt,
+			categoryId: transaction.categoryId
+		})
+		.onConflictDoUpdate({
+			target: [
+				userTransactionOverrides.transactionId,
+				userTransactionOverrides.occurredAt
+			],
+			set: { categoryId: transaction.categoryId }
+		})
+		.returning();
 
 	return result[0];
 }

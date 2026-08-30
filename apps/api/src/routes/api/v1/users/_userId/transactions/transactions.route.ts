@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
+import type { Pool } from "pg";
 import z from "zod";
-import type { Queryable } from "#src/integrations/database/pool.ts";
 import { getUserTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { sourceSchema } from "#src/schemas/common.ts";
 import { listResponseSchema } from "#src/schemas/transactions.ts";
@@ -15,10 +15,7 @@ const routeParamsSchema = z.object({
 /**
  * A basic info route
  */
-export default async (
-	fastify: FastifyInstance,
-	opts: { database: Queryable }
-) => {
+export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
@@ -26,11 +23,12 @@ export default async (
 			hide: false,
 			params: routeParamsSchema,
 			querystring: z.object({
-				accountId: z
-					.union([z.string(), z.string().array()])
-					.describe("The accountId"),
 				fromDateTime: z.iso.datetime(),
 				toDateTime: z.iso.datetime(),
+				accountId: z
+					.union([z.string(), z.string().array()])
+					.describe("The accountId")
+					.optional(),
 				source: sourceSchema.optional(),
 				categoryId: z.coerce.number().int().optional(),
 				direction: z.enum(["debit", "credit"]).optional(),

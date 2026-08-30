@@ -7,9 +7,9 @@ import {
 } from "@fastify/type-provider-zod";
 import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import fastify from "fastify";
+import type { Pool } from "pg";
 import type { Logger } from "pino";
 import type { ConfigSchema } from "./config.ts";
-import type { Queryable } from "./integrations/database/pool.ts";
 import { problemJson } from "./plugins/problem-json.ts";
 import { swaggerPlugin } from "./plugins/swagger.ts";
 
@@ -22,7 +22,7 @@ export type AutoLoadParameters = {
 export type ServerDependencies = {
 	config: ConfigSchema;
 	logger: Logger;
-	database: Queryable;
+	database: Pool;
 	autoLoadParameters: AutoloadPluginOptions;
 };
 

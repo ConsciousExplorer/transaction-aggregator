@@ -1,10 +1,10 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
+import type { Pool } from "pg";
 import z from "zod";
-import type { Queryable } from "#src/integrations/database/pool.ts";
 import { getUserTransactionDetail } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { notFound } from "#src/problems.ts";
-import { transactionListItemSchema } from "#src/schemas/transactions.ts";
+import { transactionItemSchema } from "#src/schemas/transactions.ts";
 
 // import { transactionListItemSchema } from "#src/schemas/transactions.ts";
 
@@ -16,18 +16,15 @@ const routeParamsSchema = z.object({
 /**
  * A basic info route
  */
-export default async (
-	fastify: FastifyInstance,
-	opts: { database: Queryable }
-) => {
+export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
-		url: "",
+		url: "/:transactionId",
 		schema: {
 			hide: false,
 			params: routeParamsSchema,
 			response: {
-				200: transactionListItemSchema
+				200: transactionItemSchema
 			}
 		},
 		handler: async (request, reply) => {

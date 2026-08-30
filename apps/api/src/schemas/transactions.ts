@@ -13,7 +13,7 @@ export const listQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).default(50)
 });
 
-export const transactionListItemSchema = z.object({
+export const transactionItemSchema = z.object({
 	// EXACTLY idx_tx_user_read's key + INCLUDE columns → the list query stays index-only
 	id: z.uuid(),
 	occurredAt: z.iso.datetime(),
@@ -25,7 +25,7 @@ export const transactionListItemSchema = z.object({
 	merchantName: z.string().nullable()
 });
 
-export const transactionDetailSchema = transactionListItemSchema.extend({
+export const transactionDetailSchema = transactionItemSchema.extend({
 	accountId: z.uuid(), // added 2026-08-23 with the accountId column
 	externalId: z.string(),
 	postedAt: z.iso.datetime().nullable(),
@@ -38,6 +38,6 @@ export const transactionDetailSchema = transactionListItemSchema.extend({
 });
 
 export const listResponseSchema = z.object({
-	data: z.array(transactionListItemSchema),
+	data: z.array(transactionItemSchema),
 	nextCursor: z.string().nullable()
 });

@@ -13,7 +13,7 @@
 		"lib:audit": "npm audit",
 		"format": "npx @biomejs/biome format src/",
 		"lint": "npx @biomejs/biome check --write src/",
-		"start": "node --env-file=.env src/app.ts",
+		"start": "node --env-file=.env --watch src/app.ts",
 		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
 		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
