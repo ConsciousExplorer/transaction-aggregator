@@ -100,6 +100,9 @@ suite("GET /api/v1/categories", () => {
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
+		getCategories.mock.mockImplementationOnce(async () => {
+			throw new Error("pg password=hunter2");
+		});
 		const res = await app.inject({ method: "GET", url: "/api/v1/categories" });
 		assert.strictEqual(res.statusCode, 500);
 		assert.ok(
@@ -111,8 +114,7 @@ suite("GET /api/v1/categories", () => {
 
 	test("the injected pool is the exact object handed to the repository", async () => {
 		await app.inject({ method: "GET", url: "/api/v1/categories" });
-		// assert getCategories.mock.callCount() === 1
-		// assert getCategories.mock.calls[0].arguments[0] === database   ← identity, not shape:
-		//   proves the container→autoload options→opts.database threading end to end
+		assert.strictEqual(getCategories.mock.callCount(), 1);
+		assert.strictEqual(getCategories.mock.calls[0]?.arguments[0], database);
 	});
 });
