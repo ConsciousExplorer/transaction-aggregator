@@ -1,24 +1,21 @@
 import z from "zod";
-import { readSecretFromFile } from "#src/utils/secrets.ts";
-import data from ".././package.json" with { type: "json" };
 import { LOG_LEVELS } from "./logger.ts";
 
-const appInfo = data;
-
-const csv = (value: string) =>
-	value
-		.split(",")
-		.map((entry) => entry.trim())
-		.filter(Boolean);
+const appInfoSchema = z.object({
+	name: z.string(),
+	version: z.string(),
+	description: z.string(),
+	author: z.string()
+});
 
 const configSchema = z
 	.object({
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
-		APP_NAME: z.string().default("transaction-aggregator"),
+		APP_NAME: z.string().default("txn-api"),
 		HOST: z.string().default("0.0.0.0"),
-		PORT: z.coerce.number().int().positive().default(6000),
+		HTTP_PORT: z.coerce.number().int().positive().default(3000),
 		SECRET_DIR: z.string().default("/secrets"),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
@@ -28,24 +25,25 @@ const configSchema = z
 		DATABASE_HOST: z.string().default("localhost"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
 		DATABASE_NAME: z.string().default("txn_agg"),
-		DATABASE_USER: z.string().default("api_write"), // SELECT-only login — proven by reader-role.test.ts
-		DATABASE_PASSWORD_SECRET_NAME: z.string(),
-		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10)
+		DATABASE_USER: z.string().default("api_reader"), // SELECT-only login — proven by reader-role.test.ts
+		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
+		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
+		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+
+		AUTH_JWT_SECRET_NAME: z.string().default("jwt_secret"), // file in SECRET_DIR
+		AUTH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+		AUTH_AUDIENCE: z.string().default("txn-api"),
+		AUTH_CLIENTS_FILE: z.string().default("./config/clients.json"),
+
+		RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100) // per client, per minute
 	})
 	.transform((e) =>
 		Object.freeze({
-			info: Object.freeze({
-				title: appInfo.name,
-				version: appInfo.version,
-				description: appInfo.description,
-				auhor: appInfo.author,
-				dependencies: appInfo.dependencies
-			}),
 			app: Object.freeze({
 				env: e.NODE_ENV,
 				name: e.APP_NAME,
 				host: e.HOST,
-				port: e.PORT,
+				port: e.HTTP_PORT,
 				isProduction: e.NODE_ENV === "production"
 			}),
 			logging: Object.freeze({
@@ -58,23 +56,41 @@ const configSchema = z
 				port: e.DATABASE_PORT,
 				database: e.DATABASE_NAME,
 				user: e.DATABASE_USER,
-				min: 3,
+				min: e.DATABASE_POOL_MIN,
 				max: e.DATABASE_POOL_MAX
 			}),
-			secrets: Object.freeze({
-				database_password: readSecretFromFile(
-					e.SECRET_DIR,
-					e.DATABASE_PASSWORD_SECRET_NAME
-				)
+			auth: Object.freeze({
+				ttlSeconds: e.AUTH_TOKEN_TTL_SECONDS,
+				audience: e.AUTH_AUDIENCE,
+				clientsFile: e.AUTH_CLIENTS_FILE
+			}),
+			rateLimit: Object.freeze({ max: e.RATE_LIMIT_MAX }),
+			secretsSpec: Object.freeze({
+				// Where the secrets are
+				dir: e.SECRET_DIR,
+				databasePasswordFile: e.DATABASE_PASSWORD_SECRET_NAME,
+				jwtSecretFile: e.AUTH_JWT_SECRET_NAME
 			})
 		})
 	);
 
-export type ConfigSchema = z.infer<typeof configSchema>;
+export type Config = z.infer<typeof configSchema>;
+export type AppInfoConfig = z.infer<typeof appInfoSchema>;
 
-export function loadConfig(
-	env: Record<string, string | undefined>
-): ConfigSchema {
+export function loadPackageInfo(pkg: unknown): AppInfoConfig {
+	const config = appInfoSchema.safeParse(pkg);
+
+	if (!config.success) {
+		const detail = config.error.issues
+			.map((i) => `  ${i.path.join(".")}: ${i.message}`)
+			.join("\n");
+		throw new Error(`Invalid configuration:\n${detail}`);
+	}
+
+	return config.data;
+}
+
+export function loadConfig(env: Record<string, string | undefined>): Config {
 	const config = configSchema.safeParse(env);
 
 	if (!config.success) {

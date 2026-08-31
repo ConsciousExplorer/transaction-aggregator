@@ -1,8 +1,17 @@
-import { and, desc, eq, gte, lt, lte, type SQL, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import {
+	and,
+	desc,
+	eq,
+	gte,
+	inArray,
+	lt,
+	lte,
+	type SQL,
+	sql
+} from "drizzle-orm";
+import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
 import { sourceSchema } from "#src/schemas/common.ts";
-import type { Queryable } from "../pool.ts";
 import {
 	transactions,
 	userTransactionOverrides
@@ -13,9 +22,12 @@ export const userTransactionFilter = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
-	source: sourceSchema.optional(), // must be the enum literal union: eq(transactions.source, …) is typed by the pgEnum
-	category: z.string().optional(),
-	direction: z.enum(["debit", "credit"]).optional(),
+	accountId: z.union([z.string().optional(), z.string().optional().array()]),
+	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
+	category: z.union([z.string(), z.string().array()]).optional(),
+	direction: z
+		.union([z.enum(["debit", "credit"]), z.enum(["debit", "credit"]).array()])
+		.optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
 	cursorOccurredAt: z.iso.datetime().optional(),
@@ -44,21 +56,30 @@ export type UserTransactionUpdateDetail = z.infer<
 >;
 
 export async function getUserTransactions(
-	db: Queryable,
+	db: NodePgClient,
 	filter: UserTransactionFilter
 ) {
-	// Referenced twice (select + where); define once so both stay in sync.
 	const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
+	const categoryValues =
+		filter.category === undefined
+			? undefined
+			: Array.isArray(filter.category)
+				? filter.category
+				: [filter.category];
 
 	const conditions: (SQL | undefined)[] = [
 		eq(transactions.userId, filter.userId),
 		gte(transactions.occurredAt, filter.fromDate),
 		lt(transactions.occurredAt, filter.toDate),
 		filter.source !== undefined
-			? eq(transactions.source, filter.source)
+			? Array.isArray(filter.source)
+				? inArray(transactions.source, filter.source)
+				: eq(transactions.source, filter.source)
 			: undefined,
 		filter.direction !== undefined
-			? eq(transactions.direction, filter.direction)
+			? Array.isArray(filter.direction)
+				? inArray(transactions.direction, filter.direction)
+				: eq(transactions.direction, filter.direction)
 			: undefined,
 		filter.amountMin !== undefined
 			? gte(transactions.amountMinor, filter.amountMin)
@@ -66,8 +87,8 @@ export async function getUserTransactions(
 		filter.amountMax !== undefined
 			? lte(transactions.amountMinor, filter.amountMax)
 			: undefined,
-		filter.category !== undefined
-			? eq(effectiveCategoryId, filter.category)
+		categoryValues && categoryValues.length > 0
+			? inArray(categories.category, categoryValues)
 			: undefined,
 		filter.cursorOccurredAt !== undefined &&
 		filter.cursorTransactionId !== undefined
@@ -110,12 +131,12 @@ export async function getUserTransactions(
 }
 
 export async function getUserTransactionDetail(
-	db: Queryable,
+	db: NodePgClient,
 	filter: UserTransactionDetailFilter
 ) {
 	const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
-	const result = await drizzle(db)
+	const [result] = await drizzle(db)
 		.select({
 			transactionId: transactions.transactionId,
 			occurredAt: transactions.occurredAt,
@@ -149,14 +170,14 @@ export async function getUserTransactionDetail(
 			)
 		);
 
-	return result[0];
+	return result;
 }
 
 export async function upsertUserTransactionCategory(
-	db: Queryable,
+	db: NodePgClient,
 	transaction: UserTransactionUpdateDetail
 ) {
-	const result = await drizzle(db)
+	const [result] = await drizzle(db)
 		.insert(userTransactionOverrides)
 		.values({
 			userId: transaction.userId,
@@ -173,5 +194,5 @@ export async function upsertUserTransactionCategory(
 		})
 		.returning();
 
-	return result[0];
+	return result;
 }

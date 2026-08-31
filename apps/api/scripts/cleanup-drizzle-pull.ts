@@ -7,7 +7,7 @@ const filesToKeep = new Set([
     'schema.ts', 'relations.ts', 'partitioned.ts'
 ])
 
-// Determine is we are in the correct directory and if it eixsts
+// Determine is we are in the correct directory and if it exists
 if (!readdirSync(schemaDirectory)) {
     console.log('Schema directory does not exist')
     process.exit(0)

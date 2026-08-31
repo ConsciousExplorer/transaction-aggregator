@@ -31,7 +31,7 @@ export const loggerOptionsSchema = z.object({
 	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
 	redactedFields: z.array(z.string()).default([]),
 	/**
-	 * How deep into a json recod should look to redact values
+	 * How deep into a json record should look to redact values
 	 */
 	redactDepth: z.number().int().positive().default(3)
 });

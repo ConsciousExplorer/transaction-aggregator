@@ -1,8 +1,6 @@
 import type { NodePgClient } from "drizzle-orm/node-postgres";
 import { Pool, type PoolClient, type PoolConfig } from "pg";
-import { fileLogger } from "../../runtime.ts";
-
-const logger = fileLogger(import.meta.url);
+import type { Logger } from "pino";
 
 // Minimal common interface — both Pool and PoolClient satisfy this
 // export interface Queryable {
@@ -14,7 +12,10 @@ const logger = fileLogger(import.meta.url);
 
 export type Queryable = NodePgClient; // Pool | PoolClient | Client
 
-export async function createPool(config: PoolConfig): Promise<Pool> {
+export async function createPool(
+	config: PoolConfig,
+	logger: Logger
+): Promise<Pool> {
 	const pool = new Pool({
 		min: 3,
 		max: 20,
@@ -23,8 +24,21 @@ export async function createPool(config: PoolConfig): Promise<Pool> {
 		...config
 	});
 
+	// Register listeners
+	pool.on("acquire", () => {
+		logger.info("Acquired a connection.");
+	});
+
+	pool.on("release", () => {
+		logger.info("Released a connection.");
+	});
+
+	pool.on("connect", () => {
+		logger.info("Connected to the database.");
+	});
+
 	pool.on("error", (err) => {
-		logger.error({ err }, "Idle client error");
+		logger.error({ err }, "Idle client error.");
 	});
 
 	return pool;

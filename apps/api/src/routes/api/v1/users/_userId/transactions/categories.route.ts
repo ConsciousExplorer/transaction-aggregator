@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import z from "zod";
 import { withTransaction } from "#src/integrations/database/pool.ts";
-import { resolveCategoryId } from "#src/integrations/database/repositories/category-repository.ts";
+import { resolveCategory } from "#src/integrations/database/repositories/category-repository.ts";
 import {
 	getUserTransactionDetail,
 	upsertUserTransactionCategory
@@ -37,8 +37,8 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			const { category } = request.body;
 
 			const owned = await withTransaction(opts.database, async (client) => {
-				const categoryId = await resolveCategoryId(client, category);
-				if (categoryId === null)
+				const resolvedCategory = await resolveCategory(client, category);
+				if (!resolvedCategory)
 					throw validationError([
 						{ path: ["category"], message: `unknown category "${category}"` }
 					]);
@@ -55,15 +55,14 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 						userId,
 						transactionId,
 						occurredAt: originalTransaction.occurredAt,
-						categoryId
+						categoryId: resolvedCategory.categoryId
 					}
 				);
+				if (!overrideTransaction) throw notFound();
 				return { originalTransaction, overrideTransaction };
 			});
 
 			if (!owned) throw notFound();
-
-			if (!owned.overrideTransaction) throw notFound();
 
 			return reply.send({
 				transactionId: owned.overrideTransaction.transactionId,

@@ -1,5 +1,4 @@
 import { type AutoloadPluginOptions, fastifyAutoload } from "@fastify/autoload";
-
 import {
 	serializerCompiler,
 	validatorCompiler,
@@ -9,7 +8,8 @@ import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import fastify from "fastify";
 import type { Pool } from "pg";
 import type { Logger } from "pino";
-import type { ConfigSchema } from "./config.ts";
+import * as categoryRepository from "#src/integrations/database/repositories/category-repository.ts";
+import type { AppInfoConfig, Config } from "./config.ts";
 import { problemJson } from "./plugins/problem-json.ts";
 import { swaggerPlugin } from "./plugins/swagger.ts";
 
@@ -19,10 +19,17 @@ export type AutoLoadParameters = {
 	matchFilter: string;
 };
 
+export type Repositories = {
+	categories: typeof categoryRepository;
+	// transactions: typeof transactionRepository;  — same pattern as they migrate
+};
+
 export type ServerDependencies = {
-	config: ConfigSchema;
+	appInfo: AppInfoConfig;
+	config: Config;
 	logger: Logger;
 	database: Pool;
+	repositories: Repositories;
 	autoLoadParameters: AutoloadPluginOptions;
 };
 
@@ -50,7 +57,11 @@ export function buildServer({
 
 	server.register(fastifyAutoload, {
 		...dependencies.autoLoadParameters,
-		options: { database: dependencies.database, config: dependencies.config }
+		options: {
+			database: dependencies.database,
+			config: dependencies.config,
+			repositories: dependencies.repositories
+		}
 	});
 
 	// await app.register(metricsPlugin, deps); // TODO: Enable for metrics

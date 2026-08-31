@@ -13,8 +13,6 @@ import {
 	transactionItemSchema
 } from "#src/schemas/transactions.ts";
 
-// import { transactionListItemSchema } from "#src/schemas/transactions.ts";
-
 export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
@@ -31,16 +29,22 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 					.union([z.string(), z.string().array()])
 					.describe("The accountId")
 					.optional(),
-				source: sourceSchema.optional(),
-				category: z.coerce.string().optional(),
-				direction: z.enum(["debit", "credit"]).optional(),
+				source: z.union([sourceSchema, sourceSchema.array()]).optional(),
+				category: z
+					.union([z.coerce.string(), z.coerce.string().array()])
+					.optional(),
+				direction: z
+					.union([
+						z.enum(["debit", "credit"]),
+						z.enum(["debit", "credit"]).array()
+					])
+					.optional(),
 				amountMin: z.coerce.number().int().optional(),
 				amountMax: z.coerce.number().int().optional(),
 				cursorOccurredAt: z.iso.datetime().optional(),
 				cursorTransactionId: z.uuid().optional(),
 				limit: z.coerce.number().int().min(1).max(100).default(50)
 			}),
-
 			response: {
 				200: listResponseSchema
 			}
@@ -59,6 +63,8 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 				limit: request.query.limit
 			});
 
+			if (!result) throw notFound();
+
 			const data = result.map((row) => ({
 				id: row.transactionId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
@@ -73,7 +79,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			const cursor = null;
 
 			return reply.send({
-				data: data,
+				data,
 				nextCursor: cursor
 			});
 		}
@@ -98,7 +104,6 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 				transactionId: request.params.transactionId
 			});
 
-			// Problem instances are turned into RFC 9457 responses by the problemJson plugin
 			if (!row) throw notFound();
 
 			return reply.send({

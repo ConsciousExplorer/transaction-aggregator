@@ -1,5 +1,5 @@
 {
-	"name": "api",
+	"name": "Transaction API",
 	"version": "1.0.0",
 	"description": "Transaction API for client transactions",
 	"license": "ISC",
@@ -12,14 +12,16 @@
 		"lib:update": "npx npm-check-updates --interactive --format group",
 		"lib:audit": "npm audit",
 		"format": "npx @biomejs/biome format src/",
-		"lint": "npx @biomejs/biome check --write src/",
+		"lint": "npx @biomejs/biome check --write src/ && npm run lint:spelling",
+		"lint:spelling": "cspell \"**/*.{ts,js,md}\"",
 		"start": "node --env-file=.env --watch src/app.ts",
 		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
 		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
 		"biome:migrate": "npx @biomejs/biome migrate --write",
-		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle-local.config.ts && node scripts/cleanup-drizzle-pull.ts",
-		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle-local.config.ts"
+		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle.config.ts && node scripts/cleanup-drizzle-pull.ts",
+		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle.config.ts",
+		"generate-contract": "node scripts/generate-openapi.ts"
 	},
 	"imports": {
 		"#src/*": "./src/*",
