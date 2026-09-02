@@ -1,27 +1,16 @@
 // src/routes/api/v1/categories/categories.route.test.ts
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import { pino } from "pino";
-import { type AppInfoConfig, loadConfig } from "#src/config.ts";
-import { buildServer, type Repositories } from "#src/server.ts"; // static import — DI needs no loader tricks
+import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
+import { buildServer } from "#src/server.ts";
+import categoriesRoute from "./categories.route.ts";
 
-// ── Fakes ────────────────────────────────────────────────────────────────────
-// The pool: throws on ANY property read. With the repo faked, nothing may touch
-// pg — if something does, the failure names the offender instead of hanging.
-const unreachable = <T>(name: string): T =>
-	new Proxy(
-		{},
-		{
-			get(_t, prop) {
-				throw new Error(`${name}.${String(prop)} touched in a route unit test`);
-			}
-		}
-	) as T;
-
-const database = unreachable<Pool>("database");
+// ── This suite's fakes — only what the route touches ─────────────────────────
+// The route declares `database` in its opts but never dereferences it, so any
+// object satisfies the contract.
+const database = {} as Pool;
 
 // Fixture WITH the internal id — test 1 proves it never reaches the wire.
 const ROWS = [
@@ -29,47 +18,29 @@ const ROWS = [
 	{ categoryId: 2, category: "dining", label: "Dining" }
 ];
 
-// mock.fn is plain node:test — no module mocking, no experimental flag.
-// `satisfies Repositories["categories"]` is the drift guard: if the real module
-// gains a function or changes a signature, this fake stops compiling.
+// `satisfies` is the drift guard: if the real class gains a member or changes
+// a signature, this fake stops compiling. `dbClient` is here only to satisfy
+// the class shape — the route never touches it (it goes through the methods).
 const getCategories = mock.fn(async () => ROWS);
-const categories = {
+const categoryRepository = {
+	dbClient: database,
 	getCategories,
 	resolveCategory: mock.fn(async () => undefined)
-} satisfies Repositories["categories"];
-
-const appInfo: AppInfoConfig = {
-	name: "route-test",
-	version: "0.0.0",
-	description: "route unit test",
-	author: "test"
-};
-
-function buildTestApp(): FastifyInstance {
-	return buildServer({
-		serverOptions: {},
-		dependencies: {
-			appInfo,
-			config: loadConfig({}),
-			logger: pino({ level: "silent" }),
-			database,
-			repositories: { categories },
-			autoLoadParameters: {
-				dir: resolve(import.meta.dirname, "../../.."), // this file sits IN routes/api/v1/categories → up to src/routes
-				dirNameRoutePrefix: true,
-				routeParams: true,
-				matchFilter: /route\.(ts|js)$/
-			}
-		}
-	});
-}
+} satisfies CategoryRepository;
 
 // ── Suite ────────────────────────────────────────────────────────────────────
 suite("GET /api/v1/categories", () => {
 	let app: FastifyInstance;
 
 	before(async () => {
-		app = buildTestApp();
+		// buildServer({}) = defaults only, NO autoload — we register the one
+		// route under test ourselves, with exactly the opts it declares.
+		app = buildServer({});
+		await app.register(categoriesRoute, {
+			prefix: "/api/v1/categories",
+			database,
+			categoryRepository
+		});
 		await app.ready();
 	});
 	after(async () => {
@@ -112,9 +83,11 @@ suite("GET /api/v1/categories", () => {
 		assert.ok(!res.body.includes("hunter2"));
 	});
 
-	test("the injected pool is the exact object handed to the repository", async () => {
+	test("handler calls the repository once, with no arguments", async () => {
+		// The pool reaches the repository via the awilix constructor, not per
+		// call — that wiring is a container test, invisible from route level.
 		await app.inject({ method: "GET", url: "/api/v1/categories" });
 		assert.strictEqual(getCategories.mock.callCount(), 1);
-		assert.strictEqual(getCategories.mock.calls[0]?.arguments[0], database);
+		assert.deepStrictEqual(getCategories.mock.calls[0]?.arguments, []);
 	});
 });

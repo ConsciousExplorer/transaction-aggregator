@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
+import type { NodePgClient } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import z from "zod";
+import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { notFound } from "#src/problems.ts";
-import type { Repositories } from "#src/server.ts";
 
 const categorySchema = z.object({
 	category: z.string().describe("Category names"),
@@ -15,7 +15,12 @@ const categorySchema = z.object({
  */
 export default async (
 	fastify: FastifyInstance,
-	opts: { database: Pool; repositories: Repositories }
+	// Narrowed slice of RouteOptions: this route declares it only knows about
+	// the categories repository — and tests can register it with exactly this.
+	opts: {
+		database: NodePgClient;
+		categoryRepository: CategoryRepository;
+	}
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
@@ -29,9 +34,7 @@ export default async (
 			}
 		},
 		handler: async (_request, reply) => {
-			const result = await opts.repositories.categories.getCategories(
-				opts.database
-			);
+			const result = await opts.categoryRepository.getCategories();
 
 			if (!result) throw notFound();
 

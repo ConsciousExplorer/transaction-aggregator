@@ -1,13 +1,30 @@
+import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { buildContainer } from "#src/container.ts";
-import { config, baseLogger as logger } from "#src/runtime.ts";
+import { buildServer } from "./server.ts";
 
-export const container = await buildContainer();
+const container = await buildContainer();
+
+const { appInfo, config, logger, database, categoryRepository } =
+	container.cradle;
+
+const server: FastifyInstance = buildServer({
+	appInfo: appInfo,
+	logger: logger,
+	database: database,
+	categoryRepository: categoryRepository,
+	autoLoadParameters: {
+		dir: join(import.meta.dirname, "routes"),
+		dirNameRoutePrefix: true,
+		routeParams: true,
+		matchFilter: /route\.(ts|js)$/
+	}
+});
 
 try {
 	// Get the server from the container
-	const server: FastifyInstance = container.cradle.server;
 
+	await database.query("Select 1");
 	// All the dependencies has been registered. Start listening for requests
 	await server.listen({ host: config.app.host, port: config.app.port });
 	logger.info({ event: "app.start", port: config.app.port });

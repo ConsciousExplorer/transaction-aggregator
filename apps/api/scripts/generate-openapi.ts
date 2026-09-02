@@ -33,19 +33,16 @@ const fakeConfig: Config = Object.freeze({
 
 function fakeDeps() {
 	return {
-		serverOptions: {},
-		dependencies: {
-			appInfo: pkgInfoConfig,
-			config: fakeConfig,
-			logger: pino({ level: "silent" }),
-			database: unreachable<Pool>("database"),
-			repositories: unreachable<Repositories>('repositories'),
-			autoLoadParameters: {
-				dir: resolve(import.meta.dirname, "../src/routes"),
-				dirNameRoutePrefix: true,
-				routeParams: true,
-				matchFilter: /route\.(ts|js)$/
-			}
+		appInfo: pkgInfoConfig, // real name/version — they land in the emitted document
+		config: fakeConfig,
+		logger: pino({ level: "silent" }),
+		database: unreachable<Pool>("database"),
+		repositories: unreachable<Repositories>("repositories"),
+		autoLoadParameters: {
+			dir: resolve(import.meta.dirname, "../src/routes"),
+			dirNameRoutePrefix: true,
+			routeParams: true,
+			matchFilter: /route\.(ts|js)$/
 		}
 	};
 }

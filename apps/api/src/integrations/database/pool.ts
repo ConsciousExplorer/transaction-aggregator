@@ -2,20 +2,9 @@ import type { NodePgClient } from "drizzle-orm/node-postgres";
 import { Pool, type PoolClient, type PoolConfig } from "pg";
 import type { Logger } from "pino";
 
-// Minimal common interface — both Pool and PoolClient satisfy this
-// export interface Queryable {
-// 	query<T extends QueryResultRow = QueryResultRow>(
-// 		text: string,
-// 		values?: unknown[]
-// 	): Promise<QueryResult<T>>;
-// }
-
 export type Queryable = NodePgClient; // Pool | PoolClient | Client
 
-export async function createPool(
-	config: PoolConfig,
-	logger: Logger
-): Promise<Pool> {
+export function createPool(config: PoolConfig, logger: Logger) {
 	const pool = new Pool({
 		min: 3,
 		max: 20,
