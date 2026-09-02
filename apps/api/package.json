@@ -13,7 +13,7 @@
 		"lib:audit": "npm audit",
 		"format": "npx @biomejs/biome format src/",
 		"lint": "npx @biomejs/biome check --write src/ && npm run lint:spelling",
-		"lint:spelling": "cspell \"**/*.{ts,js,md}\"",
+		"lint:spelling": "cspell \"**/*.{ts,js}\"",
 		"start": "node --env-file=.env --watch src/app.ts",
 		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
 		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",

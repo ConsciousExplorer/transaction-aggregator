@@ -14,11 +14,7 @@ const categorySchema = z.object({
  */
 export default async (
 	fastify: FastifyInstance,
-	// Narrowed slice of RouteOptions: this route declares it only knows about
-	// the categories repository — and tests can register it with exactly this.
-	opts: {
-		categoryRepository: CategoryRepository;
-	}
+	opts: { categoryRepository: CategoryRepository }
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",

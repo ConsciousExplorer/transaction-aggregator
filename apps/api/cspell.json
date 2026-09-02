@@ -8,8 +8,10 @@
     "fkey",
     "frontend",
     "Millis",
+    "Miswiring",
     "stringbool",
     "timestamptz",
+    "upserts",
     "uuidv",
     "uuidv4"
   ],

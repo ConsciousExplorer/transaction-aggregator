@@ -19,9 +19,6 @@ const responseSchema = z.object({
  */
 export default async (
 	fastify: FastifyInstance,
-	// Narrowed slice of RouteOptions: this route declares it only knows about
-	// the category and transaction repositories — and tests can register it
-	// with exactly this.
 	opts: {
 		categoryRepository: CategoryRepository;
 		transactionRepository: TransactionRepository;
