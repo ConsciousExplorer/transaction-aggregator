@@ -39,12 +39,6 @@ export default async (
 			const { userId, transactionId } = request.params;
 			const { category } = request.body;
 
-			// No DB transaction: the upsert is a single atomic statement, and the
-			// reads before it are precondition checks against immutable data
-			// (ownership and occurredAt never change). Concurrent PUTs are
-			// last-writer-wins with or without BEGIN/COMMIT.
-
-			// D32: slug on the wire → smallint internal, resolved at the edge.
 			const resolvedCategory =
 				await opts.categoryRepository.resolveCategory(category);
 			if (!resolvedCategory)
