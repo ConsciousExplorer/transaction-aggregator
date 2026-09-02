@@ -38,7 +38,6 @@ suite("GET /api/v1/categories", () => {
 		app = buildServer({});
 		await app.register(categoriesRoute, {
 			prefix: "/api/v1/categories",
-			database,
 			categoryRepository
 		});
 		await app.ready();

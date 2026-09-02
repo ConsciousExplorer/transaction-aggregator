@@ -13,6 +13,8 @@ import { type Logger, pino } from "pino";
 
 import type { AppInfoConfig } from "./config.ts";
 import type { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
+import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
+import type { TransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 import { problemJson } from "./plugins/problem-json.ts";
 import { swaggerPlugin } from "./plugins/swagger.ts";
 
@@ -22,6 +24,8 @@ export type BuildServerOptions = {
 	logger?: Logger;
 	database?: Pool;
 	categoryRepository?: CategoryRepository;
+	transactionRepository?: TransactionRepository;
+	summaryRepository?: SummaryRepository;
 	autoLoadParameters?: AutoloadPluginOptions;
 };
 
@@ -38,6 +42,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		logger = pino({ level: "silent" }), // silent default suits tests; app.ts passes the real one
 		database,
 		categoryRepository,
+		transactionRepository,
+		summaryRepository,
 		autoLoadParameters
 	} = options;
 
@@ -61,7 +67,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	if (autoLoadParameters) {
 		server.register(fastifyAutoload, {
 			...autoLoadParameters,
-			options: { database, categoryRepository }
+			options: {
+				database,
+				categoryRepository,
+				transactionRepository,
+				summaryRepository
+			}
 		});
 	}
 

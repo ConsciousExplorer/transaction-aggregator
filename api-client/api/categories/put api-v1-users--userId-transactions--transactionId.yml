@@ -17,7 +17,7 @@ http:
     type: json
     data: |-
       {
-        "category": "groceries"
+        "category": "uncategorized"
       }
   auth: inherit
 

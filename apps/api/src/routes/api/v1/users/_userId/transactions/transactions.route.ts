@@ -1,11 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import z from "zod";
-import {
-	getUserTransactionDetail,
-	getUserTransactions
-} from "#src/integrations/database/repositories/transaction-repository.ts";
+import type { TransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { notFound } from "#src/problems.ts";
 import { sourceSchema } from "#src/schemas/common.ts";
 import {
@@ -13,7 +9,14 @@ import {
 	transactionItemSchema
 } from "#src/schemas/transactions.ts";
 
-export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
+export default async (
+	fastify: FastifyInstance,
+	// Narrowed slice of RouteOptions: this route declares it only knows about
+	// the transaction repository — and tests can register it with exactly this.
+	opts: {
+		transactionRepository: TransactionRepository;
+	}
+) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
@@ -50,7 +53,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			}
 		},
 		handler: async (request, reply) => {
-			const result = await getUserTransactions(opts.database, {
+			const result = await opts.transactionRepository.getUserTransactions({
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,
@@ -99,7 +102,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			}
 		},
 		handler: async (request, reply) => {
-			const row = await getUserTransactionDetail(opts.database, {
+			const row = await opts.transactionRepository.getUserTransactionDetail({
 				userId: request.params.userId,
 				transactionId: request.params.transactionId
 			});

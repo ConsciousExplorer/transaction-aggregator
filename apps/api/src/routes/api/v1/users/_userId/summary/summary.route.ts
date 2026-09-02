@@ -1,8 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import z from "zod";
-import { getUserSummary } from "#src/integrations/database/repositories/summary-repository.ts";
+import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
 import { notFound } from "#src/problems.ts";
 import { sourceSchema } from "#src/schemas/common.ts";
 
@@ -12,7 +11,14 @@ const summaryItemSchema = z.object({
 	amount: z.number()
 });
 
-export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
+export default async (
+	fastify: FastifyInstance,
+	// Narrowed slice of RouteOptions: this route declares it only knows about
+	// the summary repository — and tests can register it with exactly this.
+	opts: {
+		summaryRepository: SummaryRepository;
+	}
+) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
@@ -42,7 +48,7 @@ export default async (fastify: FastifyInstance, opts: { database: Pool }) => {
 			}
 		},
 		handler: async (request, reply) => {
-			const result = await getUserSummary(opts.database, {
+			const result = await opts.summaryRepository.getUserSummary({
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,

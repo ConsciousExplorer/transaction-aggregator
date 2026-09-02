@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
+import type { AppCradle } from "#src/container.ts";
 import { sourceSchema } from "#src/schemas/common.ts";
 import {
 	transactions,
@@ -55,144 +56,151 @@ export type UserTransactionUpdateDetail = z.infer<
 	typeof userTransactionUpdateDetail
 >;
 
-export async function getUserTransactions(
-	db: NodePgClient,
-	filter: UserTransactionFilter
-) {
-	const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
-	const categoryValues =
-		filter.category === undefined
-			? undefined
-			: Array.isArray(filter.category)
-				? filter.category
-				: [filter.category];
+export class TransactionRepository {
+	dbClient: NodePgClient;
 
-	const conditions: (SQL | undefined)[] = [
-		eq(transactions.userId, filter.userId),
-		gte(transactions.occurredAt, filter.fromDate),
-		lt(transactions.occurredAt, filter.toDate),
-		filter.source !== undefined
-			? Array.isArray(filter.source)
-				? inArray(transactions.source, filter.source)
-				: eq(transactions.source, filter.source)
-			: undefined,
-		filter.direction !== undefined
-			? Array.isArray(filter.direction)
-				? inArray(transactions.direction, filter.direction)
-				: eq(transactions.direction, filter.direction)
-			: undefined,
-		filter.amountMin !== undefined
-			? gte(transactions.amountMinor, filter.amountMin)
-			: undefined,
-		filter.amountMax !== undefined
-			? lte(transactions.amountMinor, filter.amountMax)
-			: undefined,
-		categoryValues && categoryValues.length > 0
-			? inArray(categories.category, categoryValues)
-			: undefined,
-		filter.cursorOccurredAt !== undefined &&
-		filter.cursorTransactionId !== undefined
-			? sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
-			: undefined
-	];
+	constructor({ database }: AppCradle) {
+		this.dbClient = database;
+	}
 
-	const result = await drizzle(db)
-		.select({
-			transactionId: transactions.transactionId,
-			occurredAt: transactions.occurredAt,
-			source: transactions.source,
-			direction: transactions.direction,
-			amountMinor: transactions.amountMinor,
-			currency: transactions.currency,
-			category: categories.category, // D32: the slug, straight from the join
-			merchantName: transactions.merchantName
-		})
-		.from(transactions)
-		.leftJoin(
-			userTransactionOverrides,
-			and(
-				eq(userTransactionOverrides.transactionId, transactions.transactionId),
-				eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+	async getUserTransactions(filter: UserTransactionFilter) {
+		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
+		const categoryValues =
+			filter.category === undefined
+				? undefined
+				: Array.isArray(filter.category)
+					? filter.category
+					: [filter.category];
+
+		const conditions: (SQL | undefined)[] = [
+			eq(transactions.userId, filter.userId),
+			gte(transactions.occurredAt, filter.fromDate),
+			lt(transactions.occurredAt, filter.toDate),
+			filter.source !== undefined
+				? Array.isArray(filter.source)
+					? inArray(transactions.source, filter.source)
+					: eq(transactions.source, filter.source)
+				: undefined,
+			filter.direction !== undefined
+				? Array.isArray(filter.direction)
+					? inArray(transactions.direction, filter.direction)
+					: eq(transactions.direction, filter.direction)
+				: undefined,
+			filter.amountMin !== undefined
+				? gte(transactions.amountMinor, filter.amountMin)
+				: undefined,
+			filter.amountMax !== undefined
+				? lte(transactions.amountMinor, filter.amountMax)
+				: undefined,
+			categoryValues && categoryValues.length > 0
+				? inArray(categories.category, categoryValues)
+				: undefined,
+			filter.cursorOccurredAt !== undefined &&
+			filter.cursorTransactionId !== undefined
+				? sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
+				: undefined
+		];
+
+		const result = await drizzle(this.dbClient)
+			.select({
+				transactionId: transactions.transactionId,
+				occurredAt: transactions.occurredAt,
+				source: transactions.source,
+				direction: transactions.direction,
+				amountMinor: transactions.amountMinor,
+				currency: transactions.currency,
+				category: categories.category, // D32: the slug, straight from the join
+				merchantName: transactions.merchantName
+			})
+			.from(transactions)
+			.leftJoin(
+				userTransactionOverrides,
+				and(
+					eq(
+						userTransactionOverrides.transactionId,
+						transactions.transactionId
+					),
+					eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+				)
 			)
-		)
-		.leftJoin(
-			userCategoryOverrides,
-			and(
-				eq(userCategoryOverrides.userId, transactions.userId),
-				eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+			.leftJoin(
+				userCategoryOverrides,
+				and(
+					eq(userCategoryOverrides.userId, transactions.userId),
+					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+				)
 			)
-		)
-		.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
-		.where(and(...conditions))
-		.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
-		.limit(filter.limit);
+			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
+			.where(and(...conditions))
+			.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
+			.limit(filter.limit);
 
-	return result;
-}
+		return result;
+	}
 
-export async function getUserTransactionDetail(
-	db: NodePgClient,
-	filter: UserTransactionDetailFilter
-) {
-	const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
+	async getUserTransactionDetail(filter: UserTransactionDetailFilter) {
+		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
-	const [result] = await drizzle(db)
-		.select({
-			transactionId: transactions.transactionId,
-			occurredAt: transactions.occurredAt,
-			source: transactions.source,
-			direction: transactions.direction,
-			amountMinor: transactions.amountMinor,
-			currency: transactions.currency,
-			category: categories.category, // D32: the slug, straight from the join
-			merchantName: transactions.merchantName
-		})
-		.from(transactions)
-		.leftJoin(
-			userTransactionOverrides,
-			and(
-				eq(userTransactionOverrides.transactionId, transactions.transactionId),
-				eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+		const [result] = await drizzle(this.dbClient)
+			.select({
+				transactionId: transactions.transactionId,
+				occurredAt: transactions.occurredAt,
+				source: transactions.source,
+				direction: transactions.direction,
+				amountMinor: transactions.amountMinor,
+				currency: transactions.currency,
+				category: categories.category, // D32: the slug, straight from the join
+				merchantName: transactions.merchantName
+			})
+			.from(transactions)
+			.leftJoin(
+				userTransactionOverrides,
+				and(
+					eq(
+						userTransactionOverrides.transactionId,
+						transactions.transactionId
+					),
+					eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+				)
 			)
-		)
-		.leftJoin(
-			userCategoryOverrides,
-			and(
-				eq(userCategoryOverrides.userId, transactions.userId),
-				eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+			.leftJoin(
+				userCategoryOverrides,
+				and(
+					eq(userCategoryOverrides.userId, transactions.userId),
+					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+				)
 			)
-		)
-		.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
-		.where(
-			and(
-				eq(transactions.userId, filter.userId),
-				eq(transactions.transactionId, filter.transactionId)
-			)
-		);
+			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
+			.where(
+				and(
+					eq(transactions.userId, filter.userId),
+					eq(transactions.transactionId, filter.transactionId)
+				)
+			);
 
-	return result;
-}
+		return result;
+	}
 
-export async function upsertUserTransactionCategory(
-	db: NodePgClient,
-	transaction: UserTransactionUpdateDetail
-) {
-	const [result] = await drizzle(db)
-		.insert(userTransactionOverrides)
-		.values({
-			userId: transaction.userId,
-			transactionId: transaction.transactionId,
-			occurredAt: transaction.occurredAt,
-			categoryId: transaction.categoryId
-		})
-		.onConflictDoUpdate({
-			target: [
-				userTransactionOverrides.transactionId,
-				userTransactionOverrides.occurredAt
-			],
-			set: { categoryId: transaction.categoryId }
-		})
-		.returning();
+	async upsertUserTransactionCategory(
+		transaction: UserTransactionUpdateDetail
+	) {
+		const [result] = await drizzle(this.dbClient)
+			.insert(userTransactionOverrides)
+			.values({
+				userId: transaction.userId,
+				transactionId: transaction.transactionId,
+				occurredAt: transaction.occurredAt,
+				categoryId: transaction.categoryId
+			})
+			.onConflictDoUpdate({
+				target: [
+					userTransactionOverrides.transactionId,
+					userTransactionOverrides.occurredAt
+				],
+				set: { categoryId: transaction.categoryId }
+			})
+			.returning();
 
-	return result;
+		return result;
+	}
 }

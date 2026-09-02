@@ -1,5 +1,4 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
-import type { NodePgClient } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
@@ -18,7 +17,6 @@ export default async (
 	// Narrowed slice of RouteOptions: this route declares it only knows about
 	// the categories repository — and tests can register it with exactly this.
 	opts: {
-		database: NodePgClient;
 		categoryRepository: CategoryRepository;
 	}
 ) => {

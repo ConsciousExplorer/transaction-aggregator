@@ -5,14 +5,23 @@ import { buildServer } from "./server.ts";
 
 const container = await buildContainer();
 
-const { appInfo, config, logger, database, categoryRepository } =
-	container.cradle;
+const {
+	appInfo,
+	config,
+	logger,
+	database,
+	categoryRepository,
+	transactionRepository,
+	summaryRepository
+} = container.cradle;
 
 const server: FastifyInstance = buildServer({
 	appInfo: appInfo,
 	logger: logger,
 	database: database,
 	categoryRepository: categoryRepository,
+	transactionRepository: transactionRepository,
+	summaryRepository: summaryRepository,
 	autoLoadParameters: {
 		dir: join(import.meta.dirname, "routes"),
 		dirNameRoutePrefix: true,
