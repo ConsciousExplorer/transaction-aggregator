@@ -298,3 +298,4 @@ cython_debug/
 
 # Secrets should never be comitted. However, this is a demo file so we are keeping them
 # /secrets
+*best-practices/
