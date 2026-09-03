@@ -67,6 +67,7 @@ export default async (
 		method: "GET",
 		url: "",
 		schema: {
+			tags: ["summary"],
 			hide: false,
 			params: z.object({
 				userId: z.string()

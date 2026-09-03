@@ -20,6 +20,7 @@ export default async (
 		method: "GET",
 		url: "",
 		schema: {
+			tags: ["categories"],
 			hide: false,
 			response: {
 				200: z.object({

@@ -194,6 +194,7 @@ export class TransactionRepository {
 			})
 			.onConflictDoUpdate({
 				target: [
+					userTransactionOverrides.userId,
 					userTransactionOverrides.transactionId,
 					userTransactionOverrides.occurredAt
 				],

@@ -44,7 +44,180 @@
             },
             "description": "Default Response"
           }
-        }
+        },
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/categories/{categoryId}/override": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "tags": [
+          "user categories"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "tags": [
+          "user categories"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "tags": [
+          "user categories"
+        ]
       }
     },
     "/api/v1/users/{userId}/summary": {
@@ -91,57 +264,33 @@
           },
           {
             "in": "query",
-            "name": "source",
-            "required": false,
-            "schema": {
-              "enum": [
-                "card",
-                "eft",
-                "loan",
-                "debit_order",
-                "internal_transfer"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
             "name": "category",
             "required": false,
             "schema": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
             }
           },
           {
             "in": "query",
-            "name": "direction",
+            "name": "interval",
             "required": false,
             "schema": {
               "enum": [
-                "debit",
-                "credit"
+                "day",
+                "week",
+                "month"
               ],
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "amountMin",
-            "required": false,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": -9007199254740991,
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "amountMax",
-            "required": false,
-            "schema": {
-              "maximum": 9007199254740991,
-              "minimum": -9007199254740991,
-              "type": "integer"
             }
           },
           {
@@ -164,30 +313,172 @@
                       "items": {
                         "additionalProperties": false,
                         "properties": {
-                          "amount": {
+                          "count": {
                             "type": "number"
                           },
-                          "category": {
-                            "type": "string"
+                          "credit": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "type": "number"
+                              },
+                              "total": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "count",
+                              "total"
+                            ],
+                            "type": "object"
                           },
                           "currency": {
                             "type": "string"
+                          },
+                          "debit": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "type": "number"
+                              },
+                              "total": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "count",
+                              "total"
+                            ],
+                            "type": "object"
+                          },
+                          "group": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "category": {
+                                "type": "string"
+                              },
+                              "day": {
+                                "type": "string"
+                              },
+                              "month": {
+                                "type": "string"
+                              },
+                              "week": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "netAmount": {
+                            "type": "number"
                           }
                         },
                         "required": [
-                          "category",
+                          "group",
                           "currency",
-                          "amount"
+                          "count",
+                          "netAmount",
+                          "debit",
+                          "credit"
                         ],
                         "type": "object"
                       },
                       "type": "array"
                     },
-                    "metadata": {}
+                    "meta": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fromDateTime": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "groupBy": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "interval": {
+                          "enum": [
+                            "day",
+                            "week",
+                            "month"
+                          ],
+                          "type": "string"
+                        },
+                        "toDateTime": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "fromDateTime",
+                        "toDateTime",
+                        "groupBy"
+                      ],
+                      "type": "object"
+                    },
+                    "totals": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "credit": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "count": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "count",
+                            "total"
+                          ],
+                          "type": "object"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "debit": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "count": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "count",
+                            "total"
+                          ],
+                          "type": "object"
+                        },
+                        "netAmount": {
+                          "type": "number"
+                        },
+                        "transactionCount": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "currency",
+                        "transactionCount",
+                        "netAmount",
+                        "debit",
+                        "credit"
+                      ],
+                      "type": "object"
+                    }
                   },
                   "required": [
+                    "totals",
                     "data",
-                    "metadata"
+                    "meta"
                   ],
                   "type": "object"
                 }
@@ -195,7 +486,10 @@
             },
             "description": "Default Response"
           }
-        }
+        },
+        "tags": [
+          "summary"
+        ]
       }
     },
     "/api/v1/users/{userId}/transactions": {
@@ -472,7 +766,10 @@
             },
             "description": "Default Response"
           }
-        }
+        },
+        "tags": [
+          "transactions"
+        ]
       }
     },
     "/api/v1/users/{userId}/transactions/{transactionId}": {
@@ -576,10 +873,95 @@
             },
             "description": "Default Response"
           }
-        }
+        },
+        "tags": [
+          "transactions"
+        ]
       }
     },
     "/api/v1/users/{userId}/transactions/{transactionId}/category": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transactionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "category": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "category"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "isOverridden": {
+                      "type": "boolean"
+                    },
+                    "transactionId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "transactionId",
+                    "category",
+                    "isOverridden",
+                    "updatedAt"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "tags": [
+          "transactions"
+        ]
+      },
       "put": {
         "parameters": [
           {
@@ -657,7 +1039,10 @@
             },
             "description": "Default Response"
           }
-        }
+        },
+        "tags": [
+          "transactions"
+        ]
       }
     }
   },

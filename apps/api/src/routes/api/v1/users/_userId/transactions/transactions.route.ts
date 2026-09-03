@@ -21,6 +21,7 @@ export default async (
 		method: "GET",
 		url: "",
 		schema: {
+			tags: ["transactions"],
 			hide: false,
 			params: z.object({
 				userId: z.string()
@@ -92,6 +93,7 @@ export default async (
 		method: "GET",
 		url: "/:transactionId",
 		schema: {
+			tags: ["transactions"],
 			hide: false,
 			params: z.object({
 				userId: z.string(),
