@@ -193,7 +193,7 @@
       "name": "transactionType",
       "type": "string",
       "arg.properties": {
-        "options": ["debit", "debit", "debit", "debit", "debit", "credit"]
+        "options": ["debit", "debit", "debit", "debit", "debit"]
       }
     },
     {

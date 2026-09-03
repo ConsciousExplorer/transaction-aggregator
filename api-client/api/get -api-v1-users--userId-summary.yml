@@ -5,13 +5,22 @@ info:
 
 http:
   method: GET
-  url: "{{api}}/api/v1/users/:userId/summary?fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z"
+  url: "{{api}}/api/v1/users/:userId/summary?fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&category=dining&groupBy=category&interval=month"
   params:
     - name: fromDateTime
       value: 2025-12-01T02:23:56.764Z
       type: query
     - name: toDateTime
       value: 2025-12-31T02:23:56.764Z
+      type: query
+    - name: category
+      value: dining
+      type: query
+    - name: groupBy
+      value: category
+      type: query
+    - name: interval
+      value: month
       type: query
     - name: userId
       value: 30440930-4207-4d26-bc11-1d65c07fe6c3

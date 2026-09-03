@@ -23,7 +23,7 @@ export const userTransactionFilter = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
-	accountId: z.union([z.string().optional(), z.string().optional().array()]),
+	accountId: z.union([z.string(), z.string().array()]).optional(),
 	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
 	direction: z

@@ -1,5 +1,6 @@
 import {
 	and,
+	count,
 	eq,
 	gte,
 	inArray,
@@ -25,6 +26,7 @@ export const userSummaryFilter = z.object({
 	toDate: z.iso.datetime(),
 	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
+	interval: z.enum(["day", "week", "month"]).optional(),
 	direction: z
 		.union([z.enum(["debit", "credit"]), z.enum(["debit", "credit"]).array()])
 		.optional(),
@@ -33,6 +35,14 @@ export const userSummaryFilter = z.object({
 });
 
 export type UserSummaryFilter = z.infer<typeof userSummaryFilter>;
+
+// Bucket labels, not timestamps: "2026-08-15" | "2026-W33" | "2026-08".
+// https://en.wikipedia.org/wiki/ISO_week_date
+const BUCKET_FORMAT = {
+	day: "YYYY-MM-DD",
+	week: 'IYYY-"W"IW',
+	month: "YYYY-MM"
+} satisfies Record<NonNullable<UserSummaryFilter["interval"]>, string>;
 
 export class SummaryRepository {
 	dbClient: NodePgClient;
@@ -49,6 +59,12 @@ export class SummaryRepository {
 				: Array.isArray(filter.category)
 					? filter.category
 					: [filter.category];
+
+		const bucketStart = filter.interval
+			? sql<string>`to_char(${transactions.occurredAt} at time zone 'UTC', ${sql.raw(`'${BUCKET_FORMAT[filter.interval]}'`)})`
+			: // No interval → the whole window is one bucket keyed by its start; a
+				// constant keeps the select shape identical across both variants.
+				sql<string>`${filter.fromDate}`;
 
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),
@@ -75,11 +91,32 @@ export class SummaryRepository {
 				: undefined
 		];
 
+		// SQL gotchas
+		// 1. Always use coalesce when counting or aggregating. The return is null and not 0
+		// 2. In drizzle, use mapWith(Number) to cast the response as Number and not string
 		const result = await drizzle(this.dbClient)
 			.select({
+				bucketStart,
 				category: categories.category,
 				currency: transactions.currency,
-				amount: sum(transactions.amountMinor)
+				count: count(transactions.transactionId),
+				netAmount: sum(transactions.amountMinor).mapWith(Number),
+				debitCount:
+					sql<number>`count(*) filter (where ${transactions.direction} = 'debit')`.mapWith(
+						Number
+					),
+				creditCount:
+					sql<number>`count(*) filter (where ${transactions.direction} = 'credit')`.mapWith(
+						Number
+					),
+				debitAmount:
+					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'debit'), 0)`.mapWith(
+						Number
+					),
+				creditAmount:
+					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'credit'), 0)`.mapWith(
+						Number
+					)
 			})
 			.from(transactions)
 			.leftJoin(
@@ -101,7 +138,12 @@ export class SummaryRepository {
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
 			.where(and(...conditions))
-			.groupBy(categories.category, transactions.currency);
+			.groupBy(
+				...(filter.interval ? [bucketStart] : []),
+				categories.category,
+				transactions.currency
+			)
+			.orderBy(bucketStart, categories.category);
 
 		return result;
 	}

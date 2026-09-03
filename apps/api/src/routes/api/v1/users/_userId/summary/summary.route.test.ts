@@ -12,10 +12,29 @@ const TO = "2026-09-01T00:00:00.000Z";
 const BASE_URL = `/api/v1/users/u1/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
 
 // Typed off the real method so drift in the select shape breaks compilation.
-// `amount` is drizzle's sum(): string | null — test 1 proves the route coerces.
 const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
-	{ category: "groceries", currency: "ZAR", amount: "123456" },
-	{ category: "dining", currency: "ZAR", amount: null }
+	{
+		bucketStart: FROM,
+		category: "groceries",
+		currency: "ZAR",
+		count: 3,
+		netAmount: 2000,
+		debitCount: 2,
+		creditCount: 1,
+		debitAmount: 1500,
+		creditAmount: 500
+	},
+	{
+		bucketStart: FROM,
+		category: "dining",
+		currency: "ZAR",
+		count: 1,
+		netAmount: 700,
+		debitCount: 1,
+		creditCount: 0,
+		debitAmount: 700,
+		creditAmount: 0
+	}
 ];
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
@@ -49,29 +68,52 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		getUserSummary.mock.mockImplementation(async () => ROWS);
 	});
 
-	test("200: maps rows and coerces sum() strings/nulls to numbers", async () => {
+	test("200: totals aggregate the rows and data carries the per-group breakdown", async () => {
 		const res = await app.inject({ method: "GET", url: BASE_URL });
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
+			totals: {
+				currency: "ZAR", // taken from the rows — single-currency assumption
+				transactionCount: 4,
+				netAmount: 1700, // (1500−500) + (700−0)
+				debit: { count: 3, total: 2200 },
+				credit: { count: 1, total: 500 }
+			},
 			data: [
-				{ category: "groceries", currency: "ZAR", amount: 123456 },
-				{ category: "dining", currency: "ZAR", amount: 0 }
+				{
+					group: { category: "groceries" },
+					currency: "ZAR",
+					count: 3,
+					netAmount: 1000,
+					debit: { count: 2, total: 1500 },
+					credit: { count: 1, total: 500 }
+				},
+				{
+					group: { category: "dining" },
+					currency: "ZAR",
+					count: 1,
+					netAmount: 700,
+					debit: { count: 1, total: 700 },
+					credit: { count: 0, total: 0 }
+				}
 			],
-			metadata: {}
+			meta: {
+				fromDateTime: FROM,
+				toDateTime: TO,
+				groupBy: ["Category"]
+			}
 		});
 	});
 
 	test("handler maps params/query onto the repository filter", async () => {
-		await app.inject({ method: "GET", url: `${BASE_URL}&direction=debit` });
+		await app.inject({ method: "GET", url: `${BASE_URL}&interval=month` });
 		assert.strictEqual(getUserSummary.mock.callCount(), 1);
 		assert.deepStrictEqual(getUserSummary.mock.calls[0]?.arguments.at(0), {
 			userId: "u1",
 			fromDate: FROM,
 			toDate: TO,
 			category: undefined,
-			direction: "debit",
-			amountMin: undefined,
-			amountMax: undefined
+			interval: "month"
 		});
 	});
 
