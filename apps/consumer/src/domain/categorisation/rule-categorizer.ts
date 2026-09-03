@@ -6,6 +6,7 @@ export const MATCHER_TYPES = [
 	"mcc",
 	"keyword",
 	"source_transaction_type",
+	"source_direction",
 	"source_default"
 ] as const;
 export type MatcherType = (typeof MATCHER_TYPES)[number];
@@ -42,6 +43,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 	const mccMap = new Map<string, Rule>();
 	const keywordRules: Array<{ term: string; rule: Rule }> = [];
 	const sourceTransactionTypeMap = new Map<string, Rule>();
+	const sourceDirectionMap = new Map<string, Rule>();
 	const defaultMap = new Map<string, Rule>();
 
 	for (const rule of sorted) {
@@ -55,6 +57,11 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				break;
 			case "keyword":
 				keywordRules.push({ term: rule.pattern.toLowerCase(), rule });
+				break;
+
+			case "source_direction":
+				if (!sourceDirectionMap.has(rule.pattern))
+					sourceDirectionMap.set(rule.pattern, rule);
 				break;
 
 			case "source_default":
@@ -86,8 +93,9 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 			// 1. MCC             — O(1) map lookup
 			// 2. Keywords        — O(k·m): k terms scanned in priority order
 			// 3. source:transaction_type — O(1) map lookup
-			// 4. source defaults — O(1) map lookup
-			// 5. Fallback        — O(1), always succeeds
+			// 4. source:direction — O(1) map lookup
+			// 5. source defaults — O(1) map lookup
+			// 6. Fallback        — O(1), always succeeds
 
 			// 1. MCC
 			if (transaction.mcc !== null) {
@@ -115,11 +123,17 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 				if (rule) return verdictOf(rule);
 			}
 
-			// 4. source defaults
+			// 4. source:direction
+			const directionRule = sourceDirectionMap.get(
+				`${transaction.source}:${transaction.direction}`
+			);
+			if (directionRule) return verdictOf(directionRule);
+
+			// 5. source defaults
 			const rule = defaultMap.get(transaction.source);
 			if (rule) return verdictOf(rule);
 
-			// 5. Fallback
+			// 6. Fallback
 			return fallback;
 		}
 	};

@@ -92,6 +92,11 @@ FROM (VALUES
   (500, 'source_transaction_type', 'loan:repayment',    'loan_repayment'),
   (501, 'source_transaction_type', 'loan:disbursement', 'income'),
 
+  -- source_direction: matches "{source}:{direction}" — money-in classification.
+  -- Coarse by design: EVERY eft credit is income until a finer rule (mcc/keyword/
+  -- source_transaction_type) outranks it in a later ruleset version.
+  (700, 'source_direction', 'eft:credit', 'income'),
+
   -- source_default: default for each transaction source
   (900, 'source_default', 'card',              'uncategorized'),
   (901, 'source_default', 'loan',              'loan_repayment'),

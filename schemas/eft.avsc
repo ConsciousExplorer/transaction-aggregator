@@ -3,7 +3,7 @@
   "name": "EftTransaction",
   "namespace": "transactions",
   "partitionKey": "customerId",
-  "doc": "Electronic Funds Transfer — standard inter-bank credit push.",
+  "doc": "Electronic Funds Transfer — inter-bank. debit = outbound push to a beneficiary; credit = inbound receipt (e.g. salary), where the beneficiary* fields describe the counterparty (the payer).",
   "fields": [
     {
       "name": "transactionId",
@@ -79,7 +79,7 @@
     {
       "name": "transactionType",
       "type": "string",
-      "arg.properties": { "options": ["debit"] }
+      "arg.properties": { "options": ["debit", "debit", "debit", "credit"] }
     },
     {
       "name": "clearingType",
@@ -91,7 +91,18 @@
     {
       "name": "description",
       "type": "string",
-      "arg.properties": { "template": "EFT to {beneficiaryName}" }
+      "arg.properties": {
+        "rules": [
+          {
+            "when": { "field": "transactionType", "equals": "debit" },
+            "then": { "template": "EFT to {beneficiaryName}" }
+          },
+          {
+            "when": { "field": "transactionType", "equals": "credit" },
+            "then": { "template": "Salary payment - {beneficiaryName}" }
+          }
+        ]
+      }
     },
     {
       "name": "status",

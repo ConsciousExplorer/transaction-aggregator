@@ -205,7 +205,47 @@ suite("tier 3: source_transaction_type", () => {
 	});
 });
 
-suite("tier 4: source_default", () => {
+suite("tier 4: source_direction", () => {
+	const eftCreditRule = makeRule({
+		matcherType: "source_direction",
+		pattern: "eft:credit",
+		priority: 705,
+		categoryId: 50
+	});
+
+	test("matches on source plus direction", () => {
+		const categorizer = createRuleCategorizer(makeRuleSet([eftCreditRule]));
+		assert.deepStrictEqual(
+			categorizer.categorize(
+				makeTransaction({ source: "eft", direction: "credit" })
+			),
+			{
+				categoryId: 50,
+				ruleVersion: 7,
+				rulePriority: 705,
+				matcherType: "source_direction"
+			}
+		);
+	});
+
+	test("same direction on a different source does not match", () => {
+		const categorizer = createRuleCategorizer(makeRuleSet([eftCreditRule]));
+		const verdict = categorizer.categorize(
+			makeTransaction({ source: "internal_transfer", direction: "credit" })
+		);
+		assert.strictEqual(verdict.matcherType, "fallback");
+	});
+
+	test("opposite direction on the same source does not match", () => {
+		const categorizer = createRuleCategorizer(makeRuleSet([eftCreditRule]));
+		const verdict = categorizer.categorize(
+			makeTransaction({ source: "eft", direction: "debit" })
+		);
+		assert.strictEqual(verdict.matcherType, "fallback");
+	});
+});
+
+suite("tier 5: source_default", () => {
 	test("routes an otherwise unmatched transaction by its source", () => {
 		const categorizer = createRuleCategorizer(
 			makeRuleSet([
@@ -310,6 +350,56 @@ suite("tier precedence", () => {
 			makeTransaction({ metadata: { transaction_type: "purchase" } })
 		);
 		assert.strictEqual(verdict.matcherType, "source_transaction_type");
+	});
+
+	test("source_transaction_type beats source_direction", () => {
+		const categorizer = createRuleCategorizer(
+			makeRuleSet([
+				makeRule({
+					matcherType: "source_transaction_type",
+					pattern: "eft:incoming",
+					priority: 505,
+					categoryId: 30
+				}),
+				makeRule({
+					matcherType: "source_direction",
+					pattern: "eft:credit",
+					priority: 705,
+					categoryId: 50
+				})
+			])
+		);
+		const verdict = categorizer.categorize(
+			makeTransaction({
+				source: "eft",
+				direction: "credit",
+				metadata: { transaction_type: "incoming" }
+			})
+		);
+		assert.strictEqual(verdict.matcherType, "source_transaction_type");
+	});
+
+	test("source_direction beats source_default", () => {
+		const categorizer = createRuleCategorizer(
+			makeRuleSet([
+				makeRule({
+					matcherType: "source_direction",
+					pattern: "eft:credit",
+					priority: 705,
+					categoryId: 50
+				}),
+				makeRule({
+					matcherType: "source_default",
+					pattern: "eft",
+					priority: 905,
+					categoryId: 40
+				})
+			])
+		);
+		const verdict = categorizer.categorize(
+			makeTransaction({ source: "eft", direction: "credit" })
+		);
+		assert.strictEqual(verdict.matcherType, "source_direction");
 	});
 });
 
