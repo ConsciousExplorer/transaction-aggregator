@@ -6,6 +6,7 @@ import { notFound } from "#src/problems.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 
 const categorySchema = z.object({
+	categoryId: z.number().int(),
 	category: z.string().describe("Category names"),
 	label: z.string()
 });
@@ -38,6 +39,7 @@ export default async (
 
 			return reply.send({
 				data: result.map((item) => ({
+					categoryId: item.categoryId,
 					category: item.category,
 					label: item.label
 				}))

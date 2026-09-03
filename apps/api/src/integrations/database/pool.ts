@@ -33,6 +33,16 @@ export function createPool(config: PoolConfig, logger: Logger) {
 	return pool;
 }
 
+// TODO: Move to errors
+export function isForeignKeyViolation(error: unknown): boolean {
+	let current = error;
+	while (typeof current === "object" && current !== null) {
+		if ((current as { code?: unknown }).code === "23503") return true;
+		current = (current as { cause?: unknown }).cause;
+	}
+	return false;
+}
+
 export async function withTransaction<T>(
 	pool: Pool,
 	fn: (client: PoolClient) => Promise<T>

@@ -126,7 +126,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.ok(
 			String(res.headers["content-type"]).startsWith("application/problem+json")
 		);
-		assert.strictEqual(res.json().type, "urn:api:problem:validation-error");
+		assert.strictEqual(res.json().type, "validation-error");
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
@@ -139,7 +139,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.ok(
 			String(res.headers["content-type"]).startsWith("application/problem+json")
 		);
-		assert.strictEqual(res.json().type, "urn:api:problem:internal");
+		assert.strictEqual(res.json().type, "internal");
 		assert.ok(!res.body.includes("hunter2"));
 	});
 });

@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
-import { alias } from "drizzle-orm/pg-core";
 import type { AppCradle } from "#src/container.ts";
+import { isForeignKeyViolation } from "../pool.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 
 export class CategoryRepository {
@@ -35,14 +35,12 @@ export class CategoryRepository {
 	}
 
 	async getUserCategories(userId: string) {
-		// The remap target is a second row in the same table — self-join alias.
-		const toCategories = alias(categories, "to_categories");
-
 		const result = await drizzle(this.dbClient)
 			.select({
+				categoryId: categories.categoryId,
 				category: categories.category,
 				label: categories.label,
-				toCategory: toCategories.category,
+				toCategoryId: userCategoryOverrides.toCategoryId,
 				updatedAt: userCategoryOverrides.updatedAt
 			})
 			.from(categories)
@@ -54,10 +52,6 @@ export class CategoryRepository {
 					isNull(userCategoryOverrides.archivedAt)
 				)
 			)
-			.leftJoin(
-				toCategories,
-				eq(toCategories.categoryId, userCategoryOverrides.toCategoryId)
-			)
 			.orderBy(categories.categoryId);
 
 		return result;
@@ -68,23 +62,28 @@ export class CategoryRepository {
 		fromCategoryId: number,
 		toCategoryId: number
 	) {
-		const [result] = await drizzle(this.dbClient)
-			.insert(userCategoryOverrides)
-			.values({ userId, fromCategoryId, toCategoryId })
-			.onConflictDoUpdate({
-				target: [
-					userCategoryOverrides.userId,
-					userCategoryOverrides.fromCategoryId
-				],
-				set: {
-					toCategoryId,
-					updatedAt: sql`now()`,
-					archivedAt: null
-				}
-			})
-			.returning();
+		try {
+			const [result] = await drizzle(this.dbClient)
+				.insert(userCategoryOverrides)
+				.values({ userId, fromCategoryId, toCategoryId })
+				.onConflictDoUpdate({
+					target: [
+						userCategoryOverrides.userId,
+						userCategoryOverrides.fromCategoryId
+					],
+					set: {
+						toCategoryId,
+						updatedAt: sql`now()`,
+						archivedAt: null
+					}
+				})
+				.returning();
 
-		return result;
+			return result;
+		} catch (error) {
+			if (isForeignKeyViolation(error)) return undefined;
+			throw error;
+		}
 	}
 
 	async archiveUserCategory(userId: string, fromCategoryId: number) {

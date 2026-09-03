@@ -18,11 +18,9 @@ export class Problem extends Error {
 	}
 }
 
-const urn = (slug: string) => `urn:api:problem:${slug}`;
-
 export const validationError = (issues: unknown[]) =>
 	new Problem({
-		type: urn("validation-error"),
+		type: "validation-error",
 		title: "Request validation failed",
 		status: 400,
 		errors: issues
@@ -30,42 +28,42 @@ export const validationError = (issues: unknown[]) =>
 
 export const invalidCursor = () =>
 	new Problem({
-		type: urn("invalid-cursor"),
+		type: "invalid-cursor",
 		title: "Malformed pagination cursor",
 		status: 400
 	});
 
 export const windowTooLarge = () =>
 	new Problem({
-		type: urn("window-too-large"),
+		type: "window-too-large",
 		title: "Time window exceeds 18 months",
 		status: 400
 	});
 
 export const unauthorized = () =>
 	new Problem({
-		type: urn("unauthorized"),
+		type: "unauthorized",
 		title: "Authentication required",
 		status: 401
 	});
 
 export const forbidden = () =>
 	new Problem({
-		type: urn("forbidden"),
+		type: "forbidden",
 		title: "Insufficient scope",
 		status: 403
 	});
 
 export const notFound = () =>
 	new Problem({
-		type: urn("not-found"),
+		type: "not-found",
 		title: "Resource not found",
 		status: 404
 	});
 
 export const rateLimited = (retryAfter: number) =>
 	new Problem({
-		type: urn("rate-limited"),
+		type: "rate-limited",
 		title: "Rate limit exceeded",
 		status: 429,
 		retry_after: retryAfter
@@ -73,7 +71,7 @@ export const rateLimited = (retryAfter: number) =>
 
 export const internal = (traceId: string) =>
 	new Problem({
-		type: urn("internal"),
+		type: "internal",
 		title: "Internal server error",
 		status: 500,
 		trace_id: traceId

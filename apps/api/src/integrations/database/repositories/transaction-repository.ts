@@ -14,6 +14,7 @@ import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
 import { sourceSchema } from "#src/schemas/common.ts";
+import { isForeignKeyViolation } from "../pool.ts";
 import {
 	transactions,
 	userTransactionOverrides
@@ -151,7 +152,8 @@ export class TransactionRepository {
 				direction: transactions.direction,
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
-				category: categories.category, // D32: the slug, straight from the join
+				categoryId: effectiveCategoryId, 
+				category: categories.category, 
 				merchantName: transactions.merchantName
 			})
 			.from(transactions)
@@ -187,24 +189,33 @@ export class TransactionRepository {
 	async upsertUserTransactionCategory(
 		transaction: UserTransactionUpdateDetail
 	) {
-		const [result] = await drizzle(this.dbClient)
-			.insert(userTransactionOverrides)
-			.values({
-				userId: transaction.userId,
-				transactionId: transaction.transactionId,
-				occurredAt: transaction.occurredAt,
-				categoryId: transaction.categoryId
-			})
-			.onConflictDoUpdate({
-				target: [
-					userTransactionOverrides.userId,
-					userTransactionOverrides.transactionId,
-					userTransactionOverrides.occurredAt
-				],
-				set: { categoryId: transaction.categoryId }
-			})
-			.returning();
+		try {
+			const [result] = await drizzle(this.dbClient)
+				.insert(userTransactionOverrides)
+				.values({
+					userId: transaction.userId,
+					transactionId: transaction.transactionId,
+					occurredAt: transaction.occurredAt,
+					categoryId: transaction.categoryId
+				})
+				.onConflictDoUpdate({
+					// The LIVE table's PK — (transaction_id, occurred_at). The drizzle
+					// schema declares (user_id, transaction_id, occurred_at); until the
+					// schema/migration is reconciled, the DB is the authority here.
+					target: [
+						userTransactionOverrides.transactionId,
+						userTransactionOverrides.occurredAt
+					],
+					set: { categoryId: transaction.categoryId, updatedAt: sql`now()` }
+				})
+				.returning();
 
-		return result;
+			return result;
+		} catch (error) {
+			// D34: unknown categoryId trips the FK constraint — undefined tells
+			// the route "bad id" so it can answer 400 instead of 500.
+			if (isForeignKeyViolation(error)) return undefined;
+			throw error;
+		}
 	}
 }

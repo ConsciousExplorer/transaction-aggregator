@@ -37,11 +37,27 @@ const ROWS: Awaited<ReturnType<TransactionRepository["getUserTransactions"]>> =
 		}
 	];
 
+// The detail select carries the effective categoryId (D34) on top of the
+// list columns — its own typed fixture keeps the drift guard honest.
+const DETAIL: Awaited<
+	ReturnType<TransactionRepository["getUserTransactionDetail"]>
+> = {
+	transactionId: TX_ID,
+	occurredAt: "2026-08-15T09:30:00.000Z",
+	source: "card",
+	direction: "debit",
+	amountMinor: 1234,
+	currency: "ZAR",
+	categoryId: 1,
+	category: "groceries",
+	merchantName: "Spar"
+};
+
 // `satisfies` is the drift guard: if the real class gains a member or changes
 // a signature, this fake stops compiling. `dbClient` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
 const getUserTransactions = mock.fn(async () => ROWS);
-const getUserTransactionDetail = mock.fn(async () => ROWS[0]);
+const getUserTransactionDetail = mock.fn(async () => DETAIL);
 const transactionRepository = {
 	dbClient: {} as Pool,
 	getUserTransactions,
@@ -70,7 +86,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		getUserTransactions.mock.resetCalls();
 		getUserTransactions.mock.mockImplementation(async () => ROWS);
 		getUserTransactionDetail.mock.resetCalls();
-		getUserTransactionDetail.mock.mockImplementation(async () => ROWS[0]);
+		getUserTransactionDetail.mock.mockImplementation(async () => DETAIL);
 	});
 
 	test("200: list maps rows to the wire shape (id, ISO occurredAt)", async () => {
@@ -144,7 +160,10 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	});
 
 	test("404: unknown transaction → not-found problem", async () => {
-		getUserTransactionDetail.mock.mockImplementationOnce(async () => undefined);
+		// Runtime a missing row yields undefined; the mock's inferred type doesn't.
+		getUserTransactionDetail.mock.mockImplementationOnce(
+			async () => undefined as unknown as typeof DETAIL
+		);
 		const res = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/u1/transactions/${TX_ID}`
@@ -153,7 +172,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.ok(
 			String(res.headers["content-type"]).startsWith("application/problem+json")
 		);
-		assert.strictEqual(res.json().type, "urn:api:problem:not-found");
+		assert.strictEqual(res.json().type, "not-found");
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
@@ -165,7 +184,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.ok(
 			String(res.headers["content-type"]).startsWith("application/problem+json")
 		);
-		assert.strictEqual(res.json().type, "urn:api:problem:internal");
+		assert.strictEqual(res.json().type, "internal");
 		assert.ok(!res.body.includes("hunter2"));
 	});
 });

@@ -12,7 +12,7 @@ import categoriesRoute from "./categories.route.ts";
 // object satisfies the contract.
 const database = {} as Pool;
 
-// Fixture WITH the internal id — test 1 proves it never reaches the wire.
+// D34: the id IS the wire identifier — test 1 proves it reaches the wire.
 const ROWS = [
 	{ categoryId: 1, category: "groceries", label: "Groceries" },
 	{ categoryId: 2, category: "dining", label: "Dining" }
@@ -53,16 +53,15 @@ suite("GET /api/v1/categories", () => {
 		getCategories.mock.mockImplementation(async () => ROWS);
 	});
 
-	test("200: maps rows to { category, label } and categoryId never reaches the wire", async () => {
+	test("200: maps rows to { categoryId, category, label } — ids are public (D34)", async () => {
 		const res = await app.inject({ method: "GET", url: "/api/v1/categories" });
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
 			data: [
-				{ category: "groceries", label: "Groceries" },
-				{ category: "dining", label: "Dining" }
+				{ categoryId: 1, category: "groceries", label: "Groceries" },
+				{ categoryId: 2, category: "dining", label: "Dining" }
 			]
 		});
-		assert.ok(!res.body.includes("categoryId"));
 	});
 
 	test("200: empty table → { data: [] } — the notFound branch is unreachable", async () => {
@@ -81,7 +80,7 @@ suite("GET /api/v1/categories", () => {
 		assert.ok(
 			String(res.headers["content-type"]).startsWith("application/problem+json")
 		);
-		assert.strictEqual(res.json().type, "urn:api:problem:internal");
+		assert.strictEqual(res.json().type, "internal");
 		assert.ok(!res.body.includes("hunter2"));
 	});
 
