@@ -1,11 +1,11 @@
 info:
-  name: get /api/v1/users/:userId/summary
+  name: get dining
   type: http
-  seq: 3
+  seq: 2
 
 http:
   method: GET
-  url: "{{api}}/api/v1/users/:userId/summary?fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&category=dining&groupBy=category&interval=month"
+  url: "{{api}}/api/v1/users/:userId/summary?fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&groupBy=category&interval=month&category=dining"
   params:
     - name: fromDateTime
       value: 2025-12-01T02:23:56.764Z
@@ -14,14 +14,22 @@ http:
       value: 2025-12-31T02:23:56.764Z
       type: query
     - name: category
-      value: dining
+      value: transfers
       type: query
+      disabled: true
     - name: groupBy
       value: category
       type: query
     - name: interval
       value: month
       type: query
+    - name: category
+      value: dining
+      type: query
+    - name: interval
+      value: day
+      type: query
+      disabled: true
     - name: userId
       value: 30440930-4207-4d26-bc11-1d65c07fe6c3
       type: path

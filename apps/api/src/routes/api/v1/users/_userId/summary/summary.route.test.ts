@@ -75,7 +75,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			totals: {
 				currency: "ZAR", // taken from the rows — single-currency assumption
 				transactionCount: 4,
-				netAmount: 1700, // (1500−500) + (700−0)
+				netAmount: -1700, // credit − debit: (500−1500) + (0−700)
 				debit: { count: 3, total: 2200 },
 				credit: { count: 1, total: 500 }
 			},
@@ -84,7 +84,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 					group: { category: "groceries" },
 					currency: "ZAR",
 					count: 3,
-					netAmount: 1000,
+					netAmount: -1000,
 					debit: { count: 2, total: 1500 },
 					credit: { count: 1, total: 500 }
 				},
@@ -92,7 +92,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 					group: { category: "dining" },
 					currency: "ZAR",
 					count: 1,
-					netAmount: 700,
+					netAmount: -700,
 					debit: { count: 1, total: 700 },
 					credit: { count: 0, total: 0 }
 				}

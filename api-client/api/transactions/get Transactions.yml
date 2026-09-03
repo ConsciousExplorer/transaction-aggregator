@@ -1,11 +1,11 @@
 info:
-  name: get /api/v1/users/:userId/transactions
+  name: get Transactions
   type: http
   seq: 1
 
 http:
   method: GET
-  url: "{{api}}/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=50"
+  url: "{{api}}/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=50&category=loan_repayment"
   params:
     - name: accountId
       value: c37b3e53-c30c-4c5a-b547-85fdadedd459
@@ -39,10 +39,9 @@ http:
       value: internal_transfer
       type: query
       disabled: true
-    - name: categoryId
-      value: "-9007199254740991"
+    - name: category
+      value: loan_repayment
       type: query
-      disabled: true
     - name: direction
       value: debit
       type: query

@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { notFound } from "#src/problems.ts";
+import { problemSchema } from "#src/schemas/common.ts";
 
 const categorySchema = z.object({
 	category: z.string().describe("Category names"),
@@ -25,7 +26,9 @@ export default async (
 			response: {
 				200: z.object({
 					data: categorySchema.array()
-				})
+				}),
+				400: problemSchema,
+				500: problemSchema
 			}
 		},
 		handler: async (_request, reply) => {

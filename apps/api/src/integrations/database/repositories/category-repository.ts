@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
+import { alias } from "drizzle-orm/pg-core";
 import type { AppCradle } from "#src/container.ts";
-import { categories } from "../schemas/schema.ts";
+import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 
 export class CategoryRepository {
 	dbClient: NodePgClient;
@@ -30,6 +31,75 @@ export class CategoryRepository {
 			})
 			.from(categories)
 			.where(eq(categories.category, category));
+		return result;
+	}
+
+	async getUserCategories(userId: string) {
+		// The remap target is a second row in the same table — self-join alias.
+		const toCategories = alias(categories, "to_categories");
+
+		const result = await drizzle(this.dbClient)
+			.select({
+				category: categories.category,
+				label: categories.label,
+				toCategory: toCategories.category,
+				updatedAt: userCategoryOverrides.updatedAt
+			})
+			.from(categories)
+			.leftJoin(
+				userCategoryOverrides,
+				and(
+					eq(userCategoryOverrides.fromCategoryId, categories.categoryId),
+					eq(userCategoryOverrides.userId, userId),
+					isNull(userCategoryOverrides.archivedAt)
+				)
+			)
+			.leftJoin(
+				toCategories,
+				eq(toCategories.categoryId, userCategoryOverrides.toCategoryId)
+			)
+			.orderBy(categories.categoryId);
+
+		return result;
+	}
+
+	async updateUserCategory(
+		userId: string,
+		fromCategoryId: number,
+		toCategoryId: number
+	) {
+		const [result] = await drizzle(this.dbClient)
+			.insert(userCategoryOverrides)
+			.values({ userId, fromCategoryId, toCategoryId })
+			.onConflictDoUpdate({
+				target: [
+					userCategoryOverrides.userId,
+					userCategoryOverrides.fromCategoryId
+				],
+				set: {
+					toCategoryId,
+					updatedAt: sql`now()`,
+					archivedAt: null
+				}
+			})
+			.returning();
+
+		return result;
+	}
+
+	async archiveUserCategory(userId: string, fromCategoryId: number) {
+		const [result] = await drizzle(this.dbClient)
+			.update(userCategoryOverrides)
+			.set({ archivedAt: sql`now()` })
+			.where(
+				and(
+					eq(userCategoryOverrides.userId, userId),
+					eq(userCategoryOverrides.fromCategoryId, fromCategoryId),
+					isNull(userCategoryOverrides.archivedAt)
+				)
+			)
+			.returning();
+
 		return result;
 	}
 }

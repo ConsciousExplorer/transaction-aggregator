@@ -4,6 +4,7 @@ import z from "zod";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { TransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { notFound, validationError } from "#src/problems.ts";
+import { problemSchema } from "#src/schemas/common.ts";
 
 const paramsSchema = z.object({ userId: z.uuid(), transactionId: z.uuid() });
 const bodySchema = z.object({ category: z.string() });
@@ -82,7 +83,9 @@ export default async (
 			params: paramsSchema,
 			body: bodySchema,
 			response: {
-				200: responseSchema
+				200: responseSchema,
+				400: problemSchema,
+				500: problemSchema
 			}
 		},
 		handler: async (request, reply) => {

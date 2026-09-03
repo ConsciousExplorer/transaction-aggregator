@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { TransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { notFound } from "#src/problems.ts";
-import { sourceSchema } from "#src/schemas/common.ts";
+import { problemSchema, sourceSchema } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
 	transactionItemSchema
@@ -50,7 +50,9 @@ export default async (
 				limit: z.coerce.number().int().min(1).max(100).default(50)
 			}),
 			response: {
-				200: listResponseSchema
+				200: listResponseSchema,
+				400: problemSchema,
+				500: problemSchema
 			}
 		},
 		handler: async (request, reply) => {
@@ -100,7 +102,9 @@ export default async (
 				transactionId: z.uuid()
 			}),
 			response: {
-				200: transactionItemSchema
+				200: transactionItemSchema,
+				400: problemSchema,
+				500: problemSchema
 			}
 		},
 		handler: async (request, reply) => {

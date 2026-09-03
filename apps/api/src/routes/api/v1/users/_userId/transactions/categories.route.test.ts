@@ -50,7 +50,10 @@ const resolveCategory = mock.fn(async () => DINING);
 const categoryRepository = {
 	dbClient: {} as Pool,
 	getCategories: mock.fn(async () => []),
-	resolveCategory
+	getUserCategories: mock.fn(async () => []),
+	resolveCategory,
+	updateUserCategory: mock.fn(async () => undefined),
+	archiveUserCategory: mock.fn(async () => undefined)
 } satisfies CategoryRepository;
 
 const getUserTransactionDetail = mock.fn(async () => ORIGINAL);

@@ -4,6 +4,7 @@ import {
 	eq,
 	gte,
 	inArray,
+	isNull,
 	lt,
 	lte,
 	type SQL,
@@ -127,7 +128,8 @@ export class TransactionRepository {
 				userCategoryOverrides,
 				and(
 					eq(userCategoryOverrides.userId, transactions.userId),
-					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId),
+					isNull(userCategoryOverrides.archivedAt)
 				)
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
@@ -167,7 +169,8 @@ export class TransactionRepository {
 				userCategoryOverrides,
 				and(
 					eq(userCategoryOverrides.userId, transactions.userId),
-					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId),
+					isNull(userCategoryOverrides.archivedAt)
 				)
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))

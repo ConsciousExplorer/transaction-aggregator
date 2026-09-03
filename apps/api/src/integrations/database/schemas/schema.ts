@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
 	bigint,
 	boolean,
@@ -123,7 +124,8 @@ export const userCategoryOverrides = pgTable(
 			.notNull(),
 		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
 			.defaultNow()
-			.notNull()
+			.notNull(),
+		archivedAt: timestamp("archived_at", { withTimezone: true, mode: "string" })
 	},
 	(table) => [
 		foreignKey({

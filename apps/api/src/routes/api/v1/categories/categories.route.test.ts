@@ -25,7 +25,10 @@ const getCategories = mock.fn(async () => ROWS);
 const categoryRepository = {
 	dbClient: database,
 	getCategories,
-	resolveCategory: mock.fn(async () => undefined)
+	getUserCategories: mock.fn(async () => []),
+	resolveCategory: mock.fn(async () => undefined),
+	updateUserCategory: mock.fn(async () => undefined),
+	archiveUserCategory: mock.fn(async () => undefined)
 } satisfies CategoryRepository;
 
 // ── Suite ────────────────────────────────────────────────────────────────────
