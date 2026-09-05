@@ -24,8 +24,8 @@ import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 // Filters/params for GET .../transactions (list + query string).
 export const listTransactionsFilterSchema = z.object({
 	userId: z.string(),
-	fromDate: z.iso.datetime(),
-	toDate: z.iso.datetime(),
+	fromDateTime: z.iso.datetime(),
+	toDateTime: z.iso.datetime(),
 	accountId: z.union([z.string(), z.string().array()]).optional(),
 	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
@@ -81,8 +81,8 @@ export class UserTransactionRepository {
 
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),
-			gte(transactions.occurredAt, filter.fromDate),
-			lt(transactions.occurredAt, filter.toDate),
+			gte(transactions.occurredAt, filter.fromDateTime),
+			lt(transactions.occurredAt, filter.toDateTime),
 			filter.source !== undefined
 				? Array.isArray(filter.source)
 					? inArray(transactions.source, filter.source)
