@@ -24,29 +24,41 @@ export default async (
 			params: z.object({
 				userId: z.string()
 			}),
-			querystring: z.object({
-				fromDateTime: z.iso.datetime(),
-				toDateTime: z.iso.datetime(),
-				accountId: z
-					.union([z.string(), z.string().array()])
-					.describe("The accountId")
-					.optional(),
-				source: z.union([sourceSchema, sourceSchema.array()]).optional(),
-				category: z
-					.union([z.coerce.string(), z.coerce.string().array()])
-					.optional(),
-				direction: z
-					.union([
-						z.enum(["debit", "credit"]),
-						z.enum(["debit", "credit"]).array()
-					])
-					.optional(),
-				amountMin: z.coerce.number().int().optional(),
-				amountMax: z.coerce.number().int().optional(),
-				cursorOccurredAt: z.iso.datetime().optional(),
-				cursorTransactionId: z.uuid().optional(),
-				limit: z.coerce.number().int().min(1).max(100).default(50)
-			}),
+			querystring: z
+				.object({
+					fromDateTime: z.iso.datetime(),
+					toDateTime: z.iso.datetime(),
+					accountId: z
+						.union([z.string(), z.string().array()])
+						.describe("The accountId")
+						.optional(),
+					source: z.union([sourceSchema, sourceSchema.array()]).optional(),
+					category: z
+						.union([z.coerce.string(), z.coerce.string().array()])
+						.optional(),
+					direction: z
+						.union([
+							z.enum(["debit", "credit"]),
+							z.enum(["debit", "credit"]).array()
+						])
+						.optional(),
+					amountMin: z.coerce.number().int().optional(),
+					amountMax: z.coerce.number().int().optional(),
+					cursorOccurredAt: z.iso.datetime().optional(),
+					cursorTransactionId: z.uuid().optional(),
+					limit: z.coerce.number().int().min(1).max(100).default(50)
+				})
+				.transform((queryParams) => {
+					const toDateTime = new Date(queryParams.toDateTime);
+					const fromDateTime =
+						queryParams.fromDateTime ?? new Date(toDateTime.getTime() - 30);
+
+					return {
+						...queryParams,
+						fromDateTime,
+						toDateTime
+					};
+				}),
 			response: {
 				200: listResponseSchema,
 				400: problemSchema,
