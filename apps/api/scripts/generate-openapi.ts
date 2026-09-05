@@ -40,7 +40,11 @@ function sortRoot(doc: Record<string, unknown>): Record<string, unknown> {
 
 const app = buildServer({
 	appInfo: packageInfoConfig,
-	autoLoadParameters: {
+	pluginAutoLoadParameters: {
+			dir: resolve(import.meta.dirname, "../src/plugins"),
+			routeParams: true
+		},
+	routeAutoLoadParameters: {
 			dir: resolve(import.meta.dirname, "../src/routes"),
 			dirNameRoutePrefix: true,
 			routeParams: true,
