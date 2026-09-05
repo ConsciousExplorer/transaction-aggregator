@@ -52,7 +52,7 @@ export async function gracefulShutdown(code = 0) {
 		container.dispose();
 		process.exit(code);
 	} catch (error) {
-		logger.error({ error }, "Error occurred when stopping services");
+		logger.error({ error }, "Error occurred when stopping services.");
 	} finally {
 		process.exit(code);
 	}

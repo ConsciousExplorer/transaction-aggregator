@@ -1,7 +1,12 @@
 import { hasZodFastifySchemaValidationErrors } from "@fastify/type-provider-zod";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { fastifyPlugin } from "fastify-plugin";
-import { internal, notFound, Problem, validationError } from "#src/problems.ts";
+import {
+	internal,
+	notFound,
+	Problem,
+	validationError
+} from "#src/errors/problems.ts";
 
 export const problemJson: FastifyPluginAsync = fastifyPlugin(async (server) => {
 	server.setErrorHandler((err, req, reply) => {

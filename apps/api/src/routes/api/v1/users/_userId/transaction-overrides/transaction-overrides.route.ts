@@ -1,8 +1,8 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
+import { notFound, validationError } from "#src/errors/problems.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { notFound, validationError } from "#src/problems.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 
 const paramsSchema = z.object({ userId: z.uuid(), transactionId: z.uuid() });

@@ -1,8 +1,8 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
+import { notFound } from "#src/errors/problems.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { notFound } from "#src/problems.ts";
 import { problemSchema, sourceSchema } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
