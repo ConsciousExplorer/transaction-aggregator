@@ -1,6 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
+import type { AppCradle } from "#src/container.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { notFound } from "#src/problems.ts";
 import { problemSchema } from "#src/schemas/common.ts";
