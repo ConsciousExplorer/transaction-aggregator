@@ -126,8 +126,8 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(getTransactions.mock.callCount(), 1);
 		assert.deepStrictEqual(getTransactions.mock.calls[0]?.arguments.at(0), {
 			userId: "u1",
-			fromDate: FROM,
-			toDate: TO,
+			fromDateTime: FROM,
+			toDateTime: TO,
 			category: "groceries",
 			direction: undefined,
 			amountMin: undefined,
