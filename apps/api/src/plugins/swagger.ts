@@ -4,7 +4,7 @@ import { jsonSchemaTransform } from "@fastify/type-provider-zod";
 import { fastifyPlugin } from "fastify-plugin";
 import type { AppCradle } from "#src/container.ts";
 
-export const swaggerPlugin = fastifyPlugin<Pick<AppCradle, "appInfo">>(
+export default fastifyPlugin<Pick<AppCradle, "appInfo">>(
 	async (server, opts) => {
 		await server.register(swagger, {
 			transform: jsonSchemaTransform,

@@ -15,8 +15,6 @@ import type { AppInfoConfig } from "./config.ts";
 import type { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
-import { problemJson } from "./plugins/problem-json.ts";
-import { swaggerPlugin } from "./plugins/swagger.ts";
 
 export type BuildServerOptions = {
 	serverOptions?: FastifyServerOptions;
@@ -26,7 +24,8 @@ export type BuildServerOptions = {
 	categoryRepository?: CategoryRepository;
 	transactionRepository?: UserTransactionRepository;
 	summaryRepository?: SummaryRepository;
-	autoLoadParameters?: AutoloadPluginOptions;
+	pluginAutoLoadParameters?: AutoloadPluginOptions;
+	routeAutoLoadParameters?: AutoloadPluginOptions;
 };
 
 /**
@@ -44,7 +43,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		categoryRepository,
 		transactionRepository,
 		summaryRepository,
-		autoLoadParameters
+		routeAutoLoadParameters,
+		pluginAutoLoadParameters
 	} = options;
 
 	const server = fastify({
@@ -56,17 +56,20 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	server.setValidatorCompiler(validatorCompiler);
 	server.setSerializerCompiler(serializerCompiler);
 
-	// RFC 9457 problem responses for every error and 404
-	server.register(problemJson);
-
-	// OpenAPI spec + /docs
-	server.register(swaggerPlugin, { appInfo });
+	// // OpenAPI spec + /docs
+	// server.register(swaggerPlugin, {  }: AppCradle);
+	if (pluginAutoLoadParameters) {
+		server.register(fastifyAutoload, {
+			...pluginAutoLoadParameters,
+			options: { appInfo }
+		});
+	}
 
 	// No autoLoadParameters → no autoload: the server carries zero routes and
 	// the caller registers what it wants (this is what route tests do).
-	if (autoLoadParameters) {
+	if (routeAutoLoadParameters) {
 		server.register(fastifyAutoload, {
-			...autoLoadParameters,
+			...routeAutoLoadParameters,
 			options: {
 				database,
 				categoryRepository,

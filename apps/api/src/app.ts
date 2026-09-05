@@ -22,7 +22,11 @@ const server: FastifyInstance = buildServer({
 	categoryRepository: categoryRepository,
 	transactionRepository: transactionRepository,
 	summaryRepository: summaryRepository,
-	autoLoadParameters: {
+	pluginAutoLoadParameters: {
+		dir: join(import.meta.dirname, "plugins"),
+		routeParams: true
+	},
+	routeAutoLoadParameters: {
 		dir: join(import.meta.dirname, "routes"),
 		dirNameRoutePrefix: true,
 		routeParams: true,
@@ -32,12 +36,13 @@ const server: FastifyInstance = buildServer({
 
 try {
 	await database.query("Select 1");
-	// All the dependencies has been registered. Start listening for requests
+
+	// Start the server and start listening for requests
 	await server.listen({ host: config.app.host, port: config.app.port });
+	logger.info(server.printRoutes());
 	logger.info({ event: "app.start", port: config.app.port });
 } catch (err) {
 	logger.error({ err }, "boot failed");
-	// drains the pool even on failed boot
 	await container.dispose();
 	process.exit(1);
 }
