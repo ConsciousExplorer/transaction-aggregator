@@ -22,11 +22,17 @@
                             "description": "Category names",
                             "type": "string"
                           },
+                          "categoryId": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
                           "label": {
                             "type": "string"
                           }
                         },
                         "required": [
+                          "categoryId",
                           "category",
                           "label"
                         ],
@@ -158,18 +164,26 @@
                           "category": {
                             "type": "string"
                           },
+                          "categoryId": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
                           "label": {
                             "type": "string"
                           },
-                          "toCategory": {
+                          "toCategoryId": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
                             "nullable": true,
-                            "type": "string"
+                            "type": "integer"
                           }
                         },
                         "required": [
+                          "categoryId",
                           "category",
                           "label",
-                          "toCategory"
+                          "toCategoryId"
                         ],
                         "type": "object"
                       },
@@ -184,6 +198,86 @@
               }
             },
             "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "items": {},
+                      "type": "array"
+                    },
+                    "retry_after": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "number"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "items": {},
+                      "type": "array"
+                    },
+                    "retry_after": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "number"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "tags": [
@@ -191,7 +285,7 @@
         ]
       }
     },
-    "/api/v1/users/{userId}/categories/{category}/override": {
+    "/api/v1/users/{userId}/categories/{categoryId}/override": {
       "delete": {
         "parameters": [
           {
@@ -206,10 +300,13 @@
           },
           {
             "in": "path",
-            "name": "category",
+            "name": "categoryId",
             "required": true,
             "schema": {
-              "type": "string"
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -316,10 +413,13 @@
           },
           {
             "in": "path",
-            "name": "category",
+            "name": "categoryId",
             "required": true,
             "schema": {
-              "type": "string"
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -328,12 +428,15 @@
             "application/json": {
               "schema": {
                 "properties": {
-                  "toCategory": {
-                    "type": "string"
+                  "toCategoryId": {
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
                   }
                 },
                 "required": [
-                  "toCategory"
+                  "toCategoryId"
                 ],
                 "type": "object"
               }
@@ -348,11 +451,15 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
-                    "category": {
-                      "type": "string"
+                    "categoryId": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
-                    "toCategory": {
-                      "type": "string"
+                    "toCategoryId": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "updatedAt": {
                       "format": "date-time",
@@ -361,8 +468,8 @@
                     }
                   },
                   "required": [
-                    "category",
-                    "toCategory",
+                    "categoryId",
+                    "toCategoryId",
                     "updatedAt"
                   ],
                   "type": "object"
@@ -482,11 +589,15 @@
                       "items": {
                         "additionalProperties": false,
                         "properties": {
-                          "category": {
-                            "type": "string"
+                          "categoryId": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
                           },
-                          "toCategory": {
-                            "type": "string"
+                          "toCategoryId": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
                           },
                           "updatedAt": {
                             "format": "date-time",
@@ -495,8 +606,8 @@
                           }
                         },
                         "required": [
-                          "category",
-                          "toCategory",
+                          "categoryId",
+                          "toCategoryId",
                           "updatedAt"
                         ],
                         "type": "object"
@@ -1419,7 +1530,7 @@
       }
     },
     "/api/v1/users/{userId}/transactions/{transactionId}/category": {
-      "delete": {
+      "put": {
         "parameters": [
           {
             "in": "path",
@@ -1447,12 +1558,15 @@
             "application/json": {
               "schema": {
                 "properties": {
-                  "category": {
-                    "type": "string"
+                  "categoryId": {
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
                   }
                 },
                 "required": [
-                  "category"
+                  "categoryId"
                 ],
                 "type": "object"
               }
@@ -1467,8 +1581,10 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
-                    "category": {
-                      "type": "string"
+                    "categoryId": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "isOverridden": {
                       "type": "boolean"
@@ -1486,7 +1602,7 @@
                   },
                   "required": [
                     "transactionId",
-                    "category",
+                    "categoryId",
                     "isOverridden",
                     "updatedAt"
                   ],
@@ -1497,6 +1613,46 @@
             "description": "Default Response"
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "items": {},
+                      "type": "array"
+                    },
+                    "retry_after": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "number"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1569,88 +1725,6 @@
                     "type",
                     "title",
                     "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Default Response"
-          }
-        },
-        "tags": [
-          "transactions"
-        ]
-      },
-      "put": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "transactionId",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "category": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "category"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "category": {
-                      "type": "string"
-                    },
-                    "isOverridden": {
-                      "type": "boolean"
-                    },
-                    "transactionId": {
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "transactionId",
-                    "category",
-                    "isOverridden",
-                    "updatedAt"
                   ],
                   "type": "object"
                 }

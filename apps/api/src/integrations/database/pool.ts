@@ -15,11 +15,11 @@ export function createPool(config: PoolConfig, logger: Logger) {
 
 	// Register listeners
 	pool.on("acquire", () => {
-		logger.info("Acquired a connection.");
+		logger.debug("Acquired a connection.");
 	});
 
 	pool.on("release", () => {
-		logger.info("Released a connection.");
+		logger.debug("Released a connection.");
 	});
 
 	pool.on("connect", () => {
