@@ -31,8 +31,6 @@ const server: FastifyInstance = buildServer({
 });
 
 try {
-	// Get the server from the container
-
 	await database.query("Select 1");
 	// All the dependencies has been registered. Start listening for requests
 	await server.listen({ host: config.app.host, port: config.app.port });
@@ -42,4 +40,20 @@ try {
 	// drains the pool even on failed boot
 	await container.dispose();
 	process.exit(1);
+}
+
+process.on("SIGTERM", () => gracefulShutdown());
+process.on("SIGINT", () => gracefulShutdown());
+
+export async function gracefulShutdown(code = 0) {
+	try {
+		logger.warn("Shutting down services");
+		server.close();
+		container.dispose();
+		process.exit(code);
+	} catch (error) {
+		logger.error({ error }, "Error occurred when stopping services");
+	} finally {
+		process.exit(code);
+	}
 }
