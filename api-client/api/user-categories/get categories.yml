@@ -5,11 +5,8 @@ info:
 
 http:
   method: GET
-  url: "{{api}}/api/v1/users/:userId/categories/:category/override"
+  url: "{{api}}/api/v1/users/:userId/category-overrides"
   params:
-    - name: category
-      value: groceries
-      type: path
     - name: category
       value: transfers
       type: query

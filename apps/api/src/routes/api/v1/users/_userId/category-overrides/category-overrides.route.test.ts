@@ -1,18 +1,19 @@
-// src/routes/api/v1/users/_userId/categories/categories.route.test.ts
+// src/routes/api/v1/users/_userId/category-overrides/category-overrides.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { buildServer } from "#src/server.ts";
-import categoriesRoute from "./categories.route.ts";
+import categoryOverridesRoute from "./category-overrides.route.ts";
 
 const USER_ID = "7a1e5b3c-2d4f-4e6a-8b9c-0d1e2f3a4b5c";
 const overrideUrl = (categoryId: number | string) =>
-	`/api/v1/users/${USER_ID}/categories/${categoryId}/override`;
+	`/api/v1/users/${USER_ID}/categories/${categoryId}`;
 
 // Typed off the real methods so drift in the select shapes breaks compilation.
-// D34: ids are the wire identifiers; slugs/labels are display fields.
+// D34: ids are the wire identifiers on writes; the route nests category/label
+// display fields around them for both reads and write responses.
 const USER_CATEGORY_ROWS: Awaited<
 	ReturnType<CategoryRepository["getUserCategories"]>
 > = [
@@ -21,6 +22,9 @@ const USER_CATEGORY_ROWS: Awaited<
 		category: "groceries",
 		label: "Groceries",
 		toCategoryId: 5,
+		toCategory: "dining",
+		toLabel: "Dining",
+		createdAt: "2026-09-01T08:00:00.000Z",
 		updatedAt: "2026-09-03T08:00:00.000Z"
 	},
 	{
@@ -28,6 +32,9 @@ const USER_CATEGORY_ROWS: Awaited<
 		category: "dining",
 		label: "Dining",
 		toCategoryId: null,
+		toCategory: null,
+		toLabel: null,
+		createdAt: null,
 		updatedAt: null
 	}
 ];
@@ -38,9 +45,13 @@ const OVERRIDE: NonNullable<
 	userId: USER_ID,
 	fromCategoryId: 1,
 	toCategoryId: 5,
-	createdAt: "2026-09-03T08:00:00.000Z",
+	createdAt: "2026-09-01T08:00:00.000Z",
 	updatedAt: "2026-09-03T08:00:00.000Z",
-	archivedAt: null
+	archivedAt: null,
+	category: "groceries",
+	label: "Groceries",
+	toCategory: "dining",
+	toLabel: "Dining"
 };
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
@@ -59,14 +70,14 @@ const categoryRepository = {
 } satisfies CategoryRepository;
 
 // ── Suite ────────────────────────────────────────────────────────────────────
-suite("/api/v1/users/:userId/categories (user categories + overrides)", () => {
+suite("PUT/DELETE /api/v1/users/:userId/categories/:categoryId (category overrides)", () => {
 	let app: FastifyInstance;
 
 	before(async () => {
 		// buildServer({}) = defaults only, NO autoload — we register the one
 		// route under test ourselves, with exactly the opts it declares.
 		app = buildServer({});
-		await app.register(categoriesRoute, {
+		await app.register(categoryOverridesRoute, {
 			prefix: "/api/v1/users/:userId/categories",
 			categoryRepository
 		});
@@ -84,46 +95,7 @@ suite("/api/v1/users/:userId/categories (user categories + overrides)", () => {
 		archiveUserCategory.mock.mockImplementation(async () => OVERRIDE);
 	});
 
-	test("GET 200: all categories with ids and the user's remap targets", async () => {
-		const res = await app.inject({
-			method: "GET",
-			url: `/api/v1/users/${USER_ID}/categories`
-		});
-		assert.strictEqual(res.statusCode, 200);
-		assert.deepStrictEqual(res.json(), {
-			data: [
-				{
-					categoryId: 1,
-					category: "groceries",
-					label: "Groceries",
-					toCategoryId: 5
-				},
-				{ categoryId: 5, category: "dining", label: "Dining", toCategoryId: null }
-			]
-		});
-		assert.deepStrictEqual(getUserCategories.mock.calls[0]?.arguments, [
-			USER_ID
-		]);
-	});
-
-	test("GET /overrides 200: only the overridden categories", async () => {
-		const res = await app.inject({
-			method: "GET",
-			url: `/api/v1/users/${USER_ID}/categories/overrides`
-		});
-		assert.strictEqual(res.statusCode, 200);
-		assert.deepStrictEqual(res.json(), {
-			data: [
-				{
-					categoryId: 1,
-					toCategoryId: 5,
-					updatedAt: "2026-09-03T08:00:00.000Z"
-				}
-			]
-		});
-	});
-
-	test("PUT 200: upserts the remap by ids — no slug resolution", async () => {
+	test("PUT 200: same shape as GET \"\" — id/category/label plus the new mappedTo", async () => {
 		const res = await app.inject({
 			method: "PUT",
 			url: overrideUrl(1),
@@ -131,10 +103,17 @@ suite("/api/v1/users/:userId/categories (user categories + overrides)", () => {
 		});
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
-			categoryId: 1,
-			toCategoryId: 5,
-			updatedAt: "2026-09-03T08:00:00.000Z"
+			id: 1,
+			category: "groceries",
+			label: "Groceries",
+			mappedTo: {
+				id: 5,
+				category: "dining",
+				label: "Dining",
+				updatedAt: "2026-09-03T08:00:00.000Z"
+			}
 		});
+		// No slug resolution on the write path — only ids cross into the repo call.
 		assert.deepStrictEqual(updateUserCategory.mock.calls[0]?.arguments, [
 			USER_ID,
 			1,

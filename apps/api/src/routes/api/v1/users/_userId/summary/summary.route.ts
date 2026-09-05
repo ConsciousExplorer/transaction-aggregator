@@ -29,7 +29,7 @@ const metaSchema = z.object({
 	fromDateTime: z.iso.datetime(),
 	toDateTime: z.iso.datetime(),
 	groupBy: z.string().array(),
-	interval: z.enum(["day", "week", "month"]).optional()
+	interval: z.enum(["day", "week", "month", "total"]).optional()
 });
 
 type SummaryRow = Awaited<

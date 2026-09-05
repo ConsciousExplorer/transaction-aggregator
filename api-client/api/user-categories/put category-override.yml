@@ -1,15 +1,12 @@
 info:
-  name: put category/override
+  name: put category-override
   type: http
   seq: 5
 
 http:
   method: PUT
-  url: "{{api}}/api/v1/users/:userId/categories/:category/override"
+  url: "{{api}}/api/v1/users/:userId/category-overrides/:categoryId"
   params:
-    - name: category
-      value: loan_repayment
-      type: path
     - name: category
       value: transfers
       type: query
@@ -18,6 +15,9 @@ http:
       value: day
       type: query
       disabled: true
+    - name: categoryId
+      value: "1"
+      type: path
     - name: userId
       value: 30440930-4207-4d26-bc11-1d65c07fe6c3
       type: path
@@ -25,7 +25,7 @@ http:
     type: json
     data: |-
       {
-        "toCategory": "string"
+        "toCategoryId": 2
       }
   auth: inherit
 

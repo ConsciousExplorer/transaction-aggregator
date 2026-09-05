@@ -27,7 +27,7 @@ export const userSummaryFilter = z.object({
 	toDate: z.iso.datetime(),
 	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
-	interval: z.enum(["day", "week", "month"]).optional(),
+	interval: z.enum(["day", "week", "month", "total"]).optional(),
 	direction: z
 		.union([z.enum(["debit", "credit"]), z.enum(["debit", "credit"]).array()])
 		.optional(),
@@ -42,8 +42,12 @@ export type UserSummaryFilter = z.infer<typeof userSummaryFilter>;
 const BUCKET_FORMAT = {
 	day: "YYYY-MM-DD",
 	week: 'IYYY-"W"IW',
-	month: "YYYY-MM"
-} satisfies Record<NonNullable<UserSummaryFilter["interval"]>, string>;
+	month: "YYYY-MM",
+	total: undefined
+} satisfies Record<
+	NonNullable<UserSummaryFilter["interval"]>,
+	string | undefined
+>;
 
 export class SummaryRepository {
 	dbClient: NodePgClient;
@@ -63,9 +67,7 @@ export class SummaryRepository {
 
 		const bucketStart = filter.interval
 			? sql<string>`to_char(${transactions.occurredAt} at time zone 'UTC', ${sql.raw(`'${BUCKET_FORMAT[filter.interval]}'`)})`
-			: // No interval → the whole window is one bucket keyed by its start; a
-				// constant keeps the select shape identical across both variants.
-				sql<string>`${filter.fromDate}`;
+			: sql<string>`${filter.fromDate}`;
 
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),

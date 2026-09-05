@@ -5,10 +5,10 @@ info:
 
 http:
   method: PUT
-  url: "{{api}}/api/v1/users/:userId/transactions/:transactionId/category"
+  url: "{{api}}/api/v1/users/:userId/transaction-overrides/:transactionId"
   params:
     - name: transactionId
-      value: 01a05441-4a6c-7d7c-b255-c8b6170c5451
+      value: 01a067f2-4556-7c72-b563-3993422061db
       type: path
     - name: userId
       value: 30440930-4207-4d26-bc11-1d65c07fe6c3
@@ -17,7 +17,7 @@ http:
     type: json
     data: |-
       {
-        "category": "dining"
+        "categoryId": 2
       }
   auth: inherit
 

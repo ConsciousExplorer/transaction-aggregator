@@ -1,11 +1,11 @@
 info:
   name: get groceries
   type: http
-  seq: 3
+  seq: 2
 
 http:
   method: GET
-  url: "{{api}}/api/v1/users/:userId/summary?fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&groupBy=category&interval=month&category=groceries"
+  url: "{{api}}/api/v1/users/:userId/summary?fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&groupBy=category"
   params:
     - name: fromDateTime
       value: 2025-12-01T02:23:56.764Z
@@ -23,9 +23,11 @@ http:
     - name: interval
       value: month
       type: query
+      disabled: true
     - name: category
       value: groceries
       type: query
+      disabled: true
     - name: interval
       value: day
       type: query

@@ -5,7 +5,6 @@ import type { UserTransactionRepository } from "#src/integrations/database/repos
 import { notFound, validationError } from "#src/problems.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 
-// D34: categoryId is the wire identifier; no slug resolution here.
 const paramsSchema = z.object({ userId: z.uuid(), transactionId: z.uuid() });
 const bodySchema = z.object({ categoryId: z.number().int().positive() });
 const responseSchema = z.object({
@@ -17,15 +16,13 @@ const responseSchema = z.object({
 
 export default async (
 	fastify: FastifyInstance,
-	// Narrowed slice of RouteOptions: this route declares it only knows about
-	// the transaction repository — and tests can register it with exactly this.
 	opts: {
 		transactionRepository: UserTransactionRepository;
 	}
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "PUT",
-		url: "/:transactionId/category",
+		url: "/:transactionId",
 		schema: {
 			tags: ["transactions"],
 			hide: false,
@@ -42,7 +39,6 @@ export default async (
 			const { userId, transactionId } = request.params;
 			const { categoryId } = request.body;
 
-			// Ownership check + the immutable occurredAt the override key needs.
 			const originalTransaction =
 				await opts.transactionRepository.getTransactionDetail({
 					userId,
@@ -50,7 +46,6 @@ export default async (
 				});
 			if (!originalTransaction) throw notFound();
 
-			// D34: undefined = FK violation = the id is not in the taxonomy.
 			const overrideTransaction =
 				await opts.transactionRepository.setTransactionCategory({
 					userId,
@@ -74,7 +69,7 @@ export default async (
 
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "DELETE",
-		url: "/:transactionId/category",
+		url: "/:transactionId",
 		schema: {
 			tags: ["transactions"],
 			hide: false,

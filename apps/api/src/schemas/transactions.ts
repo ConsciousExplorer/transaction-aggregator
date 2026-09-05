@@ -2,7 +2,7 @@ import z from "zod";
 import { sourceSchema } from "./common.ts";
 
 export const listQuerySchema = z.object({
-	from: z.iso.datetime().optional(), // route defaults: to=now, from=to−30d (parent §7)
+	from: z.iso.datetime().optional(),
 	to: z.iso.datetime().optional(),
 	source: sourceSchema.optional(),
 	categoryId: z.coerce.number().int().optional(),
@@ -14,7 +14,6 @@ export const listQuerySchema = z.object({
 });
 
 export const transactionItemSchema = z.object({
-	// EXACTLY idx_tx_user_read's key + INCLUDE columns → the list query stays index-only
 	id: z.uuid(),
 	occurredAt: z.iso.datetime(),
 	source: z.union([z.string(), sourceSchema.optional()]),
@@ -26,7 +25,7 @@ export const transactionItemSchema = z.object({
 });
 
 export const transactionDetailSchema = transactionItemSchema.extend({
-	accountId: z.uuid(), // added 2026-08-23 with the accountId column
+	accountId: z.uuid(),
 	externalId: z.string(),
 	postedAt: z.iso.datetime().nullable(),
 	description: z.string().nullable(),

@@ -223,12 +223,6 @@ export class UserTransactionRepository {
 		}
 	}
 
-	/**
-	 * Archive (soft-delete) the per-transaction override — the row is kept,
-	 * reads filter it out (D33). Idempotent: archiving a missing or
-	 * already-archived override updates zero rows and returns undefined,
-	 * which the route treats as success (204).
-	 */
 	async archiveTransactionCategory(userId: string, transactionId: string) {
 		const [result] = await drizzle(this.dbClient)
 			.update(userTransactionOverrides)

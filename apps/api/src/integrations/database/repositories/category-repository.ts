@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
+import { alias } from "drizzle-orm/pg-core";
 import type { AppCradle } from "#src/container.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
@@ -35,12 +36,17 @@ export class CategoryRepository {
 	}
 
 	async getUserCategories(userId: string) {
+		const toCategories = alias(categories, "to_categories");
+
 		const result = await drizzle(this.dbClient)
 			.select({
 				categoryId: categories.categoryId,
 				category: categories.category,
 				label: categories.label,
 				toCategoryId: userCategoryOverrides.toCategoryId,
+				toCategory: toCategories.category,
+				toLabel: toCategories.label,
+				createdAt: userCategoryOverrides.createdAt,
 				updatedAt: userCategoryOverrides.updatedAt
 			})
 			.from(categories)
@@ -51,6 +57,10 @@ export class CategoryRepository {
 					eq(userCategoryOverrides.userId, userId),
 					isNull(userCategoryOverrides.archivedAt)
 				)
+			)
+			.leftJoin(
+				toCategories,
+				eq(toCategories.categoryId, userCategoryOverrides.toCategoryId)
 			)
 			.orderBy(categories.categoryId);
 
@@ -63,7 +73,7 @@ export class CategoryRepository {
 		toCategoryId: number
 	) {
 		try {
-			const [result] = await drizzle(this.dbClient)
+			const [override] = await drizzle(this.dbClient)
 				.insert(userCategoryOverrides)
 				.values({ userId, fromCategoryId, toCategoryId })
 				.onConflictDoUpdate({
@@ -78,8 +88,22 @@ export class CategoryRepository {
 					}
 				})
 				.returning();
+			if (!override) return undefined;
 
-			return result;
+			const toCategories = alias(categories, "to_categories");
+			const [names] = await drizzle(this.dbClient)
+				.select({
+					category: categories.category,
+					label: categories.label,
+					toCategory: toCategories.category,
+					toLabel: toCategories.label
+				})
+				.from(categories)
+				.innerJoin(toCategories, eq(toCategories.categoryId, toCategoryId))
+				.where(eq(categories.categoryId, fromCategoryId));
+			if (!names) return undefined;
+
+			return { ...override, ...names };
 		} catch (error) {
 			if (isForeignKeyViolation(error)) return undefined;
 			throw error;

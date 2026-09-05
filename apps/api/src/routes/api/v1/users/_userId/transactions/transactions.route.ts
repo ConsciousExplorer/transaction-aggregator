@@ -11,8 +11,6 @@ import {
 
 export default async (
 	fastify: FastifyInstance,
-	// Narrowed slice of RouteOptions: this route declares it only knows about
-	// the transaction repository — and tests can register it with exactly this.
 	opts: {
 		transactionRepository: UserTransactionRepository;
 	}
