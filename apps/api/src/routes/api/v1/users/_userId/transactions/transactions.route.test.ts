@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import type { TransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
+import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
 import transactionsRoute from "./transactions.route.ts";
 
@@ -13,7 +13,7 @@ const TX_ID = "3f8e8c1a-6b1d-4f4e-9a2b-1c9d8e7f6a5b";
 const LIST_URL = `/api/v1/users/u1/transactions?fromDateTime=${FROM}&toDateTime=${TO}`;
 
 // Typed off the real methods so drift in the select shape breaks compilation.
-const ROWS: Awaited<ReturnType<TransactionRepository["getUserTransactions"]>> =
+const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 	[
 		{
 			transactionId: TX_ID,
@@ -40,7 +40,7 @@ const ROWS: Awaited<ReturnType<TransactionRepository["getUserTransactions"]>> =
 // The detail select carries the effective categoryId (D34) on top of the
 // list columns — its own typed fixture keeps the drift guard honest.
 const DETAIL: Awaited<
-	ReturnType<TransactionRepository["getUserTransactionDetail"]>
+	ReturnType<UserTransactionRepository["getTransactionDetail"]>
 > = {
 	transactionId: TX_ID,
 	occurredAt: "2026-08-15T09:30:00.000Z",
@@ -56,14 +56,15 @@ const DETAIL: Awaited<
 // `satisfies` is the drift guard: if the real class gains a member or changes
 // a signature, this fake stops compiling. `dbClient` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
-const getUserTransactions = mock.fn(async () => ROWS);
-const getUserTransactionDetail = mock.fn(async () => DETAIL);
+const getTransactions = mock.fn(async () => ROWS);
+const getTransactionDetail = mock.fn(async () => DETAIL);
 const transactionRepository = {
 	dbClient: {} as Pool,
-	getUserTransactions,
-	getUserTransactionDetail,
-	upsertUserTransactionCategory: mock.fn(async () => undefined)
-} satisfies TransactionRepository;
+	getTransactions,
+	getTransactionDetail,
+	setTransactionCategory: mock.fn(async () => undefined),
+	archiveTransactionCategory: mock.fn(async () => undefined)
+} satisfies UserTransactionRepository;
 
 // ── Suite ────────────────────────────────────────────────────────────────────
 suite("GET /api/v1/users/:userId/transactions", () => {
@@ -83,10 +84,10 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		await app.close();
 	});
 	beforeEach(() => {
-		getUserTransactions.mock.resetCalls();
-		getUserTransactions.mock.mockImplementation(async () => ROWS);
-		getUserTransactionDetail.mock.resetCalls();
-		getUserTransactionDetail.mock.mockImplementation(async () => DETAIL);
+		getTransactions.mock.resetCalls();
+		getTransactions.mock.mockImplementation(async () => ROWS);
+		getTransactionDetail.mock.resetCalls();
+		getTransactionDetail.mock.mockImplementation(async () => DETAIL);
 	});
 
 	test("200: list maps rows to the wire shape (id, ISO occurredAt)", async () => {
@@ -122,8 +123,8 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 
 	test("handler maps params/query onto the repository filter (limit defaults to 50)", async () => {
 		await app.inject({ method: "GET", url: `${LIST_URL}&category=groceries` });
-		assert.strictEqual(getUserTransactions.mock.callCount(), 1);
-		assert.deepStrictEqual(getUserTransactions.mock.calls[0]?.arguments.at(0), {
+		assert.strictEqual(getTransactions.mock.callCount(), 1);
+		assert.deepStrictEqual(getTransactions.mock.calls[0]?.arguments.at(0), {
 			userId: "u1",
 			fromDate: FROM,
 			toDate: TO,
@@ -154,14 +155,14 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			merchantName: "Spar"
 		});
 		assert.deepStrictEqual(
-			getUserTransactionDetail.mock.calls[0]?.arguments.at(0),
+			getTransactionDetail.mock.calls[0]?.arguments.at(0),
 			{ userId: "u1", transactionId: TX_ID }
 		);
 	});
 
 	test("404: unknown transaction → not-found problem", async () => {
 		// Runtime a missing row yields undefined; the mock's inferred type doesn't.
-		getUserTransactionDetail.mock.mockImplementationOnce(
+		getTransactionDetail.mock.mockImplementationOnce(
 			async () => undefined as unknown as typeof DETAIL
 		);
 		const res = await app.inject({
@@ -176,7 +177,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		getUserTransactions.mock.mockImplementationOnce(async () => {
+		getTransactions.mock.mockImplementationOnce(async () => {
 			throw new Error("pg password=hunter2");
 		});
 		const res = await app.inject({ method: "GET", url: LIST_URL });

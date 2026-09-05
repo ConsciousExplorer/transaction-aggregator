@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import type { TransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
+import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
 import categoriesRoute from "./categories.route.ts";
 
@@ -14,7 +14,7 @@ const URL = `/api/v1/users/${USER_ID}/transactions/${TX_ID}/category`;
 // Typed off the real methods so drift in the select shapes breaks compilation.
 // D34: the detail row carries the effective categoryId; slugs are display-only.
 const ORIGINAL: Awaited<
-	ReturnType<TransactionRepository["getUserTransactionDetail"]>
+	ReturnType<UserTransactionRepository["getTransactionDetail"]>
 > = {
 	transactionId: TX_ID,
 	occurredAt: "2026-08-15T09:30:00.000Z",
@@ -28,30 +28,37 @@ const ORIGINAL: Awaited<
 };
 
 const OVERRIDE: NonNullable<
-	Awaited<ReturnType<TransactionRepository["upsertUserTransactionCategory"]>>
+	Awaited<ReturnType<UserTransactionRepository["setTransactionCategory"]>>
 > = {
 	userId: USER_ID,
 	transactionId: TX_ID,
 	occurredAt: "2026-08-15T09:30:00.000Z",
 	categoryId: 5,
 	createdAt: "2026-09-03T08:00:00.000Z",
-	updatedAt: "2026-09-03T08:00:00.000Z"
+	updatedAt: "2026-09-03T08:00:00.000Z",
+	archivedAt: null
 };
+
+const ARCHIVED: NonNullable<
+	Awaited<ReturnType<UserTransactionRepository["archiveTransactionCategory"]>>
+> = { ...OVERRIDE, archivedAt: "2026-09-05T08:00:00.000Z" };
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
 // a signature, this fake stops compiling. `dbClient` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
-const getUserTransactionDetail = mock.fn(async () => ORIGINAL);
-const upsertUserTransactionCategory = mock.fn(async () => OVERRIDE);
+const getTransactionDetail = mock.fn(async () => ORIGINAL);
+const setTransactionCategory = mock.fn(async () => OVERRIDE);
+const archiveTransactionCategory = mock.fn(async () => ARCHIVED);
 const transactionRepository = {
 	dbClient: {} as Pool,
-	getUserTransactions: mock.fn(async () => []),
-	getUserTransactionDetail,
-	upsertUserTransactionCategory
-} satisfies TransactionRepository;
+	getTransactions: mock.fn(async () => []),
+	getTransactionDetail,
+	setTransactionCategory,
+	archiveTransactionCategory
+} satisfies UserTransactionRepository;
 
 // ── Suite ────────────────────────────────────────────────────────────────────
-suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
+suite("PUT/DELETE /api/v1/users/:userId/transactions/:transactionId/category", () => {
 	let app: FastifyInstance;
 
 	before(async () => {
@@ -68,13 +75,15 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		await app.close();
 	});
 	beforeEach(() => {
-		getUserTransactionDetail.mock.resetCalls();
-		getUserTransactionDetail.mock.mockImplementation(async () => ORIGINAL);
-		upsertUserTransactionCategory.mock.resetCalls();
-		upsertUserTransactionCategory.mock.mockImplementation(async () => OVERRIDE);
+		getTransactionDetail.mock.resetCalls();
+		getTransactionDetail.mock.mockImplementation(async () => ORIGINAL);
+		setTransactionCategory.mock.resetCalls();
+		setTransactionCategory.mock.mockImplementation(async () => OVERRIDE);
+		archiveTransactionCategory.mock.resetCalls();
+		archiveTransactionCategory.mock.mockImplementation(async () => ARCHIVED);
 	});
 
-	test("200: upserts by id with the original occurredAt, reports isOverridden", async () => {
+	test("PUT 200: upserts by id with the original occurredAt, reports isOverridden", async () => {
 		const res = await app.inject({
 			method: "PUT",
 			url: URL,
@@ -89,7 +98,7 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		});
 		// The immutable occurredAt comes from the ownership read (D34: no resolve).
 		assert.deepStrictEqual(
-			upsertUserTransactionCategory.mock.calls[0]?.arguments.at(0),
+			setTransactionCategory.mock.calls[0]?.arguments.at(0),
 			{
 				userId: USER_ID,
 				transactionId: TX_ID,
@@ -99,8 +108,8 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		);
 	});
 
-	test("200: re-putting the current effective category → isOverridden false", async () => {
-		upsertUserTransactionCategory.mock.mockImplementationOnce(async () => ({
+	test("PUT 200: re-putting the current effective category → isOverridden false", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(async () => ({
 			...OVERRIDE,
 			categoryId: 1
 		}));
@@ -113,9 +122,9 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		assert.strictEqual(res.json().isOverridden, false);
 	});
 
-	test("400: unknown categoryId (FK violation → repo returns undefined)", async () => {
+	test("PUT 400: unknown categoryId (FK violation → repo returns undefined)", async () => {
 		// The repo maps a 23503 foreign-key violation to undefined (D34).
-		upsertUserTransactionCategory.mock.mockImplementationOnce(
+		setTransactionCategory.mock.mockImplementationOnce(
 			async () => undefined as unknown as typeof OVERRIDE
 		);
 		const res = await app.inject({
@@ -127,10 +136,10 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		assert.strictEqual(res.json().type, "validation-error");
 	});
 
-	test("404: transaction not owned/not found → not-found problem, nothing written", async () => {
+	test("PUT 404: transaction not owned/not found → not-found problem, nothing written", async () => {
 		// The repo types the `[result]` destructure as Row, but at runtime a
 		// missing row yields undefined — exactly what the route's guard handles.
-		getUserTransactionDetail.mock.mockImplementationOnce(
+		getTransactionDetail.mock.mockImplementationOnce(
 			async () => undefined as unknown as typeof ORIGINAL
 		);
 		const res = await app.inject({
@@ -140,11 +149,11 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		});
 		assert.strictEqual(res.statusCode, 404);
 		assert.strictEqual(res.json().type, "not-found");
-		assert.strictEqual(upsertUserTransactionCategory.mock.callCount(), 0);
+		assert.strictEqual(setTransactionCategory.mock.callCount(), 0);
 	});
 
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		upsertUserTransactionCategory.mock.mockImplementationOnce(async () => {
+	test("PUT repository failure → 500 problem+json with zero internals on the wire", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(async () => {
 			throw new Error("pg password=hunter2");
 		});
 		const res = await app.inject({
@@ -156,6 +165,35 @@ suite("PUT /api/v1/users/:userId/transactions/:transactionId/category", () => {
 		assert.ok(
 			String(res.headers["content-type"]).startsWith("application/problem+json")
 		);
+		assert.strictEqual(res.json().type, "internal");
+		assert.ok(!res.body.includes("hunter2"));
+	});
+
+	test("DELETE 204: archives by transactionId, no ownership probe, no body", async () => {
+		const res = await app.inject({ method: "DELETE", url: URL });
+		assert.strictEqual(res.statusCode, 204);
+		assert.strictEqual(res.body, "");
+		assert.deepStrictEqual(
+			archiveTransactionCategory.mock.calls[0]?.arguments,
+			[USER_ID, TX_ID]
+		);
+	});
+
+	test("DELETE 204: idempotent — nothing to archive is still success", async () => {
+		// Zero-row update: the repo's [result] destructure yields undefined.
+		archiveTransactionCategory.mock.mockImplementationOnce(
+			async () => undefined as unknown as typeof ARCHIVED
+		);
+		const res = await app.inject({ method: "DELETE", url: URL });
+		assert.strictEqual(res.statusCode, 204);
+	});
+
+	test("DELETE repository failure → 500 problem+json with zero internals on the wire", async () => {
+		archiveTransactionCategory.mock.mockImplementationOnce(async () => {
+			throw new Error("pg password=hunter2");
+		});
+		const res = await app.inject({ method: "DELETE", url: URL });
+		assert.strictEqual(res.statusCode, 500);
 		assert.strictEqual(res.json().type, "internal");
 		assert.ok(!res.body.includes("hunter2"));
 	});

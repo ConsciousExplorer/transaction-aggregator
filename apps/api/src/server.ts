@@ -14,7 +14,7 @@ import { type Logger, pino } from "pino";
 import type { AppInfoConfig } from "./config.ts";
 import type { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
-import type { TransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
+import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 import { problemJson } from "./plugins/problem-json.ts";
 import { swaggerPlugin } from "./plugins/swagger.ts";
 
@@ -24,7 +24,7 @@ export type BuildServerOptions = {
 	logger?: Logger;
 	database?: Pool;
 	categoryRepository?: CategoryRepository;
-	transactionRepository?: TransactionRepository;
+	transactionRepository?: UserTransactionRepository;
 	summaryRepository?: SummaryRepository;
 	autoLoadParameters?: AutoloadPluginOptions;
 };

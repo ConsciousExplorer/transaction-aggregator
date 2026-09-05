@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
-import type { TransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
+import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { notFound, validationError } from "#src/problems.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 
@@ -15,11 +15,12 @@ const responseSchema = z.object({
 	updatedAt: z.iso.datetime()
 });
 
-
 export default async (
 	fastify: FastifyInstance,
+	// Narrowed slice of RouteOptions: this route declares it only knows about
+	// the transaction repository — and tests can register it with exactly this.
 	opts: {
-		transactionRepository: TransactionRepository;
+		transactionRepository: UserTransactionRepository;
 	}
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
@@ -43,14 +44,15 @@ export default async (
 
 			// Ownership check + the immutable occurredAt the override key needs.
 			const originalTransaction =
-				await opts.transactionRepository.getUserTransactionDetail({
+				await opts.transactionRepository.getTransactionDetail({
 					userId,
 					transactionId
 				});
 			if (!originalTransaction) throw notFound();
 
+			// D34: undefined = FK violation = the id is not in the taxonomy.
 			const overrideTransaction =
-				await opts.transactionRepository.upsertUserTransactionCategory({
+				await opts.transactionRepository.setTransactionCategory({
 					userId,
 					transactionId,
 					occurredAt: originalTransaction.occurredAt,
@@ -64,10 +66,34 @@ export default async (
 			return reply.send({
 				transactionId: overrideTransaction.transactionId,
 				categoryId: overrideTransaction.categoryId,
-				// Compared against the previous EFFECTIVE category id.
 				isOverridden: originalTransaction.categoryId !== categoryId,
 				updatedAt: new Date(overrideTransaction.updatedAt).toISOString()
 			});
+		}
+	});
+
+	fastify.withTypeProvider<ZodTypeProvider>().route({
+		method: "DELETE",
+		url: "/:transactionId/category",
+		schema: {
+			tags: ["transactions"],
+			hide: false,
+			params: paramsSchema,
+			response: {
+				204: z.undefined(),
+				400: problemSchema,
+				500: problemSchema
+			}
+		},
+		handler: async (request, reply) => {
+			const { userId, transactionId } = request.params;
+
+			await opts.transactionRepository.archiveTransactionCategory(
+				userId,
+				transactionId
+			);
+
+			return reply.code(204).send(undefined);
 		}
 	});
 };

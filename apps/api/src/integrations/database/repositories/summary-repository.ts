@@ -4,6 +4,7 @@ import {
 	eq,
 	gte,
 	inArray,
+	isNull,
 	lt,
 	lte,
 	type SQL,
@@ -126,14 +127,16 @@ export class SummaryRepository {
 						userTransactionOverrides.transactionId,
 						transactions.transactionId
 					),
-					eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+					eq(userTransactionOverrides.occurredAt, transactions.occurredAt),
+					isNull(userTransactionOverrides.archivedAt)
 				)
 			)
 			.leftJoin(
 				userCategoryOverrides,
 				and(
 					eq(userCategoryOverrides.userId, transactions.userId),
-					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId)
+					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId),
+					isNull(userCategoryOverrides.archivedAt)
 				)
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))

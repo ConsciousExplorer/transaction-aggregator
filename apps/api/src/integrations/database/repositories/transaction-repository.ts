@@ -21,7 +21,8 @@ import {
 } from "../schemas/partitioned.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 
-export const userTransactionFilter = z.object({
+// Filters/params for GET .../transactions (list + query string).
+export const listTransactionsFilterSchema = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
@@ -38,34 +39,38 @@ export const userTransactionFilter = z.object({
 	limit: z.number().int().min(1).max(100).default(50)
 });
 
-export const userTransactionUpdateDetail = z.object({
+// Params for GET .../transactions/:transactionId (single-row lookup).
+export const transactionDetailFilterSchema = z.object({
+	userId: z.string(),
+	transactionId: z.string()
+});
+
+// Body for PUT .../transactions/:transactionId/category
+export const setTransactionCategorySchema = z.object({
 	userId: z.string(),
 	transactionId: z.string(),
 	occurredAt: z.iso.datetime(),
 	categoryId: z.number().int()
 });
 
-export const userTransactionDetailFilter = z.object({
-	userId: z.string(),
-	transactionId: z.string()
-});
-
-export type UserTransactionFilter = z.infer<typeof userTransactionFilter>;
-export type UserTransactionDetailFilter = z.infer<
-	typeof userTransactionDetailFilter
+export type ListTransactionsFilter = z.infer<
+	typeof listTransactionsFilterSchema
 >;
-export type UserTransactionUpdateDetail = z.infer<
-	typeof userTransactionUpdateDetail
+export type TransactionDetailFilter = z.infer<
+	typeof transactionDetailFilterSchema
+>;
+export type SetTransactionCategory = z.infer<
+	typeof setTransactionCategorySchema
 >;
 
-export class TransactionRepository {
+export class UserTransactionRepository {
 	dbClient: NodePgClient;
 
 	constructor({ database }: AppCradle) {
 		this.dbClient = database;
 	}
 
-	async getUserTransactions(filter: UserTransactionFilter) {
+	async getTransactions(filter: ListTransactionsFilter) {
 		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 		const categoryValues =
 			filter.category === undefined
@@ -122,7 +127,8 @@ export class TransactionRepository {
 						userTransactionOverrides.transactionId,
 						transactions.transactionId
 					),
-					eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+					eq(userTransactionOverrides.occurredAt, transactions.occurredAt),
+					isNull(userTransactionOverrides.archivedAt)
 				)
 			)
 			.leftJoin(
@@ -141,7 +147,7 @@ export class TransactionRepository {
 		return result;
 	}
 
-	async getUserTransactionDetail(filter: UserTransactionDetailFilter) {
+	async getTransactionDetail(filter: TransactionDetailFilter) {
 		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
 		const [result] = await drizzle(this.dbClient)
@@ -152,8 +158,8 @@ export class TransactionRepository {
 				direction: transactions.direction,
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
-				categoryId: effectiveCategoryId, 
-				category: categories.category, 
+				categoryId: effectiveCategoryId,
+				category: categories.category,
 				merchantName: transactions.merchantName
 			})
 			.from(transactions)
@@ -164,7 +170,8 @@ export class TransactionRepository {
 						userTransactionOverrides.transactionId,
 						transactions.transactionId
 					),
-					eq(userTransactionOverrides.occurredAt, transactions.occurredAt)
+					eq(userTransactionOverrides.occurredAt, transactions.occurredAt),
+					isNull(userTransactionOverrides.archivedAt)
 				)
 			)
 			.leftJoin(
@@ -186,9 +193,7 @@ export class TransactionRepository {
 		return result;
 	}
 
-	async upsertUserTransactionCategory(
-		transaction: UserTransactionUpdateDetail
-	) {
+	async setTransactionCategory(transaction: SetTransactionCategory) {
 		try {
 			const [result] = await drizzle(this.dbClient)
 				.insert(userTransactionOverrides)
@@ -199,23 +204,44 @@ export class TransactionRepository {
 					categoryId: transaction.categoryId
 				})
 				.onConflictDoUpdate({
-					// The LIVE table's PK — (transaction_id, occurred_at). The drizzle
-					// schema declares (user_id, transaction_id, occurred_at); until the
-					// schema/migration is reconciled, the DB is the authority here.
 					target: [
 						userTransactionOverrides.transactionId,
 						userTransactionOverrides.occurredAt
 					],
-					set: { categoryId: transaction.categoryId, updatedAt: sql`now()` }
+					set: {
+						categoryId: transaction.categoryId,
+						updatedAt: sql`now()`,
+						archivedAt: null
+					}
 				})
 				.returning();
 
 			return result;
 		} catch (error) {
-			// D34: unknown categoryId trips the FK constraint — undefined tells
-			// the route "bad id" so it can answer 400 instead of 500.
 			if (isForeignKeyViolation(error)) return undefined;
 			throw error;
 		}
+	}
+
+	/**
+	 * Archive (soft-delete) the per-transaction override — the row is kept,
+	 * reads filter it out (D33). Idempotent: archiving a missing or
+	 * already-archived override updates zero rows and returns undefined,
+	 * which the route treats as success (204).
+	 */
+	async archiveTransactionCategory(userId: string, transactionId: string) {
+		const [result] = await drizzle(this.dbClient)
+			.update(userTransactionOverrides)
+			.set({ archivedAt: sql`now()` })
+			.where(
+				and(
+					eq(userTransactionOverrides.userId, userId),
+					eq(userTransactionOverrides.transactionId, transactionId),
+					isNull(userTransactionOverrides.archivedAt)
+				)
+			)
+			.returning();
+
+		return result;
 	}
 }

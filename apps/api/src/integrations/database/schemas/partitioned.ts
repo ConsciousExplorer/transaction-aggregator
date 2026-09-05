@@ -40,7 +40,7 @@ export const transactions = pgTable(
 			.notNull(),
 		metadata: jsonb()
 	},
-	(t) => [primaryKey({ columns: [t.occurredAt, t.transactionId] })] // match your real PK
+	(t) => [primaryKey({ columns: [t.occurredAt, t.transactionId] })]
 );
 
 export const userTransactionOverrides = pgTable(
@@ -58,7 +58,8 @@ export const userTransactionOverrides = pgTable(
 			.notNull(),
 		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
 			.defaultNow()
-			.notNull()
+			.notNull(),
+		archivedAt: timestamp("archived_at", { withTimezone: true, mode: "string" })
 	},
-	(t) => [primaryKey({ columns: [t.userId, t.transactionId, t.occurredAt] })] // match your real PK
+	(t) => [primaryKey({ columns: [t.transactionId, t.occurredAt] })]
 );

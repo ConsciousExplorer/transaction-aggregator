@@ -6,7 +6,7 @@ import { createPool } from "#src/integrations/database/pool.ts";
 import { appInfo, baseLogger, config, secrets } from "#src/runtime.ts";
 import { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
-import { TransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
+import { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 
 // Define what the repositories contain
 
@@ -16,7 +16,7 @@ export type AppCradle = {
 	logger: Logger;
 	database: Pool;
 	categoryRepository: CategoryRepository;
-	transactionRepository: TransactionRepository;
+	transactionRepository: UserTransactionRepository;
 	summaryRepository: SummaryRepository;
 };
 
@@ -33,7 +33,7 @@ export async function buildContainer() {
 
 		categoryRepository: asClass(CategoryRepository),
 
-		transactionRepository: asClass(TransactionRepository),
+		transactionRepository: asClass(UserTransactionRepository),
 
 		summaryRepository: asClass(SummaryRepository),
 

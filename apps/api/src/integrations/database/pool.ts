@@ -10,6 +10,7 @@ export function createPool(config: PoolConfig, logger: Logger) {
 		max: 20,
 		idleTimeoutMillis: 30_000,
 		connectionTimeoutMillis: 10_000,
+		statement_timeout: 5_000,
 		...config
 	});
 
@@ -33,8 +34,7 @@ export function createPool(config: PoolConfig, logger: Logger) {
 	return pool;
 }
 
-// TODO: Move to errors
-export function isForeignKeyViolation(error: unknown): boolean {
+export function isForeignKeyViolation(error: unknown) {
 	let current = error;
 	while (typeof current === "object" && current !== null) {
 		if ((current as { code?: unknown }).code === "23503") return true;

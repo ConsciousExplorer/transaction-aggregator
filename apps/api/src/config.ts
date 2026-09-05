@@ -25,12 +25,12 @@ const configSchema = z
 		DATABASE_HOST: z.string().default("localhost"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
 		DATABASE_NAME: z.string().default("txn_agg"),
-		DATABASE_USER: z.string().default("api_reader"), // SELECT-only login — proven by reader-role.test.ts
+		DATABASE_USER: z.string().default("api_write"),
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
-		AUTH_JWT_SECRET_NAME: z.string().default("jwt_secret"), // file in SECRET_DIR
+		AUTH_JWT_SECRET_NAME: z.string().default("jwt_secret"),
 		AUTH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
 		AUTH_AUDIENCE: z.string().default("txn-api"),
 		AUTH_CLIENTS_FILE: z.string().default("./config/clients.json"),
