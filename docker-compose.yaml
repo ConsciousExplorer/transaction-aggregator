@@ -622,23 +622,36 @@ services:
       OTEL_TRACES_SAMPLER: always_on
     networks: [txn-network]
 
-  # api:
-  #   build: { context: ./apps/api }
-  #   container_name: api
-  #   depends_on:
-  #     migrate: { condition: service_completed_successfully }
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     READER_DSN: postgres://api_role:api@postgres:5432/postgres
-  #     JWT_SECRET: dev-secret-change-me
-  #     KAFKA_BROKERS: kafka1:9094 # admin stats (lag, DLQ depth)
-  #     KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-  #     KAFKA_SASL_USERNAME: app-worker
-  #     KAFKA_SASL_PASSWORD: app-worker-secret
-  #     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-  #     OTEL_TRACES_SAMPLER: always_on
-  #   networks: [txn-network]
+  api:
+    build: { context: ./apps/api }
+    pull_policy: build
+    container_name: api
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./secrets:/secrets:ro
+    environment:
+      NODE_ENV: 'production'
+      HTTP_PORT: 8083
+      ENABLE_SWAGGER: true
+      LOG_LEVEL: 'debug'
+      LOG_PRETTY: 'true'
+
+      SECRET_DIR: "/secrets"
+
+      # Postgres configuration
+      DATABASE_HOST: postgres
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 3
+      DATABASE_USER: "api_write"
+
+      DATABASE_PASSWORD_SECRET_NAME: "api_write_password"
+      AUTH_JWT_SECRET_NAME: "jwt_secret"
+    networks: [txn-network]
 
   # ─────────────────────── Optional: cache profile ───────────────────────
   redis:
@@ -767,9 +780,9 @@ services:
     pull_policy: build
     container_name: avro-datagen-ui
     environment:
-      PORT: "6500" # compose owns the port; the image hardcodes nothing
+      PORT: "8085" # compose owns the port; the image hardcodes nothing
     ports:
-      - "6500:6500"
+      - "8085:8085"
     volumes:
       - ./schemas/:/schemas:ro
     networks: [txn-network]
