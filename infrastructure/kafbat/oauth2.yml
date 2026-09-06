@@ -1,0 +1,20 @@
+
+# infrastructure/keycloak/txn-realm.json ("groups").
+auth:
+  oauth2:
+    client:
+      keycloak:
+        clientId: kafbat-ui
+        clientSecret: kafbat-ui-secret
+        scope: openid,profile,email,groups
+        authorization-uri: http://localhost:8086/realms/txn-api/protocol/openid-connect/auth
+        token-uri: http://keycloak:8080/realms/txn-api/protocol/openid-connect/token
+        user-info-uri: http://keycloak:8080/realms/txn-api/protocol/openid-connect/userinfo
+        jwk-set-uri: http://keycloak:8080/realms/txn-api/protocol/openid-connect/certs
+        authorization-grant-type: authorization_code
+        redirect-uri: http://localhost:8080/login/oauth2/code/keycloak
+        user-name-attribute: preferred_username
+        provider: keycloak
+        custom-params:
+          type: oauth
+          roles-field: groups

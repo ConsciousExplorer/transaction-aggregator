@@ -699,32 +699,6 @@ services:
       - ./infrastructure/obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks: [txn-network]
 
-  # ──────────────────────── Optional: ui profile ─────────────────────────
-  # Tiny LDAP directory backing kafbat-ui logins. kafbat has no static
-  # multi-user store (auth.type supports only DISABLED/LOGIN_FORM/LDAP/OAUTH2,
-  # and LOGIN_FORM is single-user), so multiple UI users require LDAP or OAuth.
-  # Users/groups seeded from infrastructure/ldap/users.ldif:
-  #   admin/admin   (group: admins  → full UI access)
-  #   viewer/viewer (group: viewers → read-only UI access)
-  ldap:
-    profiles: ["ui"]
-    image: osixia/openldap:1.5.0
-    container_name: ldap
-    command: ["--copy-service"]
-    environment:
-      LDAP_ORGANISATION: Transaction Aggregator
-      LDAP_DOMAIN: txn.local
-      LDAP_ADMIN_PASSWORD: admin-ldap
-    volumes:
-      - ./infrastructure/ldap/users.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/users.ldif:ro
-    healthcheck:
-      test: ldapsearch -x -H ldap://localhost -D cn=admin,dc=txn,dc=local -w admin-ldap -b dc=txn,dc=local -s base > /dev/null
-      start_period: 15s
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks: [txn-network]
-
   kafbat-ui:
     profiles: ["ui"]
     image: ghcr.io/kafbat/kafka-ui:v1.5.0
@@ -737,36 +711,20 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:29092
       KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
 
-      # 2. Authentication against the ldap sidecar.
-      #    OAUTH2_LDAP_ACTIVEDIRECTORY must be explicitly "false": kafbat's LDAP
-      #    authenticator bean is @ConditionalOnProperty(havingValue = "false")
-      #    with no matchIfMissing — omit it and the UI crashes on startup with
-      #    "An LdapAuthenticator must be supplied".
-      AUTH_TYPE: LDAP
-      OAUTH2_LDAP_ACTIVEDIRECTORY: "false"
-      SPRING_LDAP_URLS: ldap://ldap:389
-      SPRING_LDAP_BASE: uid={0},ou=people,dc=txn,dc=local
-      SPRING_LDAP_ADMIN_USER: cn=admin,dc=txn,dc=local
-      SPRING_LDAP_ADMIN_PASSWORD: admin-ldap
-      SPRING_LDAP_USER_FILTER_SEARCH_BASE: ou=people,dc=txn,dc=local
-      SPRING_LDAP_USER_FILTER_SEARCH_FILTER: "(&(uid={0})(objectClass=inetOrgPerson))"
-      SPRING_LDAP_GROUP_FILTER_SEARCH_BASE: ou=groups,dc=txn,dc=local
+      # 2. Auth against Keycloak (OIDC/OAuth2)
+      AUTH_TYPE: OAUTH2
 
-      # 3. RBAC: LDAP group → UI permissions, defined in infrastructure/kafbat/rbac.yml
-      #    (admins = full access incl. topic create; viewers = read-only)
-      SPRING_CONFIG_ADDITIONAL_LOCATION: /etc/kafkaui/rbac.yml
+      # 3. RBAC: Keycloak groups -> Kafbat roles mapping (see rbac.yml + oauth2.yml).
+      SPRING_CONFIG_ADDITIONAL_LOCATION: /etc/kafkaui/rbac.yml,/etc/kafkaui/oauth2.yml
 
-      # 4. Session lifetime: Spring WebFlux defaults to a 30-minute idle timeout,
-      #    which forces constant re-logins. 12h ≈ one working day. Cookie max-age
-      #    matches so the login also survives a browser restart. Sessions are
-      #    in-memory — recreating the container still logs everyone out.
       SERVER_REACTIVE_SESSION_TIMEOUT: 12h
       SERVER_REACTIVE_SESSION_COOKIE_MAX_AGE: 12h
     volumes:
       - ./infrastructure/kafbat/rbac.yml:/etc/kafkaui/rbac.yml:ro
+      - ./infrastructure/kafbat/oauth2.yml:/etc/kafkaui/oauth2.yml:ro
     depends_on:
       kafka1: { condition: service_healthy }
-      ldap: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
     networks: [txn-network]
 
   # Schema sample preview: avro-datagen's Streamlit UI over /schemas — generate
@@ -785,6 +743,47 @@ services:
       - "8085:8085"
     volumes:
       - ./schemas/:/schemas:ro
+    networks: [txn-network]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    profiles: ["ui"]
+    container_name: keycloak_server
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    # --import-realm loads every realm-export JSON under /opt/keycloak/data/import/
+    command: start-dev --import-realm
+    volumes:
+      - ./infrastructure/keycloak/txn-api-realm.json:/opt/keycloak/data/import/txn-api-realm.json:ro
+    environment:
+      # Database Configuration
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password
+      
+      # Initial Admin User Credentials
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      
+      # Dev Features
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+
+      KC_HOSTNAME: http://localhost:8086
+    ports:
+      - "8086:8080"
+    # KC_HEALTH_ENABLED exposes /health/ready on the management port (9000 by
+    # default, separate listener from the main 8080 HTTP port) — kafbat-ui's
+    # depends_on: {condition: service_healthy} needs this to exist at all.
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q 'UP' <&3"]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 12
     networks: [txn-network]
 
 networks:

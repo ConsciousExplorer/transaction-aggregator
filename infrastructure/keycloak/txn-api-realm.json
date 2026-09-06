@@ -1,0 +1,197 @@
+{
+	"realm": "txn-api",
+	"enabled": true,
+	"accessTokenLifespan": 900,
+
+    "roles": {
+        "realm": [
+                { "name": "admins", "description": "Full kafbat-ui access" },
+                { "name": "viewers", "description": "Read-only kafbat-ui access" }
+            ]
+    },
+
+    "users": [
+            {
+                "username": "kafka-admin",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "kafka-admin@txn.local",
+                "firstName": "Kafka",
+                "lastName": "Admin",
+                "credentials": [{ "type": "password", "value": "kafka-password", "temporary": false }],
+                "realmRoles": ["admins"]
+            },
+            {
+                "username": "kafka-viewer",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "kafka-viewer@txn.local",
+                "firstName": "Kafka",
+                "lastName": "Viewer",
+                "credentials": [{ "type": "password", "value": "kafka-password", "temporary": false }],
+                "realmRoles": ["viewers"]
+            }
+    ],
+
+	"clientScopes": [
+		{
+			"name": "tx:read",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "tx:read scope mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-client-role-mapper",
+					"config": {
+						"include.in.token.scope": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "tx:write",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "tx:write scope mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-client-role-mapper",
+					"config": {
+						"include.in.token.scope": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "ops",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "ops scope mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-client-role-mapper",
+					"config": {
+						"include.in.token.scope": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "groups",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "realm-roles-as-groups",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-realm-role-mapper",
+					"config": {
+						"multivalued": "true",
+						"claim.name": "groups",
+						"id.token.claim": "true",
+						"access.token.claim": "true",
+						"userinfo.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "profile",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "username",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-property-mapper",
+					"config": {
+						"user.attribute": "username",
+						"claim.name": "preferred_username",
+						"id.token.claim": "true",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "email",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "email",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-property-mapper",
+					"config": {
+						"user.attribute": "email",
+						"claim.name": "email",
+						"id.token.claim": "true",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "roles",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "realm roles",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-realm-role-mapper",
+					"config": {
+						"claim.name": "realm_access.roles",
+						"multivalued": "true",
+						"id.token.claim": "true",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		}
+	],
+
+	"clients": [
+		{
+			"clientId": "banking-portal",
+            "name": "banking-portal",
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"serviceAccountsEnabled": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"secret": "banking-portal-secret",
+			"defaultClientScopes": ["tx:read", "tx:write"]
+		},
+		{
+			"clientId": "banking-service",
+            "name": "banking-service",
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"serviceAccountsEnabled": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"secret": "banking-service-secret",
+			"defaultClientScopes": ["tx:read"]
+		},
+		{
+			"clientId": "ops-console",
+            "name": "ops-console",
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"serviceAccountsEnabled": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"secret": "ops-console-secret",
+			"defaultClientScopes": ["ops"]
+		},
+        {
+            "clientId": "kafbat-ui",
+            "protocol": "openid-connect",
+            "publicClient": false,
+            "standardFlowEnabled": true,
+            "serviceAccountsEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "secret": "kafbat-ui-secret",
+            "redirectUris": ["http://localhost:8080/login/oauth2/code/keycloak"],
+            "defaultClientScopes": ["profile", "email", "roles", "groups"]
+        }
+
+	]
+}
