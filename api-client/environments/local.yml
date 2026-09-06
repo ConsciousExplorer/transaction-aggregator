@@ -6,3 +6,6 @@ variables:
   - name: api
     value: localhost:8083
     description: ""
+  - name: idp
+    value: localhost:8086
+    description: ""
