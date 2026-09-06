@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Config } from "#src/config.ts";
 
-export type Secrets = Readonly<{ databasePassword: string; jwtSecret: string }>;
+export type Secrets = Readonly<
+	Record<keyof Config["secretsSpec"]["secrets"], string>
+>;
 
 export function readSecretFromFile(dir: string, fileName: string): string {
 	const path = join(dir, fileName);
@@ -16,8 +18,9 @@ export function readSecretFromFile(dir: string, fileName: string): string {
 }
 
 export function loadSecrets(spec: Config["secretsSpec"]): Secrets {
-	return Object.freeze({
-		databasePassword: readSecretFromFile(spec.dir, spec.databasePasswordFile),
-		jwtSecret: readSecretFromFile(spec.dir, spec.jwtSecretFile)
-	});
+	const secrets = {} as Record<string, string>;
+	for (const [name, fileName] of Object.entries(spec.secrets)) {
+		secrets[name] = readSecretFromFile(spec.dir, fileName);
+	}
+	return Object.freeze(secrets) as Secrets;
 }

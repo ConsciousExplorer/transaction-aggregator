@@ -8,7 +8,6 @@ export default fastifyPlugin<{
 	appInfo: AppInfoConfig;
 	enableSwagger?: boolean;
 }>(async (server, opts) => {
-	console.log("Swagger plugin loaded with options:", opts);
 	if (!opts.enableSwagger) return;
 	await server.register(swagger, {
 		transform: jsonSchemaTransform,

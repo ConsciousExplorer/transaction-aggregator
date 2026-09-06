@@ -31,10 +31,17 @@ const configSchema = z
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
-		AUTH_JWT_SECRET_NAME: z.string().default("jwt_secret"),
-		AUTH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
-		AUTH_AUDIENCE: z.string().default("txn-api"),
-		AUTH_CLIENTS_FILE: z.string().default("./config/clients.json"),
+		AUTH_JWKS_URI: z
+			.url()
+			.optional()
+			.default(
+				"http://keycloak:8080/realms/txn-api/protocol/openid-connect/certs"
+			),
+		AUTH_ISSUER: z
+			.url()
+			.optional()
+			.default("http://keycloak:8080/realms/txn-api"),
+		AUTH_AUDIENCE: z.string().optional().default("txn-api"),
 
 		RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100) // per client, per minute
 	})
@@ -62,16 +69,17 @@ const configSchema = z
 				max: e.DATABASE_POOL_MAX
 			}),
 			auth: Object.freeze({
-				ttlSeconds: e.AUTH_TOKEN_TTL_SECONDS,
-				audience: e.AUTH_AUDIENCE,
-				clientsFile: e.AUTH_CLIENTS_FILE
+				jwksUri: e.AUTH_JWKS_URI,
+				issuer: e.AUTH_ISSUER,
+				audience: e.AUTH_AUDIENCE
 			}),
 			rateLimit: Object.freeze({ max: e.RATE_LIMIT_MAX }),
 			secretsSpec: Object.freeze({
 				// Where the secrets are
 				dir: e.SECRET_DIR,
-				databasePasswordFile: e.DATABASE_PASSWORD_SECRET_NAME,
-				jwtSecretFile: e.AUTH_JWT_SECRET_NAME
+				secrets: Object.freeze({
+					databasePassword: e.DATABASE_PASSWORD_SECRET_NAME
+				})
 			})
 		})
 	);
