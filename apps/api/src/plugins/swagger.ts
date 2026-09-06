@@ -4,20 +4,22 @@ import { jsonSchemaTransform } from "@fastify/type-provider-zod";
 import { fastifyPlugin } from "fastify-plugin";
 import type { AppInfoConfig } from "#src/config.ts";
 
-export default fastifyPlugin<{ appInfo: AppInfoConfig }>(
-	async (server, opts) => {
-		await server.register(swagger, {
-			transform: jsonSchemaTransform,
-			openapi: {
-				info: {
-					title: opts.appInfo.name,
-					version: opts.appInfo.version
-				}
+export default fastifyPlugin<{
+	appInfo: AppInfoConfig;
+	enableSwagger?: boolean;
+}>(async (server, opts) => {
+	if (!opts.enableSwagger) return;
+	await server.register(swagger, {
+		transform: jsonSchemaTransform,
+		openapi: {
+			info: {
+				title: opts.appInfo.name,
+				version: opts.appInfo.version
 			}
-		});
+		}
+	});
 
-		await server.register(swaggerUi, {
-			routePrefix: "/docs"
-		});
-	}
-);
+	await server.register(swaggerUi, {
+		routePrefix: "/docs"
+	});
+});

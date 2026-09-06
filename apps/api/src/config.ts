@@ -13,10 +13,11 @@ const configSchema = z
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
-		APP_NAME: z.string().default("txn-api"),
 		HOST: z.string().default("0.0.0.0"),
 		HTTP_PORT: z.coerce.number().int().positive().default(3000),
 		SECRET_DIR: z.string().default("/secrets"),
+
+		ENABLE_SWAGGER: z.coerce.boolean().default(false),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
 		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
@@ -41,10 +42,11 @@ const configSchema = z
 		Object.freeze({
 			app: Object.freeze({
 				env: e.NODE_ENV,
-				name: e.APP_NAME,
 				host: e.HOST,
-				port: e.HTTP_PORT,
-				isProduction: e.NODE_ENV === "production"
+				port: e.HTTP_PORT
+			}),
+			api: Object.freeze({
+				enableSwagger: e.ENABLE_SWAGGER
 			}),
 			logging: Object.freeze({
 				level: e.LOG_LEVEL,

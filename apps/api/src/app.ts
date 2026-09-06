@@ -24,7 +24,7 @@ const server: FastifyInstance = buildServer({
 	summaryRepository: summaryRepository,
 	pluginAutoLoadParameters: {
 		dir: join(import.meta.dirname, "plugins"),
-		routeParams: true
+		enableSwagger: config.api.enableSwagger
 	},
 	routeAutoLoadParameters: {
 		dir: join(import.meta.dirname, "routes"),
