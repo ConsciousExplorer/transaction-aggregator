@@ -15,6 +15,8 @@ const {
 	summaryRepository
 } = container.cradle;
 
+console.log("config", config);
+
 const server: FastifyInstance = buildServer({
 	appInfo: appInfo,
 	logger: logger,

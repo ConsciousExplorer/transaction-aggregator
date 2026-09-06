@@ -17,7 +17,7 @@ const configSchema = z
 		HTTP_PORT: z.coerce.number().int().positive().default(3000),
 		SECRET_DIR: z.string().default("/secrets"),
 
-		ENABLE_SWAGGER: z.coerce.boolean().default(false),
+		ENABLE_SWAGGER: z.stringbool().default(false),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
 		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
