@@ -11,9 +11,6 @@ const categorySchema = z.object({
 	label: z.string()
 });
 
-/**
- * A basic info route
- */
 export default async (
 	fastify: FastifyInstance,
 	opts: { categoryRepository: CategoryRepository }

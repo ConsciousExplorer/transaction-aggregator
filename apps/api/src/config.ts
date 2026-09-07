@@ -75,7 +75,6 @@ const configSchema = z
 			}),
 			rateLimit: Object.freeze({ max: e.RATE_LIMIT_MAX }),
 			secretsSpec: Object.freeze({
-				// Where the secrets are
 				dir: e.SECRET_DIR,
 				secrets: Object.freeze({
 					databasePassword: e.DATABASE_PASSWORD_SECRET_NAME

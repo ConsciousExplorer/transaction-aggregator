@@ -80,19 +80,31 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
 	// Setting error handlers
 	server.setErrorHandler((err: FastifyError, req, reply) => {
-		if (err instanceof Problem) return send(reply, err);
-		if (hasZodFastifySchemaValidationErrors(err))
-			return send(reply, validationError(err.validation));
+		const log = req.log.child({ method: req.method, url: req.url });
+
+		if (err instanceof Problem) {
+			if (err.payload.status >= 500) {
+				log.error({ problem: err.payload }, "problem");
+			} else {
+				log.warn({ problem: err.payload }, "problem");
+			}
+			return send(reply, err);
+		}
+		if (hasZodFastifySchemaValidationErrors(err)) {
+			const problem = validationError(err.validation);
+			log.warn({ problem: problem.payload }, "problem");
+			return send(reply, problem);
+		}
 		if (isResponseSerializationError(err)) {
-			req.log.error({ err }, "response schema violation");
+			log.error({ err }, "response schema violation");
 			return send(reply, internal(req.id));
 		}
 		const status = err.statusCode;
 		if (typeof status === "number" && status >= 400 && status < 500) {
-			req.log.warn({ err }, "client error");
+			log.warn({ err }, "client error");
 			return send(reply, fromStatus(status, err.message));
 		}
-		req.log.error({ err }, "unhandled");
+		log.error({ err }, "unhandled");
 		return send(reply, internal(req.id));
 	});
 
