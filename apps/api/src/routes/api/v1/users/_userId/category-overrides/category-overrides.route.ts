@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
-import { validationError } from "#src/errors/problems.ts";
+import { validationError } from "#src/errors/http-problem.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 

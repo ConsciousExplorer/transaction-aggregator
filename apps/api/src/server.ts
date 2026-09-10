@@ -18,11 +18,11 @@ import { type Logger, pino } from "pino";
 import type { AppInfoConfig } from "./config.ts";
 import {
 	fromStatus,
+	HttpProblem,
 	internal,
 	notFound,
-	Problem,
 	validationError
-} from "./errors/problems.ts";
+} from "./errors/http-problem.ts";
 import type { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
@@ -82,7 +82,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	server.setErrorHandler((err: FastifyError, req, reply) => {
 		const log = req.log.child({ method: req.method, url: req.url });
 
-		if (err instanceof Problem) {
+		if (err instanceof HttpProblem) {
 			if (err.payload.status >= 500) {
 				log.error({ problem: err.payload }, "problem");
 			} else {
@@ -146,10 +146,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	return server;
 }
 
-function send(reply: FastifyReply, p: Problem) {
-	if (p.payload.retryAfter) reply.header("retry-after", p.payload.retryAfter);
+function send(reply: FastifyReply, problem: HttpProblem) {
+	if (problem.payload.retryAfter)
+		reply.header("retry-after", problem.payload.retryAfter);
 	return reply
-		.code(p.payload.status)
+		.code(problem.payload.status)
 		.type("application/problem+json")
-		.send(p.payload);
+		.send(problem.payload);
 }

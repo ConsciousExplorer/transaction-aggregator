@@ -7,9 +7,9 @@ import type { AppInfoConfig } from "#src/config.ts";
 export default fastifyPlugin<{
 	appInfo: AppInfoConfig;
 	enableSwagger?: boolean;
-}>(async (server, opts) => {
+}>(async (fastify, opts) => {
 	if (!opts.enableSwagger) return;
-	await server.register(swagger, {
+	await fastify.register(swagger, {
 		transform: jsonSchemaTransform,
 		openapi: {
 			info: {
@@ -19,7 +19,7 @@ export default fastifyPlugin<{
 		}
 	});
 
-	await server.register(swaggerUi, {
+	await fastify.register(swaggerUi, {
 		routePrefix: "/docs"
 	});
 });

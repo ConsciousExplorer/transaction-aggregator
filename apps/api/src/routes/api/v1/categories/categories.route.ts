@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
-import { notFound } from "#src/errors/problems.ts";
+import { notFound } from "#src/errors/http-problem.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 
@@ -16,6 +16,7 @@ export default async (
 	opts: { categoryRepository: CategoryRepository }
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
+		config: { public: true },
 		method: "GET",
 		url: "",
 		schema: {
