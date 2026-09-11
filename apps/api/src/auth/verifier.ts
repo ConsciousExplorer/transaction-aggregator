@@ -7,6 +7,12 @@ import {
 import z from "zod";
 import { InvalidClaimsError, mapJoseError } from "#src/errors/auth-errors.ts";
 
+export interface AuthConfig {
+	jwksUri: string;
+	issuer: string;
+	audience: string;
+}
+
 // Always use zod to parse external data entering our system.
 // Data structure and recommended claims
 // https://datatracker.ietf.org/doc/html/rfc9068#name-data-structure
@@ -28,22 +34,28 @@ export function parseClaims(payload: JWTPayload): VerifiedClaims {
 	return result.data;
 }
 
+export interface TokenVerifier {
+	verifyToken: (token: string) => Promise<VerifiedClaims>;
+}
+
 export function createTokenVerifier(
-	config: { jwksUri: string; issuer: string; audience: string },
+	config: AuthConfig,
 	getKey: JWTVerifyGetKey = createRemoteJWKSet(new URL(config.jwksUri))
-) {
-	return async function verifyToken(token: string): Promise<VerifiedClaims> {
-		let payload: JWTPayload;
-		try {
-			({ payload } = await jwtVerify(token, getKey, {
-				issuer: config.issuer,
-				audience: config.audience,
-				algorithms: ["RS256"]
-			}));
-		} catch (err) {
-			throw mapJoseError(err);
+): TokenVerifier {
+	return {
+		async verifyToken(token: string): Promise<VerifiedClaims> {
+			let payload: JWTPayload;
+			try {
+				({ payload } = await jwtVerify(token, getKey, {
+					issuer: config.issuer,
+					audience: config.audience,
+					algorithms: ["RS256"]
+				}));
+			} catch (err) {
+				throw mapJoseError(err);
+			}
+			return parseClaims(payload);
 		}
-		return parseClaims(payload);
 	};
 }
 

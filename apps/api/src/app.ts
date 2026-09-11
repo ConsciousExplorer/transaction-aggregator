@@ -9,6 +9,7 @@ const {
 	appInfo,
 	config,
 	logger,
+	tokenVerifier,
 	database,
 	categoryRepository,
 	transactionRepository,

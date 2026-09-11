@@ -35,12 +35,12 @@ const configSchema = z
 			.url()
 			.optional()
 			.default(
-				"http://keycloak:8080/realms/txn-api/protocol/openid-connect/certs"
+				"http://keycloak:8086/realms/txn-api/protocol/openid-connect/certs"
 			),
 		AUTH_ISSUER: z
 			.url()
 			.optional()
-			.default("http://keycloak:8080/realms/txn-api"),
+			.default("http://keycloak:8086/realms/txn-api"),
 		AUTH_AUDIENCE: z.string().optional().default("txn-api"),
 
 		RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100) // per client, per minute

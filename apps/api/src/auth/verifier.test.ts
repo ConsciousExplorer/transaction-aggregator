@@ -10,7 +10,8 @@ import {
 	createTokenVerifier,
 	getAuthScopes,
 	getContext,
-	parseClaims
+	parseClaims,
+	type TokenVerifier
 } from "./verifier.ts";
 
 const ISS = "https://unit-test.com";
@@ -18,7 +19,7 @@ const AUD = "unit-test-audience";
 const KID = "unit-test-key-id";
 
 let privateKey: CryptoKey;
-let verifyToken: ReturnType<typeof createTokenVerifier>;
+let verifier: TokenVerifier;
 
 function signToken(
 	claims: Record<string, unknown> = {},
@@ -52,7 +53,7 @@ async function assertRejectsWithReason(
 	reason: TokenVerificationReason
 ) {
 	await assert.rejects(
-		async () => verifyToken(await token),
+		async () => verifier.verifyToken(await token),
 		(err: unknown) => {
 			assert.ok(err instanceof TokenVerificationError);
 			assert.equal(err.reason, reason);
@@ -71,7 +72,7 @@ suite("Token Verifier", () => {
 		jwk.alg = "RS256";
 
 		const getKey = createLocalJWKSet({ keys: [jwk] });
-		verifyToken = createTokenVerifier(
+		verifier = createTokenVerifier(
 			{
 				jwksUri: "http://unused",
 				issuer: ISS,
@@ -84,7 +85,7 @@ suite("Token Verifier", () => {
 	test("should verify a valid token", async () => {
 		const token = await signToken({ sub: "user-123", scope: "read write" });
 
-		const claims = await verifyToken(token);
+		const claims = await verifier.verifyToken(token);
 
 		assert.equal(claims.sub, "user-123");
 		assert.equal(claims.scope, "read write");

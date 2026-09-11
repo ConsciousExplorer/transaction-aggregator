@@ -4,6 +4,7 @@ import type { Logger } from "pino";
 import type { AppInfoConfig, Config } from "#src/config.ts";
 import { createPool } from "#src/integrations/database/pool.ts";
 import { appInfo, baseLogger, config, secrets } from "#src/runtime.ts";
+import { createTokenVerifier } from "./auth/verifier.ts";
 import { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
@@ -14,6 +15,7 @@ export type AppCradle = {
 	appInfo: AppInfoConfig;
 	config: Config;
 	logger: Logger;
+	tokenVerifier: ReturnType<typeof createTokenVerifier>;
 	database: Pool;
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;
@@ -31,11 +33,9 @@ export async function buildContainer() {
 
 		logger: asValue(baseLogger),
 
-		categoryRepository: asClass(CategoryRepository),
-
-		transactionRepository: asClass(UserTransactionRepository),
-
-		summaryRepository: asClass(SummaryRepository),
+		tokenVerifier: asFunction(({ config }: AppCradle) =>
+			createTokenVerifier(config.auth)
+		).singleton(),
 
 		database: asFunction(({ config, logger }: AppCradle) =>
 			createPool(
@@ -54,7 +54,13 @@ export async function buildContainer() {
 			.singleton()
 			.disposer(async (pool) => {
 				pool.end();
-			})
+			}),
+
+		categoryRepository: asClass(CategoryRepository),
+
+		transactionRepository: asClass(UserTransactionRepository),
+
+		summaryRepository: asClass(SummaryRepository)
 	});
 
 	return container;

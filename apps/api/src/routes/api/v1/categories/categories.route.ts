@@ -16,7 +16,7 @@ export default async (
 	opts: { categoryRepository: CategoryRepository }
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
-		config: { public: true },
+		config: { public: false },
 		method: "GET",
 		url: "",
 		schema: {
