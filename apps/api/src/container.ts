@@ -4,7 +4,7 @@ import type { Logger } from "pino";
 import type { AppInfoConfig, Config } from "#src/config.ts";
 import { createPool } from "#src/integrations/database/pool.ts";
 import { appInfo, baseLogger, config, secrets } from "#src/runtime.ts";
-import { createTokenVerifier } from "./auth/verifier.ts";
+import { createTokenVerifier, type TokenVerifier } from "./auth/verifier.ts";
 import { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
@@ -15,7 +15,7 @@ export type AppCradle = {
 	appInfo: AppInfoConfig;
 	config: Config;
 	logger: Logger;
-	tokenVerifier: ReturnType<typeof createTokenVerifier>;
+	tokenVerifier: TokenVerifier;
 	database: Pool;
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;

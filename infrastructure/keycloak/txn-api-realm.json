@@ -144,6 +144,22 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "txn-api-audience",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "txn-api audience mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-audience-mapper",
+					"config": {
+						"included.custom.audience": "txn-api",
+						"id.token.claim": "false",
+						"access.token.claim": "true"
+					}
+				}
+			]
 		}
 	],
 
@@ -157,7 +173,7 @@
 			"standardFlowEnabled": false,
 			"directAccessGrantsEnabled": false,
 			"secret": "banking-portal-secret",
-			"defaultClientScopes": ["tx:read", "tx:write"]
+			"defaultClientScopes": ["tx:read", "tx:write", "txn-api-audience"]
 		},
 		{
 			"clientId": "banking-service",
@@ -168,7 +184,7 @@
 			"standardFlowEnabled": false,
 			"directAccessGrantsEnabled": false,
 			"secret": "banking-service-secret",
-			"defaultClientScopes": ["tx:read"]
+			"defaultClientScopes": ["tx:read", "txn-api-audience"]
 		},
 		{
 			"clientId": "ops-console",
@@ -179,7 +195,7 @@
 			"standardFlowEnabled": false,
 			"directAccessGrantsEnabled": false,
 			"secret": "ops-console-secret",
-			"defaultClientScopes": ["ops"]
+			"defaultClientScopes": ["ops", "txn-api-audience"]
 		},
         {
             "clientId": "kafbat-ui",

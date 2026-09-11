@@ -42,6 +42,7 @@ export default fastifyPlugin<{
 				}
 
 				const token = header.slice("Bearer ".length);
+				console.log(token);
 
 				try {
 					const claims = await verifier.verifyToken(token);

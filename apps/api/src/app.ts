@@ -21,6 +21,7 @@ console.log("config", config);
 const server: FastifyInstance = buildServer({
 	appInfo: appInfo,
 	logger: logger,
+	tokenVerifier: tokenVerifier,
 	database: database,
 	categoryRepository: categoryRepository,
 	transactionRepository: transactionRepository,

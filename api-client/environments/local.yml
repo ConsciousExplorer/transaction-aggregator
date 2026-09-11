@@ -2,10 +2,7 @@ name: local
 variables:
   - name: schema-registry
     value: localhost:8081
-    description: ""
   - name: api
     value: localhost:8083
-    description: ""
   - name: idp
     value: localhost:8086
-    description: ""
