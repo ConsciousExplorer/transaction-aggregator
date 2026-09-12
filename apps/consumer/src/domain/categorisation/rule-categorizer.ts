@@ -28,16 +28,16 @@ export interface Verdict {
 export interface RuleSet {
 	version: number;
 	rules: Rule[];
-	uncategorizedId: number;
+	uncategorisedId: number;
 }
 // How the categoriser works. Basically like a database cross join and selecting the first priority
-export interface RuleCategorizer {
-	categorize(transaction: z.infer<typeof canonicalTransactionSchema>): Verdict;
+export interface RuleCategoriser {
+	categorise(transaction: z.infer<typeof canonicalTransactionSchema>): Verdict;
 }
 
-export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
+export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 	// Compile step: O(r log r) sort + O(r) map builds, paid once at boot —
-	// categorize() does no per-message setup.
+	// categorise() does no per-message setup.
 	const sorted = [...ruleset.rules].sort((a, b) => a.priority - b.priority);
 
 	const mccMap = new Map<string, Rule>();
@@ -72,7 +72,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 
 	const version = ruleset.version;
 	const fallback: Verdict = {
-		categoryId: ruleset.uncategorizedId,
+		categoryId: ruleset.uncategorisedId,
 		ruleVersion: ruleset.version,
 		rulePriority: null,
 		matcherType: "fallback"
@@ -85,7 +85,7 @@ export function createRuleCategorizer(ruleset: RuleSet): RuleCategorizer {
 	});
 
 	return {
-		categorize(
+		categorise(
 			transaction: z.infer<typeof canonicalTransactionSchema>
 		): Verdict {
 			// Search order and per-transaction cost (Map.get is a hash

@@ -2,11 +2,11 @@
 
 import type { Pool } from "pg";
 import type z from "zod";
-import type { RuleCategorizer } from "#src/domain/categorisation/rule-categorizer.ts";
+import type { RuleCategoriser } from "#src/domain/categorisation/rule-categoriser.ts";
 import type { Normaliser } from "#src/domain/normaliser/normaliser.ts";
 import {
 	canonicalTransactionSchema,
-	type categorizedTransactionSchema
+	type categorisedTransactionSchema
 } from "#src/domain/transaction.ts";
 import {
 	NonRetryableError,
@@ -37,7 +37,7 @@ export async function transactionBatchHandler(
 	dlqProducer: DlqProducer,
 	dlqTopic: string,
 	transactionNormaliser: Normaliser,
-	ruleCategorizer: RuleCategorizer
+	RuleCategoriser: RuleCategoriser
 ) {
 	const [firstMessage] = messages;
 	if (!firstMessage) return;
@@ -58,7 +58,7 @@ export async function transactionBatchHandler(
 	// when each partition's rows are inserted separately.
 	const rowsByPartition = new Map<
 		number,
-		z.infer<typeof categorizedTransactionSchema>[]
+		z.infer<typeof categorisedTransactionSchema>[]
 	>();
 
 	try {
@@ -66,13 +66,13 @@ export async function transactionBatchHandler(
 			const transaction = transactionNormaliser(message.value);
 			const validatedTransaction =
 				canonicalTransactionSchema.parse(transaction);
-			const categorizedTransaction = {
+			const categorisedTransaction = {
 				...validatedTransaction,
-				...ruleCategorizer.categorize(validatedTransaction)
+				...RuleCategoriser.categorise(validatedTransaction)
 			};
 
 			const rows = rowsByPartition.get(message.partition) ?? [];
-			rows.push(categorizedTransaction);
+			rows.push(categorisedTransaction);
 			rowsByPartition.set(message.partition, rows);
 		}
 
@@ -176,7 +176,7 @@ export async function transactionBatchHandler(
 function buildProgressReport(
 	topic: string,
 	partition: number,
-	rows: z.infer<typeof categorizedTransactionSchema>[],
+	rows: z.infer<typeof categorisedTransactionSchema>[],
 	insert: { attempted: number; inserted: number },
 	batch: {
 		messages: ConsumedMessage[];

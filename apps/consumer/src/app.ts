@@ -7,11 +7,11 @@ import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
 import {
-	createRuleCategorizer,
+	createRuleCategoriser,
 	type Rule,
-	type RuleCategorizer,
+	type RuleCategoriser,
 	type RuleSet
-} from "./domain/categorisation/rule-categorizer.ts";
+} from "./domain/categorisation/rule-categoriser.ts";
 import {
 	createNormaliser,
 	type Normaliser
@@ -21,7 +21,7 @@ import { transactionBatchHandler } from "./handlers/transactionHandler.ts";
 import { createPool } from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
-	loadUncategorizedId
+	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
 import {
@@ -44,9 +44,9 @@ let kafkaConsumer: KafkaConsumer;
 let kafkaDlqProducer: DlqProducer;
 let server: Server;
 let rules: Rule[];
-let uncategorizedId: number;
+let uncategorisedId: number;
 let transactionNormaliser: Normaliser;
-let ruleCategorizer: RuleCategorizer;
+let RuleCategoriser: RuleCategoriser;
 
 export async function startupCheck<T>(
 	name: string,
@@ -129,7 +129,7 @@ try {
 	});
 
 	rules = await loadActiveRules(writerPool);
-	uncategorizedId = await loadUncategorizedId(writerPool);
+	uncategorisedId = await loadUncategorisedId(writerPool);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
 		createAvroDeserializer<ConsumedTransaction>(config.schemaRegistry.url, [
@@ -181,11 +181,11 @@ try {
 	const ruleset = {
 		version: 1,
 		rules: rules,
-		uncategorizedId: uncategorizedId
+		uncategorisedId: uncategorisedId
 	} as RuleSet;
 
 	transactionNormaliser = createNormaliser(config.source);
-	ruleCategorizer = createRuleCategorizer(ruleset);
+	RuleCategoriser = createRuleCategoriser(ruleset);
 
 	Promise.all([
 		// Connects and authenticates. Same as postgres select 1
@@ -214,7 +214,7 @@ try {
 		config.kafka.topics.dlq,
 		writerPool,
 		transactionNormaliser,
-		ruleCategorizer,
+		RuleCategoriser,
 		transactionBatchHandler,
 		deserialisationErrorHandler,
 		{

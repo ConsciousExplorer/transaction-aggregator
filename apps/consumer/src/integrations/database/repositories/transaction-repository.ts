@@ -1,10 +1,10 @@
 import type z from "zod";
-import type { categorizedTransactionSchema } from "#src/domain/transaction.ts";
+import type { categorisedTransactionSchema } from "#src/domain/transaction.ts";
 import type { Queryable } from "../pool.ts";
 
 export async function batchInsertTransactions(
 	db: Queryable,
-	transactions: z.infer<typeof categorizedTransactionSchema>[]
+	transactions: z.infer<typeof categorisedTransactionSchema>[]
 ): Promise<{ attempted: number; inserted: number }> {
 	if (transactions.length === 0) return { attempted: 0, inserted: 0 };
 

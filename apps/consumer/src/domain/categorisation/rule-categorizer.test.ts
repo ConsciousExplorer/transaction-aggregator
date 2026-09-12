@@ -3,10 +3,10 @@ import { suite, test } from "node:test";
 import type z from "zod";
 import type { canonicalTransactionSchema } from "../transaction.ts";
 import {
-	createRuleCategorizer,
+	createRuleCategoriser,
 	type Rule,
 	type RuleSet
-} from "./rule-categorizer.ts";
+} from "./rule-categoriser.ts";
 
 type CanonicalTransaction = z.infer<typeof canonicalTransactionSchema>;
 
@@ -24,7 +24,7 @@ const makeRule = (over: Partial<Rule> = {}): Rule => ({
 const makeRuleSet = (rules: Rule[], over: Partial<RuleSet> = {}): RuleSet => ({
 	version: 7,
 	rules,
-	uncategorizedId: 999,
+	uncategorisedId: 999,
 	...over
 });
 
@@ -48,14 +48,14 @@ const makeTransaction = (
 });
 
 suite("creation", () => {
-	test("returns a categorizer exposing categorize()", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([]));
-		assert.strictEqual(typeof categorizer.categorize, "function");
+	test("returns a categoriser exposing categorise()", () => {
+		const categoriser = createRuleCategoriser(makeRuleSet([]));
+		assert.strictEqual(typeof categoriser.categorise, "function");
 	});
 
-	test("empty ruleset categorizes everything to the fallback verdict", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([]));
-		assert.deepStrictEqual(categorizer.categorize(makeTransaction()), {
+	test("empty ruleset categorises everything to the fallback verdict", () => {
+		const categoriser = createRuleCategoriser(makeRuleSet([]));
+		assert.deepStrictEqual(categoriser.categorise(makeTransaction()), {
 			categoryId: 999,
 			ruleVersion: 7,
 			rulePriority: null,
@@ -66,31 +66,31 @@ suite("creation", () => {
 
 suite("tier 1: mcc", () => {
 	test("matches a transaction by exact mcc", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([makeRule({ matcherType: "mcc", pattern: "5411" })])
 		);
 		assert.deepStrictEqual(
-			categorizer.categorize(makeTransaction({ mcc: "5411" })),
+			categoriser.categorise(makeTransaction({ mcc: "5411" })),
 			{ categoryId: 10, ruleVersion: 7, rulePriority: 100, matcherType: "mcc" }
 		);
 	});
 
 	test("lowest priority wins when two rules share an mcc, regardless of input order", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({ pattern: "5411", priority: 110, categoryId: 11 }),
 				makeRule({ pattern: "5411", priority: 105, categoryId: 12 })
 			])
 		);
-		const verdict = categorizer.categorize(makeTransaction({ mcc: "5411" }));
+		const verdict = categoriser.categorise(makeTransaction({ mcc: "5411" }));
 		assert.strictEqual(verdict.categoryId, 12);
 	});
 
 	test("unknown mcc falls through", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([makeRule({ pattern: "5411" })])
 		);
-		const verdict = categorizer.categorize(makeTransaction({ mcc: "9999" }));
+		const verdict = categoriser.categorise(makeTransaction({ mcc: "9999" }));
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 });
@@ -104,9 +104,9 @@ suite("tier 2: keyword", () => {
 	});
 
 	test("matches case-insensitively against merchantName", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([uberRule]));
+		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		assert.deepStrictEqual(
-			categorizer.categorize(makeTransaction({ merchantName: "UBER *TRIP" })),
+			categoriser.categorise(makeTransaction({ merchantName: "UBER *TRIP" })),
 			{
 				categoryId: 20,
 				ruleVersion: 7,
@@ -117,15 +117,15 @@ suite("tier 2: keyword", () => {
 	});
 
 	test("matches against description when merchantName is null", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([uberRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({ description: "uber trip 12 aug" })
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
 
 	test("lowest priority wins when two keywords both match", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "keyword",
@@ -136,23 +136,23 @@ suite("tier 2: keyword", () => {
 				uberRule
 			])
 		);
-		const verdict = categorizer.categorize(
+		const verdict = categoriser.categorise(
 			makeTransaction({ description: "uber delivery" })
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
 
 	test("applies to debit_order transactions", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([uberRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({ source: "debit_order", description: "uber one" })
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
 
 	test("is skipped for sources outside the keyword scope", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([uberRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({ source: "eft", description: "uber trip" })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
@@ -168,9 +168,9 @@ suite("tier 3: source_transaction_type", () => {
 	});
 
 	test("matches on source plus metadata.transaction_type", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
+		const categoriser = createRuleCategoriser(makeRuleSet([repaymentRule]));
 		assert.deepStrictEqual(
-			categorizer.categorize(
+			categoriser.categorise(
 				makeTransaction({
 					source: "loan",
 					metadata: { transaction_type: "repayment" }
@@ -186,8 +186,8 @@ suite("tier 3: source_transaction_type", () => {
 	});
 
 	test("same transaction_type on a different source does not match", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([repaymentRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({
 				source: "eft",
 				metadata: { transaction_type: "repayment" }
@@ -197,8 +197,8 @@ suite("tier 3: source_transaction_type", () => {
 	});
 
 	test("non-string transaction_type is ignored", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([repaymentRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([repaymentRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({ source: "loan", metadata: { transaction_type: 42 } })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
@@ -214,9 +214,9 @@ suite("tier 4: source_direction", () => {
 	});
 
 	test("matches on source plus direction", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([eftCreditRule]));
+		const categoriser = createRuleCategoriser(makeRuleSet([eftCreditRule]));
 		assert.deepStrictEqual(
-			categorizer.categorize(
+			categoriser.categorise(
 				makeTransaction({ source: "eft", direction: "credit" })
 			),
 			{
@@ -229,16 +229,16 @@ suite("tier 4: source_direction", () => {
 	});
 
 	test("same direction on a different source does not match", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([eftCreditRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([eftCreditRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({ source: "internal_transfer", direction: "credit" })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 
 	test("opposite direction on the same source does not match", () => {
-		const categorizer = createRuleCategorizer(makeRuleSet([eftCreditRule]));
-		const verdict = categorizer.categorize(
+		const categoriser = createRuleCategoriser(makeRuleSet([eftCreditRule]));
+		const verdict = categoriser.categorise(
 			makeTransaction({ source: "eft", direction: "debit" })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
@@ -247,7 +247,7 @@ suite("tier 4: source_direction", () => {
 
 suite("tier 5: source_default", () => {
 	test("routes an otherwise unmatched transaction by its source", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "source_default",
@@ -258,7 +258,7 @@ suite("tier 5: source_default", () => {
 			])
 		);
 		assert.deepStrictEqual(
-			categorizer.categorize(makeTransaction({ source: "internal_transfer" })),
+			categoriser.categorise(makeTransaction({ source: "internal_transfer" })),
 			{
 				categoryId: 40,
 				ruleVersion: 7,
@@ -269,7 +269,7 @@ suite("tier 5: source_default", () => {
 	});
 
 	test("a source without a default falls through to the fallback", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "source_default",
@@ -279,14 +279,14 @@ suite("tier 5: source_default", () => {
 				})
 			])
 		);
-		const verdict = categorizer.categorize(makeTransaction({ source: "eft" }));
+		const verdict = categoriser.categorise(makeTransaction({ source: "eft" }));
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 });
 
 suite("tier precedence", () => {
 	test("mcc beats keyword", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({ matcherType: "mcc", pattern: "5411", categoryId: 10 }),
 				makeRule({
@@ -297,14 +297,14 @@ suite("tier precedence", () => {
 				})
 			])
 		);
-		const verdict = categorizer.categorize(
+		const verdict = categoriser.categorise(
 			makeTransaction({ mcc: "5411", merchantName: "SPAR" })
 		);
 		assert.strictEqual(verdict.matcherType, "mcc");
 	});
 
 	test("keyword beats source_transaction_type", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "keyword",
@@ -320,7 +320,7 @@ suite("tier precedence", () => {
 				})
 			])
 		);
-		const verdict = categorizer.categorize(
+		const verdict = categoriser.categorise(
 			makeTransaction({
 				merchantName: "SPAR",
 				metadata: { transaction_type: "purchase" }
@@ -330,7 +330,7 @@ suite("tier precedence", () => {
 	});
 
 	test("source_transaction_type beats source_default", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "source_transaction_type",
@@ -346,14 +346,14 @@ suite("tier precedence", () => {
 				})
 			])
 		);
-		const verdict = categorizer.categorize(
+		const verdict = categoriser.categorise(
 			makeTransaction({ metadata: { transaction_type: "purchase" } })
 		);
 		assert.strictEqual(verdict.matcherType, "source_transaction_type");
 	});
 
 	test("source_transaction_type beats source_direction", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "source_transaction_type",
@@ -369,7 +369,7 @@ suite("tier precedence", () => {
 				})
 			])
 		);
-		const verdict = categorizer.categorize(
+		const verdict = categoriser.categorise(
 			makeTransaction({
 				source: "eft",
 				direction: "credit",
@@ -380,7 +380,7 @@ suite("tier precedence", () => {
 	});
 
 	test("source_direction beats source_default", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
 					matcherType: "source_direction",
@@ -396,7 +396,7 @@ suite("tier precedence", () => {
 				})
 			])
 		);
-		const verdict = categorizer.categorize(
+		const verdict = categoriser.categorise(
 			makeTransaction({ source: "eft", direction: "credit" })
 		);
 		assert.strictEqual(verdict.matcherType, "source_direction");
@@ -405,11 +405,11 @@ suite("tier precedence", () => {
 
 suite("verdict versioning", () => {
 	test("every verdict carries the ruleset version, not the rule's own", () => {
-		const categorizer = createRuleCategorizer(
+		const categoriser = createRuleCategoriser(
 			makeRuleSet([makeRule({ version: 1 })])
 		);
-		const matched = categorizer.categorize(makeTransaction({ mcc: "5411" }));
-		const fallback = categorizer.categorize(makeTransaction());
+		const matched = categoriser.categorise(makeTransaction({ mcc: "5411" }));
+		const fallback = categoriser.categorise(makeTransaction());
 		assert.strictEqual(matched.ruleVersion, 7);
 		assert.strictEqual(fallback.ruleVersion, 7);
 	});

@@ -649,8 +649,14 @@ services:
       DATABASE_POOL_MAX: 3
       DATABASE_USER: "api_write"
 
+      # Secrets
       DATABASE_PASSWORD_SECRET_NAME: "api_write_password"
-      AUTH_JWT_SECRET_NAME: "jwt_secret"
+
+      # Auth
+      AUTH_JWKS_URI: "http://keycloak:8086/realms/txn-api/protocol/openid-connect/certs"
+      AUTH_ISSUER: "http://keycloak:8086/realms/txn-api"
+      AUTH_AUDIENCE: 'txn-api'
+
     networks: [txn-network]
 
   # ─────────────────────── Optional: cache profile ───────────────────────

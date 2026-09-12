@@ -1,5 +1,5 @@
 import z from "zod";
-import type { Rule } from "#src/domain/categorisation/rule-categorizer.ts";
+import type { Rule } from "#src/domain/categorisation/rule-categoriser.ts";
 import type { Queryable } from "../pool.ts";
 
 const ruleSchema = z.object({
@@ -37,19 +37,19 @@ export async function loadActiveRules(db: Queryable): Promise<Rule[]> {
 	);
 }
 
-export async function loadUncategorizedId(db: Queryable): Promise<number> {
+export async function loadUncategorisedId(db: Queryable): Promise<number> {
 	const { rows } = await db.query<z.infer<typeof categorySchema>>(
 		`
 		SELECT 	category_id
 		FROM 	categories
 		WHERE 	category = $1
 		`,
-		["uncategorized"]
+		["uncategorised"]
 	);
 
 	const category = rows[0];
 	if (!category) {
-		throw new Error('Category "uncategorized" not found in categories table');
+		throw new Error('Category "uncategorised" not found in categories table');
 	}
 
 	return category.category_id;

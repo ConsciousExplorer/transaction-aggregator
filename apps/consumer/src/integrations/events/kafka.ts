@@ -19,7 +19,7 @@ import {
 	type ProducerOptions,
 	stringSerializer
 } from "@platformatic/kafka";
-import type { RuleCategorizer } from "#src/domain/categorisation/rule-categorizer.ts";
+import type { RuleCategoriser } from "#src/domain/categorisation/rule-categoriser.ts";
 import type { Normaliser } from "#src/domain/normaliser/normaliser.ts";
 import type { CardTransaction } from "#src/generated/card.ts";
 import type { DebitOrderTransaction } from "#src/generated/debit_order.ts";
@@ -51,7 +51,7 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 ): Promise<Consumer<Key, Value, HeaderKey, HeaderValue>> {
 	const kafkaConsumer = new Consumer(options);
 
-	// Register listerners
+	// Register listeners
 	kafkaConsumer.addListener("consumer:group:rebalance", () =>
 		logger.warn("Preparing a rebalance")
 	);
@@ -186,14 +186,14 @@ export async function startBatchConsumer(
 	dlqTopic: string,
 	pool: Pool,
 	transactionNormaliser: Normaliser,
-	ruleCategorizer: RuleCategorizer,
+	RuleCategoriser: RuleCategoriser,
 	batchHandler: (
 		pool: Pool,
 		messages: ConsumedMessage[],
 		dlqProducer: DlqProducer,
 		dlqTopic: string,
 		transactionNormaliser: Normaliser,
-		ruleCategorizer: RuleCategorizer
+		RuleCategoriser: RuleCategoriser
 	) => Promise<void>,
 	deserialisationErrorHandler: DeserializationErrorHandler,
 	options: BatchConsumerOptions,
@@ -232,7 +232,7 @@ export async function startBatchConsumer(
 			dlqProducer,
 			dlqTopic,
 			transactionNormaliser,
-			ruleCategorizer
+			RuleCategoriser
 		);
 	}
 

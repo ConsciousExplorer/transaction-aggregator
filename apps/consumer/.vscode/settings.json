@@ -2,5 +2,8 @@
 	"editor.formatOnSave": true,
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.tabSize": 4,
-	"editor.folding": true
+	"editor.folding": true,
+	"cSpell.words": [
+		"categoriser"
+	]
 }

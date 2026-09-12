@@ -1,5 +1,5 @@
 /**
- * Needle/haystack demo for the categorizer's keyword tier.
+ * Needle/haystack demo for the categoriser's keyword tier.
  * Run: node scripts/search_terms.ts
  */
 
