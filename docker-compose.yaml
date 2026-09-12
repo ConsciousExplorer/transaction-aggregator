@@ -653,7 +653,7 @@ services:
       DATABASE_PASSWORD_SECRET_NAME: "api_write_password"
 
       # Auth
-      AUTH_JWKS_URI: "http://localhost:8086/realms/txn-api/protocol/openid-connect/certs"
+      AUTH_JWKS_URI: "http://keycloak:8080/realms/txn-api/protocol/openid-connect/certs"
       AUTH_ISSUER: "http://localhost:8086/realms/txn-api"
       AUTH_AUDIENCE: 'txn-api'
 

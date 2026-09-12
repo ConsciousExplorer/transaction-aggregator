@@ -32,18 +32,19 @@
 		"#errors": "./src/errors/*"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.8",
+		"@biomejs/biome": "2.5.13",
 		"@types/node": "24.x",
-		"@types/pg": "^8.21.0",
+		"@types/pg": "^8.23.1",
 		"avro-typescript": "1.3.0",
+		"cspell": "10.3.0",
 		"pino-pretty": "^13.1.3",
 		"typescript": "7.0.2"
 	},
 	"dependencies": {
-		"@platformatic/kafka": "^2.9.0",
+		"@platformatic/kafka": "^2.11.0",
 		"avsc": "^5.7.9",
 		"pg": "^8.23.0",
 		"pino": "^10.3.1",
-		"zod": "^4.4.3"
+		"zod": "^4.6.2"
 	}
 }

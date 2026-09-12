@@ -1,0 +1,25 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "awilix",
+    "backend",
+    "cspell",
+    "fkey",
+    "frontend",
+    "IYYY",
+    "Millis",
+    "Miswiring",
+    "platformatic",
+    "stringbool",
+    "timestamptz",
+    "upserts",
+    "uuidv",
+    "uuidv4"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "package-lock.json"
+  ]
+}
