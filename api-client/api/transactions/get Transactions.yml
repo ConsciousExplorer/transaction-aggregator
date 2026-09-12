@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{api}}/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=50"
+  url: localhost:8088/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=50
   params:
     - name: accountId
       value: c37b3e53-c30c-4c5a-b547-85fdadedd459
@@ -70,7 +70,8 @@ http:
     - name: userId
       value: 30440930-4207-4d26-bc11-1d65c07fe6c3
       type: path
-  auth: inherit
+  auth:
+    type: bearer
 
 settings:
   encodeUrl: true
