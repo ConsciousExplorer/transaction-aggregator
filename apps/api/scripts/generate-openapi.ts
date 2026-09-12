@@ -8,7 +8,9 @@ import { loadPackageInfo } from "#src/config.ts";
 const packageInfoConfig = loadPackageInfo(packageJson)
 
 /** JSON.stringify preserves insertion order; sorting makes regeneration
- *  deterministic so openapi.json diffs show real contract changes only. */
+ *  deterministic so openapi.json diffs show real contract changes only. 
+ * 
+*/
 function sortKeysDeep(value: unknown): unknown {
 	if (Array.isArray(value)) return value.map(sortKeysDeep);
 	if (value !== null && typeof value === "object")
@@ -42,7 +44,8 @@ const app = buildServer({
 	appInfo: packageInfoConfig,
 	pluginAutoLoadParameters: {
 			dir: resolve(import.meta.dirname, "../src/plugins"),
-			routeParams: true
+			routeParams: true,
+			enableSwagger: true
 		},
 	routeAutoLoadParameters: {
 			dir: resolve(import.meta.dirname, "../src/routes"),

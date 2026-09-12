@@ -1,6 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
+    "description": "Transaction API for client transactions",
     "title": "Transaction API",
     "version": "1.0.0"
   },
@@ -131,6 +132,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "categories"
         ]
@@ -301,6 +307,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "user categories"
         ]
@@ -471,6 +482,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "user categories"
         ]
@@ -586,6 +602,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "user categories"
         ]
@@ -774,6 +795,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "user categories"
         ]
@@ -1047,6 +1073,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "summary"
         ]
@@ -1161,6 +1192,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "transactions"
         ]
@@ -1368,6 +1404,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "transactions"
         ]
@@ -1728,6 +1769,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "transactions"
         ]
@@ -1915,6 +1961,11 @@
             "description": "Default Response"
           }
         },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "tags": [
           "transactions"
         ]
@@ -1922,6 +1973,13 @@
     }
   },
   "components": {
-    "schemas": {}
+    "schemas": {},
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
   }
 }
