@@ -27,7 +27,7 @@ function sortKeysDeep(value: unknown): unknown {
  *  looks for it. Known keys in spec order, unknown keys alphabetical after;
  *  everything BELOW the root still gets the full deep sort. Deterministic
  *  either way — this trades alphabetical for conventional at one level. */
-const ROOT_ORDER = ["openapi", "info", "servers", "tags", "paths", "components", "security", "externalDocs"];
+const ROOT_ORDER = ["openapi", "info", "components", "servers", "tags", "paths", "security", "externalDocs"];
 function sortRoot(doc: Record<string, unknown>): Record<string, unknown> {
 	const rank = (k: string) => {
 		const i = ROOT_ORDER.indexOf(k);

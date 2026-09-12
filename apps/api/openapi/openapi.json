@@ -5,6 +5,16 @@
     "title": "Transaction API",
     "version": "1.0.0"
   },
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
   "paths": {
     "/api/v1/categories": {
       "get": {
@@ -1969,16 +1979,6 @@
         "tags": [
           "transactions"
         ]
-      }
-    }
-  },
-  "components": {
-    "schemas": {},
-    "securitySchemes": {
-      "bearerAuth": {
-        "bearerFormat": "JWT",
-        "scheme": "bearer",
-        "type": "http"
       }
     }
   }
