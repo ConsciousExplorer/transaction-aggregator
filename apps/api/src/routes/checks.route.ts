@@ -12,10 +12,12 @@ const healthCheckResponseSchema = z.object({
 
 /**
  * A basic health check route
+ * These routes are not behind auth
  */
 export default async (fastify: FastifyInstance) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
+		config: { public: true },
 		url: "/ready",
 		schema: {
 			hide: true,
@@ -32,6 +34,7 @@ export default async (fastify: FastifyInstance) => {
 
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
+		config: { public: true },
 		url: "/health",
 		schema: {
 			hide: true,

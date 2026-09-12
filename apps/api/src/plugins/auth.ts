@@ -1,9 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import { fastifyPlugin } from "fastify-plugin";
 import {
-	type AuthConfig,
 	type AuthContext,
-	createTokenVerifier,
 	getContext,
 	type TokenVerifier
 } from "#src/auth/verifier.ts";
@@ -42,7 +40,6 @@ export default fastifyPlugin<{
 				}
 
 				const token = header.slice("Bearer ".length);
-				console.log(token);
 
 				try {
 					const claims = await verifier.verifyToken(token);
@@ -56,8 +53,11 @@ export default fastifyPlugin<{
 		);
 
 		fastify.addHook("preHandler", async (request, _reply) => {
-			// routeOptions.config is undefined for routes that don't set
+			// Routes are guarded by default, can only opt out by setting config : { public: true }
 			if (request.routeOptions.config?.public) return;
+			// @fastify/swagger-ui registers its own routes, so they can't carry config.public
+			if (request.url.startsWith("/docs")) return;
+
 			await fastify.verifyBearerToken(request);
 		});
 	},

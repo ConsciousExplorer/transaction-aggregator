@@ -140,6 +140,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	// rewrite / to /docs
 	server.get("/", {
 		schema: { hide: true },
+		config: { public: true },
 		handler: async (_request, reply) => {
 			reply.redirect("/docs");
 		}
