@@ -1,5 +1,5 @@
 INSERT INTO categories (category_id, category, label) OVERRIDING SYSTEM VALUE VALUES
-  ( 1, 'uncategorized',      'Uncategorized'),
+  ( 1, 'uncategorised',      'Uncategorised'),
   ( 2, 'groceries',          'Groceries'),
   ( 3, 'dining',             'Dining'),
   ( 4, 'transport',          'Transport'),
@@ -98,7 +98,7 @@ FROM (VALUES
   (700, 'source_direction', 'eft:credit', 'income'),
 
   -- source_default: default for each transaction source
-  (900, 'source_default', 'card',              'uncategorized'),
+  (900, 'source_default', 'card',              'uncategorised'),
   (901, 'source_default', 'loan',              'loan_repayment'),
   (902, 'source_default', 'debit_order',       'recurring_payments'),
   (903, 'source_default', 'eft',               'transfers'),

@@ -29,7 +29,7 @@ CREATE TABLE categorization_rules (
   UNIQUE (ruleset_version, priority)
 );
 
--- The API supports crud operations and a user should be able to categorize their own transactions
+-- The API supports crud operations and a user should be able to categorise their own transactions
 CREATE TABLE user_category_overrides (
   user_id          uuid        NOT NULL,
   from_category_id smallint    NOT NULL REFERENCES categories(category_id),
