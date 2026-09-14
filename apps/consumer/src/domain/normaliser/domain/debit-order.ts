@@ -24,10 +24,10 @@ export function normaliseDebitOrder(
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			mandate_id: record.mandateId,
+			mandateId: record.mandateId,
 			category: record.category,
-			creditor_abbrev_name: record.creditorAbbrevName,
-			collection_type: record.collectionType,
+			creditorAbbrevName: record.creditorAbbrevName,
+			collectionType: record.collectionType,
 			frequency: record.frequency
 		}
 	};

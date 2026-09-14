@@ -37,20 +37,36 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 		}
 	];
 
-// The detail select carries the effective categoryId (D34) on top of the
-// list columns — its own typed fixture keeps the drift guard honest.
+// The detail select carries account/external/posted/description/mcc/metadata
+// on top of the list columns — its own typed fixture keeps the drift guard
+// honest. metadata matches what apps/consumer/src/domain/normaliser/domain/
+// card.ts actually writes (camelCase keys — see transaction-repository.ts's
+// mapSourceDetail, which parses this shape).
 const DETAIL: Awaited<
 	ReturnType<UserTransactionRepository["getTransactionDetail"]>
 > = {
 	transactionId: TX_ID,
+	accountId: "8f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+	externalId: "ext-card-001",
 	occurredAt: "2026-08-15T09:30:00.000Z",
+	postedAt: null,
 	source: "card",
 	direction: "debit",
+	description: null,
 	amountMinor: 1234,
 	currency: "ZAR",
 	categoryId: 1,
 	category: "groceries",
-	merchantName: "Spar"
+	mcc: "5411",
+	merchantName: "Spar",
+	metadata: {
+		mcc: "5411",
+		merchantName: "Spar",
+		cardLast4: "1234",
+		cardNetwork: "visa",
+		posEntryMode: "chip",
+		authCode: "A1B2C3"
+	}
 };
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
@@ -90,13 +106,13 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		getTransactionDetail.mock.mockImplementation(async () => DETAIL);
 	});
 
-	test("200: list maps rows to the wire shape (id, ISO occurredAt)", async () => {
+	test("200: list maps rows to the wire shape (transactionId, ISO occurredAt)", async () => {
 		const res = await app.inject({ method: "GET", url: LIST_URL });
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
 			data: [
 				{
-					id: TX_ID,
+					transactionId: TX_ID,
 					occurredAt: "2026-08-15T09:30:00.000Z",
 					source: "card",
 					direction: "debit",
@@ -106,7 +122,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					merchantName: "Spar"
 				},
 				{
-					id: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
+					transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
 					occurredAt: "2026-08-14T12:00:00.000Z",
 					source: "eft",
 					direction: "credit",
@@ -118,7 +134,6 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			],
 			nextCursor: null
 		});
-		assert.ok(!res.body.includes("transactionId"));
 	});
 
 	test("handler maps params/query onto the repository filter (limit defaults to 50)", async () => {
@@ -138,21 +153,32 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 	});
 
-	test("200: detail maps the row to the wire shape", async () => {
+	test("200: detail maps the row to the wire shape, source as a typed union", async () => {
 		const res = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/u1/transactions/${TX_ID}`
 		});
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
-			id: TX_ID,
+			transactionId: TX_ID,
+			accountId: "8f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+			externalId: "ext-card-001",
 			occurredAt: "2026-08-15T09:30:00.000Z",
-			source: "card",
 			direction: "debit",
-			amountMinor: 1234,
-			currency: "ZAR",
+			amount: { amountMinor: 1234, currency: "ZAR" },
+			description: null,
+			mcc: "5411",
+			merchantName: "Spar",
 			category: "groceries",
-			merchantName: "Spar"
+			source: {
+				sourceType: "card",
+				cardLast4: "1234",
+				cardNetwork: "visa",
+				mcc: "5411",
+				merchantName: "Spar",
+				posEntryMode: "chip",
+				authCode: "A1B2C3"
+			}
 		});
 		assert.deepStrictEqual(
 			getTransactionDetail.mock.calls[0]?.arguments.at(0),

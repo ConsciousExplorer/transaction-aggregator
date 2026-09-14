@@ -1,9 +1,9 @@
 import assert from "node:assert";
 import { suite, test } from "node:test";
 import { normaliseCard } from "#src/domain/normaliser/domain/card.ts";
-import { normaliseDebitOrder } from "#src/domain/normaliser/domain/debit_order.ts";
+import { normaliseDebitOrder } from "#src/domain/normaliser/domain/debit-order.ts";
 import { normaliseEft } from "#src/domain/normaliser/domain/eft.ts";
-import { normaliseInternalTransfer } from "#src/domain/normaliser/domain/internal_transfer.ts";
+import { normaliseInternalTransfer } from "#src/domain/normaliser/domain/internal-transfer.ts";
 import { normaliseLoan } from "#src/domain/normaliser/domain/loan.ts";
 import { canonicalTransactionSchema } from "#src/domain/transaction.ts";
 

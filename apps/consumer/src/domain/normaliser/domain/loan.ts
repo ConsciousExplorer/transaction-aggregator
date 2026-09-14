@@ -23,12 +23,11 @@ export function normaliseLoan(
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			// transaction_type is the categoriser's source_transaction_type key ("loan:repayment")
-			transaction_type: record.operation,
-			loan_account_id: record.loanAccountId,
-			loan_type: record.loanType,
-			principal_amount: record.principalAmount,
-			interest_amount: record.interestAmount
+			operation: record.operation,
+			loanAccountId: record.loanAccountId,
+			loanType: record.loanType,
+			principalAmount: record.principalAmount,
+			interestAmount: record.interestAmount
 		}
 	};
 }

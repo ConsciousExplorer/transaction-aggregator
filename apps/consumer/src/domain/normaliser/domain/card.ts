@@ -23,12 +23,12 @@ export function normaliseCard(
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			// Named for what it holds: four digits. The key "pan" is banned —
-			// it reads as a full card number to redaction tooling and auditors.
-			card_last4: record.cardLast4,
-			card_network: record.cardNetwork,
-			auth_code: record.authCode,
-			pos_entry_mode: record.posEntryMode
+			mcc: record.mccCode,
+			merchantName: record.merchantName,
+			cardLast4: record.cardLast4,
+			cardNetwork: record.cardNetwork,
+			authCode: record.authCode,
+			posEntryMode: record.posEntryMode
 		}
 	};
 }

@@ -6,7 +6,9 @@ import type { UserTransactionRepository } from "#src/integrations/database/repos
 import { problemSchema } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
+	mapSourceDetail,
 	sourceSchema,
+	transactionDetailSchema,
 	transactionItemSchema
 } from "#src/schemas/transactions.ts";
 
@@ -71,7 +73,7 @@ export default async (
 			if (!result) throw notFound();
 
 			const data = result.map((row) => ({
-				id: row.transactionId,
+				transactionId: row.transactionId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
 				source: row.source,
 				direction: row.direction,
@@ -101,7 +103,7 @@ export default async (
 				transactionId: z.uuid()
 			}),
 			response: {
-				200: transactionItemSchema,
+				200: transactionDetailSchema,
 				400: problemSchema,
 				500: problemSchema
 			}
@@ -115,14 +117,20 @@ export default async (
 			if (!row) throw notFound();
 
 			return reply.send({
-				id: row.transactionId,
+				transactionId: row.transactionId,
+				accountId: row.accountId,
+				externalId: row.externalId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
-				source: row.source,
 				direction: row.direction,
-				amountMinor: row.amountMinor,
-				currency: row.currency,
+				amount: {
+					amountMinor: row.amountMinor,
+					currency: row.currency
+				},
+				description: row.description,
+				mcc: row.mcc,
+				merchantName: row.merchantName,
 				category: row.category,
-				merchantName: row.merchantName
+				source: mapSourceDetail(row.source, row.metadata)
 			});
 		}
 	});

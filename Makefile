@@ -1,4 +1,4 @@
-.PHONY: up down clean logs generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order db-diagram
+.PHONY: up down clean logs generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order db-diagram migrate
 
 # All five sources in one run (random seeds unless GENERATOR_SEED is set)
 generate:
@@ -28,3 +28,6 @@ generate-debit-order:
 db-diagram:
 	@chmod +x ./scripts/db-diagram.sh
 	@./scripts/db-diagram.sh
+
+migrate:
+	docker compose run --rm migrate migrate

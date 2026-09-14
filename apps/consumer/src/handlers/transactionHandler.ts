@@ -132,7 +132,7 @@ export async function transactionBatchHandler(
 
 		if (failure instanceof RetryableError) {
 			logger.error(
-				"We encountered a retyrable error, a consumer restart will fix"
+				"We encountered a retryable error, a consumer restart will fix"
 			);
 
 			throw error;

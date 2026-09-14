@@ -7,9 +7,9 @@ import type { LoanTransaction } from "#src/generated/loan.ts";
 import type { SourceTypes } from "../source.ts";
 import type { canonicalTransactionSchema } from "../transaction.ts";
 import { normaliseCard } from "./domain/card.ts";
-import { normaliseDebitOrder } from "./domain/debit_order.ts";
+import { normaliseDebitOrder } from "./domain/debit-order.ts";
 import { normaliseEft } from "./domain/eft.ts";
-import { normaliseInternalTransfer } from "./domain/internal_transfer.ts";
+import { normaliseInternalTransfer } from "./domain/internal-transfer.ts";
 import { normaliseLoan } from "./domain/loan.ts";
 
 export type Normaliser = (

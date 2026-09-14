@@ -153,14 +153,20 @@ export class UserTransactionRepository {
 		const [result] = await drizzle(this.dbClient)
 			.select({
 				transactionId: transactions.transactionId,
+				accountId: transactions.accountId,
+				externalId: transactions.externalId,
 				occurredAt: transactions.occurredAt,
-				source: transactions.source,
+				postedAt: transactions.postedAt,
 				direction: transactions.direction,
+				description: transactions.description,
 				amountMinor: transactions.amountMinor,
+				source: transactions.source,
 				currency: transactions.currency,
 				categoryId: effectiveCategoryId,
 				category: categories.category,
-				merchantName: transactions.merchantName
+				mcc: transactions.mcc,
+				merchantName: transactions.merchantName,
+				metadata: transactions.metadata
 			})
 			.from(transactions)
 			.leftJoin(

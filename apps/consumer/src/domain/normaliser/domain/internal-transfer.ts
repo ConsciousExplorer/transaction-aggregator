@@ -23,10 +23,10 @@ export function normaliseInternalTransfer(
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			from_account_id: record.fromAccountId,
-			to_account_id: record.toAccountId,
-			from_account_type: record.fromAccountType,
-			to_account_type: record.toAccountType
+			fromAccountId: record.fromAccountId,
+			toAccountId: record.toAccountId,
+			fromAccountType: record.fromAccountType,
+			toAccountType: record.toAccountType
 		}
 	};
 }

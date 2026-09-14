@@ -22,11 +22,11 @@ export const canonicalTransactionSchema = z.object({
 	source: sourceSchema,
 	externalId: z.string(),
 	// Full ISO datetime: normalisers emit `new Date(ts).toISOString()`, and
-	// date-only would collapse the dedup key (source, externalId, occurredAt)
+	// date-only would collapse the deduplicate key (source, externalId, occurredAt)
 	// to day granularity.
 	occurredAt: z.iso.datetime(),
 
-	// Top level financation information
+	// Top level financial information
 	postedAt: z.iso.datetime().nullable(),
 	direction: directionSchema,
 	currency: z.string(),

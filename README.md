@@ -18,7 +18,7 @@ docker compose up --no-deps producer-card
 
 # Get a shell inside flyway
 
-Change the entypoint and run commands
+Change the entrypoint and run commands
 ```
 docker compose run --rm --entrypoint sh migrate
 ```

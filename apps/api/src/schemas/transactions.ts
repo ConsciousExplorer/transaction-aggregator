@@ -8,6 +8,11 @@ export const sourceSchema = z.enum([
 	"internal_transfer"
 ]);
 
+export const amountSchema = z.object({
+	amountMinor: z.number().int(),
+	currency: z.string().length(3)
+});
+
 export const listQuerySchema = z.object({
 	from: z.iso.datetime().optional(),
 	to: z.iso.datetime().optional(),
@@ -21,7 +26,7 @@ export const listQuerySchema = z.object({
 });
 
 export const transactionItemSchema = z.object({
-	id: z.uuid(),
+	transactionId: z.uuid(),
 	occurredAt: z.iso.datetime(),
 	source: z.union([z.string(), sourceSchema.optional()]),
 	direction: z.union([z.string(), z.enum(["debit", "credit"])]),
@@ -31,19 +36,103 @@ export const transactionItemSchema = z.object({
 	merchantName: z.string().nullable()
 });
 
-export const transactionDetailSchema = transactionItemSchema.extend({
-	accountId: z.uuid(),
-	externalId: z.string(),
-	postedAt: z.iso.datetime().nullable(),
-	description: z.string().nullable(),
-	mcc: z.string().nullable(),
-	ruleVersion: z.number().int(),
-	rulePriority: z.number().int().nullable(),
-	ingestedAt: z.iso.datetime(),
-	metadata: z.record(z.string(), z.unknown())
-});
-
 export const listResponseSchema = z.object({
 	data: z.array(transactionItemSchema),
 	nextCursor: z.string().nullable()
+});
+
+const cardDetailsSchema = z.object({
+	sourceType: z.literal("card"),
+	cardLast4: z.string().length(4),
+	cardNetwork: z.string(),
+	mcc: z.string().length(4).nullable(),
+	merchantName: z.string().nullable(),
+	posEntryMode: z.string().nullable(),
+	authCode: z.string().nullable()
+});
+
+const loanDetailsSchema = z.object({
+	sourceType: z.literal("loan"),
+	loanAccountId: z.uuid(),
+	loanType: z.string(),
+	operation: z.enum(["repayment", "disbursement"]),
+	principal: amountSchema.nullable(),
+	interest: amountSchema.nullable()
+});
+
+const eftDetailsSchema = z.object({
+	sourceType: z.literal("eft"),
+	beneficiaryName: z.string(),
+	beneficiaryAccountLast4: z.string().nullable(),
+	beneficiaryBank: z.string(),
+	branchCode: z.string().nullable(),
+	reference: z.string().nullable(),
+	clearingType: z.string().nullable()
+});
+
+const debitOrderDetailsSchema = z.object({
+	sourceType: z.literal("debit_order"),
+	mandateId: z.string(),
+	creditorName: z.string(),
+	collectionType: z.string().nullable(),
+	frequency: z.string().nullable()
+});
+
+const internalTransferDetailsSchema = z.object({
+	sourceType: z.literal("internal_transfer"),
+	fromAccountId: z.uuid(),
+	toAccountId: z.uuid(),
+	fromAccountType: z.string(),
+	toAccountType: z.string()
+});
+
+export const sourceDetailSchema = z.discriminatedUnion("sourceType", [
+	cardDetailsSchema,
+	loanDetailsSchema,
+	eftDetailsSchema,
+	debitOrderDetailsSchema,
+	internalTransferDetailsSchema
+]);
+
+export type SourceDetail = z.infer<typeof sourceDetailSchema>;
+
+export function mapSourceDetail(
+	source: z.infer<typeof sourceSchema>,
+	metadata: unknown
+): SourceDetail {
+	const raw = metadata as Record<string, unknown>;
+
+	if (source === "loan") {
+		const { principalAmount, interestAmount, ...rest } = raw;
+		return sourceDetailSchema.parse({
+			sourceType: source,
+			...rest,
+			principal:
+				typeof principalAmount === "number"
+					? { amountMinor: principalAmount, currency: "ZAR" }
+					: null,
+			interest:
+				typeof interestAmount === "number"
+					? { amountMinor: interestAmount, currency: "ZAR" }
+					: null
+		});
+	}
+
+	return sourceDetailSchema.parse({ sourceType: source, ...raw });
+}
+
+export const transactionDetailSchema = z.object({
+	transactionId: z.uuid(),
+	accountId: z.uuid(),
+	externalId: z.string(),
+	occurredAt: z.iso.datetime(),
+	// postedAt: z.iso.datetime().nullable(), // We don't have a concept of a settlement yet
+	direction: z.enum(["debit", "credit"]),
+	amount: amountSchema,
+	// status: transactionStatusSchema, // TODO: Adding status schema with reversals for a bigger challenge later
+	description: z.string().nullable(),
+	mcc: z.string().nullable(),
+	merchantName: z.string().nullable(),
+	category: z.string(),
+	source: sourceDetailSchema // Discriminated Union detail schema
 });

@@ -23,12 +23,10 @@ export function normaliseEft(
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
 		metadata: {
-			beneficiary_name: record.beneficiaryName,
-			// Truncated at the boundary: the full account number is PII and
-			// must never reach the database.
-			beneficiary_account_last4: record.beneficiaryAccountNumber.slice(-4),
-			beneficiary_bank: record.beneficiaryBank,
-			branch_code: record.branchCode,
+			beneficiaryName: record.beneficiaryName,
+			beneficiaryAccountLast4: record.beneficiaryAccountNumber.slice(-4),
+			beneficiaryBank: record.beneficiaryBank,
+			branchCode: record.branchCode,
 			reference: record.reference
 		}
 	};

@@ -13,18 +13,33 @@ const URL = `/api/v1/users/${USER_ID}/transactions/${TX_ID}`;
 
 // Typed off the real methods so drift in the select shapes breaks compilation.
 // D34: the detail row carries the effective categoryId; slugs are display-only.
+// This route only reads occurredAt/categoryId off the fixture (ownership
+// probe) — the rest exists purely to satisfy the real repository return type.
 const ORIGINAL: Awaited<
 	ReturnType<UserTransactionRepository["getTransactionDetail"]>
 > = {
 	transactionId: TX_ID,
+	accountId: "8f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
+	externalId: "ext-card-001",
 	occurredAt: "2026-08-15T09:30:00.000Z",
+	postedAt: null,
 	source: "card",
 	direction: "debit",
+	description: null,
 	amountMinor: 1234,
 	currency: "ZAR",
 	categoryId: 1,
 	category: "groceries",
-	merchantName: "Spar"
+	mcc: "5411",
+	merchantName: "Spar",
+	metadata: {
+		mcc: "5411",
+		merchantName: "Spar",
+		cardLast4: "1234",
+		cardNetwork: "visa",
+		posEntryMode: "chip",
+		authCode: "A1B2C3"
+	}
 };
 
 const OVERRIDE: NonNullable<
