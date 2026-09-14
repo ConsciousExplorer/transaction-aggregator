@@ -63,6 +63,9 @@ export function getContext(claims: VerifiedClaims): AuthContext {
 	return { clientId: claims.sub, scope: claims.scope.split(" ") };
 }
 
-export function getAuthScopes(ctx: AuthContext, required: string[]): boolean {
-	return required.every((s) => ctx.scope.includes(s));
+export function getAuthScopes(
+	ctx: AuthContext,
+	requiredScopes: string[]
+): boolean {
+	return requiredScopes.every((scope) => ctx.scope.includes(scope));
 }

@@ -13,7 +13,7 @@ import {
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import { sourceSchema } from "#src/schemas/common.ts";
+import { sourceSchema } from "#src/schemas/transactions.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import {
 	transactions,

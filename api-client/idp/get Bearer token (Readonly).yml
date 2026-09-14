@@ -1,5 +1,5 @@
 info:
-  name: get Bearer token
+  name: get Bearer token (Readonly)
   type: http
   seq: 1
 
@@ -12,9 +12,9 @@ http:
       - name: grant_type
         value: client_credentials
       - name: client_id
-        value: banking-portal
+        value: banking-service
       - name: client_secret
-        value: banking-portal-secret
+        value: banking-service-secret
 
 settings:
   encodeUrl: true

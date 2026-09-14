@@ -9,11 +9,3 @@ export const problemSchema = z.object({
 	trace_id: z.string().optional(),
 	retry_after: z.number().optional()
 });
-
-export const sourceSchema = z.enum([
-	"card",
-	"eft",
-	"loan",
-	"debit_order",
-	"internal_transfer"
-]);

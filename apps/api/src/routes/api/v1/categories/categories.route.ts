@@ -16,7 +16,12 @@ export default async (
 	opts: { categoryRepository: CategoryRepository }
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
-		config: { public: false },
+		config: {
+			authConfig: {
+				public: false,
+				requiredScopes: ["tx:read"]
+			}
+		},
 		method: "GET",
 		url: "",
 		schema: {

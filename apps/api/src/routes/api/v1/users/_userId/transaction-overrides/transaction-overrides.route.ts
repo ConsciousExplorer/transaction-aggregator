@@ -22,6 +22,11 @@ export default async (
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "PUT",
+		config: {
+			authConfig: {
+				requiredScopes: ["tx:write"]
+			}
+		},
 		url: "/:transactionId",
 		schema: {
 			tags: ["transactions"],

@@ -1,0 +1,22 @@
+info:
+  name: api (readonly)
+  type: folder
+  seq: 4
+
+request:
+  auth:
+    type: oauth2
+    flow: client_credentials
+    accessTokenUrl: "{{idp}}/realms/txn-api/protocol/openid-connect/token"
+    credentials:
+      clientId: banking-service
+      clientSecret: banking-service-secret
+      placement: body
+    tokenConfig:
+      id: credentials
+      placement:
+        header: Bearer
+      source: access_token
+    settings:
+      autoFetchToken: true
+      autoRefreshToken: true

@@ -1,0 +1,28 @@
+info:
+  name: put transaction
+  type: http
+  seq: 2
+
+http:
+  method: PUT
+  url: "{{api}}/api/v1/users/:userId/transaction-overrides/:transactionId"
+  params:
+    - name: transactionId
+      value: 01a067f2-4556-7c72-b563-3993422061db
+      type: path
+    - name: userId
+      value: 30440930-4207-4d26-bc11-1d65c07fe6c3
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "categoryId": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,5 +1,12 @@
 import z from "zod";
-import { sourceSchema } from "./common.ts";
+
+export const sourceSchema = z.enum([
+	"card",
+	"eft",
+	"loan",
+	"debit_order",
+	"internal_transfer"
+]);
 
 export const listQuerySchema = z.object({
 	from: z.iso.datetime().optional(),

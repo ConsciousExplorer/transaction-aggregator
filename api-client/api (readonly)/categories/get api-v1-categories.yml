@@ -1,0 +1,19 @@
+info:
+  name: get api/v1/categories
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{api}}/api/v1/categories"
+  headers:
+    - name: Bearer
+      value: " eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJTVlVOcEFraEtnemw1MmkyaTBlT2hEeHlqazM3OXZ6WnBFbk1wUVBHNkFBIn0.eyJleHAiOjE3ODkxMDk0MjgsImlhdCI6MTc4OTEwODUyOCwianRpIjoidHJydGNjOmUzZWRhZmE3LWQ2YWQtM2NkZS1lOGI5LWNlNTU3NWQ4NDAwZCIsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4Ni9yZWFsbXMvdHhuLWFwaSIsInN1YiI6IjU4ZTNkMDNhLWI2NTAtNGYyMy04ODAwLTMwZDY4MjNhMDBhZCIsInR5cCI6IkJlYXJlciIsImF6cCI6ImJhbmtpbmctcG9ydGFsIiwic2NvcGUiOiJ0eDpyZWFkIHR4OndyaXRlIn0.rXENWbXqJvT7Z4kcE8rH_GcutSrifFZHNIM2oViZWNlQn1CoYR4gOFIDUPG0LFKsN9u7k8c2Q4aSSdHjLP5GsaQzCMbTIwjIX511b-7ZS78s-0MVIijqaVA-olXMdSEqWq4YX4dPjATiRS_47DuTSdXczhcNhiJq_IX02SpbAKM0IU-flw6GPhMutyLtGJJxTDr0Mp0DPTJjFGmDYSJIoPCPZeImq2_yh9XzL8agEujaCT7P8_1gSYwArd-stG-mm0RIOn3i4T8L_SJwiu0QtoCBtqDP69XteLyrzPEDKU9BEKuSAsi3NBqi2a0v5Em9AVKruxma29O_cW53me19XA"
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

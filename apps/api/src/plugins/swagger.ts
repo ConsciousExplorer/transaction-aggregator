@@ -33,7 +33,8 @@ export default fastifyPlugin<{
 						bearerFormat: "JWT"
 					}
 				}
-			}
+			},
+			security: [{ bearerAuth: [] }]
 		}
 	});
 

@@ -3,6 +3,6 @@ variables:
   - name: schema-registry
     value: localhost:8081
   - name: api
-    value: localhost:8083
+    value: localhost:8089
   - name: idp
     value: http://localhost:8086
