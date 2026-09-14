@@ -34,6 +34,11 @@ export default async (
 ) => {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
+		config: {
+			authConfig: {
+				requiredScopes: ["tx:write"]
+			}
+		},
 		url: "",
 		schema: {
 			tags: ["user categories"],
