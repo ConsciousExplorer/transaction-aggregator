@@ -85,7 +85,7 @@ export default async (
 				shortDescription: row.shortDescription
 			}));
 
-			// TODO: Add cursor paging
+			// TODO: Add cursor paging, limit offset needs to read transactions and discard them.
 			const cursor = null;
 
 			return reply.send({

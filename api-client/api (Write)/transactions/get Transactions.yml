@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: localhost:8083/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=50
+  url: localhost:8089/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=50&transactionType=card
   params:
     - name: accountId
       value: c37b3e53-c30c-4c5a-b547-85fdadedd459
@@ -19,26 +19,9 @@ http:
     - name: limit
       value: "50"
       type: query
-    - name: source
+    - name: transactionType
       value: card
       type: query
-      disabled: true
-    - name: source
-      value: eft
-      type: query
-      disabled: true
-    - name: source
-      value: loan
-      type: query
-      disabled: true
-    - name: source
-      value: debit_order
-      type: query
-      disabled: true
-    - name: source
-      value: internal_transfer
-      type: query
-      disabled: true
     - name: category
       value: loan_repayment
       type: query
