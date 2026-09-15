@@ -6,9 +6,9 @@ import type { UserTransactionRepository } from "#src/integrations/database/repos
 import { problemSchema } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
-	mapSourceDetail,
-	sourceSchema,
-	transactionDetailSchema
+	mapFundingSource,
+	transactionDetailSchema,
+	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 
 export default async (
@@ -33,7 +33,9 @@ export default async (
 					.union([z.string(), z.string().array()])
 					.describe("The accountId")
 					.optional(),
-				source: z.union([sourceSchema, sourceSchema.array()]).optional(),
+				transactionType: z
+					.union([transactionTypeSchema, transactionTypeSchema.array()])
+					.optional(),
 				category: z
 					.union([z.coerce.string(), z.coerce.string().array()])
 					.optional(),
@@ -60,6 +62,7 @@ export default async (
 				userId: request.params.userId,
 				fromDateTime: request.query.fromDateTime,
 				toDateTime: request.query.toDateTime,
+				transactionType: request.query.transactionType,
 				category: request.query.category,
 				direction: request.query.direction,
 				amountMin: request.query.amountMin,
@@ -74,7 +77,7 @@ export default async (
 			const data = result.map((row) => ({
 				transactionId: row.transactionId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
-				source: row.source,
+				transactionType: row.transactionType,
 				direction: row.direction,
 				amountMinor: row.amountMinor,
 				currency: row.currency,
@@ -82,6 +85,7 @@ export default async (
 				shortDescription: row.shortDescription
 			}));
 
+			// TODO: Add cursor paging
 			const cursor = null;
 
 			return reply.send({
@@ -128,7 +132,7 @@ export default async (
 				longDescription: row.longDescription,
 				shortDescription: row.shortDescription,
 				category: row.category,
-				source: mapSourceDetail(row.source, row.metadata)
+				fundingSource: mapFundingSource(row.transactionType, row.metadata)
 			});
 		}
 	});

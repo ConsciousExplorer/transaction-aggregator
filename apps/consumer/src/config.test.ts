@@ -52,17 +52,19 @@ suite("loadConfig", () => {
 		assert.strictEqual(config.database.user, "kafka_consumer");
 	});
 
-	test("SOURCE derives the topic, DLQ topic, and group id", () => {
-		const config = loadConfig({ ...sampleEnv, SOURCE: "loan" });
+	test("TRANSACTION_TYPE derives the topic, DLQ topic, and group id", () => {
+		const config = loadConfig({ ...sampleEnv, TRANSACTION_TYPE: "loan" });
 
-		assert.strictEqual(config.source, "loan");
+		assert.strictEqual(config.transactionType, "loan");
 		assert.strictEqual(config.kafka.topics.main, "transactions.loan");
 		assert.strictEqual(config.kafka.topics.dlq, "transactions.loan.dlq");
 		assert.strictEqual(config.kafka.groupId, "transaction-consumer-loan");
 	});
 
-	test("rejects an unknown SOURCE", () => {
-		assert.throws(() => loadConfig({ ...sampleEnv, SOURCE: "bitcoin" }));
+	test("rejects an unknown TRANSACTION_TYPE", () => {
+		assert.throws(() =>
+			loadConfig({ ...sampleEnv, TRANSACTION_TYPE: "bitcoin" })
+		);
 	});
 
 	test("should fail validation required vars are not passed", () => {

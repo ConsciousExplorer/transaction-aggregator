@@ -346,7 +346,7 @@ services:
       PORT: 3001
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      SOURCE: card
+      TRANSACTION_TYPE: card
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -405,7 +405,7 @@ services:
       PORT: 3002
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      SOURCE: eft
+      TRANSACTION_TYPE: eft
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -464,7 +464,7 @@ services:
       PORT: 3003
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      SOURCE: internal-transfer
+      TRANSACTION_TYPE: internal-transfer
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -523,7 +523,7 @@ services:
       PORT: 3004
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      SOURCE: debit-order
+      TRANSACTION_TYPE: debit-order
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -582,7 +582,7 @@ services:
       PORT: 3005
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      SOURCE: loan
+      TRANSACTION_TYPE: loan
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json

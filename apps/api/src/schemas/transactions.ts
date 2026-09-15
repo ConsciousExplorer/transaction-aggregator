@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const sourceSchema = z.enum([
+export const transactionTypeSchema = z.enum([
 	"card",
 	"eft",
 	"loan",
@@ -16,7 +16,7 @@ export const amountSchema = z.object({
 export const listQuerySchema = z.object({
 	from: z.iso.datetime().optional(),
 	to: z.iso.datetime().optional(),
-	source: sourceSchema.optional(),
+	transactionType: transactionTypeSchema.optional(),
 	categoryId: z.coerce.number().int().optional(),
 	direction: z.enum(["debit", "credit"]).optional(),
 	amountMin: z.coerce.number().int().optional(),
@@ -28,7 +28,7 @@ export const listQuerySchema = z.object({
 export const transactionItemSchema = z.object({
 	transactionId: z.uuid(),
 	occurredAt: z.iso.datetime(),
-	source: z.union([z.string(), sourceSchema.optional()]),
+	transactionType: z.union([z.string(), transactionTypeSchema.optional()]),
 	direction: z.union([z.string(), z.enum(["debit", "credit"])]),
 	amountMinor: z.number().int(),
 	currency: z.string(),
@@ -41,8 +41,8 @@ export const listResponseSchema = z.object({
 	nextCursor: z.string().nullable()
 });
 
-const cardDetailsSchema = z.object({
-	sourceType: z.literal("card"),
+const cardFundingSourceSchema = z.object({
+	transactionType: z.literal("card"),
 	cardLast4: z.string().length(4),
 	cardNetwork: z.string(),
 	mcc: z.string().length(4).nullable(),
@@ -51,8 +51,8 @@ const cardDetailsSchema = z.object({
 	authCode: z.string().nullable()
 });
 
-const loanDetailsSchema = z.object({
-	sourceType: z.literal("loan"),
+const loanFundingSourceSchema = z.object({
+	transactionType: z.literal("loan"),
 	loanAccountId: z.uuid(),
 	loanType: z.string(),
 	operation: z.enum(["repayment", "disbursement"]),
@@ -60,8 +60,8 @@ const loanDetailsSchema = z.object({
 	interest: amountSchema.nullable()
 });
 
-const eftDetailsSchema = z.object({
-	sourceType: z.literal("eft"),
+const eftFundingSourceSchema = z.object({
+	transactionType: z.literal("eft"),
 	beneficiaryName: z.string(),
 	beneficiaryAccountLast4: z.string().nullable(),
 	beneficiaryBank: z.string(),
@@ -70,41 +70,41 @@ const eftDetailsSchema = z.object({
 	clearingType: z.string().nullable()
 });
 
-const debitOrderDetailsSchema = z.object({
-	sourceType: z.literal("debit_order"),
+const debitOrderFundingSourceSchema = z.object({
+	transactionType: z.literal("debit_order"),
 	mandateId: z.string(),
 	creditorName: z.string(),
 	collectionType: z.string().nullable(),
 	frequency: z.string().nullable()
 });
 
-const internalTransferDetailsSchema = z.object({
-	sourceType: z.literal("internal_transfer"),
+const internalTransferFundingSourceSchema = z.object({
+	transactionType: z.literal("internal_transfer"),
 	fromAccountId: z.uuid(),
 	toAccountId: z.uuid(),
 	fromAccountType: z.string(),
 	toAccountType: z.string()
 });
 
-export const sourceDetailSchema = z.discriminatedUnion("sourceType", [
-	cardDetailsSchema,
-	loanDetailsSchema,
-	eftDetailsSchema,
-	debitOrderDetailsSchema,
-	internalTransferDetailsSchema
+export const fundingSourceSchema = z.discriminatedUnion("transactionType", [
+	cardFundingSourceSchema,
+	loanFundingSourceSchema,
+	eftFundingSourceSchema,
+	debitOrderFundingSourceSchema,
+	internalTransferFundingSourceSchema
 ]);
 
-export type SourceDetail = z.infer<typeof sourceDetailSchema>;
-export function mapSourceDetail(
-	source: z.infer<typeof sourceSchema>,
+export type FundingSource = z.infer<typeof fundingSourceSchema>;
+export function mapFundingSource(
+	transactionType: z.infer<typeof transactionTypeSchema>,
 	metadata: unknown
-): SourceDetail {
+): FundingSource {
 	const raw = metadata as Record<string, unknown>;
 
-	if (source === "loan") {
+	if (transactionType === "loan") {
 		const { principalAmount, interestAmount, ...rest } = raw;
-		return sourceDetailSchema.parse({
-			sourceType: source,
+		return fundingSourceSchema.parse({
+			transactionType,
 			...rest,
 			principal:
 				typeof principalAmount === "number"
@@ -117,7 +117,7 @@ export function mapSourceDetail(
 		});
 	}
 
-	return sourceDetailSchema.parse({ sourceType: source, ...raw });
+	return fundingSourceSchema.parse({ transactionType, ...raw });
 }
 
 export const transactionDetailSchema = z.object({
@@ -131,5 +131,5 @@ export const transactionDetailSchema = z.object({
 	longDescription: z.string().nullable(),
 	shortDescription: z.string().nullable(),
 	category: z.string(),
-	source: sourceDetailSchema // Discriminated Union detail schema
+	fundingSource: fundingSourceSchema // Discriminated Union detail schema
 });

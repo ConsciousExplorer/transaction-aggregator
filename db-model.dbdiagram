@@ -52,7 +52,147 @@
     ],
     "tableGroupCollapseStates": [],
     "stickyNoteLayouts": [],
-    "referencePaths": []
+    "referencePaths": [
+      {
+        "firstFieldNames": [
+          "version"
+        ],
+        "firstTableName": "rule_sets",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ruleset_version"
+        ],
+        "secondTableName": "categorization_rules",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "category_id"
+        ],
+        "firstTableName": "categories",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "category_id"
+        ],
+        "secondTableName": "categorization_rules",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "category_id"
+        ],
+        "firstTableName": "categories",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "from_category_id"
+        ],
+        "secondTableName": "user_category_overrides",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "category_id"
+        ],
+        "firstTableName": "categories",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "to_category_id"
+        ],
+        "secondTableName": "user_category_overrides",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "category_id"
+        ],
+        "firstTableName": "categories",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "category_id"
+        ],
+        "secondTableName": "user_transaction_overrides",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "category_id"
+        ],
+        "firstTableName": "categories",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "category_id"
+        ],
+        "secondTableName": "transactions",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "version"
+        ],
+        "firstTableName": "rule_sets",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "rule_version"
+        ],
+        "secondTableName": "transactions",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "ruleset_version",
+          "priority"
+        ],
+        "firstTableName": "categorization_rules",
+        "firstSchemaName": "public",
+        "firstRelation": "0..1",
+        "secondFieldNames": [
+          "rule_version",
+          "rule_priority"
+        ],
+        "secondTableName": "transactions",
+        "secondSchemaName": "public",
+        "secondRelation": "0..*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "transaction_id",
+          "occurred_at"
+        ],
+        "firstTableName": "transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "transaction_id",
+          "occurred_at"
+        ],
+        "secondTableName": "user_transaction_overrides",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      }
+    ]
   },
   "views": {}
 }

@@ -36,7 +36,7 @@ const cardWire = {
 const canonicalBase = {
 	userId: base.customerId,
 	accountId: ACCOUNT_ID,
-	source: "card",
+	transactionType: "card",
 	externalId: base.transactionId,
 	occurredAt: new Date(base.timestamp).toISOString(),
 	direction: "debit",
@@ -48,9 +48,9 @@ const canonicalBase = {
 	metadata: {}
 };
 
-suite("canonical schema — source enum", () => {
-	// The canonical vocabulary mirrors the Postgres source_type enum exactly:
-	// underscores, never the hyphenated config/topic spelling.
+suite("canonical schema — transactionType enum", () => {
+	// The canonical vocabulary mirrors the Postgres transaction_type enum
+	// exactly: underscores, never the hyphenated config/topic spelling.
 	const canonical = [
 		"card",
 		"eft",
@@ -59,30 +59,30 @@ suite("canonical schema — source enum", () => {
 		"internal_transfer"
 	] as const;
 
-	for (const source of canonical) {
-		test(`accepts canonical source "${source}"`, () => {
+	for (const transactionType of canonical) {
+		test(`accepts canonical transactionType "${transactionType}"`, () => {
 			const parsed = canonicalTransactionSchema.parse({
 				...canonicalBase,
-				source
+				transactionType
 			});
-			assert.strictEqual(parsed.source, source);
+			assert.strictEqual(parsed.transactionType, transactionType);
 		});
 	}
 
-	for (const source of ["debit-order", "internal-transfer"]) {
-		test(`rejects config-vocabulary source "${source}"`, () => {
+	for (const transactionType of ["debit-order", "internal-transfer"]) {
+		test(`rejects config-vocabulary transactionType "${transactionType}"`, () => {
 			const result = canonicalTransactionSchema.safeParse({
 				...canonicalBase,
-				source
+				transactionType
 			});
 			assert.strictEqual(result.success, false);
 		});
 	}
 
-	test("rejects an arbitrary source string", () => {
+	test("rejects an arbitrary transactionType string", () => {
 		const result = canonicalTransactionSchema.safeParse({
 			...canonicalBase,
-			source: "crypto"
+			transactionType: "crypto"
 		});
 		assert.strictEqual(result.success, false);
 	});
@@ -110,9 +110,9 @@ suite("canonical schema — accountId", () => {
 });
 
 suite("normalisers — canonical output", () => {
-	test("card emits source 'card' and maps accountId", () => {
+	test("card emits transactionType 'card' and maps accountId", () => {
 		const canonical = normaliseCard(cardWire);
-		assert.strictEqual(canonical.source, "card");
+		assert.strictEqual(canonical.transactionType, "card");
 		assert.strictEqual(canonical.accountId, ACCOUNT_ID);
 	});
 
@@ -123,7 +123,7 @@ suite("normalisers — canonical output", () => {
 		assert.strictEqual(result.success, true);
 	});
 
-	test("eft emits source 'eft' and maps accountId", () => {
+	test("eft emits transactionType 'eft' and maps accountId", () => {
 		const canonical = normaliseEft({
 			...base,
 			sourceType: "eft",
@@ -134,11 +134,11 @@ suite("normalisers — canonical output", () => {
 			reference: "rent",
 			clearingType: "standard"
 		});
-		assert.strictEqual(canonical.source, "eft");
+		assert.strictEqual(canonical.transactionType, "eft");
 		assert.strictEqual(canonical.accountId, ACCOUNT_ID);
 	});
 
-	test("loan emits source 'loan' and maps accountId", () => {
+	test("loan emits transactionType 'loan' and maps accountId", () => {
 		const canonical = normaliseLoan({
 			...base,
 			sourceType: "loan",
@@ -148,11 +148,11 @@ suite("normalisers — canonical output", () => {
 			principalAmount: 10000,
 			interestAmount: 2345
 		});
-		assert.strictEqual(canonical.source, "loan");
+		assert.strictEqual(canonical.transactionType, "loan");
 		assert.strictEqual(canonical.accountId, ACCOUNT_ID);
 	});
 
-	test("internal transfer emits underscored source 'internal_transfer'", () => {
+	test("internal transfer emits underscored transactionType 'internal_transfer'", () => {
 		const canonical = normaliseInternalTransfer({
 			...base,
 			sourceType: "internal_transfer",
@@ -161,11 +161,11 @@ suite("normalisers — canonical output", () => {
 			fromAccountType: "cheque",
 			toAccountType: "savings"
 		});
-		assert.strictEqual(canonical.source, "internal_transfer");
+		assert.strictEqual(canonical.transactionType, "internal_transfer");
 		assert.strictEqual(canonical.accountId, ACCOUNT_ID);
 	});
 
-	test("debit order emits underscored source 'debit_order'", () => {
+	test("debit order emits underscored transactionType 'debit_order'", () => {
 		const canonical = normaliseDebitOrder({
 			...base,
 			sourceType: "debit_order",
@@ -176,7 +176,7 @@ suite("normalisers — canonical output", () => {
 			collectionType: "NAEDO",
 			frequency: "monthly"
 		});
-		assert.strictEqual(canonical.source, "debit_order");
+		assert.strictEqual(canonical.transactionType, "debit_order");
 		assert.strictEqual(canonical.accountId, ACCOUNT_ID);
 	});
 });

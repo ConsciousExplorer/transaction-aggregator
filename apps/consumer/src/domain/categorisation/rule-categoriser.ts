@@ -1,7 +1,7 @@
 import type z from "zod";
 import type { canonicalTransactionSchema } from "../transaction.ts";
 
-export const KEYWORD_SOURCES = new Set(["card", "debit_order"]);
+export const KEYWORD_TRANSACTION_TYPES = new Set(["card", "debit_order"]);
 export const MATCHER_TYPES = [
 	"mcc",
 	"keyword",
@@ -106,7 +106,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 			}
 
 			// 2. Keywords
-			if (KEYWORD_SOURCES.has(transaction.source)) {
+			if (KEYWORD_TRANSACTION_TYPES.has(transaction.transactionType)) {
 				const terms =
 					`${transaction.shortDescription ?? ""} ${transaction.longDescription ?? ""}`.toLowerCase();
 				for (const { term, rule } of keywordRules) {
@@ -115,22 +115,22 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 			}
 
 			// 3. source:transaction_type
-			const transactionType = transaction.metadata.transaction_type;
-			if (typeof transactionType === "string") {
+			const sourceTransactionType = transaction.metadata.transaction_type;
+			if (typeof sourceTransactionType === "string") {
 				const rule = sourceTransactionTypeMap.get(
-					`${transaction.source}:${transactionType}`
+					`${transaction.transactionType}:${sourceTransactionType}`
 				);
 				if (rule) return verdictOf(rule);
 			}
 
 			// 4. source:direction
 			const directionRule = sourceDirectionMap.get(
-				`${transaction.source}:${transaction.direction}`
+				`${transaction.transactionType}:${transaction.direction}`
 			);
 			if (directionRule) return verdictOf(directionRule);
 
 			// 5. source defaults
-			const rule = defaultMap.get(transaction.source);
+			const rule = defaultMap.get(transaction.transactionType);
 			if (rule) return verdictOf(rule);
 
 			// 6. Fallback

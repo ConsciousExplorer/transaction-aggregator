@@ -11,7 +11,7 @@ import {
 	timestamp,
 	uuid
 } from "drizzle-orm/pg-core";
-import { directionType, sourceType } from "./schema.ts";
+import { directionType, transactionType } from "./schema.ts";
 
 export const transactions = pgTable(
 	"transactions",
@@ -19,7 +19,7 @@ export const transactions = pgTable(
 		transactionId: uuid("transaction_id").default(sql`uuidv7()`).notNull(),
 		userId: uuid("user_id").notNull(),
 		accountId: uuid("account_id").notNull(),
-		source: sourceType().notNull(),
+		transactionType: transactionType().notNull(),
 		externalId: text("external_id").notNull(),
 		occurredAt: timestamp("occurred_at", {
 			withTimezone: true,

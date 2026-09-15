@@ -14,7 +14,7 @@ import {
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import { sourceSchema } from "#src/schemas/transactions.ts";
+import { transactionTypeSchema } from "#src/schemas/transactions.ts";
 import {
 	transactions,
 	userTransactionOverrides
@@ -25,7 +25,9 @@ export const userSummaryFilter = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
-	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
+	transactionType: z
+		.union([transactionTypeSchema, transactionTypeSchema.array()])
+		.optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
 	interval: z.enum(["day", "week", "month", "total"]).optional(),
 	direction: z
@@ -73,10 +75,10 @@ export class SummaryRepository {
 			eq(transactions.userId, filter.userId),
 			gte(transactions.occurredAt, filter.fromDate),
 			lt(transactions.occurredAt, filter.toDate),
-			filter.source !== undefined
-				? Array.isArray(filter.source)
-					? inArray(transactions.source, filter.source)
-					: eq(transactions.source, filter.source)
+			filter.transactionType !== undefined
+				? Array.isArray(filter.transactionType)
+					? inArray(transactions.transactionType, filter.transactionType)
+					: eq(transactions.transactionType, filter.transactionType)
 				: undefined,
 			filter.direction !== undefined
 				? Array.isArray(filter.direction)

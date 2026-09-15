@@ -14,7 +14,7 @@ export async function batchInsertTransactions(
         (
 			user_id,
 			account_id,
-			source,
+			transaction_type,
 			external_id,
 			occurred_at,
 			direction,
@@ -30,7 +30,7 @@ export async function batchInsertTransactions(
         SELECT
 			t.user_id,
 			t.account_id,
-			t.source,
+			t.transaction_type,
 			t.external_id,
 			t.occurred_at,
 			t.direction,
@@ -45,7 +45,7 @@ export async function batchInsertTransactions(
 		FROM unnest(
         	$1::uuid[],
 			$2::uuid[],
-			$3::source_type[],
+			$3::transaction_type[],
 			$4::text[],
 			$5::timestamptz[],
         	$6::direction_type[],
@@ -60,7 +60,7 @@ export async function batchInsertTransactions(
 		AS t (
 			user_id,
 			account_id,
-			source,
+			transaction_type,
 			external_id,
 			occurred_at,
 			direction,
@@ -73,12 +73,12 @@ export async function batchInsertTransactions(
 			rule_priority,
 			metadata
 		)
-        ON CONFLICT (source, external_id, occurred_at) DO NOTHING
+        ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING
         RETURNING 1`,
 		[
 			transactions.map((t) => t.userId), // 1
 			transactions.map((t) => t.accountId), // 2
-			transactions.map((t) => t.source), // 3
+			transactions.map((t) => t.transactionType), // 3
 			transactions.map((t) => t.externalId), // 4
 			transactions.map((t) => t.occurredAt), // 5
 			transactions.map((t) => t.direction), // 6

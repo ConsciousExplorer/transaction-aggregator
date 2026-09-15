@@ -33,7 +33,7 @@ const makeTransaction = (
 ): CanonicalTransaction => ({
 	userId: "3f1d3aa4-8a3e-4a6e-9c93-2b9f6f1d8c11",
 	accountId: "0d4f3a52-9c1b-4f6e-8a2d-5b7c9e1f3a60",
-	source: "card",
+	transactionType: "card",
 	externalId: "txn-1",
 	occurredAt: "2026-08-18",
 	direction: "debit",
@@ -144,15 +144,18 @@ suite("tier 2: keyword", () => {
 	test("applies to debit_order transactions", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "debit_order", longDescription: "uber one" })
+			makeTransaction({
+				transactionType: "debit_order",
+				longDescription: "uber one"
+			})
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
 
-	test("is skipped for sources outside the keyword scope", () => {
+	test("is skipped for transaction types outside the keyword scope", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "eft", longDescription: "uber trip" })
+			makeTransaction({ transactionType: "eft", longDescription: "uber trip" })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
@@ -166,12 +169,12 @@ suite("tier 3: source_transaction_type", () => {
 		categoryId: 30
 	});
 
-	test("matches on source plus metadata.transaction_type", () => {
+	test("matches on transactionType plus metadata.transaction_type", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([repaymentRule]));
 		assert.deepStrictEqual(
 			categoriser.categorise(
 				makeTransaction({
-					source: "loan",
+					transactionType: "loan",
 					metadata: { transaction_type: "repayment" }
 				})
 			),
@@ -184,11 +187,11 @@ suite("tier 3: source_transaction_type", () => {
 		);
 	});
 
-	test("same transaction_type on a different source does not match", () => {
+	test("same transaction_type on a different transactionType does not match", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([repaymentRule]));
 		const verdict = categoriser.categorise(
 			makeTransaction({
-				source: "eft",
+				transactionType: "eft",
 				metadata: { transaction_type: "repayment" }
 			})
 		);
@@ -198,7 +201,10 @@ suite("tier 3: source_transaction_type", () => {
 	test("non-string transaction_type is ignored", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([repaymentRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "loan", metadata: { transaction_type: 42 } })
+			makeTransaction({
+				transactionType: "loan",
+				metadata: { transaction_type: 42 }
+			})
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
@@ -212,11 +218,11 @@ suite("tier 4: source_direction", () => {
 		categoryId: 50
 	});
 
-	test("matches on source plus direction", () => {
+	test("matches on transactionType plus direction", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([eftCreditRule]));
 		assert.deepStrictEqual(
 			categoriser.categorise(
-				makeTransaction({ source: "eft", direction: "credit" })
+				makeTransaction({ transactionType: "eft", direction: "credit" })
 			),
 			{
 				categoryId: 50,
@@ -227,25 +233,28 @@ suite("tier 4: source_direction", () => {
 		);
 	});
 
-	test("same direction on a different source does not match", () => {
+	test("same direction on a different transactionType does not match", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([eftCreditRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "internal_transfer", direction: "credit" })
+			makeTransaction({
+				transactionType: "internal_transfer",
+				direction: "credit"
+			})
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 
-	test("opposite direction on the same source does not match", () => {
+	test("opposite direction on the same transactionType does not match", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([eftCreditRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "eft", direction: "debit" })
+			makeTransaction({ transactionType: "eft", direction: "debit" })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 });
 
 suite("tier 5: source_default", () => {
-	test("routes an otherwise unmatched transaction by its source", () => {
+	test("routes an otherwise unmatched transaction by its transactionType", () => {
 		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
@@ -257,7 +266,9 @@ suite("tier 5: source_default", () => {
 			])
 		);
 		assert.deepStrictEqual(
-			categoriser.categorise(makeTransaction({ source: "internal_transfer" })),
+			categoriser.categorise(
+				makeTransaction({ transactionType: "internal_transfer" })
+			),
 			{
 				categoryId: 40,
 				ruleVersion: 7,
@@ -267,7 +278,7 @@ suite("tier 5: source_default", () => {
 		);
 	});
 
-	test("a source without a default falls through to the fallback", () => {
+	test("a transactionType without a default falls through to the fallback", () => {
 		const categoriser = createRuleCategoriser(
 			makeRuleSet([
 				makeRule({
@@ -278,7 +289,9 @@ suite("tier 5: source_default", () => {
 				})
 			])
 		);
-		const verdict = categoriser.categorise(makeTransaction({ source: "eft" }));
+		const verdict = categoriser.categorise(
+			makeTransaction({ transactionType: "eft" })
+		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 });
@@ -370,7 +383,7 @@ suite("tier precedence", () => {
 		);
 		const verdict = categoriser.categorise(
 			makeTransaction({
-				source: "eft",
+				transactionType: "eft",
 				direction: "credit",
 				metadata: { transaction_type: "incoming" }
 			})
@@ -396,7 +409,7 @@ suite("tier precedence", () => {
 			])
 		);
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "eft", direction: "credit" })
+			makeTransaction({ transactionType: "eft", direction: "credit" })
 		);
 		assert.strictEqual(verdict.matcherType, "source_direction");
 	});

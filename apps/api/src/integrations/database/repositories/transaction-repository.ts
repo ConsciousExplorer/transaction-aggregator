@@ -13,7 +13,7 @@ import {
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import { sourceSchema } from "#src/schemas/transactions.ts";
+import { transactionTypeSchema } from "#src/schemas/transactions.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import {
 	transactions,
@@ -27,7 +27,9 @@ export const listTransactionsFilterSchema = z.object({
 	fromDateTime: z.iso.datetime(),
 	toDateTime: z.iso.datetime(),
 	accountId: z.union([z.string(), z.string().array()]).optional(),
-	source: z.union([sourceSchema, sourceSchema.array()]).optional(),
+	transactionType: z
+		.union([transactionTypeSchema, transactionTypeSchema.array()])
+		.optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
 	direction: z
 		.union([z.enum(["debit", "credit"]), z.enum(["debit", "credit"]).array()])
@@ -83,10 +85,10 @@ export class UserTransactionRepository {
 			eq(transactions.userId, filter.userId),
 			gte(transactions.occurredAt, filter.fromDateTime),
 			lt(transactions.occurredAt, filter.toDateTime),
-			filter.source !== undefined
-				? Array.isArray(filter.source)
-					? inArray(transactions.source, filter.source)
-					: eq(transactions.source, filter.source)
+			filter.transactionType !== undefined
+				? Array.isArray(filter.transactionType)
+					? inArray(transactions.transactionType, filter.transactionType)
+					: eq(transactions.transactionType, filter.transactionType)
 				: undefined,
 			filter.direction !== undefined
 				? Array.isArray(filter.direction)
@@ -112,7 +114,7 @@ export class UserTransactionRepository {
 			.select({
 				transactionId: transactions.transactionId,
 				occurredAt: transactions.occurredAt,
-				source: transactions.source,
+				transactionType: transactions.transactionType,
 				direction: transactions.direction,
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
@@ -159,7 +161,7 @@ export class UserTransactionRepository {
 				direction: transactions.direction,
 				longDescription: transactions.longDescription,
 				amountMinor: transactions.amountMinor,
-				source: transactions.source,
+				transactionType: transactions.transactionType,
 				currency: transactions.currency,
 				categoryId: effectiveCategoryId,
 				category: categories.category,

@@ -184,7 +184,7 @@ try {
 		uncategorisedId: uncategorisedId
 	} as RuleSet;
 
-	transactionNormaliser = createNormaliser(config.source);
+	transactionNormaliser = createNormaliser(config.transactionType);
 	ruleCategoriser = createRuleCategoriser(ruleset);
 
 	Promise.all([

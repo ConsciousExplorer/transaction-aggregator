@@ -5,7 +5,7 @@ import {
 	SASLMechanisms
 } from "@platformatic/kafka";
 import { z } from "zod";
-import { SOURCE_TYPES } from "./domain/source.ts";
+import { TRANSACTION_TYPES } from "./domain/transaction-type.ts";
 import { LOG_LEVELS } from "./logger.ts";
 
 const KAFKA_READ_MODES = [
@@ -55,9 +55,10 @@ const configSchema = z
 
 		SCHEMA_REGISTRY_URL: z.url().default("http://localhost:8081"),
 
-		// One consumer instance per source. Topic, DLQ topic, group id and the
-		// normaliser are all derived from this single value so they can never drift.
-		SOURCE: z.enum(SOURCE_TYPES).default("card"),
+		// One consumer instance per transaction type. Topic, DLQ topic, group id
+		// and the normaliser are all derived from this single value so they can
+		// never drift.
+		TRANSACTION_TYPE: z.enum(TRANSACTION_TYPES).default("card"),
 
 		KAFKA_BROKERS: z.string().transform(csv),
 		KAFKA_USERNAME: z.string(),
@@ -145,18 +146,18 @@ const configSchema = z
 				min: e.DATABASE_POOL_MIN,
 				max: e.DATABASE_POOL_MAX
 			}),
-			source: e.SOURCE,
+			transactionType: e.TRANSACTION_TYPE,
 			kafka: Object.freeze({
 				brokers: e.KAFKA_BROKERS, // string[] now
-				groupId: `transaction-consumer-${e.SOURCE}`,
+				groupId: `transaction-consumer-${e.TRANSACTION_TYPE}`,
 				clientId: e.APP_NAME,
 				sasl: Object.freeze({
 					mechanism: e.KAFKA_SASL_MECHANISM,
 					username: e.KAFKA_USERNAME
 				}),
 				topics: Object.freeze({
-					main: `transactions.${e.SOURCE}`,
-					dlq: `transactions.${e.SOURCE}.dlq`
+					main: `transactions.${e.TRANSACTION_TYPE}`,
+					dlq: `transactions.${e.TRANSACTION_TYPE}.dlq`
 				}),
 				sessionTimeout: e.KAFKA_SESSION_TIMEOUT_MS,
 				heartbeatInterval: e.KAFKA_HEARTBEAT_INTERVAL_MS,

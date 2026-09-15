@@ -2,7 +2,7 @@ import type z from "zod";
 import {
 	type canonicalTransactionSchema,
 	type directionSchema,
-	sourceSchema
+	transactionTypeSchema
 } from "#src/domain/transaction.ts";
 import type { EftTransaction } from "#src/generated/eft.ts";
 
@@ -12,7 +12,7 @@ export function normaliseEft(
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
-		source: sourceSchema.enum.eft,
+		transactionType: transactionTypeSchema.enum.eft,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		longDescription: record.description,

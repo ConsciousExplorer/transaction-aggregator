@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const directionType = pgEnum("direction_type", ["debit", "credit"]);
-export const sourceType = pgEnum("source_type", [
+export const transactionType = pgEnum("transaction_type", [
 	"card",
 	"loan",
 	"debit_order",

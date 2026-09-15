@@ -18,7 +18,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 		{
 			transactionId: TX_ID,
 			occurredAt: "2026-08-15T09:30:00.000Z",
-			source: "card",
+			transactionType: "card",
 			direction: "debit",
 			amountMinor: 1234,
 			currency: "ZAR",
@@ -28,7 +28,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 		{
 			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
 			occurredAt: "2026-08-14T12:00:00.000Z",
-			source: "eft",
+			transactionType: "eft",
 			direction: "credit",
 			amountMinor: 50000,
 			currency: "ZAR",
@@ -40,8 +40,8 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 // The detail select carries account/external/posted/description/mcc/metadata
 // on top of the list columns — its own typed fixture keeps the drift guard
 // honest. metadata matches what apps/consumer/src/domain/normaliser/domain/
-// card.ts actually writes (camelCase keys — see transaction-repository.ts's
-// mapSourceDetail, which parses this shape).
+// card.ts actually writes (camelCase keys — see schemas/transactions.ts's
+// mapFundingSource, which parses this shape).
 const DETAIL: Awaited<
 	ReturnType<UserTransactionRepository["getTransactionDetail"]>
 > = {
@@ -49,7 +49,7 @@ const DETAIL: Awaited<
 	accountId: "8f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
 	externalId: "ext-card-001",
 	occurredAt: "2026-08-15T09:30:00.000Z",
-	source: "card",
+	transactionType: "card",
 	direction: "debit",
 	longDescription: null,
 	amountMinor: 1234,
@@ -112,7 +112,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 				{
 					transactionId: TX_ID,
 					occurredAt: "2026-08-15T09:30:00.000Z",
-					source: "card",
+					transactionType: "card",
 					direction: "debit",
 					amountMinor: 1234,
 					currency: "ZAR",
@@ -122,7 +122,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 				{
 					transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
 					occurredAt: "2026-08-14T12:00:00.000Z",
-					source: "eft",
+					transactionType: "eft",
 					direction: "credit",
 					amountMinor: 50000,
 					currency: "ZAR",
@@ -135,12 +135,16 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	});
 
 	test("handler maps params/query onto the repository filter (limit defaults to 50)", async () => {
-		await app.inject({ method: "GET", url: `${LIST_URL}&category=groceries` });
+		await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&category=groceries&transactionType=card`
+		});
 		assert.strictEqual(getTransactions.mock.callCount(), 1);
 		assert.deepStrictEqual(getTransactions.mock.calls[0]?.arguments.at(0), {
 			userId: "u1",
 			fromDateTime: FROM,
 			toDateTime: TO,
+			transactionType: "card",
 			category: "groceries",
 			direction: undefined,
 			amountMin: undefined,
@@ -167,8 +171,8 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			longDescription: null,
 			shortDescription: "Spar",
 			category: "groceries",
-			source: {
-				sourceType: "card",
+			fundingSource: {
+				transactionType: "card",
 				cardLast4: "1234",
 				cardNetwork: "visa",
 				mcc: "5411",

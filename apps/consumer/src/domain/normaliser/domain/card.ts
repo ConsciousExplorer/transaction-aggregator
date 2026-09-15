@@ -2,7 +2,7 @@ import type z from "zod";
 import {
 	type canonicalTransactionSchema,
 	type directionSchema,
-	sourceSchema
+	transactionTypeSchema
 } from "#src/domain/transaction.ts";
 import type { CardTransaction } from "#src/generated/card.ts";
 
@@ -12,7 +12,7 @@ export function normaliseCard(
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
-		source: sourceSchema.enum.card,
+		transactionType: transactionTypeSchema.enum.card,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		longDescription: record.description,

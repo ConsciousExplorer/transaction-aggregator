@@ -1,4 +1,4 @@
-Enum "source_type" {
+Enum "transaction_type" {
   "card"
   "loan"
   "debit_order"
@@ -13,7 +13,10 @@ Enum "direction_type" {
 
 Table "categories" {
   "category_id" SMALLINT [pk, increment]
-  "name" TEXT [unique, not null]
+  "category" TEXT [unique, not null]
+  "label" TEXT [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
 }
 
 Table "rule_sets" {
@@ -26,9 +29,11 @@ Table "categorization_rules" {
   "categorization_rule_id" int [pk, increment]
   "ruleset_version" int [not null]
   "priority" int [not null]
-  "matcher_type" text [not null, check: `matcher_type IN ('mcc','keyword','source_transaction_type','source_default')`]
+  "matcher_type" text [not null, check: `matcher_type IN ('mcc','keyword','source_transaction_type','source_direction','source_default')`]
   "pattern" text [not null]
   "category_id" smallint [not null]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
 
   Indexes {
     (ruleset_version, priority) [unique]
@@ -41,6 +46,7 @@ Table "user_category_overrides" {
   "to_category_id" smallint [not null]
   "created_at" timestamptz [not null, default: `now()`]
   "updated_at" timestamptz [not null, default: `now()`]
+  "archived_at" timestamptz
 
   Checks {
     `from_category_id <> to_category_id`
@@ -58,6 +64,7 @@ Table "user_transaction_overrides" {
   "category_id" smallint [not null]
   "created_at" timestamptz [not null, default: `now()`]
   "updated_at" timestamptz [not null, default: `now()`]
+  "archived_at" timestamptz
 
   Indexes {
     (transaction_id, occurred_at) [pk]
@@ -68,16 +75,14 @@ Table "transactions" {
   "transaction_id" uuid [not null, default: `uuidv7()`]
   "user_id" uuid [not null]
   "account_id" uuid [not null]
-  "source" source_type [not null]
+  "transaction_type" transaction_type [not null]
   "external_id" text [not null]
   "occurred_at" timestamptz [not null]
-  "posted_at" timestamptz
   "direction" direction_type [not null]
   "amount_minor" bigint [not null, check: `amount_minor > 0`]
   "currency" char(3) [not null]
-  "description" text
-  "merchant_name" text
-  "mcc" char(4) [check: `mcc ~ '^[0-9]{4}$'`]
+  "long_description" text
+  "short_description" text
   "category_id" smallint [not null]
   "rule_version" int [not null]
   "rule_priority" int
@@ -86,7 +91,7 @@ Table "transactions" {
 
   Indexes {
     (transaction_id, occurred_at) [pk]
-    (source, external_id, occurred_at) [unique]
+    (transaction_type, external_id, occurred_at) [unique]
     (user_id, occurred_at, transaction_id) [name: "idx_tx_user_read"]
   }
 }

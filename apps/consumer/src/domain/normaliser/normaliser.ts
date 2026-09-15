@@ -4,7 +4,7 @@ import type { DebitOrderTransaction } from "#src/generated/debit_order.ts";
 import type { EftTransaction } from "#src/generated/eft.ts";
 import type { InternalTransferTransaction } from "#src/generated/internal_transfer.ts";
 import type { LoanTransaction } from "#src/generated/loan.ts";
-import type { SourceTypes } from "../source.ts";
+import type { TransactionTypes } from "../transaction-type.ts";
 import type { canonicalTransactionSchema } from "../transaction.ts";
 import { normaliseCard } from "./domain/card.ts";
 import { normaliseDebitOrder } from "./domain/debit-order.ts";
@@ -21,7 +21,7 @@ export type Normaliser = (
 		| InternalTransferTransaction
 ) => z.infer<typeof canonicalTransactionSchema>;
 
-const NORMALIZERS: Partial<Record<SourceTypes, Normaliser>> = {
+const NORMALIZERS: Partial<Record<TransactionTypes, Normaliser>> = {
 	card: (record) => normaliseCard(record as CardTransaction),
 	eft: (record) => normaliseEft(record as EftTransaction),
 	loan: (record) => normaliseLoan(record as LoanTransaction),
@@ -31,9 +31,9 @@ const NORMALIZERS: Partial<Record<SourceTypes, Normaliser>> = {
 		normaliseInternalTransfer(record as InternalTransferTransaction)
 };
 
-export function createNormaliser(source: SourceTypes): Normaliser {
-	const normaliser = NORMALIZERS[source];
+export function createNormaliser(transactionType: TransactionTypes): Normaliser {
+	const normaliser = NORMALIZERS[transactionType];
 	if (!normaliser)
-		throw new Error(`No normaliser was found for source ${source}`);
+		throw new Error(`No normaliser was found for transaction type ${transactionType}`);
 	return normaliser;
 }

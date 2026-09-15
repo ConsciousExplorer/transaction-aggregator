@@ -1,6 +1,6 @@
 
 
-CREATE TYPE source_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
+CREATE TYPE transaction_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
 CREATE TYPE direction_type AS ENUM ('debit','credit');
 
 CREATE TABLE categories (
@@ -59,7 +59,7 @@ CREATE TABLE transactions (
   transaction_id            uuid NOT NULL DEFAULT uuidv7(),   -- PG18 native; DB-layer UUIDv7 (brief)
   user_id       uuid        NOT NULL, -- no users table exists, the assumption is that users are controlled in their own database
   account_id    uuid        NOT NULL, -- the customer account the transaction occurred on; a user can hold several accounts.
-  source        source_type NOT NULL,
+  transaction_type transaction_type NOT NULL,
   external_id   text        NOT NULL,
   occurred_at   timestamptz NOT NULL, -- partition key; transaction time
   direction     direction_type NOT NULL,
@@ -73,13 +73,13 @@ CREATE TABLE transactions (
   ingested_at   timestamptz NOT NULL DEFAULT now(),
   metadata      jsonb,
   PRIMARY KEY (transaction_id, occurred_at),
-  UNIQUE (source, external_id, occurred_at), -- Source and externalId must be unique, assume we have internal control
+  UNIQUE (transaction_type, external_id, occurred_at), -- transaction_type and externalId must be unique, assume we have internal control
   FOREIGN KEY (rule_version, rule_priority)  -- stamped lineage must reference a real rule (skipped when rule_priority IS NULL)
     REFERENCES categorization_rules (ruleset_version, priority)
 ) PARTITION BY RANGE (occurred_at);
 
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
-  INCLUDE (source, direction, amount_minor, currency, category_id, short_description);
+  INCLUDE (transaction_type, direction, amount_minor, currency, category_id, short_description);
 
 -- Admin 
 -- This table is for long term metrics. OTEL will typically not store months worth of data
