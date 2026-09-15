@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"description": "Transaction API for client transactions",
 	"license": "ISC",
-	"author": "edwinstoltz.es@gmail.com",
+	"author": "transaction@fakemail.com",
 	"type": "module",
 	"main": "app.ts",
 	"scripts": {
