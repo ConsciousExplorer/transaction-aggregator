@@ -24,7 +24,7 @@ export default async (
 		method: "PUT",
 		config: {
 			authConfig: {
-				requiredScopes: ["tx:write"]
+				requiredScope: ["tx:write"]
 			}
 		},
 		url: "/:transactionId",

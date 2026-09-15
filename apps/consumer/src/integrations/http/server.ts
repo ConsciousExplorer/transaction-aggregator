@@ -18,7 +18,7 @@ export async function createServer(options?: {
 			return res.end(JSON.stringify({ status: "ok" }));
 		}
 
-		// Donlt register a ready endpoint. We are not serving traffic
+		// Don't register a ready endpoint. We are not serving traffic
 
 		if (req.method === "GET" && req.url === "/info") {
 			res.setHeader("Content-Type", "application/json");

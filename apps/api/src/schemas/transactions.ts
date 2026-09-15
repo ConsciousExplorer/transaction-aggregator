@@ -95,7 +95,6 @@ export const sourceDetailSchema = z.discriminatedUnion("sourceType", [
 ]);
 
 export type SourceDetail = z.infer<typeof sourceDetailSchema>;
-
 export function mapSourceDetail(
 	source: z.infer<typeof sourceSchema>,
 	metadata: unknown

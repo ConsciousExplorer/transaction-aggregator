@@ -20,7 +20,7 @@ declare module "fastify" {
 		// public?: boolean;
 		authConfig?: {
 			public?: boolean;
-			requiredScopes?: string[];
+			requiredScope?: string[];
 		};
 	}
 }
@@ -65,15 +65,15 @@ export default fastifyPlugin<{
 
 			await fastify.verifyBearerToken(request);
 
-			const requiredScopes =
-				request.routeOptions.config.authConfig?.requiredScopes;
+			const requiredScope =
+				request.routeOptions.config.authConfig?.requiredScope;
 			const authContext = request.authContext;
 			if (
-				requiredScopes &&
-				(!authContext || !getAuthScopes(authContext, requiredScopes))
+				requiredScope &&
+				(!authContext || !getAuthScopes(authContext, requiredScope))
 			) {
 				request.log.warn(
-					{ "required: ": requiredScopes, given: request.authContext?.scope },
+					{ "required: ": requiredScope, given: request.authContext?.scope },
 					"Caller does not have the required scopes"
 				);
 				throw unauthorized();

@@ -36,7 +36,7 @@ export default async (
 		method: "GET",
 		config: {
 			authConfig: {
-				requiredScopes: ["tx:write"]
+				requiredScope: ["tx:write"]
 			}
 		},
 		url: "",

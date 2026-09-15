@@ -46,7 +46,7 @@ let server: Server;
 let rules: Rule[];
 let uncategorisedId: number;
 let transactionNormaliser: Normaliser;
-let RuleCategoriser: RuleCategoriser;
+let ruleCategoriser: RuleCategoriser;
 
 export async function startupCheck<T>(
 	name: string,
@@ -185,7 +185,7 @@ try {
 	} as RuleSet;
 
 	transactionNormaliser = createNormaliser(config.source);
-	RuleCategoriser = createRuleCategoriser(ruleset);
+	ruleCategoriser = createRuleCategoriser(ruleset);
 
 	Promise.all([
 		// Connects and authenticates. Same as postgres select 1
@@ -214,7 +214,7 @@ try {
 		config.kafka.topics.dlq,
 		writerPool,
 		transactionNormaliser,
-		RuleCategoriser,
+		ruleCategoriser,
 		transactionBatchHandler,
 		deserialisationErrorHandler,
 		{

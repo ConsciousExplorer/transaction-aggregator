@@ -19,7 +19,7 @@ export default async (
 		config: {
 			authConfig: {
 				public: false,
-				requiredScopes: ["tx:read"]
+				requiredScope: ["tx:read"]
 			}
 		},
 		method: "GET",

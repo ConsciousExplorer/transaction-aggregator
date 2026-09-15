@@ -1,4 +1,4 @@
-// Batch transaction Orchestartor.
+// Batch transaction Orchestrator.
 
 import type { Pool } from "pg";
 import type z from "zod";
@@ -113,8 +113,6 @@ export async function transactionBatchHandler(
 		}
 		// const progressReport = await updateProgress(pool);
 	} catch (error) {
-		console.log(error);
-
 		// Classify errors
 		const failure = classifyPostgresError(error, "Batch insert failed");
 
@@ -169,7 +167,7 @@ export async function transactionBatchHandler(
 			"Commit failed after a successful insert — offsets will replay"
 		);
 	} finally {
-		console.log("Hanlded Batch");
+		logger.debug("Handled Batch");
 	}
 }
 

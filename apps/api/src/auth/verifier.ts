@@ -65,7 +65,7 @@ export function getContext(claims: VerifiedClaims): AuthContext {
 
 export function getAuthScopes(
 	ctx: AuthContext,
-	requiredScopes: string[]
+	requiredScope: string[]
 ): boolean {
-	return requiredScopes.every((scope) => ctx.scope.includes(scope));
+	return requiredScope.every((scope) => ctx.scope.includes(scope));
 }
