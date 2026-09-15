@@ -43,8 +43,8 @@ const canonicalBase = {
 	direction: "debit",
 	currency: "ZAR",
 	amountMinor: 12345,
-	description: null,
-	counterpartyName: null,
+	longDescription: null,
+	shortDescription: null,
 	mcc: null,
 	metadata: {}
 };

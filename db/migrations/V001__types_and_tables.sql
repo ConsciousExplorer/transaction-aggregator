@@ -66,9 +66,8 @@ CREATE TABLE transactions (
   direction     direction_type NOT NULL,
   amount_minor  bigint      NOT NULL CHECK (amount_minor > 0),
   currency      char(3)     NOT NULL,
-  description   text,
-  counterparty_name text, -- who we paid / who paid us: card merchant, EFT beneficiary/payer, debit-order creditor; NULL for loan, internal_transfer (no external counterparty)
-  mcc           char(4)     CHECK (mcc ~ '^[0-9]{4}$'),  -- ISO 18245; leading zeros are real
+  long_description  text,
+  short_description text, -- who we paid / who paid us: card merchant, EFT beneficiary/payer, debit-order creditor; NULL for loan, internal_transfer (no external counterparty)
   category_id   smallint    NOT NULL REFERENCES categories(category_id),
   rule_version  int         NOT NULL REFERENCES rule_sets(version),
   rule_priority int,        -- lineage: with rule_version, names the EXACT rule that fired; NULL = engine fallback (no rule matched)
@@ -81,7 +80,7 @@ CREATE TABLE transactions (
 ) PARTITION BY RANGE (occurred_at);
 
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
-  INCLUDE (source, direction, amount_minor, currency, category_id, counterparty_name);
+  INCLUDE (source, direction, amount_minor, currency, category_id, short_description);
 
 -- Admin 
 -- This table is for long term metrics. OTEL will typically not store months worth of data

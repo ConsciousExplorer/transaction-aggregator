@@ -21,9 +21,8 @@ export async function batchInsertTransactions(
 			direction,
 			amount_minor,
 			currency,
-			description,
-			counterparty_name,
-			mcc,
+			long_description,
+			short_description,
 			category_id,
         	rule_version,
 			rule_priority,
@@ -39,9 +38,8 @@ export async function batchInsertTransactions(
 			t.direction,
 			t.amount_minor,
 			t.currency,
-			t.description,
-			t.counterparty_name,
-			t.mcc,
+			t.long_description,
+			t.short_description,
 			t.category_id,
 			t.rule_version,
 			t.rule_priority,
@@ -58,11 +56,10 @@ export async function batchInsertTransactions(
 			$9::text[],
 			$10::text[],
 			$11::text[],
-			$12::char(4)[],
+			$12::bigint[],
 			$13::bigint[],
 			$14::bigint[],
-			$15::bigint[],
-        	$16::jsonb[])
+        	$15::jsonb[])
 		AS t (
 			user_id,
 			account_id,
@@ -73,9 +70,8 @@ export async function batchInsertTransactions(
 			direction,
 			amount_minor,
 			currency,
-			description,
-			counterparty_name,
-			mcc,
+			long_description,
+			short_description,
 			category_id,
 			rule_version,
 			rule_priority,
@@ -93,13 +89,12 @@ export async function batchInsertTransactions(
 			transactions.map((t) => t.direction), // 7
 			transactions.map((t) => t.amountMinor), // 8
 			transactions.map((t) => t.currency), // 9
-			transactions.map((t) => t.description), // 10
-			transactions.map((t) => t.counterpartyName), // 11
-			transactions.map((t) => t.mcc), // 12
-			transactions.map((t) => t.categoryId), // 13
-			transactions.map((t) => t.ruleVersion), // 14
-			transactions.map((t) => t.rulePriority), // 15
-			transactions.map((t) => JSON.stringify(t.metadata)) // 16 — string[] cast by $16::jsonb[]
+			transactions.map((t) => t.longDescription), // 10
+			transactions.map((t) => t.shortDescription), // 11
+			transactions.map((t) => t.categoryId), // 12
+			transactions.map((t) => t.ruleVersion), // 13
+			transactions.map((t) => t.rulePriority), // 14
+			transactions.map((t) => JSON.stringify(t.metadata)) // 15 — string[] cast by $15::jsonb[]
 		]
 	);
 	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };

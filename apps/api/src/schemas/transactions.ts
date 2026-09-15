@@ -33,7 +33,7 @@ export const transactionItemSchema = z.object({
 	amountMinor: z.number().int(),
 	currency: z.string(),
 	category: z.string(),
-	counterpartyName: z.string().nullable()
+	shortDescription: z.string().nullable()
 });
 
 export const listResponseSchema = z.object({
@@ -129,8 +129,8 @@ export const transactionDetailSchema = z.object({
 	direction: z.enum(["debit", "credit"]),
 	amount: amountSchema,
 	// status: transactionStatusSchema, // TODO: Adding status schema with reversals for a bigger challenge later
-	description: z.string().nullable(),
-	counterpartyName: z.string().nullable(),
+	longDescription: z.string().nullable(),
+	shortDescription: z.string().nullable(),
 	category: z.string(),
 	source: sourceDetailSchema // Discriminated Union detail schema
 });

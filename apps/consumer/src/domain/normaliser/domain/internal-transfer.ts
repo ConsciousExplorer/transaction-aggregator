@@ -24,9 +24,9 @@ export function normaliseInternalTransfer(
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
-		description: record.description,
+		longDescription: record.description,
 		// e.g. "Savings Account" — the account type on the other side of the transfer
-		counterpartyName: `${otherAccountType.charAt(0).toUpperCase()}${otherAccountType.slice(1)} Account`,
+		shortDescription: `${otherAccountType.charAt(0).toUpperCase()}${otherAccountType.slice(1)} Account`,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,

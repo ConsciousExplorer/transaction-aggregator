@@ -40,8 +40,8 @@ const makeTransaction = (
 	direction: "debit",
 	currency: "ZAR",
 	amountMinor: 12_345,
-	description: null,
-	counterpartyName: null,
+	longDescription: null,
+	shortDescription: null,
 	mcc: null,
 	metadata: {},
 	...over
@@ -103,10 +103,10 @@ suite("tier 2: keyword", () => {
 		categoryId: 20
 	});
 
-	test("matches case-insensitively against counterpartyName", () => {
+	test("matches case-insensitively against shortDescription", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		assert.deepStrictEqual(
-			categoriser.categorise(makeTransaction({ counterpartyName: "UBER *TRIP" })),
+			categoriser.categorise(makeTransaction({ shortDescription: "UBER *TRIP" })),
 			{
 				categoryId: 20,
 				ruleVersion: 7,
@@ -116,10 +116,10 @@ suite("tier 2: keyword", () => {
 		);
 	});
 
-	test("matches against description when counterpartyName is null", () => {
+	test("matches against longDescription when shortDescription is null", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ description: "uber trip 12 aug" })
+			makeTransaction({ longDescription: "uber trip 12 aug" })
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
@@ -137,7 +137,7 @@ suite("tier 2: keyword", () => {
 			])
 		);
 		const verdict = categoriser.categorise(
-			makeTransaction({ description: "uber delivery" })
+			makeTransaction({ longDescription: "uber delivery" })
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
@@ -145,7 +145,7 @@ suite("tier 2: keyword", () => {
 	test("applies to debit_order transactions", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "debit_order", description: "uber one" })
+			makeTransaction({ source: "debit_order", longDescription: "uber one" })
 		);
 		assert.strictEqual(verdict.categoryId, 20);
 	});
@@ -153,7 +153,7 @@ suite("tier 2: keyword", () => {
 	test("is skipped for sources outside the keyword scope", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		const verdict = categoriser.categorise(
-			makeTransaction({ source: "eft", description: "uber trip" })
+			makeTransaction({ source: "eft", longDescription: "uber trip" })
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
@@ -298,7 +298,7 @@ suite("tier precedence", () => {
 			])
 		);
 		const verdict = categoriser.categorise(
-			makeTransaction({ mcc: "5411", counterpartyName: "SPAR" })
+			makeTransaction({ mcc: "5411", shortDescription: "SPAR" })
 		);
 		assert.strictEqual(verdict.matcherType, "mcc");
 	});
@@ -322,7 +322,7 @@ suite("tier precedence", () => {
 		);
 		const verdict = categoriser.categorise(
 			makeTransaction({
-				counterpartyName: "SPAR",
+				shortDescription: "SPAR",
 				metadata: { transaction_type: "purchase" }
 			})
 		);

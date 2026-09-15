@@ -32,9 +32,12 @@ export const canonicalTransactionSchema = z.object({
 	currency: z.string(),
 	amountMinor: z.number(), 
 
-	description: z.string().nullable(),
+	longDescription: z.string().nullable(),
 	// Who we paid / who paid us
-	counterpartyName: z.string().nullable(),
+	shortDescription: z.string().nullable(),
+	// Used pre-insert by the tier-1 categorization matcher only — not a DB
+	// column; card is the only source that carries one, and it also lands in
+	// card's own metadata for the API's per-source detail union.
 	mcc: z
 		.string()
 		.nullable() // Use ISO 18245:2023

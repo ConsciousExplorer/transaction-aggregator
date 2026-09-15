@@ -40,7 +40,9 @@ ON CONFLICT (version) DO NOTHING;
 INSERT INTO categorization_rules (ruleset_version, priority, matcher_type, pattern, category_id)
 SELECT 1, v.priority, v.matcher_type, v.pattern, c.category_id
 FROM (VALUES
-  -- mcc: exact match on transactions.mcc (card is the only source that carries one)
+  -- mcc: exact match on the canonical transaction's mcc field, checked pre-insert
+  -- by the categoriser (not a transactions column — card is the only source
+  -- that carries one, and it also lands in card's metadata for the API)
   (100, 'mcc', '5411', 'groceries'),
   (101, 'mcc', '5422', 'groceries'),
   (102, 'mcc', '5451', 'groceries'),

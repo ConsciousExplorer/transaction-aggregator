@@ -117,7 +117,7 @@ export class UserTransactionRepository {
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
 				category: categories.category,
-				counterpartyName: transactions.counterpartyName
+				shortDescription: transactions.shortDescription
 			})
 			.from(transactions)
 			.leftJoin(
@@ -158,14 +158,13 @@ export class UserTransactionRepository {
 				occurredAt: transactions.occurredAt,
 				postedAt: transactions.postedAt,
 				direction: transactions.direction,
-				description: transactions.description,
+				longDescription: transactions.longDescription,
 				amountMinor: transactions.amountMinor,
 				source: transactions.source,
 				currency: transactions.currency,
 				categoryId: effectiveCategoryId,
 				category: categories.category,
-				mcc: transactions.mcc,
-				counterpartyName: transactions.counterpartyName,
+				shortDescription: transactions.shortDescription,
 				metadata: transactions.metadata
 			})
 			.from(transactions)

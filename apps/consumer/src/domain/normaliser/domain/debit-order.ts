@@ -16,8 +16,8 @@ export function normaliseDebitOrder(
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
-		description: record.description,
-		counterpartyName: record.creditorName,
+		longDescription: record.description,
+		shortDescription: record.creditorName,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,
@@ -25,6 +25,7 @@ export function normaliseDebitOrder(
 		metadata: {
 			mandateId: record.mandateId,
 			category: record.category,
+			creditorName: record.creditorName,
 			creditorAbbrevName: record.creditorAbbrevName,
 			collectionType: record.collectionType,
 			frequency: record.frequency

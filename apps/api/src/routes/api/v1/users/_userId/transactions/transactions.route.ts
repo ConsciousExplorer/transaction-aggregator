@@ -79,7 +79,7 @@ export default async (
 				amountMinor: row.amountMinor,
 				currency: row.currency,
 				category: row.category,
-				counterpartyName: row.counterpartyName
+				shortDescription: row.shortDescription
 			}));
 
 			const cursor = null;
@@ -125,8 +125,8 @@ export default async (
 					amountMinor: row.amountMinor,
 					currency: row.currency
 				},
-				description: row.description,
-				counterpartyName: row.counterpartyName,
+				longDescription: row.longDescription,
+				shortDescription: row.shortDescription,
 				category: row.category,
 				source: mapSourceDetail(row.source, row.metadata)
 			});
