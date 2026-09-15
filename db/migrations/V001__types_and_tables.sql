@@ -57,8 +57,8 @@ CREATE TABLE user_transaction_overrides (
 
 CREATE TABLE transactions (
   transaction_id            uuid NOT NULL DEFAULT uuidv7(),   -- PG18 native; DB-layer UUIDv7 (brief)
-  user_id       uuid        NOT NULL, -- opaque; no users table exists, the assumption is that users are controlled in their own database
-  account_id    uuid        NOT NULL, -- the customer account the transaction occurred on; a user can hold several accounts. Opaque like user_id: accounts live in their own system
+  user_id       uuid        NOT NULL, -- no users table exists, the assumption is that users are controlled in their own database
+  account_id    uuid        NOT NULL, -- the customer account the transaction occurred on; a user can hold several accounts.
   source        source_type NOT NULL,
   external_id   text        NOT NULL,
   occurred_at   timestamptz NOT NULL, -- partition key; transaction time
@@ -67,7 +67,7 @@ CREATE TABLE transactions (
   amount_minor  bigint      NOT NULL CHECK (amount_minor > 0),
   currency      char(3)     NOT NULL,
   description   text,
-  merchant_name text,
+  counterparty_name text, -- who we paid / who paid us: card merchant, EFT beneficiary/payer, debit-order creditor; NULL for loan, internal_transfer (no external counterparty)
   mcc           char(4)     CHECK (mcc ~ '^[0-9]{4}$'),  -- ISO 18245; leading zeros are real
   category_id   smallint    NOT NULL REFERENCES categories(category_id),
   rule_version  int         NOT NULL REFERENCES rule_sets(version),
@@ -81,7 +81,7 @@ CREATE TABLE transactions (
 ) PARTITION BY RANGE (occurred_at);
 
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
-  INCLUDE (source, direction, amount_minor, currency, category_id, merchant_name);
+  INCLUDE (source, direction, amount_minor, currency, category_id, counterparty_name);
 
 -- Admin 
 -- This table is for long term metrics. OTEL will typically not store months worth of data

@@ -30,11 +30,11 @@ export const canonicalTransactionSchema = z.object({
 	postedAt: z.iso.datetime().nullable(),
 	direction: directionSchema,
 	currency: z.string(),
-	amountMinor: z.number(), // Always use cents
+	amountMinor: z.number(), 
 
-	// Assuming we will always pay a merchant or make internal transfers
 	description: z.string().nullable(),
-	merchantName: z.string().nullable(),
+	// Who we paid / who paid us
+	counterpartyName: z.string().nullable(),
 	mcc: z
 		.string()
 		.nullable() // Use ISO 18245:2023

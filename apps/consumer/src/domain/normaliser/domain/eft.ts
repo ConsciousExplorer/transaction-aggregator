@@ -17,7 +17,7 @@ export function normaliseEft(
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
-		merchantName: null,
+		counterpartyName: record.beneficiaryName,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,

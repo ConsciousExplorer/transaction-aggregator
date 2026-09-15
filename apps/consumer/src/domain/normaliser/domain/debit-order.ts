@@ -17,8 +17,7 @@ export function normaliseDebitOrder(
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
-		// debit_order is keyword-scoped: the creditor feeds the keyword haystack
-		merchantName: record.creditorName,
+		counterpartyName: record.creditorName,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,

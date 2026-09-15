@@ -116,8 +116,8 @@ export class UserTransactionRepository {
 				direction: transactions.direction,
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
-				category: categories.category, // D32: the slug, straight from the join
-				merchantName: transactions.merchantName
+				category: categories.category,
+				counterpartyName: transactions.counterpartyName
 			})
 			.from(transactions)
 			.leftJoin(
@@ -165,7 +165,7 @@ export class UserTransactionRepository {
 				categoryId: effectiveCategoryId,
 				category: categories.category,
 				mcc: transactions.mcc,
-				merchantName: transactions.merchantName,
+				counterpartyName: transactions.counterpartyName,
 				metadata: transactions.metadata
 			})
 			.from(transactions)

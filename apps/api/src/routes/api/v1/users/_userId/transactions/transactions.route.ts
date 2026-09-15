@@ -8,8 +8,7 @@ import {
 	listResponseSchema,
 	mapSourceDetail,
 	sourceSchema,
-	transactionDetailSchema,
-	transactionItemSchema
+	transactionDetailSchema
 } from "#src/schemas/transactions.ts";
 
 export default async (
@@ -80,7 +79,7 @@ export default async (
 				amountMinor: row.amountMinor,
 				currency: row.currency,
 				category: row.category,
-				merchantName: row.merchantName
+				counterpartyName: row.counterpartyName
 			}));
 
 			const cursor = null;
@@ -127,8 +126,7 @@ export default async (
 					currency: row.currency
 				},
 				description: row.description,
-				mcc: row.mcc,
-				merchantName: row.merchantName,
+				counterpartyName: row.counterpartyName,
 				category: row.category,
 				source: mapSourceDetail(row.source, row.metadata)
 			});

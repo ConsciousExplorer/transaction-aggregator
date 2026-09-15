@@ -17,7 +17,7 @@ export function normaliseLoan(
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
-		merchantName: null,
+		counterpartyName: `${record.loanType.charAt(0).toUpperCase()}${record.loanType.slice(1)} Loan`,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,

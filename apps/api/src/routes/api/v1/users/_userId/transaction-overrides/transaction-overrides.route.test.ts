@@ -31,7 +31,7 @@ const ORIGINAL: Awaited<
 	categoryId: 1,
 	category: "groceries",
 	mcc: "5411",
-	merchantName: "Spar",
+	counterpartyName: "Spar",
 	metadata: {
 		mcc: "5411",
 		merchantName: "Spar",

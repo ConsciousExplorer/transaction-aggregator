@@ -44,7 +44,7 @@ const canonicalBase = {
 	currency: "ZAR",
 	amountMinor: 12345,
 	description: null,
-	merchantName: null,
+	counterpartyName: null,
 	mcc: null,
 	metadata: {}
 };

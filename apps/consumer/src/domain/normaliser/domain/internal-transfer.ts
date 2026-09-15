@@ -9,6 +9,14 @@ import type { InternalTransferTransaction } from "#src/generated/internal_transf
 export function normaliseInternalTransfer(
 	record: InternalTransferTransaction
 ): z.infer<typeof canonicalTransactionSchema> {
+	// The "other side" of the transfer, from this transaction's perspective —
+	// a debit means money left to the `to` account; a credit means it arrived
+	// from the `from` account.
+	const otherAccountType =
+		record.transactionType === "debit"
+			? record.toAccountType
+			: record.fromAccountType;
+
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
@@ -17,7 +25,8 @@ export function normaliseInternalTransfer(
 		occurredAt: new Date(record.timestamp).toISOString(),
 		postedAt: null,
 		description: record.description,
-		merchantName: null,
+		// e.g. "Savings Account" — the account type on the other side of the transfer
+		counterpartyName: `${otherAccountType.charAt(0).toUpperCase()}${otherAccountType.slice(1)} Account`,
 		mcc: null,
 		currency: record.currency,
 		amountMinor: record.amount,

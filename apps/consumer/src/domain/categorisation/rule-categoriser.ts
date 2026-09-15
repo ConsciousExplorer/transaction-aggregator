@@ -108,7 +108,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 			// 2. Keywords
 			if (KEYWORD_SOURCES.has(transaction.source)) {
 				const terms =
-					`${transaction.merchantName ?? ""} ${transaction.description ?? ""}`.toLowerCase();
+					`${transaction.counterpartyName ?? ""} ${transaction.description ?? ""}`.toLowerCase();
 				for (const { term, rule } of keywordRules) {
 					if (terms.includes(term)) return verdictOf(rule);
 				}

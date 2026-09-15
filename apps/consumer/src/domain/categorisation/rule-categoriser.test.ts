@@ -41,7 +41,7 @@ const makeTransaction = (
 	currency: "ZAR",
 	amountMinor: 12_345,
 	description: null,
-	merchantName: null,
+	counterpartyName: null,
 	mcc: null,
 	metadata: {},
 	...over
@@ -103,10 +103,10 @@ suite("tier 2: keyword", () => {
 		categoryId: 20
 	});
 
-	test("matches case-insensitively against merchantName", () => {
+	test("matches case-insensitively against counterpartyName", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		assert.deepStrictEqual(
-			categoriser.categorise(makeTransaction({ merchantName: "UBER *TRIP" })),
+			categoriser.categorise(makeTransaction({ counterpartyName: "UBER *TRIP" })),
 			{
 				categoryId: 20,
 				ruleVersion: 7,
@@ -116,7 +116,7 @@ suite("tier 2: keyword", () => {
 		);
 	});
 
-	test("matches against description when merchantName is null", () => {
+	test("matches against description when counterpartyName is null", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		const verdict = categoriser.categorise(
 			makeTransaction({ description: "uber trip 12 aug" })
@@ -298,7 +298,7 @@ suite("tier precedence", () => {
 			])
 		);
 		const verdict = categoriser.categorise(
-			makeTransaction({ mcc: "5411", merchantName: "SPAR" })
+			makeTransaction({ mcc: "5411", counterpartyName: "SPAR" })
 		);
 		assert.strictEqual(verdict.matcherType, "mcc");
 	});
@@ -322,7 +322,7 @@ suite("tier precedence", () => {
 		);
 		const verdict = categoriser.categorise(
 			makeTransaction({
-				merchantName: "SPAR",
+				counterpartyName: "SPAR",
 				metadata: { transaction_type: "purchase" }
 			})
 		);

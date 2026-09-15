@@ -30,7 +30,7 @@ export const transactions = pgTable(
 		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
 		currency: char({ length: 3 }).notNull(),
 		description: text(),
-		merchantName: text("merchant_name"),
+		counterpartyName: text("counterparty_name"),
 		mcc: char({ length: 4 }),
 		categoryId: smallint("category_id").notNull(),
 		ruleVersion: integer("rule_version").notNull(),

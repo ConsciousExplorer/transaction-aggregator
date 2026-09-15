@@ -22,7 +22,7 @@ export async function batchInsertTransactions(
 			amount_minor,
 			currency,
 			description,
-			merchant_name,
+			counterparty_name,
 			mcc,
 			category_id,
         	rule_version,
@@ -40,7 +40,7 @@ export async function batchInsertTransactions(
 			t.amount_minor,
 			t.currency,
 			t.description,
-			t.merchant_name,
+			t.counterparty_name,
 			t.mcc,
 			t.category_id,
 			t.rule_version,
@@ -74,7 +74,7 @@ export async function batchInsertTransactions(
 			amount_minor,
 			currency,
 			description,
-			merchant_name,
+			counterparty_name,
 			mcc,
 			category_id,
 			rule_version,
@@ -94,7 +94,7 @@ export async function batchInsertTransactions(
 			transactions.map((t) => t.amountMinor), // 8
 			transactions.map((t) => t.currency), // 9
 			transactions.map((t) => t.description), // 10
-			transactions.map((t) => t.merchantName), // 11
+			transactions.map((t) => t.counterpartyName), // 11
 			transactions.map((t) => t.mcc), // 12
 			transactions.map((t) => t.categoryId), // 13
 			transactions.map((t) => t.ruleVersion), // 14

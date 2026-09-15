@@ -18,7 +18,7 @@ export function normaliseCard(
 		postedAt: null,
 		description: record.description,
 		mcc: record.mccCode || null,
-		merchantName: record.merchantName,
+		counterpartyName: record.merchantName,
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,

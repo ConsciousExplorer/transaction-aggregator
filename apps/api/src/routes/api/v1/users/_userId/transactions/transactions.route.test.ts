@@ -23,7 +23,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 			amountMinor: 1234,
 			currency: "ZAR",
 			category: "groceries",
-			merchantName: "Spar"
+			counterpartyName: "Spar"
 		},
 		{
 			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
@@ -33,7 +33,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 			amountMinor: 50000,
 			currency: "ZAR",
 			category: "salary",
-			merchantName: null
+			counterpartyName: null
 		}
 	];
 
@@ -58,7 +58,7 @@ const DETAIL: Awaited<
 	categoryId: 1,
 	category: "groceries",
 	mcc: "5411",
-	merchantName: "Spar",
+	counterpartyName: "Spar",
 	metadata: {
 		mcc: "5411",
 		merchantName: "Spar",
@@ -119,7 +119,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					amountMinor: 1234,
 					currency: "ZAR",
 					category: "groceries",
-					merchantName: "Spar"
+					counterpartyName: "Spar"
 				},
 				{
 					transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
@@ -129,7 +129,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					amountMinor: 50000,
 					currency: "ZAR",
 					category: "salary",
-					merchantName: null
+					counterpartyName: null
 				}
 			],
 			nextCursor: null
@@ -168,7 +168,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			amount: { amountMinor: 1234, currency: "ZAR" },
 			description: null,
 			mcc: "5411",
-			merchantName: "Spar",
+			counterpartyName: "Spar",
 			category: "groceries",
 			source: {
 				sourceType: "card",
