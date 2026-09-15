@@ -156,7 +156,6 @@ export class UserTransactionRepository {
 				accountId: transactions.accountId,
 				externalId: transactions.externalId,
 				occurredAt: transactions.occurredAt,
-				postedAt: transactions.postedAt,
 				direction: transactions.direction,
 				longDescription: transactions.longDescription,
 				amountMinor: transactions.amountMinor,

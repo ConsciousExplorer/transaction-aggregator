@@ -15,7 +15,6 @@ export function normaliseLoan(
 		source: sourceSchema.enum.loan,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
-		postedAt: null,
 		longDescription: record.description,
 		shortDescription: `${record.loanType.charAt(0).toUpperCase()}${record.loanType.slice(1)} Loan`,
 		mcc: null,

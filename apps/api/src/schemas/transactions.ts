@@ -125,7 +125,6 @@ export const transactionDetailSchema = z.object({
 	accountId: z.uuid(),
 	externalId: z.string(),
 	occurredAt: z.iso.datetime(),
-	// postedAt: z.iso.datetime().nullable(), // We don't have a concept of a settlement yet
 	direction: z.enum(["debit", "credit"]),
 	amount: amountSchema,
 	// status: transactionStatusSchema, // TODO: Adding status schema with reversals for a bigger challenge later

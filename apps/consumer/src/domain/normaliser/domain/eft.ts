@@ -15,7 +15,6 @@ export function normaliseEft(
 		source: sourceSchema.enum.eft,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
-		postedAt: null,
 		longDescription: record.description,
 		shortDescription: record.beneficiaryName,
 		mcc: null,

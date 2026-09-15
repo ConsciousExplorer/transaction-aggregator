@@ -15,7 +15,6 @@ export function normaliseDebitOrder(
 		source: sourceSchema.enum.debit_order,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
-		postedAt: null,
 		longDescription: record.description,
 		shortDescription: record.creditorName,
 		mcc: null,

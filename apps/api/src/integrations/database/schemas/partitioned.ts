@@ -25,7 +25,6 @@ export const transactions = pgTable(
 			withTimezone: true,
 			mode: "string"
 		}).notNull(),
-		postedAt: timestamp("posted_at", { withTimezone: true, mode: "string" }),
 		direction: directionType().notNull(),
 		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
 		currency: char({ length: 3 }).notNull(),

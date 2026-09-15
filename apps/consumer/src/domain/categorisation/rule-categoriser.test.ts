@@ -36,7 +36,6 @@ const makeTransaction = (
 	source: "card",
 	externalId: "txn-1",
 	occurredAt: "2026-08-18",
-	postedAt: null,
 	direction: "debit",
 	currency: "ZAR",
 	amountMinor: 12_345,

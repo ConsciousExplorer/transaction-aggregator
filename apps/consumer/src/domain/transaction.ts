@@ -27,7 +27,6 @@ export const canonicalTransactionSchema = z.object({
 	occurredAt: z.iso.datetime(),
 
 	// Top level financial information
-	postedAt: z.iso.datetime().nullable(),
 	direction: directionSchema,
 	currency: z.string(),
 	amountMinor: z.number(), 

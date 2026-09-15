@@ -39,7 +39,6 @@ const canonicalBase = {
 	source: "card",
 	externalId: base.transactionId,
 	occurredAt: new Date(base.timestamp).toISOString(),
-	postedAt: null,
 	direction: "debit",
 	currency: "ZAR",
 	amountMinor: 12345,

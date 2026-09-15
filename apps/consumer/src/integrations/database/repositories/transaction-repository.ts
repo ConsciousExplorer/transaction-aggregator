@@ -17,7 +17,6 @@ export async function batchInsertTransactions(
 			source,
 			external_id,
 			occurred_at,
-			posted_at,
 			direction,
 			amount_minor,
 			currency,
@@ -34,7 +33,6 @@ export async function batchInsertTransactions(
 			t.source,
 			t.external_id,
 			t.occurred_at,
-			t.posted_at,
 			t.direction,
 			t.amount_minor,
 			t.currency,
@@ -50,23 +48,21 @@ export async function batchInsertTransactions(
 			$3::source_type[],
 			$4::text[],
 			$5::timestamptz[],
-        	$6::timestamptz[],
-			$7::direction_type[],
-			$8::bigint[],
+        	$6::direction_type[],
+			$7::bigint[],
+			$8::text[],
 			$9::text[],
 			$10::text[],
-			$11::text[],
+			$11::bigint[],
 			$12::bigint[],
 			$13::bigint[],
-			$14::bigint[],
-        	$15::jsonb[])
+        	$14::jsonb[])
 		AS t (
 			user_id,
 			account_id,
 			source,
 			external_id,
 			occurred_at,
-			posted_at,
 			direction,
 			amount_minor,
 			currency,
@@ -85,16 +81,15 @@ export async function batchInsertTransactions(
 			transactions.map((t) => t.source), // 3
 			transactions.map((t) => t.externalId), // 4
 			transactions.map((t) => t.occurredAt), // 5
-			transactions.map((t) => t.postedAt), // 6
-			transactions.map((t) => t.direction), // 7
-			transactions.map((t) => t.amountMinor), // 8
-			transactions.map((t) => t.currency), // 9
-			transactions.map((t) => t.longDescription), // 10
-			transactions.map((t) => t.shortDescription), // 11
-			transactions.map((t) => t.categoryId), // 12
-			transactions.map((t) => t.ruleVersion), // 13
-			transactions.map((t) => t.rulePriority), // 14
-			transactions.map((t) => JSON.stringify(t.metadata)) // 15 — string[] cast by $15::jsonb[]
+			transactions.map((t) => t.direction), // 6
+			transactions.map((t) => t.amountMinor), // 7
+			transactions.map((t) => t.currency), // 8
+			transactions.map((t) => t.longDescription), // 9
+			transactions.map((t) => t.shortDescription), // 10
+			transactions.map((t) => t.categoryId), // 11
+			transactions.map((t) => t.ruleVersion), // 12
+			transactions.map((t) => t.rulePriority), // 13
+			transactions.map((t) => JSON.stringify(t.metadata)) // 14 — string[] cast by $14::jsonb[]
 		]
 	);
 	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };

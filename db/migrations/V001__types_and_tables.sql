@@ -62,7 +62,6 @@ CREATE TABLE transactions (
   source        source_type NOT NULL,
   external_id   text        NOT NULL,
   occurred_at   timestamptz NOT NULL, -- partition key; transaction time
-  posted_at     timestamptz,
   direction     direction_type NOT NULL,
   amount_minor  bigint      NOT NULL CHECK (amount_minor > 0),
   currency      char(3)     NOT NULL,

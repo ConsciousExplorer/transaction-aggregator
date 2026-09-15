@@ -22,7 +22,6 @@ const ORIGINAL: Awaited<
 	accountId: "8f1e2d3c-4b5a-4c6d-8e7f-9a0b1c2d3e4f",
 	externalId: "ext-card-001",
 	occurredAt: "2026-08-15T09:30:00.000Z",
-	postedAt: null,
 	source: "card",
 	direction: "debit",
 	longDescription: null,

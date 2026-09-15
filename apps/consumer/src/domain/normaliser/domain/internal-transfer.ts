@@ -23,7 +23,6 @@ export function normaliseInternalTransfer(
 		source: sourceSchema.enum.internal_transfer,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
-		postedAt: null,
 		longDescription: record.description,
 		// e.g. "Savings Account" — the account type on the other side of the transfer
 		shortDescription: `${otherAccountType.charAt(0).toUpperCase()}${otherAccountType.slice(1)} Account`,
