@@ -1468,7 +1468,7 @@
           },
           {
             "in": "query",
-            "name": "source",
+            "name": "transactionType",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1638,21 +1638,21 @@
                               }
                             ]
                           },
-                          "id": {
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                            "type": "string"
-                          },
-                          "merchantName": {
-                            "nullable": true,
-                            "type": "string"
-                          },
                           "occurredAt": {
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
                             "type": "string"
                           },
-                          "source": {
+                          "shortDescription": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "transactionId": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "transactionType": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -1671,13 +1671,13 @@
                           }
                         },
                         "required": [
-                          "id",
+                          "transactionId",
                           "occurredAt",
                           "direction",
                           "amountMinor",
                           "currency",
                           "category",
-                          "merchantName"
+                          "shortDescription"
                         ],
                         "type": "object"
                       },
@@ -1818,37 +1818,284 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
-                    "amountMinor": {
-                      "maximum": 9007199254740991,
-                      "minimum": -9007199254740991,
-                      "type": "integer"
-                    },
-                    "category": {
-                      "type": "string"
-                    },
-                    "currency": {
-                      "type": "string"
-                    },
-                    "direction": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "debit",
-                            "credit"
-                          ],
-                          "type": "string"
-                        }
-                      ]
-                    },
-                    "id": {
+                    "accountId": {
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "type": "string"
                     },
-                    "merchantName": {
+                    "amount": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "amountMinor": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "maxLength": 3,
+                          "minLength": 3,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "amountMinor",
+                        "currency"
+                      ],
+                      "type": "object"
+                    },
+                    "category": {
+                      "type": "string"
+                    },
+                    "direction": {
+                      "enum": [
+                        "debit",
+                        "credit"
+                      ],
+                      "type": "string"
+                    },
+                    "externalId": {
+                      "type": "string"
+                    },
+                    "fundingSource": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "authCode": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "cardLast4": {
+                              "maxLength": 4,
+                              "minLength": 4,
+                              "type": "string"
+                            },
+                            "cardNetwork": {
+                              "type": "string"
+                            },
+                            "mcc": {
+                              "maxLength": 4,
+                              "minLength": 4,
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "merchantName": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "posEntryMode": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "transactionType": {
+                              "enum": [
+                                "card"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "transactionType",
+                            "cardLast4",
+                            "cardNetwork",
+                            "mcc",
+                            "merchantName",
+                            "posEntryMode",
+                            "authCode"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "interest": {
+                              "additionalProperties": false,
+                              "nullable": true,
+                              "properties": {
+                                "amountMinor": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "currency": {
+                                  "maxLength": 3,
+                                  "minLength": 3,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "amountMinor",
+                                "currency"
+                              ],
+                              "type": "object"
+                            },
+                            "loanAccountId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "loanType": {
+                              "type": "string"
+                            },
+                            "operation": {
+                              "enum": [
+                                "repayment",
+                                "disbursement"
+                              ],
+                              "type": "string"
+                            },
+                            "principal": {
+                              "additionalProperties": false,
+                              "nullable": true,
+                              "properties": {
+                                "amountMinor": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "currency": {
+                                  "maxLength": 3,
+                                  "minLength": 3,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "amountMinor",
+                                "currency"
+                              ],
+                              "type": "object"
+                            },
+                            "transactionType": {
+                              "enum": [
+                                "loan"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "transactionType",
+                            "loanAccountId",
+                            "loanType",
+                            "operation",
+                            "principal",
+                            "interest"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "beneficiaryAccountLast4": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "beneficiaryBank": {
+                              "type": "string"
+                            },
+                            "beneficiaryName": {
+                              "type": "string"
+                            },
+                            "branchCode": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "clearingType": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "reference": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "transactionType": {
+                              "enum": [
+                                "eft"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "transactionType",
+                            "beneficiaryName",
+                            "beneficiaryAccountLast4",
+                            "beneficiaryBank",
+                            "branchCode",
+                            "reference",
+                            "clearingType"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "collectionType": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "creditorName": {
+                              "type": "string"
+                            },
+                            "frequency": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "mandateId": {
+                              "type": "string"
+                            },
+                            "transactionType": {
+                              "enum": [
+                                "debit_order"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "transactionType",
+                            "mandateId",
+                            "creditorName",
+                            "collectionType",
+                            "frequency"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "fromAccountId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "fromAccountType": {
+                              "type": "string"
+                            },
+                            "toAccountId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            },
+                            "toAccountType": {
+                              "type": "string"
+                            },
+                            "transactionType": {
+                              "enum": [
+                                "internal_transfer"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "transactionType",
+                            "fromAccountId",
+                            "toAccountId",
+                            "fromAccountType",
+                            "toAccountType"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "longDescription": {
                       "nullable": true,
                       "type": "string"
                     },
@@ -1857,32 +2104,27 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
                       "type": "string"
                     },
-                    "source": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "card",
-                            "eft",
-                            "loan",
-                            "debit_order",
-                            "internal_transfer"
-                          ],
-                          "type": "string"
-                        }
-                      ]
+                    "shortDescription": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "transactionId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
                     }
                   },
                   "required": [
-                    "id",
+                    "transactionId",
+                    "accountId",
+                    "externalId",
                     "occurredAt",
                     "direction",
-                    "amountMinor",
-                    "currency",
+                    "amount",
+                    "longDescription",
+                    "shortDescription",
                     "category",
-                    "merchantName"
+                    "fundingSource"
                   ],
                   "type": "object"
                 }
@@ -1981,5 +2223,10 @@
         ]
       }
     }
-  }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 }
