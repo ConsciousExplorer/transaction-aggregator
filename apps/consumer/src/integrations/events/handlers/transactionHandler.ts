@@ -40,6 +40,7 @@ export async function transactionBatchHandler(
 	RuleCategoriser: RuleCategoriser
 ) {
 	const [firstMessage] = messages;
+	console.log(firstMessage);
 	if (!firstMessage) return;
 
 	const tombstoneMessage = messages.filter(
@@ -113,6 +114,7 @@ export async function transactionBatchHandler(
 		}
 		// const progressReport = await updateProgress(pool);
 	} catch (error) {
+		console.log(error);
 		// Classify errors
 		const failure = classifyPostgresError(error, "Batch insert failed");
 
@@ -126,6 +128,10 @@ export async function transactionBatchHandler(
 				...tombstoneMessage,
 				...poisonMessages
 			]);
+			logger.warn(
+				{ size: [...tombstoneMessage, ...poisonMessages].length, dlqTopic },
+				"Dead-lettered undeserialisable messages"
+			);
 		}
 
 		if (failure instanceof RetryableError) {
@@ -151,6 +157,10 @@ export async function transactionBatchHandler(
 	}
 
 	if ([...tombstoneMessage, ...poisonMessages].length > 0) {
+		await sendToDLQ(dlqProducer, dlqTopic, [
+			...tombstoneMessage,
+			...poisonMessages
+		]);
 		logger.warn(
 			{ size: [...tombstoneMessage, ...poisonMessages].length, dlqTopic },
 			"Dead-lettered undeserialisable messages"

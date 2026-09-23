@@ -4,8 +4,8 @@ import type { DebitOrderTransaction } from "#src/generated/debit_order.ts";
 import type { EftTransaction } from "#src/generated/eft.ts";
 import type { InternalTransferTransaction } from "#src/generated/internal_transfer.ts";
 import type { LoanTransaction } from "#src/generated/loan.ts";
-import type { TransactionTypes } from "../transaction-type.ts";
 import type { canonicalTransactionSchema } from "../transaction.ts";
+import type { TransactionTypes } from "../transaction-type.ts";
 import { normaliseCard } from "./domain/card.ts";
 import { normaliseDebitOrder } from "./domain/debit-order.ts";
 import { normaliseEft } from "./domain/eft.ts";
@@ -31,9 +31,13 @@ const NORMALIZERS: Partial<Record<TransactionTypes, Normaliser>> = {
 		normaliseInternalTransfer(record as InternalTransferTransaction)
 };
 
-export function createNormaliser(transactionType: TransactionTypes): Normaliser {
+export function createNormaliser(
+	transactionType: TransactionTypes
+): Normaliser {
 	const normaliser = NORMALIZERS[transactionType];
 	if (!normaliser)
-		throw new Error(`No normaliser was found for transaction type ${transactionType}`);
+		throw new Error(
+			`No normaliser was found for transaction type ${transactionType}`
+		);
 	return normaliser;
 }

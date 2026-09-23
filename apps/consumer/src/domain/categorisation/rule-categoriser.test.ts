@@ -105,7 +105,9 @@ suite("tier 2: keyword", () => {
 	test("matches case-insensitively against shortDescription", () => {
 		const categoriser = createRuleCategoriser(makeRuleSet([uberRule]));
 		assert.deepStrictEqual(
-			categoriser.categorise(makeTransaction({ shortDescription: "UBER *TRIP" })),
+			categoriser.categorise(
+				makeTransaction({ shortDescription: "UBER *TRIP" })
+			),
 			{
 				categoryId: 20,
 				ruleVersion: 7,

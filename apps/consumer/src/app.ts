@@ -1,7 +1,3 @@
-/**
- * App main entrypoint
- */
-
 import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
@@ -16,14 +12,14 @@ import {
 	createNormaliser,
 	type Normaliser
 } from "./domain/normaliser/normaliser.ts";
-import { deserialisationErrorHandler } from "./handlers/deserialiserErrorHandler.ts";
-import { transactionBatchHandler } from "./handlers/transactionHandler.ts";
 import { createPool } from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
 	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
+import { deserialisationErrorHandler } from "./integrations/events/handlers/deserialiserErrorHandler.ts";
+import { transactionBatchHandler } from "./integrations/events/handlers/transactionHandler.ts";
 import {
 	type ConsumedTransaction,
 	type ConsumedValue,
@@ -170,6 +166,7 @@ try {
 
 	kafkaDlqProducer = await createKafkaDlqProducer({
 		clientId: `${config.kafka.clientId}_producer`,
+		acks: -1,
 		bootstrapBrokers: config.kafka.brokers,
 		sasl: {
 			mechanism: config.kafka.sasl.mechanism,
