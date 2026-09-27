@@ -1,18 +1,23 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
 	type MessagesStreamModeValue,
 	SASLMechanisms
 } from "@platformatic/kafka";
 import { z } from "zod";
-import { TRANSACTION_TYPES } from "./domain/transaction-type.ts";
 import { LOG_LEVELS } from "./logger.ts";
+import { CANONICAL_TRANSACTION_TYPES } from "./schemas/transaction.ts";
 
 const KAFKA_READ_MODES = [
 	"earliest",
 	"latest",
 	"committed"
 ] as const satisfies readonly MessagesStreamModeValue[];
+
+const appInfoSchema = z.object({
+	name: z.string(),
+	version: z.string(),
+	description: z.string(),
+	author: z.string()
+});
 
 const csv = (value: string) =>
 	value
@@ -58,7 +63,7 @@ const configSchema = z
 		// One consumer instance per transaction type. Topic, DLQ topic, group id
 		// and the normaliser are all derived from this single value so they can
 		// never drift.
-		TRANSACTION_TYPE: z.enum(TRANSACTION_TYPES).default("card"),
+		TRANSACTION_TYPE: z.enum(CANONICAL_TRANSACTION_TYPES).default("card"),
 
 		KAFKA_BROKERS: z.string().transform(csv),
 		KAFKA_USERNAME: z.string(),
@@ -173,36 +178,33 @@ const configSchema = z
 			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
 
 			// Keeping secrets separate to ensure they are not logged out by mistake
-			secrets: Object.freeze({
-				database_password: readSecretFromFile(
-					e.SECRET_DIR,
-					e.DATABASE_PASSWORD_SECRET_NAME
-				),
-				kafka_password: readSecretFromFile(
-					e.SECRET_DIR,
-					e.KAFKA_PASSWORD_SECRET_NAME
-				)
+			secretsSpec: Object.freeze({
+				dir: e.SECRET_DIR,
+				secrets: Object.freeze({
+					databasePassword: e.DATABASE_PASSWORD_SECRET_NAME,
+					kafkaPassword: e.KAFKA_PASSWORD_SECRET_NAME
+				})
 			})
 		})
 	);
 
-export function readSecretFromFile(dir: string, fileName: string): string {
-	const path = join(dir, fileName);
+export type Config = z.infer<typeof configSchema>;
+export type AppInfoConfig = z.infer<typeof appInfoSchema>;
 
-	try {
-		return readFileSync(path, "utf-8").trim();
-	} catch (error) {
-		throw new Error(`Unable to read secret "${fileName}" from ${path}`, {
-			cause: error
-		});
+export function loadPackageInfo(pkg: unknown): AppInfoConfig {
+	const config = appInfoSchema.safeParse(pkg);
+
+	if (!config.success) {
+		const detail = config.error.issues
+			.map((i) => `  ${i.path.join(".")}: ${i.message}`)
+			.join("\n");
+		throw new Error(`Invalid configuration:\n${detail}`);
 	}
+
+	return config.data;
 }
 
-export type ConfigSchema = z.infer<typeof configSchema>;
-
-export function loadConfig(
-	env: Record<string, string | undefined>
-): ConfigSchema {
+export function loadConfig(env: Record<string, string | undefined>): Config {
 	const config = configSchema.safeParse(env);
 
 	if (!config.success) {

@@ -1,7 +1,7 @@
 {
 	"name": "consumer",
 	"version": "1.0.0",
-	"description": "A consumer that is responsible for categorizing transactions and persising them to postgres",
+	"description": "A consumer that is responsible for categorizing transactions and persisting them to postgres",
 	"license": "ISC",
 	"author": "Edwin Stoltz",
 	"type": "module",
@@ -16,15 +16,17 @@
 		"format": "npx @biomejs/biome format src/",
 		"lint": "npx @biomejs/biome check --write src/ && npm run lint:spelling",
 		"lint:spelling": "cspell \"**/*.{ts,js}\"",
-		"codegen": "node scripts/generate-avro-types.ts",
+		"schema:generate": "node scripts/generate-avro-types.ts",
 		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
-		"biome:migrate": "npx @biomejs/biome migrate --write"
+		"biome:migrate": "npx @biomejs/biome migrate --write",
+		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle.config.ts && node scripts/cleanup-drizzle-pull.ts",
+		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle.config.ts"
 	},
 	"imports": {
 		"#src/*": "./src/*",
 		"#types": "./src/types/*",
-		"#domain": "./src/domain/*",
+		"#services": "./src/services/*",
 		"#generated": "./src/generated/*",
 		"#integrations": "./src/integrations/*",
 		"#schemas": "./src/schemas/*",
@@ -37,6 +39,7 @@
 		"@types/pg": "^8.23.1",
 		"avro-typescript": "1.3.0",
 		"cspell": "10.3.3",
+		"drizzle-kit": "0.31.11",
 		"pino-pretty": "^13.1.3",
 		"typescript": "7.0.2"
 	},
@@ -44,6 +47,7 @@
 		"@platformatic/kafka": "^2.12.0",
 		"avsc": "^5.7.9",
 		"awilix": "13.0.5",
+		"drizzle-orm": "0.45.3",
 		"pg": "^8.23.0",
 		"pino": "^10.3.1",
 		"zod": "^4.6.5"

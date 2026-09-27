@@ -1,22 +1,15 @@
-/**
- * Process-wide singletons.
- *
- * This module must stay a leaf - it may import factories, never the modules
- * that consume it. ESM evaluates a module before any module that imports it,
- * so everything downstream is guaranteed a fully built logger without any
- * explicit initialisation step. Putting these in app.ts instead creates a
- * cycle, and the consumers then read `baseLogger` while it is still in its
- * temporal dead zone.
- */
 import { basename } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Logger } from "pino";
-import { loadConfig } from "./config.ts";
+import packageJson from "../package.json" with { type: "json" };
+import { loadConfig, loadPackageInfo } from "./config.ts";
 import { createLogger } from "./logger.ts";
+import { loadSecrets } from "./utils/secrets.ts";
 
 export const config = loadConfig(process.env);
-
+export const appInfo = loadPackageInfo(packageJson);
+export const secrets = loadSecrets(config.secretsSpec);
 export const baseLogger = createLogger(config.logging);
 
 /** Child logger tagged with the calling module's name. */

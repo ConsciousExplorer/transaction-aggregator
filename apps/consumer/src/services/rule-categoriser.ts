@@ -1,5 +1,4 @@
-import type z from "zod";
-import type { canonicalTransactionSchema } from "../transaction.ts";
+import type { CanonicalTransactionSchema } from "../schemas/transaction.ts";
 
 export const KEYWORD_TRANSACTION_TYPES = new Set(["card", "debit_order"]);
 export const MATCHER_TYPES = [
@@ -32,7 +31,7 @@ export interface RuleSet {
 }
 // How the categoriser works. Basically like a database cross join and selecting the first priority
 export interface RuleCategoriser {
-	categorise(transaction: z.infer<typeof canonicalTransactionSchema>): Verdict;
+	categorise(transaction: CanonicalTransactionSchema): Verdict;
 }
 
 export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
@@ -85,9 +84,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 	});
 
 	return {
-		categorise(
-			transaction: z.infer<typeof canonicalTransactionSchema>
-		): Verdict {
+		categorise(transaction: CanonicalTransactionSchema): Verdict {
 			// Search order and per-transaction cost (Map.get is a hash
 			// lookup: O(1) average, not O(n)):
 			// 1. MCC             — O(1) map lookup
@@ -98,8 +95,11 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 			// 6. Fallback        — O(1), always succeeds
 
 			// 1. MCC
-			if (transaction.mcc !== null) {
-				const rule = mccMap.get(transaction.mcc);
+			if (
+				transaction.metadata.mcc !== null &&
+				typeof transaction.metadata.mcc === "string"
+			) {
+				const rule = mccMap.get(transaction.metadata.mcc);
 				if (rule) {
 					return verdictOf(rule);
 				}

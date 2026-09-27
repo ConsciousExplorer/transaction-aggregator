@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { suite, test } from "node:test";
 import { loadConfig } from "#src/config.ts";
+import { loadSecrets } from "#src/utils/secrets.ts";
 
-// Secrets are read while the config parses, so every load needs files on disk.
+// Config only carries the secretsSpec; loadSecrets reads the files on disk.
 const secretsDir = mkdtempSync(join(tmpdir(), "config-secrets-"));
 writeFileSync(join(secretsDir, "db_password"), "db-pw-from-file\n");
 writeFileSync(join(secretsDir, "kafka_password"), "  kafka-pw-from-file  ");
@@ -102,9 +103,10 @@ suite("loadConfig", () => {
 
 	test("reads each secret from the file named by its env var", () => {
 		const config = loadConfig(sampleEnv);
+		const secrets = loadSecrets(config.secretsSpec);
 
-		assert.strictEqual(config.secrets.database_password, "db-pw-from-file");
-		assert.strictEqual(config.secrets.kafka_password, "kafka-pw-from-file");
+		assert.strictEqual(secrets.databasePassword, "db-pw-from-file");
+		assert.strictEqual(secrets.kafkaPassword, "kafka-pw-from-file");
 	});
 
 	test("secrets are kept out of the loggable config sections", () => {
@@ -115,12 +117,13 @@ suite("loadConfig", () => {
 	});
 
 	test("fails when the named secret file is missing", () => {
+		const config = loadConfig({
+			...sampleEnv,
+			DATABASE_PASSWORD_SECRET_NAME: "not_mounted"
+		});
+
 		assert.throws(
-			() =>
-				loadConfig({
-					...sampleEnv,
-					DATABASE_PASSWORD_SECRET_NAME: "not_mounted"
-				}),
+			() => loadSecrets(config.secretsSpec),
 			/Unable to read secret "not_mounted"/
 		);
 	});

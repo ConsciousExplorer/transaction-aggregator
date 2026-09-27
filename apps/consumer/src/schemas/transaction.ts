@@ -1,6 +1,19 @@
 import { z } from "zod";
+import { cardTransactionSchema } from "./card.ts";
+import { debitOrderTransactionSchema } from "./debit_order.ts";
+import { eftTransactionSchema } from "./eft.ts";
+import { internalTransferTransactionSchema } from "./internal_transfer.ts";
+import { loanTransactionSchema } from "./loan.ts";
 
 export const directionSchema = z.enum(["debit", "credit"]);
+
+export const domainTransactionSchema = z.union([
+	cardTransactionSchema,
+	debitOrderTransactionSchema,
+	eftTransactionSchema,
+	internalTransferTransactionSchema,
+	loanTransactionSchema
+]);
 
 export const CANONICAL_TRANSACTION_TYPES = [
 	"card",
@@ -9,6 +22,7 @@ export const CANONICAL_TRANSACTION_TYPES = [
 	"debit_order",
 	"internal_transfer"
 ] as const;
+
 export const transactionTypeSchema = z.enum(CANONICAL_TRANSACTION_TYPES);
 
 export const canonicalTransactionSchema = z.object({
@@ -34,13 +48,7 @@ export const canonicalTransactionSchema = z.object({
 	longDescription: z.string().nullable(),
 	// Who we paid / who paid us
 	shortDescription: z.string().nullable(),
-	// Used pre-insert by the tier-1 categorization matcher only — not a DB
-	// column; card is the only transaction type that carries one, and it also
-	// lands in card's own metadata for the API's per-type detail union.
-	mcc: z
-		.string()
-		.nullable() // Use ISO 18245:2023
-		.transform((value) => (value === "" ? null : value)),
+
 	metadata: z.record(z.string(), z.unknown())
 });
 
@@ -49,3 +57,14 @@ export const categorisedTransactionSchema = canonicalTransactionSchema.extend({
 	ruleVersion: z.number(),
 	rulePriority: z.number().nullable()
 });
+
+export type TransactionType = z.infer<typeof transactionTypeSchema>;
+
+export type DomainTransactionSchema = z.infer<typeof domainTransactionSchema>;
+
+export type CanonicalTransactionSchema = z.infer<
+	typeof canonicalTransactionSchema
+>;
+export type CategorisedTransactionSchema = z.infer<
+	typeof categorisedTransactionSchema
+>;

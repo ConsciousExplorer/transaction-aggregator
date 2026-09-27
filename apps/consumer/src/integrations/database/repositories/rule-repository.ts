@@ -1,5 +1,5 @@
 import z from "zod";
-import type { Rule } from "#src/domain/categorisation/rule-categoriser.ts";
+import type { Rule } from "#src/services/rule-categoriser.ts";
 import type { Queryable } from "../pool.ts";
 
 const ruleSchema = z.object({

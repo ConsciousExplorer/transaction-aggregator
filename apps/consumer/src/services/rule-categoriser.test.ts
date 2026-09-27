@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { suite, test } from "node:test";
 import type z from "zod";
-import type { canonicalTransactionSchema } from "../transaction.ts";
+import type { canonicalTransactionSchema } from "../schemas/transaction.ts";
 import {
 	createRuleCategoriser,
 	type Rule,
@@ -41,7 +41,6 @@ const makeTransaction = (
 	amountMinor: 12_345,
 	longDescription: null,
 	shortDescription: null,
-	mcc: null,
 	metadata: {},
 	...over
 });
@@ -69,7 +68,7 @@ suite("tier 1: mcc", () => {
 			makeRuleSet([makeRule({ matcherType: "mcc", pattern: "5411" })])
 		);
 		assert.deepStrictEqual(
-			categoriser.categorise(makeTransaction({ mcc: "5411" })),
+			categoriser.categorise(makeTransaction({ metadata: { mcc: "5411" } })),
 			{ categoryId: 10, ruleVersion: 7, rulePriority: 100, matcherType: "mcc" }
 		);
 	});
@@ -81,7 +80,9 @@ suite("tier 1: mcc", () => {
 				makeRule({ pattern: "5411", priority: 105, categoryId: 12 })
 			])
 		);
-		const verdict = categoriser.categorise(makeTransaction({ mcc: "5411" }));
+		const verdict = categoriser.categorise(
+			makeTransaction({ metadata: { mcc: "5411" } })
+		);
 		assert.strictEqual(verdict.categoryId, 12);
 	});
 
@@ -89,7 +90,9 @@ suite("tier 1: mcc", () => {
 		const categoriser = createRuleCategoriser(
 			makeRuleSet([makeRule({ pattern: "5411" })])
 		);
-		const verdict = categoriser.categorise(makeTransaction({ mcc: "9999" }));
+		const verdict = categoriser.categorise(
+			makeTransaction({ metadata: { mcc: "9999" } })
+		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 });
@@ -312,7 +315,7 @@ suite("tier precedence", () => {
 			])
 		);
 		const verdict = categoriser.categorise(
-			makeTransaction({ mcc: "5411", shortDescription: "SPAR" })
+			makeTransaction({ metadata: { mcc: "5411" }, shortDescription: "SPAR" })
 		);
 		assert.strictEqual(verdict.matcherType, "mcc");
 	});
@@ -422,7 +425,9 @@ suite("verdict versioning", () => {
 		const categoriser = createRuleCategoriser(
 			makeRuleSet([makeRule({ version: 1 })])
 		);
-		const matched = categoriser.categorise(makeTransaction({ mcc: "5411" }));
+		const matched = categoriser.categorise(
+			makeTransaction({ metadata: { mcc: "5411" } })
+		);
 		const fallback = categoriser.categorise(makeTransaction());
 		assert.strictEqual(matched.ruleVersion, 7);
 		assert.strictEqual(fallback.ruleVersion, 7);

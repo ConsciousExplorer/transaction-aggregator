@@ -2,22 +2,12 @@ import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
-import {
-	createRuleCategoriser,
-	type Rule,
-	type RuleCategoriser,
-	type RuleSet
-} from "./domain/categorisation/rule-categoriser.ts";
-import {
-	createNormaliser,
-	type Normaliser
-} from "./domain/normaliser/normaliser.ts";
 import { createPool } from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
 	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
-import { createAvroDeserializer } from "./integrations/events/avro-deserializer.ts";
+import { createAvroDeserializer } from "./integrations/events/avro-deserialiser.ts";
 import { deserialisationErrorHandler } from "./integrations/events/handlers/deserialiserErrorHandler.ts";
 import { transactionBatchHandler } from "./integrations/events/handlers/transactionHandler.ts";
 import {
@@ -30,7 +20,18 @@ import {
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
-import { config, fileLogger } from "./runtime.ts";
+import { config, fileLogger, secrets } from "./runtime.ts";
+import {
+	createDomainNormaliser,
+	type DomainNormaliser,
+	type Normaliser
+} from "./services/domain-normaliser.ts";
+import {
+	createRuleCategoriser,
+	type Rule,
+	type RuleCategoriser,
+	type RuleSet
+} from "./services/rule-categoriser.ts";
 
 const logger = fileLogger(import.meta.url);
 
@@ -41,7 +42,7 @@ let kafkaDlqProducer: DlqProducer;
 let server: Server;
 let rules: Rule[];
 let uncategorisedId: number;
-let transactionNormaliser: Normaliser;
+let transactionNormaliser: DomainNormaliser;
 let ruleCategoriser: RuleCategoriser;
 
 export async function startupCheck<T>(
@@ -115,7 +116,7 @@ try {
 			host: config.database.host,
 			port: config.database.port,
 			user: config.database.user,
-			password: config.secrets.database_password
+			password: secrets.databasePassword
 		});
 
 		// Force a real connection and release client directly
@@ -154,7 +155,7 @@ try {
 		sasl: {
 			mechanism: config.kafka.sasl.mechanism,
 			username: config.kafka.sasl.username,
-			password: config.secrets.kafka_password
+			password: secrets.kafkaPassword
 		},
 		deserializers: {
 			key: stringDeserializer,
@@ -171,7 +172,7 @@ try {
 		sasl: {
 			mechanism: config.kafka.sasl.mechanism,
 			username: config.kafka.sasl.username,
-			password: config.secrets.kafka_password
+			password: secrets.kafkaPassword
 		}
 	});
 
@@ -181,7 +182,7 @@ try {
 		uncategorisedId: uncategorisedId
 	} as RuleSet;
 
-	transactionNormaliser = createNormaliser(config.transactionType);
+	transactionNormaliser = createDomainNormaliser(config.transactionType);
 	ruleCategoriser = createRuleCategoriser(ruleset);
 
 	Promise.all([
