@@ -6,21 +6,21 @@ import type { InternalTransferTransaction } from "#src/schemas/internal_transfer
 import type { LoanTransaction } from "#src/schemas/loan.ts";
 import {
 	type CanonicalTransactionSchema,
+	type DomainTransactionSchema,
 	type directionSchema,
-	type ExternalTransactionSchema,
 	type TransactionType,
 	transactionTypeSchema
 } from "#src/schemas/transaction.ts";
 
 export interface Normaliser {
-	normalise(transaction: ExternalTransactionSchema): CanonicalTransactionSchema;
+	normalise(transaction: DomainTransactionSchema): CanonicalTransactionSchema;
 }
 
-export type DomainNormaliser = (
-	transaction: ExternalTransactionSchema
+type DomainNormaliser = (
+	transaction: DomainTransactionSchema
 ) => CanonicalTransactionSchema;
 
-const NORMALIZERS: Record<TransactionType, DomainNormaliser> = {
+const NORMALISERS: Record<TransactionType, DomainNormaliser> = {
 	card: (record) => normaliseCard(record as CardTransaction),
 	eft: (record) => normaliseEft(record as EftTransaction),
 	loan: (record) => normaliseLoan(record as LoanTransaction),
@@ -29,10 +29,8 @@ const NORMALIZERS: Record<TransactionType, DomainNormaliser> = {
 		normaliseInternalTransfer(record as InternalTransferTransaction)
 };
 
-export function createDomainNormaliser(
-	transactionType: TransactionType
-): DomainNormaliser {
-	const normaliser = NORMALIZERS[transactionType];
+function lookupNormaliser(transactionType: string): DomainNormaliser {
+	const normaliser = NORMALISERS[transactionType as TransactionType];
 	if (!normaliser)
 		throw new Error(
 			`No normaliser was found for transaction type ${transactionType}`
@@ -40,16 +38,27 @@ export function createDomainNormaliser(
 	return normaliser;
 }
 
-export function createNormaliser(transaction: ExternalTransactionSchema) {
-	const normaliser = createDomainNormaliser(
-		transaction.sourceType as TransactionType
-	);
-	return {
-		normalise(transaction: ExternalTransactionSchema) {
-			return normaliser(transaction);
-		}
-	};
+/**
+ * Pins one transaction type up front, for a process that consumes a single
+ * topic. `config.transactionType` is validated at startup, so an unknown type
+ * fails before the consumer reads anything.
+ */
+export function createNormaliser(transactionType: TransactionType): Normaliser {
+	const normalise = lookupNormaliser(transactionType);
+	return { normalise };
 }
+
+/**
+ * Dispatches per transaction on `sourceType` — for a mixed stream, where the
+ * type is not known until the record is in hand. `transactionType` on the
+ * source schemas is the debit/credit direction, so `sourceType` is the only
+ * field naming the origin.
+ */
+export const domainNormaliser: Normaliser = {
+	normalise(transaction) {
+		return lookupNormaliser(transaction.sourceType)(transaction);
+	}
+};
 
 export function normaliseCard(
 	record: CardTransaction

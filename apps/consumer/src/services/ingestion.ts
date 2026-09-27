@@ -4,7 +4,7 @@ import { withTransaction } from "#src/integrations/database/pool.ts";
 import { batchInsertTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
 import type {
 	CategorisedTransactionSchema,
-	ExternalTransactionSchema
+	DomainTransactionSchema
 } from "#src/schemas/transaction.ts";
 import type { Normaliser } from "./domain-normaliser.ts";
 import type { RuleCategoriser } from "./rule-categoriser.ts";
@@ -15,7 +15,7 @@ export interface BatchOutcome {
 }
 
 export type IngestTransactions = (
-	transactions: ExternalTransactionSchema[]
+	transactions: DomainTransactionSchema[]
 ) => Promise<BatchOutcome>;
 
 export function createTransactionIngestion(

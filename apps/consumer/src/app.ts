@@ -9,23 +9,28 @@ import {
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserialiser.ts";
 import { deserialisationErrorHandler } from "./integrations/events/handlers/deserialiserErrorHandler.ts";
-import { transactionBatchHandler } from "./integrations/events/handlers/transactionHandler.ts";
 import {
-	type ConsumedTransaction,
+	type BatchHandler,
+	createTransactionBatchHandler,
+	type SendToDlq
+} from "./integrations/events/handlers/transactionBatchHandler.ts";
+import {
 	type ConsumedValue,
 	createKafkaConsumer,
 	createKafkaDlqProducer,
+	createDlqSender,
 	type DlqProducer,
 	type KafkaConsumer,
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
 import { config, fileLogger, secrets } from "./runtime.ts";
+import type { DomainTransactionSchema } from "./schemas/transaction.ts";
 import {
-	createDomainNormaliser,
-	type DomainNormaliser,
+	createNormaliser,
 	type Normaliser
 } from "./services/domain-normaliser.ts";
+import { createTransactionIngestion } from "./services/ingestion.ts";
 import {
 	createRuleCategoriser,
 	type Rule,
@@ -42,8 +47,10 @@ let kafkaDlqProducer: DlqProducer;
 let server: Server;
 let rules: Rule[];
 let uncategorisedId: number;
-let transactionNormaliser: DomainNormaliser;
+let transactionNormaliser: Normaliser;
 let ruleCategoriser: RuleCategoriser;
+let sendToDlq: SendToDlq;
+let transactionBatchHandler: BatchHandler;
 
 export async function startupCheck<T>(
 	name: string,
@@ -129,7 +136,7 @@ try {
 	uncategorisedId = await loadUncategorisedId(writerPool);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
-		createAvroDeserializer<ConsumedTransaction>(config.schemaRegistry.url, [
+		createAvroDeserializer<DomainTransactionSchema>(config.schemaRegistry.url, [
 			`${config.kafka.topics.main}-value`
 		])
 	);
@@ -182,8 +189,20 @@ try {
 		uncategorisedId: uncategorisedId
 	} as RuleSet;
 
-	transactionNormaliser = createDomainNormaliser(config.transactionType);
+	transactionNormaliser = createNormaliser(config.transactionType);
 	ruleCategoriser = createRuleCategoriser(ruleset);
+
+	const transactionIngestion = createTransactionIngestion(
+		transactionNormaliser,
+		ruleCategoriser,
+		writerPool
+	);
+
+	sendToDlq = createDlqSender(kafkaDlqProducer, config.kafka.topics.dlq);
+	transactionBatchHandler = createTransactionBatchHandler(
+		transactionIngestion,
+		sendToDlq
+	);
 
 	Promise.all([
 		// Connects and authenticates. Same as postgres select 1
@@ -208,11 +227,6 @@ try {
 
 	await startBatchConsumer(
 		kafkaConsumer,
-		kafkaDlqProducer,
-		config.kafka.topics.dlq,
-		writerPool,
-		transactionNormaliser,
-		ruleCategoriser,
 		transactionBatchHandler,
 		deserialisationErrorHandler,
 		{
