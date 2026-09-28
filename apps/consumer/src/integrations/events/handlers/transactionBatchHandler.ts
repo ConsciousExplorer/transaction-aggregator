@@ -60,7 +60,11 @@ export function createTransactionBatchHandler(
 		const duplicates = outcome.attempted - outcome.inserted;
 		if (duplicates > 0) {
 			logger.warn(
-				{ attempted: outcome.attempted, inserted: outcome.inserted, duplicates },
+				{
+					attempted: outcome.attempted,
+					inserted: outcome.inserted,
+					duplicates
+				},
 				"Batch contained duplicates"
 			);
 		}

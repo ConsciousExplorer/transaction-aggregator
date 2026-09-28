@@ -16,9 +16,9 @@ import {
 } from "./integrations/events/handlers/transactionBatchHandler.ts";
 import {
 	type ConsumedValue,
+	createDlqSender,
 	createKafkaConsumer,
 	createKafkaDlqProducer,
-	createDlqSender,
 	type DlqProducer,
 	type KafkaConsumer,
 	startBatchConsumer
