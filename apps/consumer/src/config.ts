@@ -60,12 +60,15 @@ const configSchema = z
 
 		SCHEMA_REGISTRY_URL: z.url().default("http://localhost:8081"),
 
-		// One consumer instance per transaction type. Topic, DLQ topic, group id
-		// and the normaliser are all derived from this single value so they can
-		// never drift.
+		// One consumer instance per transaction type: selects the normaliser,
+		// the canonical/DB type value, and the consumer group id.
 		TRANSACTION_TYPE: z.enum(CANONICAL_TRANSACTION_TYPES).default("card"),
 
 		KAFKA_BROKERS: z.string().transform(csv),
+		// Topic names are explicit config, exactly as the producers take them —
+		// broker topics are dashed (transactions.debit-order) while the
+		// canonical type keeps its underscore. The DLQ topic is <topic>.dlq.
+		KAFKA_TOPIC: z.string().min(1),
 		KAFKA_USERNAME: z.string(),
 		KAFKA_PASSWORD_SECRET_NAME: z.string(),
 		KAFKA_SASL_MECHANISM: z.enum(SASLMechanisms).default("SCRAM-SHA-512"),
@@ -161,8 +164,8 @@ const configSchema = z
 					username: e.KAFKA_USERNAME
 				}),
 				topics: Object.freeze({
-					main: `transactions.${e.TRANSACTION_TYPE}`,
-					dlq: `transactions.${e.TRANSACTION_TYPE}.dlq`
+					main: e.KAFKA_TOPIC,
+					dlq: `${e.KAFKA_TOPIC}.dlq`
 				}),
 				sessionTimeout: e.KAFKA_SESSION_TIMEOUT_MS,
 				heartbeatInterval: e.KAFKA_HEARTBEAT_INTERVAL_MS,

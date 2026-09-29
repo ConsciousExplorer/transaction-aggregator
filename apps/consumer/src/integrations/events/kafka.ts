@@ -2,8 +2,6 @@ import { fileLogger } from "#src/runtime.ts";
 
 const logger = fileLogger(import.meta.url);
 
-// Create consumer client singleton
-// import { SchemaRegistry } from "@platformatic/kafka";
 import {
 	type BeforeHookPayloadType,
 	type ConsumeOptions,
@@ -108,7 +106,7 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 			records.push(toDlqRecord(dlqTopic, failure));
 		}
 
-		dlqProducer.send({ messages: records, acks: -1 });
+		await dlqProducer.send({ messages: records, acks: -1 });
 	};
 }
 

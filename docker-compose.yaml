@@ -347,6 +347,7 @@ services:
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: card
+      KAFKA_TOPIC: transactions.card
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -406,6 +407,7 @@ services:
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: eft
+      KAFKA_TOPIC: transactions.eft
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -464,7 +466,8 @@ services:
       PORT: 3003
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      TRANSACTION_TYPE: internal-transfer
+      TRANSACTION_TYPE: internal_transfer
+      KAFKA_TOPIC: transactions.internal-transfer
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -523,7 +526,8 @@ services:
       PORT: 3004
       # Secrets and certs
       SECRET_DIR: "/secrets"
-      TRANSACTION_TYPE: debit-order
+      TRANSACTION_TYPE: debit_order
+      KAFKA_TOPIC: transactions.debit-order
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json
@@ -583,6 +587,7 @@ services:
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: loan
+      KAFKA_TOPIC: transactions.loan
       # Logging configuration
       LOG_LEVEL: info
       LOG_FORMAT: json

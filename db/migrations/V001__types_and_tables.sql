@@ -81,22 +81,9 @@ CREATE TABLE transactions (
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
   INCLUDE (transaction_type, direction, amount_minor, currency, category_id, short_description);
 
--- Admin 
--- This table is for long term metrics. OTEL will typically not store months worth of data
-CREATE TABLE ingest_progress (
-  topic               text   NOT NULL,
-  partition           int    NOT NULL,
-  last_offset         bigint NOT NULL,
-  messages_total      bigint NOT NULL DEFAULT 0,
-  rows_inserted_total bigint NOT NULL DEFAULT 0,
-  duplicates_total    bigint NOT NULL DEFAULT 0,
-  dlq_total           bigint NOT NULL DEFAULT 0,
-  tombstones_total    bigint NOT NULL DEFAULT 0,
-  filtered_total      bigint NOT NULL DEFAULT 0,
-  last_occurred_at    timestamptz,
-  updated_at          timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (topic, partition)
-);
+-- No ingest_progress table (D43, 2026-09-29, supersedes D19): the business API
+-- surfaces no operational stats, so ops data lives on the ops plane (metrics),
+-- not in a second, weaker metrics store. Insert rate derives from ingested_at.
 
 DO $$
 BEGIN

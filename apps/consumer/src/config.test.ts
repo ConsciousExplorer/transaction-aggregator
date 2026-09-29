@@ -42,6 +42,7 @@ const sampleEnv: Record<string, string | undefined> = {
 
 	// # KAFKA configuration
 	KAFKA_BROKERS: "localhost:9092",
+	KAFKA_TOPIC: "transactions.card",
 	KAFKA_USERNAME: "consumer",
 	KAFKA_PASSWORD_SECRET_NAME: "kafka_password",
 	KAFKA_SASL_MECHANISM: "SCRAM-SHA-512"
@@ -53,13 +54,36 @@ suite("loadConfig", () => {
 		assert.strictEqual(config.database.user, "kafka_consumer");
 	});
 
-	test("TRANSACTION_TYPE derives the topic, DLQ topic, and group id", () => {
-		const config = loadConfig({ ...sampleEnv, TRANSACTION_TYPE: "loan" });
+	test("TRANSACTION_TYPE derives the group id and stays canonical", () => {
+		const config = loadConfig({
+			...sampleEnv,
+			TRANSACTION_TYPE: "debit_order",
+			KAFKA_TOPIC: "transactions.debit-order"
+		});
 
-		assert.strictEqual(config.transactionType, "loan");
-		assert.strictEqual(config.kafka.topics.main, "transactions.loan");
-		assert.strictEqual(config.kafka.topics.dlq, "transactions.loan.dlq");
-		assert.strictEqual(config.kafka.groupId, "transaction-consumer-loan");
+		assert.strictEqual(config.transactionType, "debit_order");
+		assert.strictEqual(config.kafka.groupId, "transaction-consumer-debit_order");
+	});
+
+	test("topic comes from KAFKA_TOPIC as-is; DLQ topic is <topic>.dlq", () => {
+		// Topic names are explicit config (dashed on the broker:
+		// transactions.debit-order); never derived from the canonical type.
+		const config = loadConfig({
+			...sampleEnv,
+			TRANSACTION_TYPE: "internal_transfer",
+			KAFKA_TOPIC: "transactions.internal-transfer"
+		});
+
+		assert.strictEqual(config.kafka.topics.main, "transactions.internal-transfer");
+		assert.strictEqual(
+			config.kafka.topics.dlq,
+			"transactions.internal-transfer.dlq"
+		);
+	});
+
+	test("missing KAFKA_TOPIC fails validation", () => {
+		const { KAFKA_TOPIC, ...rest } = sampleEnv;
+		assert.throws(() => loadConfig(rest));
 	});
 
 	test("rejects an unknown TRANSACTION_TYPE", () => {
