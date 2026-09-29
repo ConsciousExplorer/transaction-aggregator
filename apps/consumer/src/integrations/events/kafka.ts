@@ -169,8 +169,6 @@ export interface BatchConsumerOptions {
 	maxWaitTime: number;
 	batchSize: number;
 	lingerMs: number;
-	maxRetries: number;
-	retryBaseDelayMs: number;
 }
 
 export async function startBatchConsumer(
@@ -193,7 +191,13 @@ export async function startBatchConsumer(
 	let messageBatch: KafkaMessage[] = [];
 	let timeoutId: NodeJS.Timeout | null = null;
 
-	async function flushBatch() {
+	// Orders flushes one after another. The linger timer cannot await, so
+	// without this a timer-triggered flush can run while a size-triggered one is
+	// still inserting — two concurrent transactions, two commits, and
+	// `messageBatch` mutated in between. Every flush chains onto the previous.
+	let inFlight: Promise<void> = Promise.resolve();
+
+	async function drainBatch() {
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 			timeoutId = null;
@@ -216,6 +220,14 @@ export async function startBatchConsumer(
 		}
 	}
 
+	function flushBatch(): Promise<void> {
+		const flushed = inFlight.then(drainBatch);
+		// The queue swallows the rejection so one failure does not poison every
+		// later flush; the returned promise still carries it to the caller.
+		inFlight = flushed.catch(() => {});
+		return flushed;
+	}
+
 	for await (const message of messageStream) {
 		messageBatch.push(message);
 
@@ -233,4 +245,8 @@ export async function startBatchConsumer(
 			await flushBatch();
 		}
 	}
+
+	// The stream ended with a partial batch still buffered — flush it, and let
+	// a failure propagate rather than dropping the messages silently.
+	await flushBatch();
 }

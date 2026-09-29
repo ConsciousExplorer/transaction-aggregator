@@ -3,9 +3,14 @@ import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
 import { config, fileLogger, secrets } from "#src/runtime.ts";
-import { createPool } from "./integrations/database/pool.ts";
+import {
+	createDatabase,
+	createPool,
+	type Database
+} from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
+	loadRulesetVersion,
 	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserializer } from "./integrations/events/avro-deserialiser.ts";
@@ -42,10 +47,12 @@ const logger = fileLogger(import.meta.url);
 
 // Dependencies
 let writerPool: Pool;
+let writerDb: Database;
 let kafkaConsumer: KafkaConsumer;
 let kafkaDlqProducer: DlqProducer;
 let server: Server;
 let rules: Rule[];
+let rulesetVersion: number;
 let uncategorisedId: number;
 let transactionNormaliser: Normaliser;
 let ruleCategoriser: RuleCategoriser;
@@ -132,8 +139,11 @@ try {
 		return pool;
 	});
 
-	rules = await loadActiveRules(writerPool);
-	uncategorisedId = await loadUncategorisedId(writerPool);
+	writerDb = createDatabase(writerPool);
+
+	rules = await loadActiveRules(writerDb);
+	rulesetVersion = await loadRulesetVersion(writerDb);
+	uncategorisedId = await loadUncategorisedId(writerDb);
 
 	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
 		createAvroDeserializer<DomainTransactionSchema>(config.schemaRegistry.url, [
@@ -183,11 +193,11 @@ try {
 		}
 	});
 
-	const ruleset = {
-		version: 1,
+	const ruleset: RuleSet = {
+		version: rulesetVersion,
 		rules: rules,
 		uncategorisedId: uncategorisedId
-	} as RuleSet;
+	};
 
 	transactionNormaliser = createNormaliser(config.transactionType);
 	ruleCategoriser = createRuleCategoriser(ruleset);
@@ -234,9 +244,7 @@ try {
 			mode: config.kafka.readMode,
 			maxWaitTime: config.kafka.maxWaitTime,
 			batchSize: config.kafka.batchSize,
-			lingerMs: config.kafka.lingerMs,
-			maxRetries: config.kafka.maxRetries,
-			retryBaseDelayMs: config.kafka.retryBaseDelayMs
+			lingerMs: config.kafka.lingerMs
 		}
 	);
 } catch (err) {

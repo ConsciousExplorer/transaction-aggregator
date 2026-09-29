@@ -1,56 +1,63 @@
-import z from "zod";
+import { eq, max, sql } from "drizzle-orm";
 import type { Rule } from "#src/services/rule-categoriser.ts";
-import type { Queryable } from "../pool.ts";
+import type { Database } from "../pool.ts";
+import {
+	categories,
+	categorizationRules,
+	ruleSets
+} from "../schemas/schema.ts";
 
-const ruleSchema = z.object({
-	categorization_rule_id: z.string(),
-	ruleset_version: z.number(),
-	priority: z.number(),
-	matcher_type: z.string(),
-	pattern: z.string(),
-	category_id: z.number()
-});
+/**
+ * The active ruleset version, as a correlated subquery so the version and its
+ * rules come from one snapshot. Prepared: this runs once per boot, but naming
+ * the statement keeps the plan cached if a reload is ever added.
+ */
+const activeVersion = sql`(select max(${ruleSets.version}) from ${ruleSets})`;
 
-const categorySchema = z.object({
-	category_id: z.number()
-});
+export async function loadActiveRules(db: Database): Promise<Rule[]> {
+	const rows = await db
+		.select({
+			priority: categorizationRules.priority,
+			matcherType: categorizationRules.matcherType,
+			pattern: categorizationRules.pattern,
+			categoryId: categorizationRules.categoryId,
+			version: categorizationRules.rulesetVersion
+		})
+		.from(categorizationRules)
+		.where(eq(categorizationRules.rulesetVersion, activeVersion))
+		.orderBy(categorizationRules.priority);
 
-export async function loadActiveRules(db: Queryable): Promise<Rule[]> {
-	const { rows } = await db.query<z.infer<typeof ruleSchema>>(
-		`
-		SELECT 	r.priority, r.matcher_type, r.pattern, r.category_id,
-				r.ruleset_version
-		FROM   	categorization_rules r
-		WHERE  	r.ruleset_version = (SELECT max(version) FROM rule_sets)
-		ORDER  	BY r.priority
-		`
-	);
-	return rows.map(
-		(r) =>
-			({
-				priority: r.priority,
-				matcherType: r.matcher_type,
-				pattern: r.pattern,
-				categoryId: r.category_id,
-				version: r.ruleset_version
-			}) as Rule
-	);
+	return rows as Rule[];
 }
 
-export async function loadUncategorisedId(db: Queryable): Promise<number> {
-	const { rows } = await db.query<z.infer<typeof categorySchema>>(
-		`
-		SELECT 	category_id
-		FROM 	categories
-		WHERE 	category = $1
-		`,
-		["uncategorised"]
-	);
+/**
+ * Read from `rule_sets` rather than inferred from a rule row, so it is still
+ * correct when the active set has no rules.
+ */
+export async function loadRulesetVersion(db: Database): Promise<number> {
+	const rows = await db
+		.select({ version: max(ruleSets.version) })
+		.from(ruleSets);
+
+	const version = rows[0]?.version;
+	if (version == null) {
+		throw new Error("No ruleset version found in rule_sets table");
+	}
+
+	return version;
+}
+
+export async function loadUncategorisedId(db: Database): Promise<number> {
+	const rows = await db
+		.select({ categoryId: categories.categoryId })
+		.from(categories)
+		.where(eq(categories.category, "uncategorised"))
+		.limit(1);
 
 	const category = rows[0];
 	if (!category) {
 		throw new Error('Category "uncategorised" not found in categories table');
 	}
 
-	return category.category_id;
+	return category.categoryId;
 }

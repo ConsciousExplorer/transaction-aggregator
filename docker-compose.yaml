@@ -332,6 +332,10 @@ services:
       context: ./apps/consumer
     pull_policy: build
     container_name: consumer-card
+    # Crash-only retry model (D44): a transient failure exits uncommitted and
+    # Docker's restart backoff is the bounded retry; the idempotent sink absorbs
+    # the replay. Without this line a 5s DB blip would kill ingestion for good.
+    restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
       schemas-register: { condition: service_completed_successfully }
@@ -377,10 +381,7 @@ services:
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: earliest
-      # Retry policy for infrastructure failures
-      KAFKA_MAX_RETRIES: 5
-      KAFKA_RETRY_BASE_DELAY_MS: 500
-      # Secrets 
+      # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -392,6 +393,7 @@ services:
       context: ./apps/consumer
     pull_policy: build
     container_name: consumer-eft
+    restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
       schemas-register: { condition: service_completed_successfully }
@@ -437,10 +439,7 @@ services:
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: earliest
-      # Retry policy for infrastructure failures
-      KAFKA_MAX_RETRIES: 5
-      KAFKA_RETRY_BASE_DELAY_MS: 500
-      # Secrets 
+      # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -452,6 +451,7 @@ services:
       context: ./apps/consumer
     pull_policy: build
     container_name: consumer-internal-transfer
+    restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
       schemas-register: { condition: service_completed_successfully }
@@ -497,10 +497,7 @@ services:
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: earliest
-      # Retry policy for infrastructure failures
-      KAFKA_MAX_RETRIES: 5
-      KAFKA_RETRY_BASE_DELAY_MS: 500
-      # Secrets 
+      # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -512,6 +509,7 @@ services:
       context: ./apps/consumer
     pull_policy: build
     container_name: consumer-debit-order
+    restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
       schemas-register: { condition: service_completed_successfully }
@@ -557,10 +555,7 @@ services:
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: earliest
-      # Retry policy for infrastructure failures
-      KAFKA_MAX_RETRIES: 5
-      KAFKA_RETRY_BASE_DELAY_MS: 500
-      # Secrets 
+      # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -572,6 +567,7 @@ services:
       context: ./apps/consumer
     pull_policy: build
     container_name: consumer-loan
+    restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
       schemas-register: { condition: service_completed_successfully }
@@ -617,10 +613,7 @@ services:
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: earliest
-      # Retry policy for infrastructure failures
-      KAFKA_MAX_RETRIES: 5
-      KAFKA_RETRY_BASE_DELAY_MS: 500
-      # Secrets 
+      # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318

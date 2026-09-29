@@ -1,3 +1,4 @@
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
 	Pool,
 	type PoolClient,
@@ -15,6 +16,13 @@ export interface Queryable {
 		text: string,
 		values?: unknown[]
 	): Promise<QueryResult<R>>;
+}
+
+export type Database = NodePgDatabase<Record<string, never>>;
+
+/** Drizzle query builder over an existing pool or transaction client. */
+export function createDatabase(client: Pool | PoolClient): Database {
+	return drizzle(client);
 }
 
 export async function createPool(config: PoolConfig): Promise<Pool> {

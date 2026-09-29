@@ -98,11 +98,7 @@ const configSchema = z
 		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(1_000),
 		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(100),
 		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
-		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("earliest"),
-
-		// Retry policy for retryable (infrastructure) batch failures.
-		KAFKA_MAX_RETRIES: z.coerce.number().int().min(0).default(5),
-		KAFKA_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(500)
+		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("earliest")
 	})
 	.superRefine((e, ctx) => {
 		if (e.KAFKA_HEARTBEAT_INTERVAL_MS > e.KAFKA_SESSION_TIMEOUT_MS / 3) {
@@ -174,9 +170,7 @@ const configSchema = z
 				maxWaitTime: e.KAFKA_MAX_WAIT_TIME_MS,
 				batchSize: e.KAFKA_BATCH_SIZE,
 				lingerMs: e.KAFKA_BATCH_LINGER_MS,
-				readMode: e.KAFKA_READ_MODE,
-				maxRetries: e.KAFKA_MAX_RETRIES,
-				retryBaseDelayMs: e.KAFKA_RETRY_BASE_DELAY_MS
+				readMode: e.KAFKA_READ_MODE
 			}),
 			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
 
