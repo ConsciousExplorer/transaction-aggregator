@@ -13,7 +13,7 @@
       "name": "eventId",
       "type": "string",
       "default": "",
-      "doc": "Delivery identity: fresh UUIDv7 per emit, including redeliveries and chaos duplicates. Never used for dedup (D06). Empty string = emitted by a pre-v2 producer."
+      "doc": "Delivery identity: fresh UUIDv7 per emit, including redeliveries and chaos duplicates."
     },
     {
       "name": "producedAt",

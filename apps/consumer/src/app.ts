@@ -1,11 +1,8 @@
-// Must precede every module that creates a module logger: runtime.ts loads and
-// validates config, then configures logging. Pino children copy the root when
-// they are created, so a later swap cannot reach them.
-import "./runtime.ts";
 import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
+import { config, fileLogger, secrets } from "#src/runtime.ts";
 import { createPool } from "./integrations/database/pool.ts";
 import {
 	loadActiveRules,
@@ -28,8 +25,6 @@ import {
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
-import { fileLogger } from "./log.ts";
-import { config, secrets } from "./runtime.ts";
 import type { DomainTransactionSchema } from "./schemas/transaction.ts";
 import {
 	createNormaliser,

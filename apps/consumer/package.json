@@ -17,13 +17,17 @@
 		"lint": "npx @biomejs/biome check --write src/ && npm run lint:spelling",
 		"lint:spelling": "cspell \"**/*.{ts,js}\"",
 		"schema:generate": "node scripts/generate-avro-types.ts",
-		"test": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
+		"test": "node --conditions=test-runtime --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
 		"biome:migrate": "npx @biomejs/biome migrate --write",
 		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle.config.ts && node scripts/cleanup-drizzle-pull.ts",
 		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle.config.ts"
 	},
 	"imports": {
+		"#src/runtime.ts": {
+			"test-runtime": "./src/test-runtime.ts",
+			"default": "./src/runtime.ts"
+		},
 		"#src/*": "./src/*",
 		"#types": "./src/types/*",
 		"#services": "./src/services/*",

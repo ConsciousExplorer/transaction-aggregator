@@ -1,5 +1,5 @@
 import { RetryableError } from "#src/errors/consumer-errors.ts";
-import { fileLogger } from "#src/log.ts";
+import { fileLogger } from "#src/runtime.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type {
 	BatchOutcome,

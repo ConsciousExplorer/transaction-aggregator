@@ -1,1 +1,18 @@
-**/*.tests.*
+node_modules
+npm-debug.log
+
+# Secrets and local config never belong in a layer
+.env
+*.env
+!sample.env
+
+# Test scaffolding does not ship
+**/*.test.ts
+**/test-runtime.ts
+test/
+
+.git
+.gitignore
+.vscode
+Dockerfile
+.dockerignore
