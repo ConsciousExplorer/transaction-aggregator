@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noNonNullAssertion: tests can be null */
 import assert from "node:assert";
 import { suite, test } from "node:test";
 import {

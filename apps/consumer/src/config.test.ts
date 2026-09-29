@@ -62,7 +62,10 @@ suite("loadConfig", () => {
 		});
 
 		assert.strictEqual(config.transactionType, "debit_order");
-		assert.strictEqual(config.kafka.groupId, "transaction-consumer-debit_order");
+		assert.strictEqual(
+			config.kafka.groupId,
+			"transaction-consumer-debit_order"
+		);
 	});
 
 	test("topic comes from KAFKA_TOPIC as-is; DLQ topic is <topic>.dlq", () => {
@@ -74,7 +77,10 @@ suite("loadConfig", () => {
 			KAFKA_TOPIC: "transactions.internal-transfer"
 		});
 
-		assert.strictEqual(config.kafka.topics.main, "transactions.internal-transfer");
+		assert.strictEqual(
+			config.kafka.topics.main,
+			"transactions.internal-transfer"
+		);
 		assert.strictEqual(
 			config.kafka.topics.dlq,
 			"transactions.internal-transfer.dlq"

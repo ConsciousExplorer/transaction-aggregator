@@ -26,4 +26,6 @@ export const internalTransferTransactionSchema = z.object({
 	timestamp: z.number()
 });
 
-export type InternalTransferTransaction = z.infer<typeof internalTransferTransactionSchema>;
+export type InternalTransferTransaction = z.infer<
+	typeof internalTransferTransactionSchema
+>;

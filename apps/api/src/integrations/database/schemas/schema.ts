@@ -1,6 +1,4 @@
-import { sql } from "drizzle-orm";
 import {
-	bigint,
 	boolean,
 	foreignKey,
 	index,
@@ -140,39 +138,3 @@ export const userCategoryOverrides = pgTable(
 		})
 	]
 );
-
-export const ingestProgress = pgTable("ingest_progress", {
-	topic: text().notNull(),
-	partition: integer().notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	lastOffset: bigint("last_offset", { mode: "number" }).notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	messagesTotal: bigint("messages_total", { mode: "number" })
-		.default(0)
-		.notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	rowsInsertedTotal: bigint("rows_inserted_total", { mode: "number" })
-		.default(0)
-		.notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	duplicatesTotal: bigint("duplicates_total", { mode: "number" })
-		.default(0)
-		.notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	dlqTotal: bigint("dlq_total", { mode: "number" }).default(0).notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	tombstonesTotal: bigint("tombstones_total", { mode: "number" })
-		.default(0)
-		.notNull(),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	filteredTotal: bigint("filtered_total", { mode: "number" })
-		.default(0)
-		.notNull(),
-	lastOccurredAt: timestamp("last_occurred_at", {
-		withTimezone: true,
-		mode: "string"
-	}),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-		.defaultNow()
-		.notNull()
-});

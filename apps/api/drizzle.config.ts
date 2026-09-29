@@ -23,5 +23,6 @@ export default defineConfig({
             ssl: false
             },
     schemaFilter: ['public'],
-    tablesFilter: ["*", "!*_default", "!transactions_p*", "!user_transaction_overrides_p*"],
+    tablesFilter: ["*", "!transactions_p*", "!user_transaction_overrides_p*", "!flywaySchemaHistory"],
+    
 });

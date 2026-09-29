@@ -10,17 +10,22 @@ import {
 export const categorizationRulesRelations = relations(
 	categorizationRules,
 	({ one, many }) => ({
-		category: one(categories, {
-			fields: [categorizationRules.categoryId],
-			references: [categories.categoryId]
-		}),
 		ruleSet: one(ruleSets, {
 			fields: [categorizationRules.rulesetVersion],
 			references: [ruleSets.version]
 		}),
+		category: one(categories, {
+			fields: [categorizationRules.categoryId],
+			references: [categories.categoryId]
+		}),
 		transactions: many(transactions)
 	})
 );
+
+export const ruleSetsRelations = relations(ruleSets, ({ many }) => ({
+	categorizationRules: many(categorizationRules),
+	transactions: many(transactions)
+}));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
 	categorizationRules: many(categorizationRules),
@@ -32,11 +37,6 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
 	}),
 	transactions: many(transactions),
 	userTransactionOverrides: many(userTransactionOverrides)
-}));
-
-export const ruleSetsRelations = relations(ruleSets, ({ many }) => ({
-	categorizationRules: many(categorizationRules),
-	transactions: many(transactions)
 }));
 
 export const userCategoryOverridesRelations = relations(
@@ -66,7 +66,7 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 	}),
 	categorizationRule: one(categorizationRules, {
 		fields: [transactions.ruleVersion],
-		references: [categorizationRules.rulesetVersion]
+		references: [categorizationRules.priority]
 	})
 }));
 

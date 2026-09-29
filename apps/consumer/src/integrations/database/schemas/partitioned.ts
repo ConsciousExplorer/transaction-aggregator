@@ -56,7 +56,7 @@ export const transactions = pgTable(
 			table.userId.asc().nullsLast().op("timestamptz_ops"),
 			table.occurredAt.desc().nullsFirst().op("timestamptz_ops"),
 			table.transactionId.desc().nullsFirst().op("timestamptz_ops"),
-			table.transactionType.asc().nullsLast().op("uuid_ops"),
+			table.transactionType.asc().nullsLast().op("timestamptz_ops"),
 			table.direction.asc().nullsLast().op("timestamptz_ops"),
 			table.amountMinor.asc().nullsLast().op("timestamptz_ops"),
 			table.currency.asc().nullsLast().op("timestamptz_ops"),
@@ -76,8 +76,8 @@ export const transactions = pgTable(
 		foreignKey({
 			columns: [table.ruleVersion, table.rulePriority],
 			foreignColumns: [
-				categorizationRules.rulesetVersion,
-				categorizationRules.priority
+				categorizationRules.priority,
+				categorizationRules.rulesetVersion
 			],
 			name: "transactions_rule_version_rule_priority_fkey"
 		}),
