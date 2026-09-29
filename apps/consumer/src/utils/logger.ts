@@ -8,7 +8,8 @@ export const LOG_LEVELS = [
 	"warn",
 	"info",
 	"debug",
-	"trace"
+	"trace",
+	"silent"
 ] as const;
 
 /** Baseline PAN fields — always redacted, config can only add to this. */

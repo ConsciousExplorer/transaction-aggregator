@@ -10,6 +10,18 @@
       "type": { "type": "string", "logicalType": "uuid" }
     },
     {
+      "name": "eventId",
+      "type": "string",
+      "default": "",
+      "doc": "Delivery identity: fresh UUIDv7 per emit, including redeliveries and chaos duplicates. Never used for dedup (D06). Empty string = emitted by a pre-v2 producer."
+    },
+    {
+      "name": "producedAt",
+      "type": { "type": "long", "logicalType": "timestamp-millis" },
+      "default": 0,
+      "doc": "Emit timestamp stamped by the producer at send time. 0 = unknown; the consumer records no ingest_lag_seconds observation for that message."
+    },
+    {
       "name": "sourceType",
       "type": "string",
       "arg.properties": { "options": ["internalTransfer"] }

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -27,6 +28,18 @@ class ProducerStats(BaseModel):
     errors: int
     undelivered: int
     elapsed_s: float
+
+
+def uuid7() -> uuid.UUID:
+    """RFC 9562 UUIDv7: 48-bit unix-ms timestamp, version/variant bits over 74
+    random bits — time-ordered, so event ids sort chronologically in logs.
+    Python 3.13's stdlib has no uuid.uuid7 (it lands in 3.14); replace then.
+    """
+    unix_ms = time.time_ns() // 1_000_000
+    rand = bytearray(os.urandom(10))
+    rand[0] = (rand[0] & 0x0F) | 0x70  # version nibble -> 7
+    rand[2] = (rand[2] & 0x3F) | 0x80  # variant bits -> RFC 4122 (10xx)
+    return uuid.UUID(bytes=unix_ms.to_bytes(6, "big") + bytes(rand))
 
 
 def _kafka_delivery_callback(err, msg) -> None:
@@ -110,10 +123,16 @@ def produce_records(
 ) -> ProducerStats:
     """Produces an iterable of records to the specified topic.
 
+    Every record is stamped at emit with its delivery identity (D13): a fresh
+    UUIDv7 `eventId` per produce — re-emits included, so a chaos duplicate never
+    shares delivery identity with the original (D06) — and `producedAt` as the
+    emit wall-clock in epoch millis, which is what makes ingest lag computable.
+
     Headers carry transport metadata readable without deserializing the value:
-    `static_headers` (e.g. producer identity) go on every message, and a fresh
-    x-correlation-id is minted per message for cross-service tracing/DLQ
-    diagnostics. Business data stays in the schema'd payload.
+    `static_headers` (e.g. producer identity) go on every message, x-producer is
+    defaulted if the caller supplies none, and a fresh x-correlation-id is
+    minted per message for cross-service tracing/DLQ diagnostics. Business data
+    stays in the schema'd payload.
     """
 
     serializer_context = SerializationContext(topic, MessageField.VALUE)
@@ -125,12 +144,17 @@ def produce_records(
 
     try:
         for i, record in enumerate(records):
+            # Stamp before serializing so generator-supplied values never reach
+            # the wire: emit time and delivery identity belong to this produce.
+            record["eventId"] = str(uuid7())
+            record["producedAt"] = time.time_ns() // 1_000_000
+
             value = serializer(record, serializer_context)
             key = extract_key(record, key_fields)
 
-            # We are not using UUIDv7, we are not inserting into postgres that will do page splits.
-            # This UUID will only be used for tracing.
-            headers = {**(static_headers or {}), "x-correlation-id": str(uuid.uuid4())}  
+            # Correlation id stays UUIDv4: tracing-only, never an index key.
+            headers = {**(static_headers or {}), "x-correlation-id": str(uuid.uuid4())}
+            headers.setdefault("x-producer", "producers/unknown")
 
             try:
                 producer.produce(

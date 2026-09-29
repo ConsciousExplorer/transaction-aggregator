@@ -1,4 +1,4 @@
-import { fileLogger } from "../../runtime.ts";
+import { fileLogger } from "#src/log.ts";
 
 const logger = fileLogger(import.meta.url);
 

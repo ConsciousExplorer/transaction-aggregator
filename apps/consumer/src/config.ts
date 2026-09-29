@@ -3,8 +3,8 @@ import {
 	SASLMechanisms
 } from "@platformatic/kafka";
 import { z } from "zod";
-import { LOG_LEVELS } from "./logger.ts";
 import { CANONICAL_TRANSACTION_TYPES } from "./schemas/transaction.ts";
+import { LOG_LEVELS } from "./utils/logger.ts";
 
 const KAFKA_READ_MODES = [
 	"earliest",

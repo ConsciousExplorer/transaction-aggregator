@@ -31,8 +31,8 @@ def main():
     producer = Producer(config.kafka.to_producer_config())
 
     # The seed should be random for chaos and tests.
-    # For reproduceable tests, a seed value should be set to ensure 
-    # all test records are not randomised. 
+    # For reproduceable tests, a seed value should be set to ensure
+    # all test records are not randomised.
     seed = config.generator.seed
     seed_source = "env"
     if seed is None:
