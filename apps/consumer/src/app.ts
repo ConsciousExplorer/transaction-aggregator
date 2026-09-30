@@ -35,13 +35,13 @@ import {
 	createNormaliser,
 	type Normaliser
 } from "./services/domain-normaliser.ts";
-import { createTransactionIngestion } from "./services/ingestion.ts";
 import {
 	createRuleCategoriser,
 	type Rule,
 	type RuleCategoriser,
 	type RuleSet
 } from "./services/rule-categoriser.ts";
+import { createTransactionIngester } from "./services/transaction-ingester.ts";
 
 const logger = fileLogger(import.meta.url);
 
@@ -202,7 +202,7 @@ try {
 	transactionNormaliser = createNormaliser(config.transactionType);
 	ruleCategoriser = createRuleCategoriser(ruleset);
 
-	const transactionIngestion = createTransactionIngestion(
+	const transactionIngester = createTransactionIngester(
 		transactionNormaliser,
 		ruleCategoriser,
 		writerPool
@@ -210,7 +210,7 @@ try {
 
 	sendToDlq = createDlqSender(kafkaDlqProducer, config.kafka.topics.dlq);
 	transactionBatchHandler = createTransactionBatchHandler(
-		transactionIngestion,
+		transactionIngester,
 		sendToDlq
 	);
 

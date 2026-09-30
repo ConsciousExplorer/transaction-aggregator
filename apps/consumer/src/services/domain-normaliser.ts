@@ -1,4 +1,5 @@
 import type z from "zod";
+import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
 import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
 import type { EftTransaction } from "#src/schemas/eft.ts";
@@ -6,6 +7,7 @@ import type { InternalTransferTransaction } from "#src/schemas/internal_transfer
 import type { LoanTransaction } from "#src/schemas/loan.ts";
 import {
 	type CanonicalTransactionSchema,
+	canonicalTransactionSchema,
 	type DomainTransactionSchema,
 	type directionSchema,
 	type TransactionType,
@@ -29,13 +31,61 @@ const NORMALISERS: Record<TransactionType, DomainNormaliser> = {
 		normaliseInternalTransfer(record as InternalTransferTransaction)
 };
 
-function lookupNormaliser(transactionType: string): DomainNormaliser {
-	const normaliser = NORMALISERS[transactionType as TransactionType];
-	if (!normaliser)
-		throw new Error(
-			`No normaliser was found for transaction type ${transactionType}`
-		);
-	return normaliser;
+function lookupNormaliser(transactionType: TransactionType): DomainNormaliser {
+	return NORMALISERS[transactionType];
+}
+
+/**
+ * The source schemas type these fields as bare `z.string()`/`z.number()`, so
+ * the casts below (`transactionType as directionSchema`, ids straight into
+ * `z.uuid()`) are assertions, not guarantees. This is where the claim gets
+ * proved: a producer sending "DEBIT" or a non-UUID id is a mapping defect, so
+ * it raises NonRetryableError and the batch handler dead-letters that record
+ * instead of replaying it forever against the same bad mapping.
+ */
+function parseCanonical(
+	transaction: CanonicalTransactionSchema
+): CanonicalTransactionSchema {
+	const result = canonicalTransactionSchema.safeParse(transaction);
+
+	if (!result.success) {
+		throw new NonRetryableError("Normalised transaction failed validation", {
+			cause: result.error,
+			details: {
+				transactionType: transaction.transactionType,
+				externalId: transaction.externalId,
+				issues: result.error.issues.map(
+					(issue) => `${issue.path.join(".")}: ${issue.message}`
+				)
+			}
+		});
+	}
+
+	return result.data;
+}
+
+/**
+ * Wraps the mapping itself as well as the parse: a malformed source timestamp
+ * makes `new Date(ts).toISOString()` throw inside the normaliser, and that is
+ * the same class of defect — dead-letter the record, do not kill the batch.
+ */
+function normaliseAndValidate(
+	normalise: DomainNormaliser,
+	transaction: DomainTransactionSchema
+): CanonicalTransactionSchema {
+	let normalised: CanonicalTransactionSchema;
+
+	try {
+		normalised = normalise(transaction);
+	} catch (error) {
+		if (error instanceof NonRetryableError) throw error;
+		throw new NonRetryableError("Transaction could not be normalised", {
+			cause: error,
+			details: { sourceType: transaction.sourceType }
+		});
+	}
+
+	return parseCanonical(normalised);
 }
 
 /**
@@ -45,20 +95,10 @@ function lookupNormaliser(transactionType: string): DomainNormaliser {
  */
 export function createNormaliser(transactionType: TransactionType): Normaliser {
 	const normalise = lookupNormaliser(transactionType);
-	return { normalise };
+	return {
+		normalise: (transaction) => normaliseAndValidate(normalise, transaction)
+	};
 }
-
-/**
- * Dispatches per transaction on `sourceType` — for a mixed stream, where the
- * type is not known until the record is in hand. `transactionType` on the
- * source schemas is the debit/credit direction, so `sourceType` is the only
- * field naming the origin.
- */
-export const domainNormaliser: Normaliser = {
-	normalise(transaction) {
-		return lookupNormaliser(transaction.sourceType)(transaction);
-	}
-};
 
 export function normaliseCard(
 	record: CardTransaction

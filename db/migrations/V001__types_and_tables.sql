@@ -81,10 +81,6 @@ CREATE TABLE transactions (
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
   INCLUDE (transaction_type, direction, amount_minor, currency, category_id, short_description);
 
--- No ingest_progress table (D43, 2026-09-29, supersedes D19): the business API
--- surfaces no operational stats, so ops data lives on the ops plane (metrics),
--- not in a second, weaker metrics store. Insert rate derives from ingested_at.
-
 DO $$
 BEGIN
 IF NOT EXISTS (SELECT 1 FROM partman.part_config WHERE parent_table = 'public.transactions')

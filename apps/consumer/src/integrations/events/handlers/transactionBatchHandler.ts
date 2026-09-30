@@ -1,10 +1,8 @@
 import { RetryableError } from "#src/errors/consumer-errors.ts";
 import { fileLogger } from "#src/runtime.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import type {
-	BatchOutcome,
-	IngestTransactions
-} from "#src/services/ingestion.ts";
+import type { TransactionIngester } from "#src/services/transaction-ingester.ts";
+import { assertNever } from "#src/utils/assert-never.ts";
 
 const logger = fileLogger(import.meta.url);
 
@@ -30,31 +28,41 @@ export type BatchHandler = (messages: ClassifiedMessage[]) => Promise<void>;
 export type SendToDlq = (failures: DlqFailure[]) => Promise<void>;
 
 export function createTransactionBatchHandler(
-	ingestTransactions: IngestTransactions,
+	ingester: TransactionIngester,
 	sendToDlq: SendToDlq
 ): BatchHandler {
 	return async function transactionBatchHandler(messages) {
 		const validMessages: ValidMessage[] = [];
+		const transactions: DomainTransactionSchema[] = [];
 		const poisonFailures: DlqFailure[] = [];
 		let tombstones = 0;
 
 		for (const message of messages) {
-			if (message.kind === "valid") validMessages.push(message);
-			// Already unreadable upstream — straight to the DLQ, never ingestion.
-			if (message.kind === "poison")
-				poisonFailures.push({ message, error: message.error });
-			if (message.kind === "tombstone") tombstones += 1;
+			// Both: the batch insert takes the values, while the one-by-one
+			// fallback needs the whole message to dead-letter the row that failed.
+			switch (message.kind) {
+				case "valid":
+					validMessages.push(message);
+					transactions.push(message.value);
+					break;
+				case "poison":
+					poisonFailures.push({ message, error: message.error });
+					break;
+				case "tombstone":
+					tombstones += 1;
+					break;
+				default:
+					assertNever(message); // new kind ⇒ compile error, not a silent commit
+			}
 		}
 
 		if (tombstones > 0) {
 			logger.debug({ tombstones }, "Tombstones in batch — no-op by design");
 		}
 
-		let outcome: BatchOutcome = { attempted: 0, inserted: 0 };
-
 		if (validMessages.length > 0) {
 			try {
-				outcome = await ingestTransactions(valuesOf(validMessages));
+				await ingester.ingest(transactions);
 			} catch (error) {
 				// "The world is broken": rethrow uncommitted so the whole batch
 				// replays from the source topic. Never DLQ good data.
@@ -64,17 +72,8 @@ export function createTransactionBatchHandler(
 					{ err: error, size: validMessages.length },
 					"Batch ingest failed — isolating messages one by one"
 				);
-				outcome = await ingestOneByOne(
-					validMessages,
-					ingestTransactions,
-					sendToDlq
-				);
+				await ingestOneByOne(validMessages, ingester, sendToDlq);
 			}
-		}
-
-		const duplicates = outcome.attempted - outcome.inserted;
-		if (duplicates > 0) {
-			logger.warn({ ...outcome, duplicates }, "There were some duplicates");
 		}
 
 		if (poisonFailures.length > 0) {
@@ -90,14 +89,6 @@ export function createTransactionBatchHandler(
 	};
 }
 
-function valuesOf(validMessages: ValidMessage[]): DomainTransactionSchema[] {
-	const values: DomainTransactionSchema[] = [];
-	for (const message of validMessages) {
-		values.push(message.value);
-	}
-	return values;
-}
-
 /**
  * Fallback after a batch insert fails for a non-retryable reason: one bad row
  * should cost only itself, not the rest of the batch. Each message gets its own
@@ -105,21 +96,15 @@ function valuesOf(validMessages: ValidMessage[]): DomainTransactionSchema[] {
  */
 async function ingestOneByOne(
 	validMessages: ValidMessage[],
-	ingestTransactions: IngestTransactions,
+	ingester: TransactionIngester,
 	sendToDlq: SendToDlq
-): Promise<BatchOutcome> {
-	const outcome: BatchOutcome = { attempted: 0, inserted: 0 };
-
+): Promise<void> {
 	for (const message of validMessages) {
 		try {
-			const single = await ingestTransactions([message.value]);
-			outcome.attempted += single.attempted;
-			outcome.inserted += single.inserted;
+			await ingester.ingest([message.value]);
 		} catch (error) {
 			if (error instanceof RetryableError) throw error;
 			await sendToDlq([{ message, error }]);
 		}
 	}
-
-	return outcome;
 }

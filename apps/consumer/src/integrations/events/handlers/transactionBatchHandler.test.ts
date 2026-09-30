@@ -6,7 +6,7 @@ import {
 	RetryableError
 } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import type { BatchOutcome } from "#src/services/ingestion.ts";
+import type { BatchOutcome } from "#src/services/transaction-ingester.ts";
 import {
 	type ClassifiedMessage,
 	createTransactionBatchHandler,
@@ -83,10 +83,7 @@ suite("transaction batch handler", () => {
 			inserted: transactions.length
 		}));
 		const dlq = recordingDlq();
-		const handle = createTransactionBatchHandler(
-			ingestion.ingest,
-			dlq.sendToDlq
-		);
+		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
 
 		await handle([validMessage("a", 1), validMessage("b", 2)]);
 
@@ -105,10 +102,7 @@ suite("transaction batch handler", () => {
 			inserted: transactions.length
 		}));
 		const dlq = recordingDlq();
-		const handle = createTransactionBatchHandler(
-			ingestion.ingest,
-			dlq.sendToDlq
-		);
+		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
 
 		await handle([validMessage("a", 1), poisonMessage(2), tombstoneMessage(3)]);
 
@@ -129,10 +123,7 @@ suite("transaction batch handler", () => {
 			return { attempted: 1, inserted: 1 };
 		});
 		const dlq = recordingDlq();
-		const handle = createTransactionBatchHandler(
-			ingestion.ingest,
-			dlq.sendToDlq
-		);
+		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
 
 		await handle([
 			validMessage("a", 1),
@@ -157,10 +148,7 @@ suite("transaction batch handler", () => {
 			throw new RetryableError("connection died");
 		});
 		const dlq = recordingDlq();
-		const handle = createTransactionBatchHandler(
-			ingestion.ingest,
-			dlq.sendToDlq
-		);
+		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
 
 		await assert.rejects(
 			() => handle([validMessage("a", 1)]),
@@ -182,10 +170,7 @@ suite("transaction batch handler", () => {
 			throw new RetryableError("connection died mid-isolation");
 		});
 		const dlq = recordingDlq();
-		const handle = createTransactionBatchHandler(
-			ingestion.ingest,
-			dlq.sendToDlq
-		);
+		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
 
 		await assert.rejects(
 			() => handle([validMessage("a", 1), validMessage("b", 2)]),
@@ -201,10 +186,7 @@ suite("transaction batch handler", () => {
 			inserted: 0
 		}));
 		const dlq = recordingDlq();
-		const handle = createTransactionBatchHandler(
-			ingestion.ingest,
-			dlq.sendToDlq
-		);
+		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
 
 		await handle([poisonMessage(1), tombstoneMessage(2)]);
 
