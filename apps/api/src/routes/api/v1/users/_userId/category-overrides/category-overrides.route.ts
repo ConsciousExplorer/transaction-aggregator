@@ -3,7 +3,11 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import { validationError } from "#src/errors/http-problem.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
-import { problemSchema } from "#src/schemas/common.ts";
+import {
+	collectionMetaSchema,
+	linksSchema,
+	problemSchema
+} from "#src/schemas/common.ts";
 
 const userParamsSchema = z.object({ userId: z.uuid() });
 const paramsSchema = userParamsSchema.extend({
@@ -64,13 +68,20 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:read"]
+			}
+		},
 		schema: {
 			tags: ["user categories"],
 			hide: false,
 			params: userParamsSchema,
 			response: {
 				200: z.object({
-					overrides: userCategorySchema.array()
+					data: userCategorySchema.array(),
+					links: linksSchema,
+					meta: collectionMetaSchema
 				}),
 				400: problemSchema,
 				500: problemSchema
@@ -85,13 +96,22 @@ export default async (
 				.filter((row) => row.toCategoryId !== null)
 				.map(toUserCategory);
 
-			return reply.send({ overrides: overridden });
+			return reply.send({
+				data: overridden,
+				links: { self: request.url, next: null, prev: null },
+				meta: { count: overridden.length }
+			});
 		}
 	});
 
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "PUT",
 		url: "/:categoryId",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:write"]
+			}
+		},
 		schema: {
 			tags: ["user categories"],
 			hide: false,
@@ -147,6 +167,11 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "DELETE",
 		url: "/:categoryId",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:write"]
+			}
+		},
 		schema: {
 			tags: ["user categories"],
 			hide: false,

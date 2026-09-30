@@ -75,6 +75,11 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "DELETE",
 		url: "/:transactionId",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:write"]
+			}
+		},
 		schema: {
 			tags: ["transactions"],
 			hide: false,

@@ -50,10 +50,48 @@
                         "type": "object"
                       },
                       "type": "array"
+                    },
+                    "links": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "next": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "prev": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "self": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "self",
+                        "next",
+                        "prev"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "links",
+                    "meta"
                   ],
                   "type": "object"
                 }
@@ -173,7 +211,7 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
-                    "categories": {
+                    "data": {
                       "items": {
                         "additionalProperties": false,
                         "properties": {
@@ -225,10 +263,48 @@
                         "type": "object"
                       },
                       "type": "array"
+                    },
+                    "links": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "next": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "prev": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "self": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "self",
+                        "next",
+                        "prev"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [
-                    "categories"
+                    "data",
+                    "links",
+                    "meta"
                   ],
                   "type": "object"
                 }
@@ -348,7 +424,7 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
-                    "overrides": {
+                    "data": {
                       "items": {
                         "additionalProperties": false,
                         "properties": {
@@ -400,10 +476,48 @@
                         "type": "object"
                       },
                       "type": "array"
+                    },
+                    "links": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "next": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "prev": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "self": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "self",
+                        "next",
+                        "prev"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [
-                    "overrides"
+                    "data",
+                    "links",
+                    "meta"
                   ],
                   "type": "object"
                 }
@@ -980,9 +1094,36 @@
                       },
                       "type": "array"
                     },
+                    "links": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "next": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "prev": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "self": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "self",
+                        "next",
+                        "prev"
+                      ],
+                      "type": "object"
+                    },
                     "meta": {
                       "additionalProperties": false,
                       "properties": {
+                        "count": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
                         "fromDateTime": {
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
@@ -1010,6 +1151,7 @@
                         }
                       },
                       "required": [
+                        "count",
                         "fromDateTime",
                         "toDateTime",
                         "groupBy"
@@ -1074,6 +1216,7 @@
                   "required": [
                     "totals",
                     "data",
+                    "links",
                     "meta"
                   ],
                   "type": "object"
@@ -1584,6 +1727,19 @@
           },
           {
             "in": "query",
+            "name": "cursorDirection",
+            "required": false,
+            "schema": {
+              "default": "next",
+              "enum": [
+                "next",
+                "prev"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -1693,14 +1849,109 @@
                       },
                       "type": "array"
                     },
-                    "nextCursor": {
-                      "nullable": true,
-                      "type": "string"
+                    "links": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "next": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "prev": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "self": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "self",
+                        "next",
+                        "prev"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "fromDateTime": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "limit": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "nextCursor": {
+                          "additionalProperties": false,
+                          "nullable": true,
+                          "properties": {
+                            "occurredAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "transactionId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "occurredAt",
+                            "transactionId"
+                          ],
+                          "type": "object"
+                        },
+                        "prevCursor": {
+                          "additionalProperties": false,
+                          "nullable": true,
+                          "properties": {
+                            "occurredAt": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "transactionId": {
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "occurredAt",
+                            "transactionId"
+                          ],
+                          "type": "object"
+                        },
+                        "toDateTime": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "limit",
+                        "fromDateTime",
+                        "toDateTime",
+                        "nextCursor",
+                        "prevCursor"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [
                     "data",
-                    "nextCursor"
+                    "links",
+                    "meta"
                   ],
                   "type": "object"
                 }

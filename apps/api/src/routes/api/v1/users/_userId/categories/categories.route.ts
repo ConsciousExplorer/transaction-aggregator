@@ -2,7 +2,11 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
-import { problemSchema } from "#src/schemas/common.ts";
+import {
+	collectionMetaSchema,
+	linksSchema,
+	problemSchema
+} from "#src/schemas/common.ts";
 import { toUserCategory } from "../category-overrides/category-overrides.route.ts";
 
 const userParamsSchema = z.object({ userId: z.uuid() });
@@ -36,7 +40,7 @@ export default async (
 		method: "GET",
 		config: {
 			authConfig: {
-				requiredScope: ["tx:write"]
+				requiredScope: ["tx:read"]
 			}
 		},
 		url: "",
@@ -46,7 +50,9 @@ export default async (
 			params: userParamsSchema,
 			response: {
 				200: z.object({
-					categories: userCategorySchema.array()
+					data: userCategorySchema.array(),
+					links: linksSchema,
+					meta: collectionMetaSchema
 				}),
 				400: problemSchema,
 				500: problemSchema
@@ -57,8 +63,12 @@ export default async (
 				request.params.userId
 			);
 
+			const data = rows.map(toUserCategory);
+
 			return reply.send({
-				categories: rows.map(toUserCategory)
+				data,
+				links: { self: request.url, next: null, prev: null },
+				meta: { count: data.length }
 			});
 		}
 	});

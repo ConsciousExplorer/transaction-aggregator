@@ -24,7 +24,8 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 			amountMinor: 1234,
 			currency: "ZAR",
 			category: "groceries",
-			shortDescription: "Spar"
+			shortDescription: "Spar",
+			cursorOccurredAt: "2026-08-15T09:30:00.000123Z"
 		},
 		{
 			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
@@ -35,7 +36,8 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 			amountMinor: 50000,
 			currency: "ZAR",
 			category: "salary",
-			shortDescription: null
+			shortDescription: null,
+			cursorOccurredAt: "2026-08-14T12:00:00.000000Z"
 		}
 	];
 
@@ -135,11 +137,19 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					shortDescription: null
 				}
 			],
-			nextCursor: null
+			links: { self: LIST_URL, next: null, prev: null },
+			meta: {
+				count: 2,
+				limit: 50,
+				fromDateTime: FROM,
+				toDateTime: TO,
+				nextCursor: null,
+				prevCursor: null
+			}
 		});
 	});
 
-	test("handler maps params/query onto the repository filter (limit defaults to 50)", async () => {
+	test("handler maps params/query onto the repository filter (limit 50 + one look-ahead row)", async () => {
 		await app.inject({
 			method: "GET",
 			url: `${LIST_URL}&category=groceries&transactionType=card`
@@ -156,8 +166,79 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			amountMax: undefined,
 			cursorOccurredAt: undefined,
 			cursorTransactionId: undefined,
-			limit: 50
+			cursorDirection: "next",
+			limit: 51
 		});
+	});
+
+	test("200: a full page returns limit rows and a cursor from the last one", async () => {
+		// limit=1 and the repository returns 2 rows: the look-ahead row proves
+		// another page exists and is not returned.
+		const res = await app.inject({ method: "GET", url: `${LIST_URL}&limit=1` });
+		assert.strictEqual(res.statusCode, 200);
+
+		const body = res.json();
+		assert.strictEqual(body.data.length, 1);
+		assert.strictEqual(body.data[0].transactionId, TX_ID);
+		assert.strictEqual(body.meta.count, 1);
+		assert.strictEqual(body.meta.limit, 1);
+		assert.deepStrictEqual(body.meta.nextCursor, {
+			occurredAt: "2026-08-15T09:30:00.000123Z",
+			transactionId: TX_ID
+		});
+
+		const next = new URL(body.links.next, "http://client.example");
+		assert.strictEqual(next.pathname, "/api/v1/users/u1/transactions");
+		assert.strictEqual(next.searchParams.get("fromDateTime"), FROM);
+		assert.strictEqual(next.searchParams.get("toDateTime"), TO);
+		assert.strictEqual(next.searchParams.get("limit"), "1");
+		assert.strictEqual(
+			next.searchParams.get("cursorOccurredAt"),
+			"2026-08-15T09:30:00.000123Z"
+		);
+		assert.strictEqual(next.searchParams.get("cursorTransactionId"), TX_ID);
+	});
+
+	test("the next link keeps every filter as sent and replaces the previous cursor", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&transactionType=card&transactionType=eft&limit=1&cursorOccurredAt=2026-09-01T00:00:00.000000Z&cursorTransactionId=9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f`
+		});
+		assert.strictEqual(res.statusCode, 200);
+
+		const next = new URL(res.json().links.next, "http://client.example");
+		assert.deepStrictEqual(next.searchParams.getAll("transactionType"), [
+			"card",
+			"eft"
+		]);
+		assert.deepStrictEqual(next.searchParams.getAll("cursorOccurredAt"), [
+			"2026-08-15T09:30:00.000123Z"
+		]);
+		assert.deepStrictEqual(next.searchParams.getAll("cursorTransactionId"), [
+			TX_ID
+		]);
+	});
+
+	test("the cursor pair from nextCursor is forwarded as the keyset bound", async () => {
+		await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&cursorOccurredAt=2026-08-15T09:30:00.000123Z&cursorTransactionId=${TX_ID}`
+		});
+		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
+			| { cursorOccurredAt?: string; cursorTransactionId?: string }
+			| undefined;
+		assert.strictEqual(filter?.cursorOccurredAt, "2026-08-15T09:30:00.000123Z");
+		assert.strictEqual(filter?.cursorTransactionId, TX_ID);
+	});
+
+	test("400: one cursor field without the other, repository untouched", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&cursorTransactionId=${TX_ID}`
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(getTransactions.mock.callCount(), 0);
 	});
 
 	test("200: detail maps the row to the wire shape, source as a typed union", async () => {
@@ -220,5 +301,58 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		);
 		assert.strictEqual(res.json().type, "internal");
 		assert.ok(!res.body.includes("hunter2"));
+	});
+
+	test("a page reached through next links back with prev from its first row", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&limit=1&cursorOccurredAt=2026-09-01T00:00:00.000000Z&cursorTransactionId=${TX_ID}`
+		});
+		const body = res.json();
+
+		assert.strictEqual(
+			body.links.self,
+			`${LIST_URL}&limit=1&cursorOccurredAt=2026-09-01T00:00:00.000000Z&cursorTransactionId=${TX_ID}`
+		);
+		assert.deepStrictEqual(body.meta.prevCursor, {
+			occurredAt: "2026-08-15T09:30:00.000123Z",
+			transactionId: TX_ID
+		});
+
+		const prev = new URL(body.links.prev, "http://client.example");
+		assert.strictEqual(prev.searchParams.get("cursorDirection"), "prev");
+		assert.strictEqual(
+			prev.searchParams.get("cursorOccurredAt"),
+			"2026-08-15T09:30:00.000123Z"
+		);
+	});
+
+	test("a prev page is read upwards and served newest first", async () => {
+		// Upwards from the cursor the repository returns oldest first
+		getTransactions.mock.mockImplementationOnce(async () =>
+			[...ROWS].reverse()
+		);
+
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&cursorOccurredAt=2026-08-01T00:00:00.000000Z&cursorTransactionId=${TX_ID}&cursorDirection=prev`
+		});
+		const body = res.json();
+
+		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
+			| { cursorDirection?: string }
+			| undefined;
+		assert.strictEqual(filter?.cursorDirection, "prev");
+		assert.deepStrictEqual(
+			body.data.map((row: { transactionId: string }) => row.transactionId),
+			[TX_ID, "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"],
+			"newest first, like every other page"
+		);
+		// Not full, so nothing newer; came from an older page, so next exists
+		assert.strictEqual(body.links.prev, null);
+		assert.deepStrictEqual(body.meta.nextCursor, {
+			occurredAt: "2026-08-14T12:00:00.000000Z",
+			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"
+		});
 	});
 });

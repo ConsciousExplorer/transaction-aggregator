@@ -1,5 +1,6 @@
 import {
 	and,
+	asc,
 	desc,
 	eq,
 	gte,
@@ -38,6 +39,9 @@ export const listTransactionsFilterSchema = z.object({
 	amountMax: z.number().int().optional(),
 	cursorOccurredAt: z.iso.datetime().optional(),
 	cursorTransactionId: z.uuid().optional(),
+	// next: rows older than the cursor. prev: rows newer than the cursor,
+	// returned oldest first; the caller flips them.
+	cursorDirection: z.enum(["next", "prev"]).default("next"),
 	limit: z.number().int().min(1).max(100).default(50)
 });
 
@@ -106,9 +110,18 @@ export class UserTransactionRepository {
 				: undefined,
 			filter.cursorOccurredAt !== undefined &&
 			filter.cursorTransactionId !== undefined
-				? sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
+				? filter.cursorDirection === "prev"
+					? sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
+					: sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
 				: undefined
 		];
+
+		// Reading upwards from the cursor has to walk the index the other way,
+		// otherwise LIMIT would keep the newest rows instead of the nearest ones
+		const order =
+			filter.cursorDirection === "prev"
+				? [asc(transactions.occurredAt), asc(transactions.transactionId)]
+				: [desc(transactions.occurredAt), desc(transactions.transactionId)];
 
 		const result = await drizzle(this.dbClient)
 			.select({
@@ -120,7 +133,11 @@ export class UserTransactionRepository {
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
 				category: categories.category,
-				shortDescription: transactions.shortDescription
+				shortDescription: transactions.shortDescription,
+				// occurred_at to the microsecond, as UTC ISO text, for the next page's
+				// keyset bound. Rows can differ only in microseconds, so a millisecond
+				// bound would skip or repeat them.
+				cursorOccurredAt: sql<string>`to_char(${transactions.occurredAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
 			})
 			.from(transactions)
 			.leftJoin(
@@ -144,7 +161,7 @@ export class UserTransactionRepository {
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
 			.where(and(...conditions))
-			.orderBy(desc(transactions.occurredAt), desc(transactions.transactionId))
+			.orderBy(...order)
 			.limit(filter.limit);
 
 		return result;

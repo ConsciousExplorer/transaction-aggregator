@@ -2,6 +2,7 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
+import { collectionMetaSchema, linksSchema } from "#src/schemas/common.ts";
 
 const summaryTotalSchema = z.object({
 	currency: z.string(),
@@ -25,7 +26,7 @@ const summaryItemSchema = z.object({
 	credit: z.object({ count: z.number(), total: z.number() })
 });
 
-const metaSchema = z.object({
+const metaSchema = collectionMetaSchema.extend({
 	fromDateTime: z.iso.datetime(),
 	toDateTime: z.iso.datetime(),
 	groupBy: z.string().array(),
@@ -66,6 +67,11 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:read"]
+			}
+		},
 		schema: {
 			tags: ["summary"],
 			hide: false,
@@ -86,6 +92,7 @@ export default async (
 				200: z.object({
 					totals: summaryTotalSchema,
 					data: summaryItemSchema.array(),
+					links: linksSchema,
 					meta: metaSchema
 				})
 			}
@@ -122,7 +129,9 @@ export default async (
 						total: Number(row.creditAmount)
 					}
 				})),
+				links: { self: request.url, next: null, prev: null },
 				meta: {
+					count: result.length,
 					fromDateTime: request.query.fromDateTime,
 					toDateTime: request.query.toDateTime,
 					groupBy: ["Category"],

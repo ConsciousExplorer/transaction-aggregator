@@ -1,4 +1,5 @@
 import z from "zod";
+import { collectionMetaSchema, linksSchema } from "./common.ts";
 
 export const transactionTypeSchema = z.enum([
 	"card",
@@ -45,9 +46,26 @@ export const transactionItemSchema = z.object({
 	shortDescription: z.string().nullable()
 });
 
+const cursorSchema = z.object({
+	occurredAt: z.iso.datetime(),
+	transactionId: z.uuid()
+});
+
 export const listResponseSchema = z.object({
 	data: z.array(transactionItemSchema),
-	nextCursor: z.string().nullable()
+	links: linksSchema,
+	// No total: counting the whole window on every request is the full scan
+	// keyset pagination avoids.
+	meta: collectionMetaSchema.extend({
+		limit: z.number().int(),
+		fromDateTime: z.iso.datetime(),
+		toDateTime: z.iso.datetime(),
+		// For clients that build their own request: send the pair back as
+		// cursorOccurredAt and cursorTransactionId, with direction=prev for
+		// prevCursor. null when there is no such page.
+		nextCursor: cursorSchema.nullable(),
+		prevCursor: cursorSchema.nullable()
+	})
 });
 
 const cardFundingSourceSchema = z.object({

@@ -6,7 +6,7 @@ import {
 	getContext,
 	type TokenVerifier
 } from "#src/auth/verifier.ts";
-import { unauthorized } from "#src/errors/http-problem.ts";
+import { forbidden, unauthorized } from "#src/errors/http-problem.ts";
 
 declare module "fastify" {
 	interface FastifyInstance {
@@ -76,7 +76,8 @@ export default fastifyPlugin<{
 					{ "required: ": requiredScope, given: request.authContext?.scope },
 					"Caller does not have the required scopes"
 				);
-				throw unauthorized();
+				// The caller is known but not allowed: 403, not 401
+				throw forbidden();
 			}
 		});
 	},

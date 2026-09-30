@@ -97,7 +97,9 @@ suite("GET /api/v1/users/:userId/summary", () => {
 					credit: { count: 0, total: 0 }
 				}
 			],
+			links: { self: BASE_URL, next: null, prev: null },
 			meta: {
+				count: 2,
 				fromDateTime: FROM,
 				toDateTime: TO,
 				groupBy: ["Category"]

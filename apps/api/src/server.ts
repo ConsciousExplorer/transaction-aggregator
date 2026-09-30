@@ -27,6 +27,10 @@ import type { CategoryRepository } from "./integrations/database/repositories/ca
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 
+// Tests live next to the code they test. Autoload would otherwise register a
+// test file as a plugin or route and run its suite inside the server.
+const IGNORE_TEST_FILES = /\.test\.(ts|js)$/;
+
 export type BuildServerOptions = {
 	serverOptions?: FastifyServerOptions;
 	appInfo?: AppInfoConfig;
@@ -115,6 +119,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	if (pluginAutoLoadParameters) {
 		server.register(fastifyAutoload, {
 			...pluginAutoLoadParameters,
+			ignoreFilter: IGNORE_TEST_FILES,
 			options: {
 				appInfo,
 				enableSwagger: pluginAutoLoadParameters.enableSwagger,
@@ -128,6 +133,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	if (routeAutoLoadParameters) {
 		server.register(fastifyAutoload, {
 			...routeAutoLoadParameters,
+			ignoreFilter: IGNORE_TEST_FILES,
 			options: {
 				database,
 				categoryRepository,

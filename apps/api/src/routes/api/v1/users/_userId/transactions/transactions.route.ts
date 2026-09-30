@@ -11,6 +11,40 @@ import {
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 
+interface Cursor {
+	occurredAt: string;
+	transactionId: string;
+}
+
+type CursorDirection = "next" | "prev";
+
+function cursorOf(row: { cursorOccurredAt: string; transactionId: string }) {
+	return { occurredAt: row.cursorOccurredAt, transactionId: row.transactionId };
+}
+
+/**
+ * The request's own path and query with the cursor replaced, so every filter
+ * the caller sent carries over exactly as sent. Relative, so the API never has
+ * to know the public host it is reached through.
+ */
+function pageLink(
+	requestUrl: string,
+	cursor: Cursor,
+	cursorDirection: CursorDirection
+): string {
+	const queryStart = requestUrl.indexOf("?");
+	const path = queryStart === -1 ? requestUrl : requestUrl.slice(0, queryStart);
+	const params = new URLSearchParams(
+		queryStart === -1 ? "" : requestUrl.slice(queryStart + 1)
+	);
+
+	params.set("cursorOccurredAt", cursor.occurredAt);
+	params.set("cursorTransactionId", cursor.transactionId);
+	params.set("cursorDirection", cursorDirection);
+
+	return `${path}?${params.toString()}`;
+}
+
 export default async (
 	fastify: FastifyInstance,
 	opts: {
@@ -20,37 +54,56 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:read"]
+			}
+		},
 		schema: {
 			tags: ["transactions"],
 			hide: false,
 			params: z.object({
 				userId: z.string()
 			}),
-			querystring: z.object({
-				fromDateTime: z.iso.datetime(),
-				toDateTime: z.iso.datetime(),
-				accountId: z
-					.union([z.string(), z.string().array()])
-					.describe("The accountId")
-					.optional(),
-				transactionType: z
-					.union([transactionTypeSchema, transactionTypeSchema.array()])
-					.optional(),
-				category: z
-					.union([z.coerce.string(), z.coerce.string().array()])
-					.optional(),
-				direction: z
-					.union([
-						z.enum(["debit", "credit"]),
-						z.enum(["debit", "credit"]).array()
-					])
-					.optional(),
-				amountMin: z.coerce.number().int().optional(),
-				amountMax: z.coerce.number().int().optional(),
-				cursorOccurredAt: z.iso.datetime().optional(),
-				cursorTransactionId: z.uuid().optional(),
-				limit: z.coerce.number().int().min(1).max(100).default(50)
-			}),
+			querystring: z
+				.object({
+					fromDateTime: z.iso.datetime(),
+					toDateTime: z.iso.datetime(),
+					accountId: z
+						.union([z.string(), z.string().array()])
+						.describe("The accountId")
+						.optional(),
+					transactionType: z
+						.union([transactionTypeSchema, transactionTypeSchema.array()])
+						.optional(),
+					category: z
+						.union([z.coerce.string(), z.coerce.string().array()])
+						.optional(),
+					direction: z
+						.union([
+							z.enum(["debit", "credit"]),
+							z.enum(["debit", "credit"]).array()
+						])
+						.optional(),
+					amountMin: z.coerce.number().int().optional(),
+					amountMax: z.coerce.number().int().optional(),
+					// A page boundary from meta.nextCursor or meta.prevCursor; links.next
+					// and links.prev already carry them. next reads older rows, prev newer.
+					cursorOccurredAt: z.iso.datetime().optional(),
+					cursorTransactionId: z.uuid().optional(),
+					cursorDirection: z.enum(["next", "prev"]).default("next"),
+					limit: z.coerce.number().int().min(1).max(100).default(50)
+				})
+				.refine(
+					(query) =>
+						(query.cursorOccurredAt === undefined) ===
+						(query.cursorTransactionId === undefined),
+					{
+						message:
+							"cursorOccurredAt and cursorTransactionId must be sent together",
+						path: ["cursorTransactionId"]
+					}
+				),
 			response: {
 				200: listResponseSchema,
 				400: problemSchema,
@@ -58,7 +111,12 @@ export default async (
 			}
 		},
 		handler: async (request, reply) => {
-			const result = await opts.transactionRepository.getTransactions({
+			const limit = request.query.limit;
+			const cursorDirection = request.query.cursorDirection;
+			const hasCursor = request.query.cursorOccurredAt !== undefined;
+
+			// One extra row tells us whether another page exists in that direction
+			const rows = await opts.transactionRepository.getTransactions({
 				userId: request.params.userId,
 				fromDateTime: request.query.fromDateTime,
 				toDateTime: request.query.toDateTime,
@@ -69,12 +127,17 @@ export default async (
 				amountMax: request.query.amountMax,
 				cursorOccurredAt: request.query.cursorOccurredAt,
 				cursorTransactionId: request.query.cursorTransactionId,
-				limit: request.query.limit
+				cursorDirection,
+				limit: limit + 1
 			});
 
-			if (!result) throw notFound();
+			const hasMore = rows.length > limit;
+			const fetched = hasMore ? rows.slice(0, limit) : rows;
+			// A prev page is read upwards, oldest first; every page is served newest first
+			const page =
+				cursorDirection === "prev" ? fetched.slice().reverse() : fetched;
 
-			const data = result.map((row) => ({
+			const data = page.map((row) => ({
 				transactionId: row.transactionId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
 				transactionType: row.transactionType,
@@ -86,12 +149,32 @@ export default async (
 				shortDescription: row.shortDescription
 			}));
 
-			// TODO: Add cursor paging, limit offset needs to read transactions and discard them.
-			const cursor = null;
+			// Older rows exist when the page was read downwards and came back full,
+			// or was read upwards from a cursor (the page it came from is older).
+			// Newer rows are the mirror image.
+			const hasOlder = cursorDirection === "next" ? hasMore : hasCursor;
+			const hasNewer = cursorDirection === "prev" ? hasMore : hasCursor;
+
+			const firstRow = page.at(0);
+			const lastRow = page.at(-1);
+			const nextCursor = hasOlder && lastRow ? cursorOf(lastRow) : null;
+			const prevCursor = hasNewer && firstRow ? cursorOf(firstRow) : null;
 
 			return reply.send({
 				data,
-				nextCursor: cursor
+				links: {
+					self: request.url,
+					next: nextCursor ? pageLink(request.url, nextCursor, "next") : null,
+					prev: prevCursor ? pageLink(request.url, prevCursor, "prev") : null
+				},
+				meta: {
+					count: data.length,
+					limit,
+					fromDateTime: request.query.fromDateTime,
+					toDateTime: request.query.toDateTime,
+					nextCursor,
+					prevCursor
+				}
 			});
 		}
 	});
@@ -99,6 +182,11 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "/:transactionId",
+		config: {
+			authConfig: {
+				requiredScope: ["tx:read"]
+			}
+		},
 		schema: {
 			tags: ["transactions"],
 			hide: false,

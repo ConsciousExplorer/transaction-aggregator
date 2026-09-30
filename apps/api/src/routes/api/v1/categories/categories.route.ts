@@ -3,7 +3,11 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import { notFound } from "#src/errors/http-problem.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
-import { problemSchema } from "#src/schemas/common.ts";
+import {
+	collectionMetaSchema,
+	linksSchema,
+	problemSchema
+} from "#src/schemas/common.ts";
 
 const categorySchema = z.object({
 	categoryId: z.number().int(),
@@ -18,7 +22,6 @@ export default async (
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		config: {
 			authConfig: {
-				public: false,
 				requiredScope: ["tx:read"]
 			}
 		},
@@ -29,23 +32,29 @@ export default async (
 			hide: false,
 			response: {
 				200: z.object({
-					data: categorySchema.array()
+					data: categorySchema.array(),
+					links: linksSchema,
+					meta: collectionMetaSchema
 				}),
 				400: problemSchema,
 				500: problemSchema
 			}
 		},
-		handler: async (_request, reply) => {
+		handler: async (request, reply) => {
 			const result = await opts.categoryRepository.getCategories();
 
 			if (!result) throw notFound();
 
+			const data = result.map((item) => ({
+				categoryId: item.categoryId,
+				category: item.category,
+				label: item.label
+			}));
+
 			return reply.send({
-				data: result.map((item) => ({
-					categoryId: item.categoryId,
-					category: item.category,
-					label: item.label
-				}))
+				data,
+				links: { self: request.url, next: null, prev: null },
+				meta: { count: data.length }
 			});
 		}
 	});
