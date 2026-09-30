@@ -11,6 +11,8 @@ const FROM = "2026-08-01T00:00:00.000Z";
 const TO = "2026-09-01T00:00:00.000Z";
 const BASE_URL = `/api/v1/users/u1/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
 
+const zar = (amountMinor: number) => ({ amountMinor, currency: "ZAR" });
+
 // Typed off the real method so drift in the select shape breaks compilation.
 const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
 	{
@@ -18,7 +20,6 @@ const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
 		category: "groceries",
 		currency: "ZAR",
 		count: 3,
-		netAmount: 2000,
 		debitCount: 2,
 		creditCount: 1,
 		debitAmount: 1500,
@@ -29,7 +30,6 @@ const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
 		category: "dining",
 		currency: "ZAR",
 		count: 1,
-		netAmount: 700,
 		debitCount: 1,
 		creditCount: 0,
 		debitAmount: 700,
@@ -73,28 +73,26 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
 			totals: {
-				currency: "ZAR", // taken from the rows — single-currency assumption
 				transactionCount: 4,
-				netAmount: -1700, // credit − debit: (500−1500) + (0−700)
-				debit: { count: 3, total: 2200 },
-				credit: { count: 1, total: 500 }
+				// credit − debit: (500−1500) + (0−700); the currency comes from the rows
+				netAmount: zar(-1700),
+				debit: { count: 3, total: zar(2200) },
+				credit: { count: 1, total: zar(500) }
 			},
 			data: [
 				{
 					group: { category: "groceries" },
-					currency: "ZAR",
 					count: 3,
-					netAmount: -1000,
-					debit: { count: 2, total: 1500 },
-					credit: { count: 1, total: 500 }
+					netAmount: zar(-1000),
+					debit: { count: 2, total: zar(1500) },
+					credit: { count: 1, total: zar(500) }
 				},
 				{
 					group: { category: "dining" },
-					currency: "ZAR",
 					count: 1,
-					netAmount: -700,
-					debit: { count: 1, total: 700 },
-					credit: { count: 0, total: 0 }
+					netAmount: zar(-700),
+					debit: { count: 1, total: zar(700) },
+					credit: { count: 0, total: zar(0) }
 				}
 			],
 			links: { self: BASE_URL, next: null, prev: null },

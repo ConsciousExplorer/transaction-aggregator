@@ -2,14 +2,29 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
-import { collectionMetaSchema, linksSchema } from "#src/schemas/common.ts";
+import {
+	amountSchema,
+	collectionMetaSchema,
+	linksSchema,
+	signedAmountSchema
+} from "#src/schemas/common.ts";
+
+// Every amount is a money object. debit and credit totals are positive;
+// netAmount is the one signed figure.
+const directionTotalSchema = z.object({
+	count: z.number(),
+	total: amountSchema
+});
+
+const netAmountSchema = signedAmountSchema.describe(
+	"credit − debit: negative when more went out than came in"
+);
 
 const summaryTotalSchema = z.object({
-	currency: z.string(),
 	transactionCount: z.number(),
-	netAmount: z.number(),
-	debit: z.object({ count: z.number(), total: z.number() }),
-	credit: z.object({ count: z.number(), total: z.number() })
+	netAmount: netAmountSchema,
+	debit: directionTotalSchema,
+	credit: directionTotalSchema
 });
 
 const summaryItemSchema = z.object({
@@ -19,11 +34,10 @@ const summaryItemSchema = z.object({
 		week: z.string().optional(),
 		day: z.string().optional()
 	}),
-	currency: z.string(),
 	count: z.number(),
-	netAmount: z.number(),
-	debit: z.object({ count: z.number(), total: z.number() }),
-	credit: z.object({ count: z.number(), total: z.number() })
+	netAmount: netAmountSchema,
+	debit: directionTotalSchema,
+	credit: directionTotalSchema
 });
 
 const metaSchema = collectionMetaSchema.extend({
@@ -38,26 +52,35 @@ type SummaryRow = Awaited<
 >[number];
 type SummaryTotal = z.infer<typeof summaryTotalSchema>;
 
-/** Grand totals over all rows. Assumes a single currency (current spec). */
+function money(amountMinor: number, currency: string) {
+	return { amountMinor, currency };
+}
+
+/** Grand totals over all rows. */
 function sumTotals(rows: SummaryRow[]): SummaryTotal {
-	const totals: SummaryTotal = {
-		currency: rows[0]?.currency ?? "ZAR",
-		transactionCount: 0,
-		netAmount: 0,
-		debit: { count: 0, total: 0 },
-		credit: { count: 0, total: 0 }
-	};
+	// The database holds one currency; an empty window has no row to read it from
+	const currency = rows[0]?.currency ?? "ZAR";
+
+	let transactionCount = 0;
+	let debitCount = 0;
+	let debitTotal = 0;
+	let creditCount = 0;
+	let creditTotal = 0;
 
 	for (const row of rows) {
-		totals.transactionCount += row.count;
-		totals.netAmount += row.creditAmount - row.debitAmount;
-		totals.debit.count += row.debitCount;
-		totals.debit.total += row.debitAmount;
-		totals.credit.count += row.creditCount;
-		totals.credit.total += row.creditAmount;
+		transactionCount += row.count;
+		debitCount += row.debitCount;
+		debitTotal += row.debitAmount;
+		creditCount += row.creditCount;
+		creditTotal += row.creditAmount;
 	}
 
-	return totals;
+	return {
+		transactionCount,
+		netAmount: money(creditTotal - debitTotal, currency),
+		debit: { count: debitCount, total: money(debitTotal, currency) },
+		credit: { count: creditCount, total: money(creditTotal, currency) }
+	};
 }
 
 export default async (
@@ -117,16 +140,15 @@ export default async (
 						month:
 							request.query.interval === "month" ? row.bucketStart : undefined
 					},
-					currency: row.currency,
 					count: row.count,
-					netAmount: Number(row.creditAmount) - Number(row.debitAmount),
+					netAmount: money(row.creditAmount - row.debitAmount, row.currency),
 					debit: {
-						count: Number(row.debitCount),
-						total: Number(row.debitAmount)
+						count: row.debitCount,
+						total: money(row.debitAmount, row.currency)
 					},
 					credit: {
-						count: Number(row.creditCount),
-						total: Number(row.creditAmount)
+						count: row.creditCount,
+						total: money(row.creditAmount, row.currency)
 					}
 				})),
 				links: { self: request.url, next: null, prev: null },

@@ -120,8 +120,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					transactionType: "card",
 					direction: "debit",
 					status: "completed",
-					amountMinor: 1234,
-					currency: "ZAR",
+					amount: { amountMinor: 1234, currency: "ZAR" },
 					category: "groceries",
 					shortDescription: "Spar"
 				},
@@ -131,8 +130,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					transactionType: "eft",
 					direction: "credit",
 					status: "reversed",
-					amountMinor: 50000,
-					currency: "ZAR",
+					amount: { amountMinor: 50000, currency: "ZAR" },
 					category: "salary",
 					shortDescription: null
 				}
@@ -272,6 +270,36 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			getTransactionDetail.mock.calls[0]?.arguments.at(0),
 			{ userId: "u1", transactionId: TX_ID }
 		);
+	});
+
+	test("loan principal and interest carry the transaction's own currency", async () => {
+		getTransactionDetail.mock.mockImplementationOnce(async () => ({
+			...DETAIL,
+			transactionType: "loan",
+			currency: "USD",
+			metadata: {
+				operation: "repayment",
+				loanAccountId: "5b2e1c3d-4a5f-4e6b-8c7d-9e0f1a2b3c4d",
+				loanType: "home",
+				principalAmount: 90000,
+				interestAmount: 10000
+			}
+		}));
+
+		const res = await app.inject({
+			method: "GET",
+			url: `/api/v1/users/u1/transactions/${TX_ID}`
+		});
+		assert.strictEqual(res.statusCode, 200);
+		const fundingSource = res.json().fundingSource;
+		assert.deepStrictEqual(fundingSource.principal, {
+			amountMinor: 90000,
+			currency: "USD"
+		});
+		assert.deepStrictEqual(fundingSource.interest, {
+			amountMinor: 10000,
+			currency: "USD"
+		});
 	});
 
 	test("404: unknown transaction → not-found problem", async () => {

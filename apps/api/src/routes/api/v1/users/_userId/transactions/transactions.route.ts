@@ -143,8 +143,10 @@ export default async (
 				transactionType: row.transactionType,
 				direction: row.direction,
 				status: row.status,
-				amountMinor: row.amountMinor,
-				currency: row.currency,
+				amount: {
+					amountMinor: row.amountMinor,
+					currency: row.currency
+				},
 				category: row.category,
 				shortDescription: row.shortDescription
 			}));
@@ -222,7 +224,11 @@ export default async (
 				longDescription: row.longDescription,
 				shortDescription: row.shortDescription,
 				category: row.category,
-				fundingSource: mapFundingSource(row.transactionType, row.metadata)
+				fundingSource: mapFundingSource(
+					row.transactionType,
+					row.metadata,
+					row.currency
+				)
 			});
 		}
 	});

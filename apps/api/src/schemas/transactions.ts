@@ -1,5 +1,5 @@
 import z from "zod";
-import { collectionMetaSchema, linksSchema } from "./common.ts";
+import { amountSchema, collectionMetaSchema, linksSchema } from "./common.ts";
 
 export const transactionTypeSchema = z.enum([
 	"card",
@@ -16,11 +16,6 @@ export const transactionStatusSchema = z.enum([
 	"reversed",
 	"failed"
 ]);
-
-export const amountSchema = z.object({
-	amountMinor: z.number().int(),
-	currency: z.string().length(3)
-});
 
 export const listQuerySchema = z.object({
 	from: z.iso.datetime().optional(),
@@ -40,8 +35,9 @@ export const transactionItemSchema = z.object({
 	transactionType: z.union([z.string(), transactionTypeSchema.optional()]),
 	direction: z.union([z.string(), z.enum(["debit", "credit"])]),
 	status: transactionStatusSchema,
-	amountMinor: z.number().int(),
-	currency: z.string(),
+	amount: amountSchema.describe(
+		"direction says whether this money went out (debit) or came in (credit)"
+	),
 	category: z.string(),
 	shortDescription: z.string().nullable()
 });
@@ -124,7 +120,8 @@ export const fundingSourceSchema = z.discriminatedUnion("transactionType", [
 export type FundingSource = z.infer<typeof fundingSourceSchema>;
 export function mapFundingSource(
 	transactionType: z.infer<typeof transactionTypeSchema>,
-	metadata: unknown
+	metadata: unknown,
+	currency: string
 ): FundingSource {
 	const raw = metadata as Record<string, unknown>;
 
@@ -135,11 +132,11 @@ export function mapFundingSource(
 			...rest,
 			principal:
 				typeof principalAmount === "number"
-					? { amountMinor: principalAmount, currency: "ZAR" }
+					? { amountMinor: principalAmount, currency }
 					: null,
 			interest:
 				typeof interestAmount === "number"
-					? { amountMinor: interestAmount, currency: "ZAR" }
+					? { amountMinor: interestAmount, currency }
 					: null
 		});
 	}

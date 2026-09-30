@@ -23,3 +23,17 @@ export const collectionMetaSchema = z.object({
 	// Rows in data
 	count: z.number().int()
 });
+
+// Money always travels with its currency, so an amount can never be read
+// against another value's currency. amountMinor is in the currency's minor
+// units (cents for ZAR).
+export const amountSchema = z.object({
+	amountMinor: z.number().int().describe("Always positive, in minor units"),
+	currency: z.string().length(3)
+});
+
+// The one signed shape: a difference between two amounts, e.g. credit − debit
+export const signedAmountSchema = z.object({
+	amountMinor: z.number().int().describe("Signed, in minor units"),
+	currency: z.string().length(3)
+});

@@ -8,8 +8,7 @@ import {
 	lt,
 	lte,
 	type SQL,
-	sql,
-	sum
+	sql
 } from "drizzle-orm";
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
@@ -107,7 +106,6 @@ export class SummaryRepository {
 				category: categories.category,
 				currency: transactions.currency,
 				count: count(transactions.transactionId),
-				netAmount: sum(transactions.amountMinor).mapWith(Number),
 				debitCount:
 					sql<number>`count(*) filter (where ${transactions.direction} = 'debit')`.mapWith(
 						Number

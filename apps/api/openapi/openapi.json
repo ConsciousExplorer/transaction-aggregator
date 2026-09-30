@@ -1032,7 +1032,25 @@
                                 "type": "number"
                               },
                               "total": {
-                                "type": "number"
+                                "additionalProperties": false,
+                                "properties": {
+                                  "amountMinor": {
+                                    "description": "Always positive, in minor units",
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "type": "integer"
+                                  },
+                                  "currency": {
+                                    "maxLength": 3,
+                                    "minLength": 3,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "amountMinor",
+                                  "currency"
+                                ],
+                                "type": "object"
                               }
                             },
                             "required": [
@@ -1041,9 +1059,6 @@
                             ],
                             "type": "object"
                           },
-                          "currency": {
-                            "type": "string"
-                          },
                           "debit": {
                             "additionalProperties": false,
                             "properties": {
@@ -1051,7 +1066,25 @@
                                 "type": "number"
                               },
                               "total": {
-                                "type": "number"
+                                "additionalProperties": false,
+                                "properties": {
+                                  "amountMinor": {
+                                    "description": "Always positive, in minor units",
+                                    "maximum": 9007199254740991,
+                                    "minimum": -9007199254740991,
+                                    "type": "integer"
+                                  },
+                                  "currency": {
+                                    "maxLength": 3,
+                                    "minLength": 3,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "amountMinor",
+                                  "currency"
+                                ],
+                                "type": "object"
                               }
                             },
                             "required": [
@@ -1079,12 +1112,30 @@
                             "type": "object"
                           },
                           "netAmount": {
-                            "type": "number"
+                            "additionalProperties": false,
+                            "description": "credit − debit: negative when more went out than came in",
+                            "properties": {
+                              "amountMinor": {
+                                "description": "Signed, in minor units",
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "maxLength": 3,
+                                "minLength": 3,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "amountMinor",
+                              "currency"
+                            ],
+                            "type": "object"
                           }
                         },
                         "required": [
                           "group",
-                          "currency",
                           "count",
                           "netAmount",
                           "debit",
@@ -1168,7 +1219,25 @@
                               "type": "number"
                             },
                             "total": {
-                              "type": "number"
+                              "additionalProperties": false,
+                              "properties": {
+                                "amountMinor": {
+                                  "description": "Always positive, in minor units",
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "currency": {
+                                  "maxLength": 3,
+                                  "minLength": 3,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "amountMinor",
+                                "currency"
+                              ],
+                              "type": "object"
                             }
                           },
                           "required": [
@@ -1177,9 +1246,6 @@
                           ],
                           "type": "object"
                         },
-                        "currency": {
-                          "type": "string"
-                        },
                         "debit": {
                           "additionalProperties": false,
                           "properties": {
@@ -1187,7 +1253,25 @@
                               "type": "number"
                             },
                             "total": {
-                              "type": "number"
+                              "additionalProperties": false,
+                              "properties": {
+                                "amountMinor": {
+                                  "description": "Always positive, in minor units",
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "currency": {
+                                  "maxLength": 3,
+                                  "minLength": 3,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "amountMinor",
+                                "currency"
+                              ],
+                              "type": "object"
                             }
                           },
                           "required": [
@@ -1197,14 +1281,32 @@
                           "type": "object"
                         },
                         "netAmount": {
-                          "type": "number"
+                          "additionalProperties": false,
+                          "description": "credit − debit: negative when more went out than came in",
+                          "properties": {
+                            "amountMinor": {
+                              "description": "Signed, in minor units",
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            },
+                            "currency": {
+                              "maxLength": 3,
+                              "minLength": 3,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amountMinor",
+                            "currency"
+                          ],
+                          "type": "object"
                         },
                         "transactionCount": {
                           "type": "number"
                         }
                       },
                       "required": [
-                        "currency",
                         "transactionCount",
                         "netAmount",
                         "debit",
@@ -1769,15 +1871,29 @@
                       "items": {
                         "additionalProperties": false,
                         "properties": {
-                          "amountMinor": {
-                            "maximum": 9007199254740991,
-                            "minimum": -9007199254740991,
-                            "type": "integer"
+                          "amount": {
+                            "additionalProperties": false,
+                            "description": "direction says whether this money went out (debit) or came in (credit)",
+                            "properties": {
+                              "amountMinor": {
+                                "description": "Always positive, in minor units",
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "maxLength": 3,
+                                "minLength": 3,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "amountMinor",
+                              "currency"
+                            ],
+                            "type": "object"
                           },
                           "category": {
-                            "type": "string"
-                          },
-                          "currency": {
                             "type": "string"
                           },
                           "direction": {
@@ -1840,8 +1956,7 @@
                           "occurredAt",
                           "direction",
                           "status",
-                          "amountMinor",
-                          "currency",
+                          "amount",
                           "category",
                           "shortDescription"
                         ],
@@ -2088,6 +2203,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "amountMinor": {
+                          "description": "Always positive, in minor units",
                           "maximum": 9007199254740991,
                           "minimum": -9007199254740991,
                           "type": "integer"
@@ -2174,6 +2290,7 @@
                               "nullable": true,
                               "properties": {
                                 "amountMinor": {
+                                  "description": "Always positive, in minor units",
                                   "maximum": 9007199254740991,
                                   "minimum": -9007199254740991,
                                   "type": "integer"
@@ -2210,6 +2327,7 @@
                               "nullable": true,
                               "properties": {
                                 "amountMinor": {
+                                  "description": "Always positive, in minor units",
                                   "maximum": 9007199254740991,
                                   "minimum": -9007199254740991,
                                   "type": "integer"
