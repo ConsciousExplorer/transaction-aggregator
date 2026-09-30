@@ -1,25 +1,55 @@
 // Native schema registry
 
-import { UserError } from "@platformatic/kafka";
 import { z } from "zod";
-import { AvroSchemaObject } from "../../schemas/avro.ts";
+import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
+import { AvroSchemaObject, SchemaById } from "#src/schemas/avro.ts";
 
-async function registryFetch<S extends z.ZodType>(
+// A registry read is small; a registry that cannot answer within this is down.
+const REGISTRY_TIMEOUT_MS = 5_000;
+
+/**
+ * Every failure becomes a SchemaRegistryError carrying the HTTP status (or
+ * undefined when the registry was unreachable), so callers can tell "not found"
+ * from "registry down" without parsing messages.
+ */
+export async function registryFetch<S extends z.ZodType>(
 	url: string,
 	schema: S
 ): Promise<z.infer<S>> {
-	const response = await fetch(url);
+	let response: Response;
+
+	try {
+		response = await fetch(url, {
+			signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS)
+		});
+	} catch (error) {
+		throw new SchemaRegistryError(`Schema registry unreachable: ${url}`, {
+			cause: error,
+			status: undefined
+		});
+	}
 
 	if (!response.ok) {
-		throw new UserError(
+		throw new SchemaRegistryError(
 			`Schema registry request failed: [HTTP ${response.status}] ${url}`,
 			{
-				cause: await response.json().catch(() => undefined)
+				cause: await response.json().catch(() => undefined),
+				status: response.status
 			}
 		);
 	}
 
-	return schema.parse(await response.json());
+	const body = await response.json().catch(() => undefined);
+	const result = schema.safeParse(body);
+
+	if (!result.success) {
+		throw new SchemaRegistryError(
+			`Schema registry returned an unexpected body: ${url}`,
+			{ cause: result.error, status: response.status }
+		);
+	}
+
+	return result.data;
 }
 
 export function getSubjectVersion(
@@ -48,5 +78,5 @@ export function getLatestSubjectVersion(registryUrl: string, subject: string) {
 }
 
 export function getSchemaById(registryUrl: string, id: number) {
-	return registryFetch(`${registryUrl}/schemas/ids/${id}`, AvroSchemaObject);
+	return registryFetch(`${registryUrl}/schemas/ids/${id}`, SchemaById);
 }

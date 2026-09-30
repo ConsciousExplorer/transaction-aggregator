@@ -23,9 +23,19 @@ export class NonRetryableError extends Error {
 	}
 }
 
+/**
+ * The registry could not give a usable answer. `status` is the HTTP status, or
+ * undefined when the registry was unreachable or timed out.
+ */
 export class SchemaRegistryError extends Error {
-	constructor(message: string, options?: { cause?: unknown }) {
-		super(message, options);
+	readonly status: number | undefined;
+
+	constructor(
+		message: string,
+		context: { cause?: unknown; status: number | undefined }
+	) {
+		super(message, { cause: context.cause });
 		this.name = "SchemaRegistryError";
+		this.status = context.status;
 	}
 }

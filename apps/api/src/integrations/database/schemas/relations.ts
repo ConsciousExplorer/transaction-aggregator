@@ -65,8 +65,11 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 		references: [ruleSets.version]
 	}),
 	categorizationRule: one(categorizationRules, {
-		fields: [transactions.ruleVersion],
-		references: [categorizationRules.priority]
+		fields: [transactions.ruleVersion, transactions.rulePriority],
+		references: [
+			categorizationRules.rulesetVersion,
+			categorizationRules.priority
+		]
 	})
 }));
 

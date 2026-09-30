@@ -130,3 +130,10 @@ SET
   retention_keep_table = false
 WHERE parent_table = 'public.user_transaction_overrides';
 
+
+-- Write privileges, per table. Reads come from the txn_agg_read default privilege.
+-- Consumers insert transaction facts; facts are never updated or deleted.
+GRANT INSERT ON transactions TO txn_agg_write;
+
+-- The API writes user preferences only. No DELETE: removing an override sets archived_at.
+GRANT SELECT, INSERT, UPDATE ON user_transaction_overrides, user_category_overrides TO txn_agg_prefs_write;

@@ -79,8 +79,8 @@ export const transactions = pgTable(
 		foreignKey({
 			columns: [table.ruleVersion, table.rulePriority],
 			foreignColumns: [
-				categorizationRules.priority,
-				categorizationRules.rulesetVersion
+				categorizationRules.rulesetVersion,
+				categorizationRules.priority
 			],
 			name: "transactions_rule_version_rule_priority_fkey"
 		}),

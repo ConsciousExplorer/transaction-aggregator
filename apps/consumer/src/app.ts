@@ -13,7 +13,10 @@ import {
 	loadRulesetVersion,
 	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
-import { createAvroDeserializer } from "./integrations/events/avro-deserialiser.ts";
+import {
+	createAvroDeserializer,
+	type FetchOnMiss
+} from "./integrations/events/avro-deserialiser.ts";
 import { deserialisationErrorHandler } from "./integrations/events/handlers/deserialiserErrorHandler.ts";
 import {
 	type BatchHandler,
@@ -58,6 +61,7 @@ let transactionNormaliser: Normaliser;
 let ruleCategoriser: RuleCategoriser;
 let sendToDlq: SendToDlq;
 let transactionBatchHandler: BatchHandler;
+let fetchOnMiss: FetchOnMiss;
 
 export async function startupCheck<T>(
 	name: string,
@@ -80,10 +84,12 @@ export async function startupCheck<T>(
 }
 
 export async function gracefulShutdown(code = 0): Promise<never> {
-	// Consumer first: close() sends LeaveGroup, which is what stops the next
-	// start from waiting out the session timeout on a zombie member.
+	// Consumer first. force closes the open message stream, which close()
+	// otherwise refuses to leave the group over; LeaveGroup is what stops the
+	// next start from waiting out the session timeout on a zombie member. A
+	// batch cut off here was never committed and is read again after restart.
 	try {
-		await kafkaConsumer.close();
+		await kafkaConsumer.close(true);
 	} catch (err) {
 		logger.error({ err }, "Consumer close failed");
 	}
@@ -103,7 +109,7 @@ export async function gracefulShutdown(code = 0): Promise<never> {
 	try {
 		server.close();
 	} catch (err) {
-		logger.error({ err }, "Producer close failed");
+		logger.error({ err }, "Health server close failed");
 	}
 
 	process.exit(code);
@@ -150,6 +156,7 @@ try {
 			`${config.kafka.topics.main}-value`
 		])
 	);
+	fetchOnMiss = avroDeserializer.fetchOnMiss;
 
 	// Explicit type arguments: `Value` must include `undefined` (tombstones),
 	// but inference absorbs the deserializer's `| undefined` into the generic.
@@ -176,7 +183,7 @@ try {
 		},
 		deserializers: {
 			key: stringDeserializer,
-			value: avroDeserializer,
+			value: avroDeserializer.deserialize,
 			headerKey: stringDeserializer,
 			headerValue: stringDeserializer
 		}
@@ -245,7 +252,8 @@ try {
 			maxWaitTime: config.kafka.maxWaitTime,
 			batchSize: config.kafka.batchSize,
 			lingerMs: config.kafka.lingerMs
-		}
+		},
+		{ beforeDeserialization: fetchOnMiss }
 	);
 } catch (err) {
 	logger.error({ err }, "Consumer stopped on an unrecoverable error");

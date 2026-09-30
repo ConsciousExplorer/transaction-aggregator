@@ -87,6 +87,10 @@ suite("loadConfig", () => {
 		);
 	});
 
+	test("reads from committed offsets by default, so a restart resumes", () => {
+		assert.strictEqual(loadConfig(sampleEnv).kafka.readMode, "committed");
+	});
+
 	test("missing KAFKA_TOPIC fails validation", () => {
 		const { KAFKA_TOPIC, ...rest } = sampleEnv;
 		assert.throws(() => loadConfig(rest));

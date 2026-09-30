@@ -50,6 +50,11 @@ function fakeConsumer(count: number, gapMs = 0): KafkaConsumer {
 	} as unknown as KafkaConsumer;
 }
 
+/** A stream that stays open, like a live topic, until the test pushes into it. */
+function openConsumer(stream: Readable): KafkaConsumer {
+	return { consume: async () => stream } as unknown as KafkaConsumer;
+}
+
 const options = (over: Partial<BatchConsumerOptions> = {}) =>
 	({
 		topics: ["transactions"],
@@ -105,5 +110,23 @@ suite("startBatchConsumer", () => {
 		);
 
 		assert.deepEqual(seen, [1n, 2n, 3n, 4n], "the 4th must not be dropped");
+	});
+
+	test("a failed linger flush ends the consumer with that error", async () => {
+		const stream = new Readable({ objectMode: true, read() {} });
+		const failure = new Error("database unavailable");
+
+		const consuming = startBatchConsumer(
+			openConsumer(stream),
+			async () => {
+				throw failure;
+			},
+			() => "continue" as never,
+			options({ batchSize: 10, lingerMs: 1 })
+		);
+
+		stream.push(message(1));
+
+		await assert.rejects(consuming, failure);
 	});
 });

@@ -146,7 +146,9 @@ services:
       postgres
       -c shared_preload_libraries='pg_stat_statements,pg_cron'
       -c pg_stat_statements.track=all
-      -c cron.database_name=postgres
+      -c cron.database_name=txn_agg
+      -c cron.use_background_workers=on
+      -c max_worker_processes=16
     volumes:
       - ./infrastructure/postgres/initdb:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql
@@ -158,8 +160,8 @@ services:
       retries: 10
     networks: [txn-network]
 
-  # Versioned schema: V__ migrations + R__ seeds; also schedules the pg_cron
-  # partition-lifecycle job (create next month UTC bounds / drop >18 months).
+  # Versioned schema (V__) plus repeatable R__ files: the category/rule seed and
+  # the pg_cron partman-maintenance schedule (premake monthly partitions / drop >18 months).
   migrate:
     image: flyway/flyway:11-alpine
     container_name: flyway-migrate
@@ -380,7 +382,7 @@ services:
       KAFKA_MAX_WAIT_TIME_MS: 1000
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: earliest
+      KAFKA_READ_MODE: committed
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
@@ -438,7 +440,7 @@ services:
       KAFKA_MAX_WAIT_TIME_MS: 1000
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: earliest
+      KAFKA_READ_MODE: committed
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
@@ -496,7 +498,7 @@ services:
       KAFKA_MAX_WAIT_TIME_MS: 1000
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: earliest
+      KAFKA_READ_MODE: committed
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
@@ -554,7 +556,7 @@ services:
       KAFKA_MAX_WAIT_TIME_MS: 1000
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: earliest
+      KAFKA_READ_MODE: committed
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
@@ -612,7 +614,7 @@ services:
       KAFKA_MAX_WAIT_TIME_MS: 1000
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: earliest
+      KAFKA_READ_MODE: committed
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'

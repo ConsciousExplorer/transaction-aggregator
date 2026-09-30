@@ -98,7 +98,7 @@ const configSchema = z
 		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(1_000),
 		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(100),
 		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
-		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("earliest")
+		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("committed")
 	})
 	.superRefine((e, ctx) => {
 		if (e.KAFKA_HEARTBEAT_INTERVAL_MS > e.KAFKA_SESSION_TIMEOUT_MS / 3) {
