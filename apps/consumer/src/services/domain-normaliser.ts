@@ -11,6 +11,7 @@ import {
 	type DomainTransactionSchema,
 	type directionSchema,
 	type TransactionType,
+	type transactionStatusSchema,
 	transactionTypeSchema
 } from "#src/schemas/transaction.ts";
 
@@ -37,9 +38,10 @@ function lookupNormaliser(transactionType: TransactionType): DomainNormaliser {
 
 /**
  * The source schemas type these fields as bare `z.string()`/`z.number()`, so
- * the casts below (`transactionType as directionSchema`, ids straight into
- * `z.uuid()`) are assertions, not guarantees. This is where the claim gets
- * proved: a producer sending "DEBIT" or a non-UUID id is a mapping defect, so
+ * the casts below (`transactionType as directionSchema`, the lowercased
+ * `status`, ids straight into `z.uuid()`) are assertions, not guarantees. This
+ * is where the claim gets proved: a producer sending "DEBIT", a status outside
+ * the enum or a non-UUID id is a mapping defect, so
  * it raises NonRetryableError and the batch handler dead-letters that record
  * instead of replaying it forever against the same bad mapping.
  */
@@ -114,6 +116,9 @@ export function normaliseCard(
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
+		status: record.status.toLowerCase() as z.infer<
+			typeof transactionStatusSchema
+		>,
 		metadata: {
 			mcc: record.mccCode,
 			merchantName: record.merchantName,
@@ -139,6 +144,9 @@ export function normaliseDebitOrder(
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
+		status: record.status.toLowerCase() as z.infer<
+			typeof transactionStatusSchema
+		>,
 		metadata: {
 			mandateId: record.mandateId,
 			category: record.category,
@@ -164,6 +172,9 @@ export function normaliseEft(
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
+		status: record.status.toLowerCase() as z.infer<
+			typeof transactionStatusSchema
+		>,
 		metadata: {
 			beneficiaryName: record.beneficiaryName,
 			beneficiaryAccountLast4: record.beneficiaryAccountNumber.slice(-4),
@@ -195,6 +206,9 @@ export function normaliseInternalTransfer(
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
+		status: record.status.toLowerCase() as z.infer<
+			typeof transactionStatusSchema
+		>,
 		metadata: {
 			fromAccountId: record.fromAccountId,
 			toAccountId: record.toAccountId,
@@ -218,6 +232,9 @@ export function normaliseLoan(
 		currency: record.currency,
 		amountMinor: record.amount,
 		direction: record.transactionType as z.infer<typeof directionSchema>,
+		status: record.status.toLowerCase() as z.infer<
+			typeof transactionStatusSchema
+		>,
 		metadata: {
 			operation: record.operation,
 			loanAccountId: record.loanAccountId,

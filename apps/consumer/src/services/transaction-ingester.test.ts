@@ -18,6 +18,7 @@ function canonical(
 		externalId: "ext-1",
 		occurredAt: new Date("2026-01-01T10:00:00Z").toISOString(),
 		direction: "debit",
+		status: "completed",
 		currency: "ZAR",
 		amountMinor: 1999,
 		longDescription: "WOOLWORTHS STORE",

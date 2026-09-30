@@ -20,6 +20,7 @@ import {
 	categorizationRules,
 	directionType,
 	ruleSets,
+	transactionStatus,
 	transactionType
 } from "./schema.ts";
 
@@ -36,6 +37,7 @@ export const transactions = pgTable(
 			mode: "string"
 		}).notNull(),
 		direction: directionType().notNull(),
+		status: transactionStatus().notNull(),
 		// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
 		currency: char({ length: 3 }).notNull(),
@@ -55,8 +57,9 @@ export const transactions = pgTable(
 			table.userId.asc().nullsLast().op("timestamptz_ops"),
 			table.occurredAt.desc().nullsFirst().op("timestamptz_ops"),
 			table.transactionId.desc().nullsFirst().op("timestamptz_ops"),
-			table.transactionType.asc().nullsLast().op("uuid_ops"),
+			table.transactionType.asc().nullsLast().op("timestamptz_ops"),
 			table.direction.asc().nullsLast().op("timestamptz_ops"),
+			table.status.asc().nullsLast().op("timestamptz_ops"),
 			table.amountMinor.asc().nullsLast().op("timestamptz_ops"),
 			table.currency.asc().nullsLast().op("timestamptz_ops"),
 			table.categoryId.asc().nullsLast().op("timestamptz_ops"),
@@ -75,8 +78,8 @@ export const transactions = pgTable(
 		foreignKey({
 			columns: [table.ruleVersion, table.rulePriority],
 			foreignColumns: [
-				categorizationRules.rulesetVersion,
-				categorizationRules.priority
+				categorizationRules.priority,
+				categorizationRules.rulesetVersion
 			],
 			name: "transactions_rule_version_rule_priority_fkey"
 		})

@@ -37,6 +37,7 @@ const makeTransaction = (
 	externalId: "txn-1",
 	occurredAt: "2026-08-18",
 	direction: "debit",
+	status: "completed",
 	currency: "ZAR",
 	amountMinor: 12_345,
 	longDescription: null,

@@ -21,6 +21,7 @@ import {
 	categorizationRules,
 	directionType,
 	ruleSets,
+	transactionStatus,
 	transactionType
 } from "./schema.ts";
 
@@ -37,6 +38,7 @@ export const transactions = pgTable(
 			mode: "string"
 		}).notNull(),
 		direction: directionType().notNull(),
+		status: transactionStatus().notNull(),
 		// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
 		currency: char({ length: 3 }).notNull(),
@@ -58,6 +60,7 @@ export const transactions = pgTable(
 			table.transactionId.desc().nullsFirst().op("timestamptz_ops"),
 			table.transactionType.asc().nullsLast().op("timestamptz_ops"),
 			table.direction.asc().nullsLast().op("timestamptz_ops"),
+			table.status.asc().nullsLast().op("timestamptz_ops"),
 			table.amountMinor.asc().nullsLast().op("timestamptz_ops"),
 			table.currency.asc().nullsLast().op("timestamptz_ops"),
 			table.categoryId.asc().nullsLast().op("timestamptz_ops"),

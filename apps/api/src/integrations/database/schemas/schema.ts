@@ -13,6 +13,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const directionType = pgEnum("direction_type", ["debit", "credit"]);
+export const transactionStatus = pgEnum("transaction_status", [
+	"completed",
+	"pending",
+	"reversed",
+	"failed"
+]);
 export const transactionType = pgEnum("transaction_type", [
 	"card",
 	"loan",
@@ -80,14 +86,14 @@ export const categorizationRules = pgTable(
 	},
 	(table) => [
 		foreignKey({
-			columns: [table.categoryId],
-			foreignColumns: [categories.categoryId],
-			name: "categorization_rules_category_id_fkey"
-		}),
-		foreignKey({
 			columns: [table.rulesetVersion],
 			foreignColumns: [ruleSets.version],
 			name: "categorization_rules_ruleset_version_fkey"
+		}),
+		foreignKey({
+			columns: [table.categoryId],
+			foreignColumns: [categories.categoryId],
+			name: "categorization_rules_category_id_fkey"
 		})
 	]
 );

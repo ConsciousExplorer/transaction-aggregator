@@ -24,6 +24,7 @@ const ORIGINAL: Awaited<
 	occurredAt: "2026-08-15T09:30:00.000Z",
 	transactionType: "card",
 	direction: "debit",
+	status: "completed",
 	longDescription: null,
 	amountMinor: 1234,
 	currency: "ZAR",

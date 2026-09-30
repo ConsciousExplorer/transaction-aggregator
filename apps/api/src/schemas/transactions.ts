@@ -8,6 +8,14 @@ export const transactionTypeSchema = z.enum([
 	"internal_transfer"
 ]);
 
+// Every status is listed; only completed counts toward summary aggregates
+export const transactionStatusSchema = z.enum([
+	"completed",
+	"pending",
+	"reversed",
+	"failed"
+]);
+
 export const amountSchema = z.object({
 	amountMinor: z.number().int(),
 	currency: z.string().length(3)
@@ -30,6 +38,7 @@ export const transactionItemSchema = z.object({
 	occurredAt: z.iso.datetime(),
 	transactionType: z.union([z.string(), transactionTypeSchema.optional()]),
 	direction: z.union([z.string(), z.enum(["debit", "credit"])]),
+	status: transactionStatusSchema,
 	amountMinor: z.number().int(),
 	currency: z.string(),
 	category: z.string(),
@@ -127,7 +136,7 @@ export const transactionDetailSchema = z.object({
 	occurredAt: z.iso.datetime(),
 	direction: z.enum(["debit", "credit"]),
 	amount: amountSchema,
-	// status: transactionStatusSchema, // TODO: Adding status schema with reversals for a bigger challenge later
+	status: transactionStatusSchema,
 	longDescription: z.string().nullable(),
 	shortDescription: z.string().nullable(),
 	category: z.string(),

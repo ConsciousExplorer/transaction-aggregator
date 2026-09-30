@@ -20,6 +20,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 			occurredAt: "2026-08-15T09:30:00.000Z",
 			transactionType: "card",
 			direction: "debit",
+			status: "completed",
 			amountMinor: 1234,
 			currency: "ZAR",
 			category: "groceries",
@@ -30,6 +31,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 			occurredAt: "2026-08-14T12:00:00.000Z",
 			transactionType: "eft",
 			direction: "credit",
+			status: "reversed",
 			amountMinor: 50000,
 			currency: "ZAR",
 			category: "salary",
@@ -51,6 +53,7 @@ const DETAIL: Awaited<
 	occurredAt: "2026-08-15T09:30:00.000Z",
 	transactionType: "card",
 	direction: "debit",
+	status: "completed",
 	longDescription: null,
 	amountMinor: 1234,
 	currency: "ZAR",
@@ -104,7 +107,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		getTransactionDetail.mock.mockImplementation(async () => DETAIL);
 	});
 
-	test("200: list maps rows to the wire shape (transactionId, ISO occurredAt)", async () => {
+	test("200: list maps rows to the wire shape, non-completed statuses included", async () => {
 		const res = await app.inject({ method: "GET", url: LIST_URL });
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
@@ -114,6 +117,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					occurredAt: "2026-08-15T09:30:00.000Z",
 					transactionType: "card",
 					direction: "debit",
+					status: "completed",
 					amountMinor: 1234,
 					currency: "ZAR",
 					category: "groceries",
@@ -124,6 +128,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					occurredAt: "2026-08-14T12:00:00.000Z",
 					transactionType: "eft",
 					direction: "credit",
+					status: "reversed",
 					amountMinor: 50000,
 					currency: "ZAR",
 					category: "salary",
@@ -167,6 +172,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			externalId: "ext-card-001",
 			occurredAt: "2026-08-15T09:30:00.000Z",
 			direction: "debit",
+			status: "completed",
 			amount: { amountMinor: 1234, currency: "ZAR" },
 			longDescription: null,
 			shortDescription: "Spar",

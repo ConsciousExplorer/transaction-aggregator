@@ -79,6 +79,7 @@ export default async (
 				occurredAt: new Date(row.occurredAt).toISOString(),
 				transactionType: row.transactionType,
 				direction: row.direction,
+				status: row.status,
 				amountMinor: row.amountMinor,
 				currency: row.currency,
 				category: row.category,
@@ -125,6 +126,7 @@ export default async (
 				externalId: row.externalId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
 				direction: row.direction,
+				status: row.status,
 				amount: {
 					amountMinor: row.amountMinor,
 					currency: row.currency

@@ -7,6 +7,13 @@ import { loanTransactionSchema } from "./loan.ts";
 
 export const directionSchema = z.enum(["debit", "credit"]);
 
+export const transactionStatusSchema = z.enum([
+	"completed",
+	"pending",
+	"reversed",
+	"failed"
+]);
+
 export const domainTransactionSchema = z.union([
 	cardTransactionSchema,
 	debitOrderTransactionSchema,
@@ -42,6 +49,8 @@ export const canonicalTransactionSchema = z.object({
 
 	// Top level financial information
 	direction: directionSchema,
+	// Stored for every status; the API excludes non-completed rows from aggregates
+	status: transactionStatusSchema,
 	currency: z.string(),
 	amountMinor: z.number(),
 

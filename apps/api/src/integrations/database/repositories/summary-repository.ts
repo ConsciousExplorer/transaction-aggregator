@@ -73,6 +73,8 @@ export class SummaryRepository {
 
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),
+			// Pending, reversed and failed rows stay visible on the list but never count as spend
+			eq(transactions.status, "completed"),
 			gte(transactions.occurredAt, filter.fromDate),
 			lt(transactions.occurredAt, filter.toDate),
 			filter.transactionType !== undefined

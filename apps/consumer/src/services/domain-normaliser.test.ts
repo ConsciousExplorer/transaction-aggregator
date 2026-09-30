@@ -29,7 +29,7 @@ function cardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
 		posEntryMode: "chip",
 		authCode: "A1B2C3",
 		description: "WOOLWORTHS STORE",
-		status: "posted",
+		status: "COMPLETED",
 		timestamp: 1_790_000_000_000,
 		...over
 	};
@@ -62,6 +62,34 @@ suite("domain normaliser validation", () => {
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
 				assert.match(String(error.details.issues), /direction/);
+				return true;
+			}
+		);
+	});
+
+	test("passes every wire status through, lowercased, without filtering", () => {
+		const cases = [
+			{ wire: "COMPLETED", stored: "completed" },
+			{ wire: "PENDING", stored: "pending" },
+			{ wire: "REVERSED", stored: "reversed" },
+			{ wire: "FAILED", stored: "failed" }
+		];
+
+		for (const { wire, stored } of cases) {
+			const result = cardNormaliser.normalise(
+				asDomain(cardRecord({ status: wire }))
+			);
+			assert.equal(result.status, stored);
+		}
+	});
+
+	test("rejects a status the canonical enum does not allow", () => {
+		assert.throws(
+			() =>
+				cardNormaliser.normalise(asDomain(cardRecord({ status: "posted" }))),
+			(error: unknown) => {
+				assert.ok(error instanceof NonRetryableError);
+				assert.match(String(error.details.issues), /status/);
 				return true;
 			}
 		);

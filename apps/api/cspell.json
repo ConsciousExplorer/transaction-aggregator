@@ -10,6 +10,7 @@
     "IYYY",
     "Millis",
     "Miswiring",
+    "normaliser",
     "stringbool",
     "timestamptz",
     "upserts",

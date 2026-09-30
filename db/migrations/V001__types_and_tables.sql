@@ -2,6 +2,7 @@
 
 CREATE TYPE transaction_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
 CREATE TYPE direction_type AS ENUM ('debit','credit');
+CREATE TYPE transaction_status AS ENUM ('completed', 'pending', 'reversed', 'failed');
 
 CREATE TABLE categories (
   category_id   SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -63,6 +64,7 @@ CREATE TABLE transactions (
   external_id   text        NOT NULL,
   occurred_at   timestamptz NOT NULL, -- partition key; transaction time
   direction     direction_type NOT NULL,
+  status        transaction_status NOT NULL, -- every status is stored; only completed counts toward aggregates
   amount_minor  bigint      NOT NULL CHECK (amount_minor > 0),
   currency      char(3)     NOT NULL,
   long_description  text,
@@ -79,7 +81,7 @@ CREATE TABLE transactions (
 ) PARTITION BY RANGE (occurred_at);
 
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
-  INCLUDE (transaction_type, direction, amount_minor, currency, category_id, short_description);
+  INCLUDE (transaction_type, direction, status, amount_minor, currency, category_id, short_description);
 
 DO $$
 BEGIN
