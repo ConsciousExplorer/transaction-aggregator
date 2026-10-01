@@ -2,7 +2,8 @@ import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
-import { config, fileLogger, secrets } from "#src/runtime.ts";
+import { fileLogger } from "#src/logger.ts";
+import { config, secrets } from "#src/runtime.ts";
 import {
 	createDatabase,
 	createPool,

@@ -55,11 +55,9 @@
                       "additionalProperties": false,
                       "properties": {
                         "next": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "prev": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "self": {
@@ -67,9 +65,7 @@
                         }
                       },
                       "required": [
-                        "self",
-                        "next",
-                        "prev"
+                        "self"
                       ],
                       "type": "object"
                     },
@@ -268,11 +264,9 @@
                       "additionalProperties": false,
                       "properties": {
                         "next": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "prev": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "self": {
@@ -280,9 +274,7 @@
                         }
                       },
                       "required": [
-                        "self",
-                        "next",
-                        "prev"
+                        "self"
                       ],
                       "type": "object"
                     },
@@ -481,11 +473,9 @@
                       "additionalProperties": false,
                       "properties": {
                         "next": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "prev": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "self": {
@@ -493,9 +483,7 @@
                         }
                       },
                       "required": [
-                        "self",
-                        "next",
-                        "prev"
+                        "self"
                       ],
                       "type": "object"
                     },
@@ -1149,11 +1137,9 @@
                       "additionalProperties": false,
                       "properties": {
                         "next": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "prev": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "self": {
@@ -1161,9 +1147,7 @@
                         }
                       },
                       "required": [
-                        "self",
-                        "next",
-                        "prev"
+                        "self"
                       ],
                       "type": "object"
                     },
@@ -1968,11 +1952,9 @@
                       "additionalProperties": false,
                       "properties": {
                         "next": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "prev": {
-                          "nullable": true,
                           "type": "string"
                         },
                         "self": {
@@ -1980,9 +1962,7 @@
                         }
                       },
                       "required": [
-                        "self",
-                        "next",
-                        "prev"
+                        "self"
                       ],
                       "type": "object"
                     },

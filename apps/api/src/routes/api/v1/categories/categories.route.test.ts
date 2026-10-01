@@ -61,7 +61,7 @@ suite("GET /api/v1/categories", () => {
 				{ categoryId: 1, category: "groceries", label: "Groceries" },
 				{ categoryId: 2, category: "dining", label: "Dining" }
 			],
-			links: { self: "/api/v1/categories", next: null, prev: null },
+			links: { self: "/api/v1/categories" },
 			meta: { count: 2 }
 		});
 	});
@@ -72,7 +72,7 @@ suite("GET /api/v1/categories", () => {
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
 			data: [],
-			links: { self: "/api/v1/categories", next: null, prev: null },
+			links: { self: "/api/v1/categories" },
 			meta: { count: 0 }
 		});
 	});

@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import { notFound } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { problemSchema } from "#src/schemas/common.ts";
+import { type Links, problemSchema } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
 	mapFundingSource,
@@ -162,13 +162,13 @@ export default async (
 			const nextCursor = hasOlder && lastRow ? cursorOf(lastRow) : null;
 			const prevCursor = hasNewer && firstRow ? cursorOf(firstRow) : null;
 
+			const links: Links = { self: request.url };
+			if (nextCursor) links.next = pageLink(request.url, nextCursor, "next");
+			if (prevCursor) links.prev = pageLink(request.url, prevCursor, "prev");
+
 			return reply.send({
 				data,
-				links: {
-					self: request.url,
-					next: nextCursor ? pageLink(request.url, nextCursor, "next") : null,
-					prev: prevCursor ? pageLink(request.url, prevCursor, "prev") : null
-				},
+				links,
 				meta: {
 					count: data.length,
 					limit,

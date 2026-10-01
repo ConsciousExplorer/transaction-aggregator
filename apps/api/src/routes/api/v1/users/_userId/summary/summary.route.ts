@@ -151,7 +151,7 @@ export default async (
 						total: money(row.creditAmount, row.currency)
 					}
 				})),
-				links: { self: request.url, next: null, prev: null },
+				links: { self: request.url },
 				meta: {
 					count: result.length,
 					fromDateTime: request.query.fromDateTime,

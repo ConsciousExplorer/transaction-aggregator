@@ -1,3 +1,6 @@
+import { basename } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { type Logger, pino } from "pino";
 import { z } from "zod";
 
@@ -39,7 +42,7 @@ export const loggerOptionsSchema = z.object({
 
 export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
 
-export function createLogger(options: LoggerOptions = {}): Logger {
+function createLogger(options: LoggerOptions = {}): Logger {
 	const { level, pretty, redactedFields, redactDepth } =
 		loggerOptionsSchema.parse(options);
 
@@ -60,4 +63,27 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 		}),
 		redact: { paths: redactPaths, censor: "[REDACTED]" }
 	});
+}
+
+// Matched, not cast: an unknown LOG_LEVEL must fall back to the schema default,
+// never throw from an import. config.ts validates it properly and fails startup.
+const level = LOG_LEVELS.find(
+	(candidate) => candidate === process.env.LOG_LEVEL
+);
+
+const redactedFields = (process.env.LOG_REDACTED_FIELDS ?? "")
+	.split(",")
+	.map((field) => field.trim())
+	.filter(Boolean);
+
+const baseLogger = createLogger({
+	level,
+	pretty: process.env.LOG_PRETTY === "true",
+	redactedFields,
+	redactDepth: Number(process.env.LOG_REDACT_DEPTH) || undefined
+});
+
+/** Child logger tagged with the calling module's name. */
+export function fileLogger(metaUrl: string): Logger {
+	return baseLogger.child({ module: basename(fileURLToPath(metaUrl), ".ts") });
 }

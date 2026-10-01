@@ -1,6 +1,6 @@
 import { type BeforeHookPayloadType, UserError } from "@platformatic/kafka";
 import avsc from "avsc";
-import { fileLogger } from "#src/runtime.ts";
+import { fileLogger } from "#src/logger.ts";
 import {
 	getSchemaById,
 	getSubjectVersion,

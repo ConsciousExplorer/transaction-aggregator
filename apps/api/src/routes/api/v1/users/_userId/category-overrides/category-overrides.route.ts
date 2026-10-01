@@ -98,7 +98,7 @@ export default async (
 
 			return reply.send({
 				data: overridden,
-				links: { self: request.url, next: null, prev: null },
+				links: { self: request.url },
 				meta: { count: overridden.length }
 			});
 		}

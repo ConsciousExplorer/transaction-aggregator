@@ -135,7 +135,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					shortDescription: null
 				}
 			],
-			links: { self: LIST_URL, next: null, prev: null },
+			links: { self: LIST_URL },
 			meta: {
 				count: 2,
 				limit: 50,
@@ -377,7 +377,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			"newest first, like every other page"
 		);
 		// Not full, so nothing newer; came from an older page, so next exists
-		assert.strictEqual(body.links.prev, null);
+		assert.strictEqual("prev" in body.links, false);
 		assert.deepStrictEqual(body.meta.nextCursor, {
 			occurredAt: "2026-08-14T12:00:00.000000Z",
 			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"

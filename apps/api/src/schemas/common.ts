@@ -12,12 +12,15 @@ export const problemSchema = z.object({
 
 // Every collection response is { data, links, meta }. links.self is the
 // request as received; next and prev are relative links to the neighbouring
-// pages, null when there is none (always null on unpaginated collections).
+// pages, left out when there is no such page (always, on unpaginated
+// collections).
 export const linksSchema = z.object({
 	self: z.string(),
-	next: z.string().nullable(),
-	prev: z.string().nullable()
+	next: z.string().optional(),
+	prev: z.string().optional()
 });
+
+export type Links = z.infer<typeof linksSchema>;
 
 export const collectionMetaSchema = z.object({
 	// Rows in data

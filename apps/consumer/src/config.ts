@@ -3,8 +3,8 @@ import {
 	SASLMechanisms
 } from "@platformatic/kafka";
 import { z } from "zod";
+import { LOG_LEVELS } from "./logger.ts";
 import { CANONICAL_TRANSACTION_TYPES } from "./schemas/transaction.ts";
-import { LOG_LEVELS } from "./utils/logger.ts";
 
 const KAFKA_READ_MODES = [
 	"earliest",
@@ -19,11 +19,12 @@ const appInfoSchema = z.object({
 	author: z.string()
 });
 
-const csv = (value: string) =>
-	value
-		.split(",")
+export function separateByDelimiter(value: string, delimiter: string) {
+	return value
+		.split(delimiter)
 		.map((entry) => entry.trim())
 		.filter(Boolean);
+}
 
 const configSchema = z
 	.object({
@@ -64,7 +65,9 @@ const configSchema = z
 		// the canonical/DB type value, and the consumer group id.
 		TRANSACTION_TYPE: z.enum(CANONICAL_TRANSACTION_TYPES).default("card"),
 
-		KAFKA_BROKERS: z.string().transform(csv),
+		KAFKA_BROKERS: z
+			.string()
+			.transform((value) => separateByDelimiter(value, ",")),
 		// Topic names are explicit config, exactly as the producers take them —
 		// broker topics are dashed (transactions.debit-order) while the
 		// canonical type keeps its underscore. The DLQ topic is <topic>.dlq.

@@ -6,7 +6,7 @@ import {
 	type QueryResult,
 	type QueryResultRow
 } from "pg";
-import { fileLogger } from "#src/runtime.ts";
+import { fileLogger } from "#src/logger.ts";
 
 const logger = fileLogger(import.meta.url);
 

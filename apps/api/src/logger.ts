@@ -8,7 +8,8 @@ export const LOG_LEVELS = [
 	"warn",
 	"info",
 	"debug",
-	"trace"
+	"trace",
+	"silent"
 ] as const;
 
 /** Baseline PAN fields — always redacted, config can only add to this. */
@@ -26,7 +27,7 @@ const BASE_SENSITIVE_FIELDS = [
  * Logger signature
  */
 export const loggerOptionsSchema = z.object({
-	level: z.enum(LOG_LEVELS).default("warn"),
+	level: z.enum(LOG_LEVELS).default("info"),
 	pretty: z.boolean().default(false),
 	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
 	redactedFields: z.array(z.string()).default([]),

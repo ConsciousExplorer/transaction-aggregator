@@ -1,5 +1,5 @@
 import { RetryableError } from "#src/errors/consumer-errors.ts";
-import { fileLogger } from "#src/runtime.ts";
+import { fileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type { TransactionIngester } from "#src/services/transaction-ingester.ts";
 import { assertNever } from "#src/utils/assert-never.ts";
