@@ -8,8 +8,10 @@ import {
 	collectionMetaSchema,
 	linksSchema,
 	problemSchema,
-	signedAmountSchema
+	signedAmountSchema,
+	windowDateTimeSchema
 } from "#src/schemas/common.ts";
+import { linkWith } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 // Every amount is a money object. debit and credit totals are positive;
@@ -104,15 +106,13 @@ export default async (
 			tags: ["summary"],
 			hide: false,
 			params: z.object({
-				userId: z.string()
+				userId: z.uuid()
 			}),
 			querystring: z.object({
-				fromDateTime: z.iso.datetime(),
-				toDateTime: z.iso
-					.datetime()
-					.describe(
-						`Exclusive. At most ${maxWindowDays} days after fromDateTime`
-					),
+				fromDateTime: windowDateTimeSchema,
+				toDateTime: windowDateTimeSchema.describe(
+					`Exclusive. At most ${maxWindowDays} days after fromDateTime`
+				),
 				accountId: z
 					.union([z.string(), z.string().array()])
 					.describe("The accountId")
@@ -167,7 +167,13 @@ export default async (
 						total: money(row.creditAmount, row.currency)
 					}
 				})),
-				links: { self: request.url },
+				// The window as parsed, so a future toDateTime shows as now
+				links: {
+					self: linkWith(request.url, {
+						fromDateTime: request.query.fromDateTime,
+						toDateTime: request.query.toDateTime
+					})
+				},
 				meta: {
 					count: result.length,
 					fromDateTime: request.query.fromDateTime,

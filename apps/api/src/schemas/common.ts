@@ -21,6 +21,19 @@ export const linksSchema = z.object({
 
 export type Links = z.infer<typeof linksSchema>;
 
+/** There are no future transactions to read, so a future instant means now. */
+function clampToNow(isoDateTime: string): string {
+	const now = new Date();
+	if (Date.parse(isoDateTime) > now.getTime()) {
+		return now.toISOString();
+	}
+	return isoDateTime;
+}
+
+// fromDateTime / toDateTime on every date-range query. Clamped while parsing,
+// so handlers and the window check only ever see past or present instants.
+export const windowDateTimeSchema = z.iso.datetime().transform(clampToNow);
+
 export const collectionMetaSchema = z.object({
 	// Rows in data
 	count: z.number().int()

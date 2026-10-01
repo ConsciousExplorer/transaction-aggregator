@@ -133,6 +133,13 @@ suite("Token Verifier", () => {
 		);
 	});
 
+	test("Should reject a token whose key is not in the key set", async () => {
+		await assertRejectsWithReason(
+			signToken({}, { kid: "not-in-the-jwks" }),
+			"unknown-key"
+		);
+	});
+
 	test("Should reject a malformed token", async () => {
 		await assertRejectsWithReason("not-a-jwt", "malformed");
 	});

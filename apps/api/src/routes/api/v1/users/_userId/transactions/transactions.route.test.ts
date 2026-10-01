@@ -10,7 +10,11 @@ import transactionsRoute from "./transactions.route.ts";
 const FROM = "2026-08-01T00:00:00.000Z";
 const TO = "2026-09-01T00:00:00.000Z";
 const TX_ID = "3f8e8c1a-6b1d-4f4e-9a2b-1c9d8e7f6a5b";
-const LIST_URL = `/api/v1/users/u1/transactions?fromDateTime=${FROM}&toDateTime=${TO}`;
+const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
+const LIST_URL = `/api/v1/users/${USER_ID}/transactions?fromDateTime=${FROM}&toDateTime=${TO}`;
+// links.self is the request with the window as read, its query serialized
+const LIST_SELF = `/api/v1/users/${USER_ID}/transactions?${new URLSearchParams({ fromDateTime: FROM, toDateTime: TO })}`;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Typed off the real methods so drift in the select shape breaks compilation.
 const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
@@ -136,7 +140,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 					shortDescription: null
 				}
 			],
-			links: { self: LIST_URL },
+			links: { self: LIST_SELF },
 			meta: {
 				count: 2,
 				limit: 50,
@@ -155,7 +159,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 		assert.strictEqual(getTransactions.mock.callCount(), 1);
 		assert.deepStrictEqual(getTransactions.mock.calls[0]?.arguments.at(0), {
-			userId: "u1",
+			userId: USER_ID,
 			fromDateTime: FROM,
 			toDateTime: TO,
 			transactionType: "card",
@@ -187,7 +191,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 
 		const next = new URL(body.links.next, "http://client.example");
-		assert.strictEqual(next.pathname, "/api/v1/users/u1/transactions");
+		assert.strictEqual(next.pathname, `/api/v1/users/${USER_ID}/transactions`);
 		assert.strictEqual(next.searchParams.get("fromDateTime"), FROM);
 		assert.strictEqual(next.searchParams.get("toDateTime"), TO);
 		assert.strictEqual(next.searchParams.get("limit"), "1");
@@ -240,10 +244,46 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(getTransactions.mock.callCount(), 0);
 	});
 
+	test("400: a userId that isn't a UUID → validation problem, repository untouched", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `/api/v1/users/not-a-uuid/transactions?fromDateTime=${FROM}&toDateTime=${TO}`
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(getTransactions.mock.callCount(), 0);
+	});
+
+	test("self, next and prev all carry the window as read, a future toDateTime as now", async () => {
+		const fromDateTime = new Date(Date.now() - 80 * DAY_MS).toISOString();
+		// A cursor page that comes back full has both neighbours
+		const res = await app.inject({
+			method: "GET",
+			url: `/api/v1/users/${USER_ID}/transactions?fromDateTime=${fromDateTime}&toDateTime=2099-01-01T00:00:00.000Z&limit=1&cursorOccurredAt=2026-09-01T00:00:00.000000Z&cursorTransactionId=${TX_ID}`
+		});
+		assert.strictEqual(res.statusCode, 200);
+
+		const body = res.json();
+		assert.ok(Date.parse(body.meta.toDateTime) <= Date.now());
+		for (const name of ["self", "next", "prev"]) {
+			const link = new URL(body.links[name], "http://client.example");
+			assert.strictEqual(
+				link.searchParams.get("fromDateTime"),
+				fromDateTime,
+				name
+			);
+			assert.strictEqual(
+				link.searchParams.get("toDateTime"),
+				body.meta.toDateTime,
+				name
+			);
+		}
+	});
+
 	test("400: a window wider than 92 days is rejected before the query runs", async () => {
 		const res = await app.inject({
 			method: "GET",
-			url: "/api/v1/users/u1/transactions?fromDateTime=2026-07-01T00:00:00.000Z&toDateTime=2026-10-01T00:00:01.000Z"
+			url: `/api/v1/users/${USER_ID}/transactions?fromDateTime=2026-07-01T00:00:00.000Z&toDateTime=2026-10-01T00:00:01.000Z`
 		});
 		assert.strictEqual(res.statusCode, 400);
 		assert.deepStrictEqual(res.json(), {
@@ -255,10 +295,30 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(getTransactions.mock.callCount(), 0);
 	});
 
+	test("a future toDateTime is read as now, and the window is measured from there", async () => {
+		// 80 days back to 2099 is far over the cap; 80 days back to now is not
+		const fromDateTime = new Date(Date.now() - 80 * DAY_MS).toISOString();
+		const before = Date.now();
+		const res = await app.inject({
+			method: "GET",
+			url: `/api/v1/users/${USER_ID}/transactions?fromDateTime=${fromDateTime}&toDateTime=2099-01-01T00:00:00.000Z`
+		});
+		const after = Date.now();
+
+		assert.strictEqual(res.statusCode, 200);
+		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
+			| { fromDateTime: string; toDateTime: string }
+			| undefined;
+		assert.strictEqual(filter?.fromDateTime, fromDateTime);
+		const toDateTime = Date.parse(filter?.toDateTime ?? "");
+		assert.ok(toDateTime >= before && toDateTime <= after);
+		assert.strictEqual(res.json().meta.toDateTime, filter?.toDateTime);
+	});
+
 	test("200: three full calendar months (July to October, 92 days) are allowed", async () => {
 		const res = await app.inject({
 			method: "GET",
-			url: "/api/v1/users/u1/transactions?fromDateTime=2026-07-01T00:00:00.000Z&toDateTime=2026-10-01T00:00:00.000Z"
+			url: `/api/v1/users/${USER_ID}/transactions?fromDateTime=2026-07-01T00:00:00.000Z&toDateTime=2026-10-01T00:00:00.000Z`
 		});
 		assert.strictEqual(res.statusCode, 200);
 	});
@@ -266,7 +326,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	test("200: detail maps the row to the wire shape, source as a typed union", async () => {
 		const res = await app.inject({
 			method: "GET",
-			url: `/api/v1/users/u1/transactions/${TX_ID}`
+			url: `/api/v1/users/${USER_ID}/transactions/${TX_ID}`
 		});
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
@@ -292,7 +352,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 		assert.deepStrictEqual(
 			getTransactionDetail.mock.calls[0]?.arguments.at(0),
-			{ userId: "u1", transactionId: TX_ID }
+			{ userId: USER_ID, transactionId: TX_ID }
 		);
 	});
 
@@ -312,7 +372,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 
 		const res = await app.inject({
 			method: "GET",
-			url: `/api/v1/users/u1/transactions/${TX_ID}`
+			url: `/api/v1/users/${USER_ID}/transactions/${TX_ID}`
 		});
 		assert.strictEqual(res.statusCode, 200);
 		const fundingSource = res.json().fundingSource;
@@ -333,7 +393,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		);
 		const res = await app.inject({
 			method: "GET",
-			url: `/api/v1/users/u1/transactions/${TX_ID}`
+			url: `/api/v1/users/${USER_ID}/transactions/${TX_ID}`
 		});
 		assert.strictEqual(res.statusCode, 404);
 		assert.ok(
@@ -362,10 +422,12 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 		const body = res.json();
 
+		const self = new URL(body.links.self, "http://client.example");
 		assert.strictEqual(
-			body.links.self,
-			`${LIST_URL}&limit=1&cursorOccurredAt=2026-09-01T00:00:00.000000Z&cursorTransactionId=${TX_ID}`
+			self.searchParams.get("cursorOccurredAt"),
+			"2026-09-01T00:00:00.000000Z"
 		);
+		assert.strictEqual(self.searchParams.get("cursorTransactionId"), TX_ID);
 		assert.deepStrictEqual(body.meta.prevCursor, {
 			occurredAt: "2026-08-15T09:30:00.000123Z",
 			transactionId: TX_ID

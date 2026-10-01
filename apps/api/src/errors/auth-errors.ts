@@ -5,6 +5,7 @@ export type TokenVerificationReason =
 	| "issuer"
 	| "audience"
 	| "algorithm"
+	| "unknown-key"
 	| "missing-claims";
 
 export class TokenVerificationError extends Error {
@@ -38,6 +39,8 @@ export function mapJoseError(err: unknown): TokenVerificationError {
 		return new TokenVerificationError("Bad signature", "signature");
 	if (name === "JOSEAlgNotAllowed")
 		return new TokenVerificationError("Disallowed algorithm", "algorithm");
+	if (name === "JWKSNoMatchingKey")
+		return new TokenVerificationError("Unknown signing key", "unknown-key");
 	if (name === "JWTClaimValidationFailed") {
 		const message = err instanceof Error ? err.message : "";
 		if (message.includes("aud"))

@@ -4,13 +4,18 @@ import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
 import { notFound } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { type Links, problemSchema } from "#src/schemas/common.ts";
+import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
 	mapFundingSource,
 	transactionDetailSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
+import {
+	type CursorDirection,
+	pageLinks,
+	toKeysetPage
+} from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 interface Cursor {
@@ -18,33 +23,23 @@ interface Cursor {
 	transactionId: string;
 }
 
-type CursorDirection = "next" | "prev";
-
-function cursorOf(row: { cursorOccurredAt: string; transactionId: string }) {
+function cursorOf(row: {
+	cursorOccurredAt: string;
+	transactionId: string;
+}): Cursor {
 	return { occurredAt: row.cursorOccurredAt, transactionId: row.transactionId };
 }
 
-/**
- * The request's own path and query with the cursor replaced, so every filter
- * the caller sent carries over exactly as sent. Relative, so the API never has
- * to know the public host it is reached through.
- */
-function pageLink(
-	requestUrl: string,
+/** The query params that ask for the page on the other side of a cursor */
+function cursorParams(
 	cursor: Cursor,
 	cursorDirection: CursorDirection
-): string {
-	const queryStart = requestUrl.indexOf("?");
-	const path = queryStart === -1 ? requestUrl : requestUrl.slice(0, queryStart);
-	const params = new URLSearchParams(
-		queryStart === -1 ? "" : requestUrl.slice(queryStart + 1)
-	);
-
-	params.set("cursorOccurredAt", cursor.occurredAt);
-	params.set("cursorTransactionId", cursor.transactionId);
-	params.set("cursorDirection", cursorDirection);
-
-	return `${path}?${params.toString()}`;
+): Record<string, string> {
+	return {
+		cursorOccurredAt: cursor.occurredAt,
+		cursorTransactionId: cursor.transactionId,
+		cursorDirection
+	};
 }
 
 export default async (
@@ -68,16 +63,14 @@ export default async (
 			tags: ["transactions"],
 			hide: false,
 			params: z.object({
-				userId: z.string()
+				userId: z.uuid()
 			}),
 			querystring: z
 				.object({
-					fromDateTime: z.iso.datetime(),
-					toDateTime: z.iso
-						.datetime()
-						.describe(
-							`Exclusive. At most ${maxWindowDays} days after fromDateTime`
-						),
+					fromDateTime: windowDateTimeSchema,
+					toDateTime: windowDateTimeSchema.describe(
+						`Exclusive. At most ${maxWindowDays} days after fromDateTime`
+					),
 					accountId: z
 						.union([z.string(), z.string().array()])
 						.describe("The accountId")
@@ -146,13 +139,9 @@ export default async (
 				limit: limit + 1
 			});
 
-			const hasMore = rows.length > limit;
-			const fetched = hasMore ? rows.slice(0, limit) : rows;
-			// A prev page is read upwards, oldest first; every page is served newest first
-			const page =
-				cursorDirection === "prev" ? fetched.slice().reverse() : fetched;
+			const page = toKeysetPage(rows, limit, cursorDirection, hasCursor);
 
-			const data = page.map((row) => ({
+			const data = page.rows.map((row) => ({
 				transactionId: row.transactionId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
 				transactionType: row.transactionType,
@@ -166,20 +155,21 @@ export default async (
 				shortDescription: row.shortDescription
 			}));
 
-			// Older rows exist when the page was read downwards and came back full,
-			// or was read upwards from a cursor (the page it came from is older).
-			// Newer rows are the mirror image.
-			const hasOlder = cursorDirection === "next" ? hasMore : hasCursor;
-			const hasNewer = cursorDirection === "prev" ? hasMore : hasCursor;
+			const nextCursor = page.nextFrom ? cursorOf(page.nextFrom) : null;
+			const prevCursor = page.prevFrom ? cursorOf(page.prevFrom) : null;
 
-			const firstRow = page.at(0);
-			const lastRow = page.at(-1);
-			const nextCursor = hasOlder && lastRow ? cursorOf(lastRow) : null;
-			const prevCursor = hasNewer && firstRow ? cursorOf(firstRow) : null;
-
-			const links: Links = { self: request.url };
-			if (nextCursor) links.next = pageLink(request.url, nextCursor, "next");
-			if (prevCursor) links.prev = pageLink(request.url, prevCursor, "prev");
+			// The window as parsed, so a future toDateTime is already now. Every
+			// link carries it, and the whole walk reads the same window.
+			const windowParams = {
+				fromDateTime: request.query.fromDateTime,
+				toDateTime: request.query.toDateTime
+			};
+			const links = pageLinks(
+				request.url,
+				windowParams,
+				nextCursor ? cursorParams(nextCursor, "next") : null,
+				prevCursor ? cursorParams(prevCursor, "prev") : null
+			);
 
 			return reply.send({
 				data,
@@ -208,7 +198,7 @@ export default async (
 			tags: ["transactions"],
 			hide: false,
 			params: z.object({
-				userId: z.string(),
+				userId: z.uuid(),
 				transactionId: z.uuid()
 			}),
 			response: {

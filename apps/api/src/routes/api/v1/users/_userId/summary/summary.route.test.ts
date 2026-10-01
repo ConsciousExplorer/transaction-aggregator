@@ -9,7 +9,11 @@ import summaryRoute from "./summary.route.ts";
 
 const FROM = "2026-08-01T00:00:00.000Z";
 const TO = "2026-09-01T00:00:00.000Z";
-const BASE_URL = `/api/v1/users/u1/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
+const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
+const BASE_URL = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
+// links.self is the request with the window as read, its query serialized
+const BASE_SELF = `/api/v1/users/${USER_ID}/summary?${new URLSearchParams({ fromDateTime: FROM, toDateTime: TO })}`;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const zar = (amountMinor: number) => ({ amountMinor, currency: "ZAR" });
 
@@ -96,7 +100,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 					credit: { count: 0, total: zar(0) }
 				}
 			],
-			links: { self: BASE_URL },
+			links: { self: BASE_SELF },
 			meta: {
 				count: 2,
 				fromDateTime: FROM,
@@ -110,7 +114,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		await app.inject({ method: "GET", url: `${BASE_URL}&interval=month` });
 		assert.strictEqual(getUserSummary.mock.callCount(), 1);
 		assert.deepStrictEqual(getUserSummary.mock.calls[0]?.arguments.at(0), {
-			userId: "u1",
+			userId: USER_ID,
 			fromDate: FROM,
 			toDate: TO,
 			category: undefined,
@@ -121,7 +125,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 	test("400: missing required query → validation problem, repository untouched", async () => {
 		const res = await app.inject({
 			method: "GET",
-			url: "/api/v1/users/u1/summary"
+			url: `/api/v1/users/${USER_ID}/summary`
 		});
 		assert.strictEqual(res.statusCode, 400);
 		assert.ok(
@@ -131,10 +135,20 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
+	test("400: a userId that isn't a UUID → validation problem, repository untouched", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `/api/v1/users/not-a-uuid/summary?fromDateTime=${FROM}&toDateTime=${TO}`
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(getUserSummary.mock.callCount(), 0);
+	});
+
 	test("400: a window wider than 366 days is rejected before the query runs", async () => {
 		const res = await app.inject({
 			method: "GET",
-			url: "/api/v1/users/u1/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:01.000Z"
+			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:01.000Z`
 		});
 		assert.strictEqual(res.statusCode, 400);
 		assert.deepStrictEqual(res.json(), {
@@ -146,10 +160,32 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
+	test("a future toDateTime is read as now, and the window is measured from there", async () => {
+		// 300 days back to 2099 is far over the cap; 300 days back to now is not
+		const fromDateTime = new Date(Date.now() - 300 * DAY_MS).toISOString();
+		const before = Date.now();
+		const res = await app.inject({
+			method: "GET",
+			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=${fromDateTime}&toDateTime=2099-01-01T00:00:00.000Z`
+		});
+		const after = Date.now();
+
+		assert.strictEqual(res.statusCode, 200);
+		const filter = getUserSummary.mock.calls[0]?.arguments.at(0) as
+			| { fromDate: string; toDate: string }
+			| undefined;
+		assert.strictEqual(filter?.fromDate, fromDateTime);
+		const toDate = Date.parse(filter?.toDate ?? "");
+		assert.ok(toDate >= before && toDate <= after);
+		assert.strictEqual(res.json().meta.toDateTime, filter?.toDate);
+		const self = new URL(res.json().links.self, "http://client.example");
+		assert.strictEqual(self.searchParams.get("toDateTime"), filter?.toDate);
+	});
+
 	test("200: twelve calendar months across a leap day (366 days) are allowed", async () => {
 		const res = await app.inject({
 			method: "GET",
-			url: "/api/v1/users/u1/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:00.000Z"
+			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:00.000Z`
 		});
 		assert.strictEqual(res.statusCode, 200);
 	});
