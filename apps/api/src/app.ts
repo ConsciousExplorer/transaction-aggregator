@@ -26,6 +26,7 @@ const server: FastifyInstance = buildServer({
 	categoryRepository: categoryRepository,
 	transactionRepository: transactionRepository,
 	summaryRepository: summaryRepository,
+	queryWindow: config.queryWindow,
 	pluginAutoLoadParameters: {
 		dir: join(import.meta.dirname, "plugins"),
 		enableSwagger: config.api.enableSwagger

@@ -8,7 +8,6 @@ export class HttpProblem extends Error {
 		detail?: string;
 		errors?: unknown[];
 		traceId?: string;
-		retryAfter?: number;
 	};
 	constructor(payload: HttpProblem["payload"]) {
 		super(payload.title);
@@ -33,11 +32,12 @@ export function invalidCursor() {
 	});
 }
 
-export function windowTooLarge() {
+export function windowTooLarge(maxDays: number) {
 	return new HttpProblem({
 		type: "window-too-large",
-		title: "Time window exceeds 18 months",
-		status: 400
+		title: "Time window too large",
+		status: 400,
+		detail: `fromDateTime to toDateTime may span at most ${maxDays} days`
 	});
 }
 
@@ -62,15 +62,6 @@ export function notFound() {
 		type: "not-found",
 		title: "Resource not found",
 		status: 404
-	});
-}
-
-export function rateLimited(retryAfter: number) {
-	return new HttpProblem({
-		type: "rate-limited",
-		title: "Rate limit exceeded",
-		status: 429,
-		retryAfter: retryAfter
 	});
 }
 

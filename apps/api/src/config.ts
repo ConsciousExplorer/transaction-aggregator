@@ -29,7 +29,7 @@ const configSchema = z
 		DATABASE_USER: z.string().default("api_write"),
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
-		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(50),
 
 		AUTH_JWKS_URI: z
 			.url()
@@ -43,7 +43,14 @@ const configSchema = z
 			.default("http://keycloak:8086/realms/txn-api"),
 		AUTH_AUDIENCE: z.string().optional().default("txn-api"),
 
-		RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100) // per client, per minute
+		// Widest fromDateTime → toDateTime span each endpoint accepts. Any three
+		// calendar months fit in 92 days, any twelve in 366.
+		WINDOW_MAX_DAYS_TRANSACTIONS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(92),
+		WINDOW_MAX_DAYS_SUMMARY: z.coerce.number().int().positive().default(366)
 	})
 	.transform((e) =>
 		Object.freeze({
@@ -73,7 +80,10 @@ const configSchema = z
 				issuer: e.AUTH_ISSUER,
 				audience: e.AUTH_AUDIENCE
 			}),
-			rateLimit: Object.freeze({ max: e.RATE_LIMIT_MAX }),
+			queryWindow: Object.freeze({
+				transactionsMaxDays: e.WINDOW_MAX_DAYS_TRANSACTIONS,
+				summaryMaxDays: e.WINDOW_MAX_DAYS_SUMMARY
+			}),
 			secretsSpec: Object.freeze({
 				dir: e.SECRET_DIR,
 				secrets: Object.freeze({
@@ -85,6 +95,7 @@ const configSchema = z
 
 export type Config = z.infer<typeof configSchema>;
 export type AppInfoConfig = z.infer<typeof appInfoSchema>;
+export type QueryWindowConfig = Config["queryWindow"];
 
 export function loadPackageInfo(pkg: unknown): AppInfoConfig {
 	const config = appInfoSchema.safeParse(pkg);

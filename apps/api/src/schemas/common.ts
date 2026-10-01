@@ -6,8 +6,7 @@ export const problemSchema = z.object({
 	status: z.number(),
 	detail: z.string().optional(),
 	errors: z.array(z.unknown()).optional(),
-	trace_id: z.string().optional(),
-	retry_after: z.number().optional()
+	trace_id: z.string().optional()
 });
 
 // Every collection response is { data, links, meta }. links.self is the

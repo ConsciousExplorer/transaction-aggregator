@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import { buildServer } from "#src/server.ts";
-import { loadPackageInfo } from "#src/config.ts";
+import { loadConfig, loadPackageInfo } from "#src/config.ts";
 
 // 
 const packageInfoConfig = loadPackageInfo(packageJson)
@@ -40,8 +40,12 @@ function sortRoot(doc: Record<string, unknown>): Record<string, unknown> {
 	);
 }
 
+// Defaults only, so the contract never depends on the shell it is generated in
+const { queryWindow } = loadConfig({});
+
 const app = buildServer({
 	appInfo: packageInfoConfig,
+	queryWindow,
 	pluginAutoLoadParameters: {
 			dir: resolve(import.meta.dirname, "../src/plugins"),
 			routeParams: true,

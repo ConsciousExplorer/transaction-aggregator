@@ -15,7 +15,7 @@ import fastify, {
 import type { Pool } from "pg";
 import { type Logger, pino } from "pino";
 import type { TokenVerifier } from "./auth/verifier.ts";
-import type { AppInfoConfig } from "./config.ts";
+import type { AppInfoConfig, QueryWindowConfig } from "./config.ts";
 import {
 	fromStatus,
 	HttpProblem,
@@ -40,6 +40,7 @@ export type BuildServerOptions = {
 	categoryRepository?: CategoryRepository;
 	transactionRepository?: UserTransactionRepository;
 	summaryRepository?: SummaryRepository;
+	queryWindow?: QueryWindowConfig;
 	pluginAutoLoadParameters?: AutoloadPluginOptions & {
 		enableSwagger?: boolean;
 	};
@@ -71,7 +72,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		database,
 		categoryRepository,
 		transactionRepository,
-		summaryRepository
+		summaryRepository,
+		queryWindow
 	} = options;
 
 	const server = fastify({
@@ -138,7 +140,8 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 				database,
 				categoryRepository,
 				transactionRepository,
-				summaryRepository
+				summaryRepository,
+				queryWindow
 			}
 		});
 	}
@@ -156,8 +159,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 }
 
 function send(reply: FastifyReply, problem: HttpProblem) {
-	if (problem.payload.retryAfter)
-		reply.header("retry-after", problem.payload.retryAfter);
 	return reply
 		.code(problem.payload.status)
 		.type("application/problem+json")

@@ -1,13 +1,16 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
+import type { QueryWindowConfig } from "#src/config.ts";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
 import {
 	amountSchema,
 	collectionMetaSchema,
 	linksSchema,
+	problemSchema,
 	signedAmountSchema
 } from "#src/schemas/common.ts";
+import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 // Every amount is a money object. debit and credit totals are positive;
 // netAmount is the one signed figure.
@@ -85,8 +88,10 @@ function sumTotals(rows: SummaryRow[]): SummaryTotal {
 
 export default async (
 	fastify: FastifyInstance,
-	opts: { summaryRepository: SummaryRepository }
+	opts: { summaryRepository: SummaryRepository; queryWindow: QueryWindowConfig }
 ) => {
+	const maxWindowDays = opts.queryWindow.summaryMaxDays;
+
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
@@ -103,7 +108,11 @@ export default async (
 			}),
 			querystring: z.object({
 				fromDateTime: z.iso.datetime(),
-				toDateTime: z.iso.datetime(),
+				toDateTime: z.iso
+					.datetime()
+					.describe(
+						`Exclusive. At most ${maxWindowDays} days after fromDateTime`
+					),
 				accountId: z
 					.union([z.string(), z.string().array()])
 					.describe("The accountId")
@@ -117,10 +126,17 @@ export default async (
 					data: summaryItemSchema.array(),
 					links: linksSchema,
 					meta: metaSchema
-				})
+				}),
+				400: problemSchema
 			}
 		},
 		handler: async (request, reply) => {
+			assertWindowWithin(
+				request.query.fromDateTime,
+				request.query.toDateTime,
+				maxWindowDays
+			);
+
 			const result = await opts.summaryRepository.getUserSummary({
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,

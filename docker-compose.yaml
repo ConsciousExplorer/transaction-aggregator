@@ -657,6 +657,10 @@ services:
       AUTH_ISSUER: "http://localhost:8086/realms/txn-api"
       AUTH_AUDIENCE: 'txn-api'
 
+      # Widest fromDateTime → toDateTime span per endpoint, in days
+      WINDOW_MAX_DAYS_TRANSACTIONS: 92
+      WINDOW_MAX_DAYS_SUMMARY: 366
+
     networks: [txn-network]
 
   # ─────────────────────── Optional: cache profile ───────────────────────

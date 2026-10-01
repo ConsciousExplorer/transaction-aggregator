@@ -19,6 +19,7 @@ suite("route auth config", () => {
 
 	before(async () => {
 		app = buildServer({
+			queryWindow: { transactionsMaxDays: 92, summaryMaxDays: 366 },
 			routeAutoLoadParameters: {
 				dir: import.meta.dirname,
 				dirNameRoutePrefix: true,

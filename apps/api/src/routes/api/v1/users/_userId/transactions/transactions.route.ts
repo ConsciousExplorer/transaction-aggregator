@@ -1,6 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
+import type { QueryWindowConfig } from "#src/config.ts";
 import { notFound } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { type Links, problemSchema } from "#src/schemas/common.ts";
@@ -10,6 +11,7 @@ import {
 	transactionDetailSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
+import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 interface Cursor {
 	occurredAt: string;
@@ -49,8 +51,11 @@ export default async (
 	fastify: FastifyInstance,
 	opts: {
 		transactionRepository: UserTransactionRepository;
+		queryWindow: QueryWindowConfig;
 	}
 ) => {
+	const maxWindowDays = opts.queryWindow.transactionsMaxDays;
+
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
 		url: "",
@@ -68,7 +73,11 @@ export default async (
 			querystring: z
 				.object({
 					fromDateTime: z.iso.datetime(),
-					toDateTime: z.iso.datetime(),
+					toDateTime: z.iso
+						.datetime()
+						.describe(
+							`Exclusive. At most ${maxWindowDays} days after fromDateTime`
+						),
 					accountId: z
 						.union([z.string(), z.string().array()])
 						.describe("The accountId")
@@ -111,6 +120,12 @@ export default async (
 			}
 		},
 		handler: async (request, reply) => {
+			assertWindowWithin(
+				request.query.fromDateTime,
+				request.query.toDateTime,
+				maxWindowDays
+			);
+
 			const limit = request.query.limit;
 			const cursorDirection = request.query.cursorDirection;
 			const hasCursor = request.query.cursorOccurredAt !== undefined;

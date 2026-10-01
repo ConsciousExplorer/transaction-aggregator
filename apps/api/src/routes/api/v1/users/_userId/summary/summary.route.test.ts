@@ -56,7 +56,8 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		app = buildServer({});
 		await app.register(summaryRoute, {
 			prefix: "/api/v1/users/:userId/summary",
-			summaryRepository
+			summaryRepository,
+			queryWindow: { transactionsMaxDays: 92, summaryMaxDays: 366 }
 		});
 		await app.ready();
 	});
@@ -128,6 +129,29 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		);
 		assert.strictEqual(res.json().type, "validation-error");
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
+	});
+
+	test("400: a window wider than 366 days is rejected before the query runs", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: "/api/v1/users/u1/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:01.000Z"
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.deepStrictEqual(res.json(), {
+			type: "window-too-large",
+			title: "Time window too large",
+			status: 400,
+			detail: "fromDateTime to toDateTime may span at most 366 days"
+		});
+		assert.strictEqual(getUserSummary.mock.callCount(), 0);
+	});
+
+	test("200: twelve calendar months across a leap day (366 days) are allowed", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: "/api/v1/users/u1/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:00.000Z"
+		});
+		assert.strictEqual(res.statusCode, 200);
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
