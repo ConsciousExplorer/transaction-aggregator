@@ -18,6 +18,9 @@ export interface AuthConfig {
 // https://datatracker.ietf.org/doc/html/rfc9068#name-data-structure
 const verifiedClaimsSchema = z.looseObject({
 	sub: z.string(),
+	// The client that asked for the token. With client credentials sub is the
+	// identity provider's internal service-account id, not the app.
+	azp: z.string(),
 	scope: z.string()
 });
 
@@ -60,7 +63,7 @@ export function createTokenVerifier(
 }
 
 export function getContext(claims: VerifiedClaims): AuthContext {
-	return { clientId: claims.sub, scope: claims.scope.split(" ") };
+	return { clientId: claims.azp, scope: claims.scope.split(" ") };
 }
 
 export function getAuthScopes(

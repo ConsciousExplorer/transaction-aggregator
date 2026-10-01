@@ -19,7 +19,8 @@ export class CategoryRepository {
 				category: categories.category,
 				label: categories.label
 			})
-			.from(categories);
+			.from(categories)
+			.orderBy(categories.label, categories.categoryId);
 		return result;
 	}
 
@@ -62,7 +63,7 @@ export class CategoryRepository {
 				toCategories,
 				eq(toCategories.categoryId, userCategoryOverrides.toCategoryId)
 			)
-			.orderBy(categories.categoryId);
+			.orderBy(categories.label, categories.categoryId);
 
 		return result;
 	}

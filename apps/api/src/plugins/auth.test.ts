@@ -8,8 +8,16 @@ import authPlugin from "./auth.ts";
 // Real verification is covered in verifier.test.ts; here only the hook's
 // decisions matter, so a token string maps straight to its claims.
 const TOKENS: Record<string, VerifiedClaims> = {
-	"read-token": { sub: "banking-service", scope: "tx:read" },
-	"write-token": { sub: "banking-portal", scope: "tx:read tx:write" }
+	"read-token": {
+		sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
+		azp: "banking-service",
+		scope: "tx:read"
+	},
+	"write-token": {
+		sub: "7d2e9b40-3c1a-4f5e-a6b7-8c9d0e1f2a3b",
+		azp: "banking-portal",
+		scope: "tx:read tx:write"
+	}
 };
 
 const tokenVerifier: TokenVerifier = {

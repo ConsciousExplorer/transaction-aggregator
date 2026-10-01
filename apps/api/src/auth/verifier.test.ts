@@ -83,11 +83,16 @@ suite("Token Verifier", () => {
 	});
 
 	test("should verify a valid token", async () => {
-		const token = await signToken({ sub: "user-123", scope: "read write" });
+		const token = await signToken({
+			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
+			azp: "banking-service",
+			scope: "read write"
+		});
 
 		const claims = await verifier.verifyToken(token);
 
-		assert.equal(claims.sub, "user-123");
+		assert.equal(claims.sub, "4fc8a801-206d-48ec-b511-d1f97e2f057b");
+		assert.equal(claims.azp, "banking-service");
 		assert.equal(claims.scope, "read write");
 		assert.equal(claims.iss, ISS);
 		assert.equal(claims.aud, AUD);
@@ -146,16 +151,21 @@ suite("Token Verifier", () => {
 });
 
 suite("parseClaims", () => {
-	test("returns the claims when sub and scope are present strings", () => {
-		const claims = parseClaims({ sub: "user-123", scope: "read write" });
+	test("returns the claims when sub, azp and scope are present strings", () => {
+		const claims = parseClaims({
+			sub: "user-123",
+			azp: "banking-service",
+			scope: "read write"
+		});
 
 		assert.equal(claims.sub, "user-123");
+		assert.equal(claims.azp, "banking-service");
 		assert.equal(claims.scope, "read write");
 	});
 
 	test("rejects a payload missing sub", () => {
 		assert.throws(
-			() => parseClaims({ scope: "read write" }),
+			() => parseClaims({ azp: "banking-service", scope: "read write" }),
 			(err: unknown) => {
 				assert.ok(err instanceof TokenVerificationError);
 				assert.equal(err.reason, "missing-claims");
@@ -164,9 +174,21 @@ suite("parseClaims", () => {
 		);
 	});
 
+	test("rejects a payload missing azp, the client the token was issued to", () => {
+		assert.throws(
+			() => parseClaims({ sub: "user-123", scope: "read write" }),
+			(err: unknown) => {
+				assert.ok(err instanceof InvalidClaimsError);
+				const [issue] = err.issues as { path: unknown }[];
+				assert.deepEqual(issue?.path, ["azp"]);
+				return true;
+			}
+		);
+	});
+
 	test("rejects a payload missing scope", () => {
 		assert.throws(
-			() => parseClaims({ sub: "user-123" }),
+			() => parseClaims({ sub: "user-123", azp: "banking-service" }),
 			(err: unknown) => {
 				assert.ok(err instanceof TokenVerificationError);
 				assert.equal(err.reason, "missing-claims");
@@ -177,7 +199,12 @@ suite("parseClaims", () => {
 
 	test("rejects a payload where scope is not a string", () => {
 		assert.throws(
-			() => parseClaims({ sub: "user-123", scope: ["read", "write"] }),
+			() =>
+				parseClaims({
+					sub: "user-123",
+					azp: "banking-service",
+					scope: ["read", "write"]
+				}),
 			(err: unknown) => {
 				assert.ok(err instanceof TokenVerificationError);
 				assert.equal(err.reason, "missing-claims");
@@ -188,7 +215,7 @@ suite("parseClaims", () => {
 
 	test("carries the zod issues on the thrown error", () => {
 		assert.throws(
-			() => parseClaims({ scope: "read write" }),
+			() => parseClaims({ azp: "banking-service", scope: "read write" }),
 			(err: unknown) => {
 				assert.ok(err instanceof InvalidClaimsError);
 				assert.equal(err.issues.length, 1);
@@ -201,10 +228,17 @@ suite("parseClaims", () => {
 });
 
 suite("getContext", () => {
-	test("splits the scope claim into an array, keyed by clientId", () => {
-		const ctx = getContext({ sub: "user-123", scope: "read write" });
+	test("the client is azp, not the service-account sub; scope becomes an array", () => {
+		const ctx = getContext({
+			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
+			azp: "banking-service",
+			scope: "read write"
+		});
 
-		assert.deepEqual(ctx, { clientId: "user-123", scope: ["read", "write"] });
+		assert.deepEqual(ctx, {
+			clientId: "banking-service",
+			scope: ["read", "write"]
+		});
 	});
 });
 

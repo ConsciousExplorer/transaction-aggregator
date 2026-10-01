@@ -1,6 +1,7 @@
 import {
 	and,
 	count,
+	desc,
 	eq,
 	gte,
 	inArray,
@@ -100,6 +101,11 @@ export class SummaryRepository {
 		// SQL gotchas
 		// 1. Always use coalesce when counting or aggregating. The return is null and not 0
 		// 2. In drizzle, use mapWith(Number) to cast the response as Number and not string
+		const debitAmount =
+			sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'debit'), 0)`.mapWith(
+				Number
+			);
+
 		const result = await drizzle(this.dbClient)
 			.select({
 				bucketStart,
@@ -114,10 +120,7 @@ export class SummaryRepository {
 					sql<number>`count(*) filter (where ${transactions.direction} = 'credit')`.mapWith(
 						Number
 					),
-				debitAmount:
-					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'debit'), 0)`.mapWith(
-						Number
-					),
+				debitAmount,
 				creditAmount:
 					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'credit'), 0)`.mapWith(
 						Number
@@ -150,7 +153,8 @@ export class SummaryRepository {
 				categories.category,
 				transactions.currency
 			)
-			.orderBy(bucketStart, categories.category);
+			// Buckets in time order; within a bucket the biggest spend first
+			.orderBy(bucketStart, desc(debitAmount), categories.category);
 
 		return result;
 	}
