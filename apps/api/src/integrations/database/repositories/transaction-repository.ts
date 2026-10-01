@@ -14,7 +14,12 @@ import {
 import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import { transactionTypeSchema } from "#src/schemas/transactions.ts";
+import {
+	type TransactionSort,
+	transactionSortSchema,
+	transactionTypeSchema
+} from "#src/schemas/transactions.ts";
+import type { CursorDirection } from "#src/utils/paging.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import {
 	transactions,
@@ -27,7 +32,7 @@ export const listTransactionsFilterSchema = z.object({
 	userId: z.string(),
 	fromDateTime: z.iso.datetime(),
 	toDateTime: z.iso.datetime(),
-	accountId: z.union([z.string(), z.string().array()]).optional(),
+	accountId: z.union([z.uuid(), z.uuid().array()]).optional(),
 	transactionType: z
 		.union([transactionTypeSchema, transactionTypeSchema.array()])
 		.optional(),
@@ -37,10 +42,11 @@ export const listTransactionsFilterSchema = z.object({
 		.optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
+	sort: transactionSortSchema.default("-occurredAt"),
 	cursorOccurredAt: z.iso.datetime().optional(),
 	cursorTransactionId: z.uuid().optional(),
-	// next: rows older than the cursor. prev: rows newer than the cursor,
-	// returned oldest first; the caller flips them.
+	// next: the rows after the cursor in sort order. prev: the rows before it,
+	// read the other way; the caller flips them back.
 	cursorDirection: z.enum(["next", "prev"]).default("next"),
 	limit: z.number().int().min(1).max(100).default(50)
 });
@@ -69,6 +75,22 @@ export type SetTransactionCategory = z.infer<
 	typeof setTransactionCategorySchema
 >;
 
+/**
+ * Whether a page is read in ascending (occurred_at, transaction_id) order.
+ * next continues in the sort order. prev reads against it from the cursor,
+ * so that LIMIT keeps the rows nearest the cursor rather than the furthest.
+ */
+export function readsAscending(
+	sort: TransactionSort,
+	cursorDirection: CursorDirection
+): boolean {
+	const sortAscending = sort === "occurredAt";
+	if (cursorDirection === "next") {
+		return sortAscending;
+	}
+	return !sortAscending;
+}
+
 export class UserTransactionRepository {
 	dbClient: NodePgClient;
 
@@ -85,10 +107,17 @@ export class UserTransactionRepository {
 					? filter.category
 					: [filter.category];
 
+		const ascending = readsAscending(filter.sort, filter.cursorDirection);
+
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),
 			gte(transactions.occurredAt, filter.fromDateTime),
 			lt(transactions.occurredAt, filter.toDateTime),
+			filter.accountId !== undefined
+				? Array.isArray(filter.accountId)
+					? inArray(transactions.accountId, filter.accountId)
+					: eq(transactions.accountId, filter.accountId)
+				: undefined,
 			filter.transactionType !== undefined
 				? Array.isArray(filter.transactionType)
 					? inArray(transactions.transactionType, filter.transactionType)
@@ -110,18 +139,15 @@ export class UserTransactionRepository {
 				: undefined,
 			filter.cursorOccurredAt !== undefined &&
 			filter.cursorTransactionId !== undefined
-				? filter.cursorDirection === "prev"
+				? ascending
 					? sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
 					: sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
 				: undefined
 		];
 
-		// Reading upwards from the cursor has to walk the index the other way,
-		// otherwise LIMIT would keep the newest rows instead of the nearest ones
-		const order =
-			filter.cursorDirection === "prev"
-				? [asc(transactions.occurredAt), asc(transactions.transactionId)]
-				: [desc(transactions.occurredAt), desc(transactions.transactionId)];
+		const order = ascending
+			? [asc(transactions.occurredAt), asc(transactions.transactionId)]
+			: [desc(transactions.occurredAt), desc(transactions.transactionId)];
 
 		const result = await drizzle(this.dbClient)
 			.select({

@@ -114,8 +114,10 @@ export default async (
 					`Exclusive. At most ${maxWindowDays} days after fromDateTime`
 				),
 				accountId: z
-					.union([z.string(), z.string().array()])
-					.describe("The accountId")
+					.union([z.uuid(), z.uuid().array()])
+					.describe(
+						"One or more of the user's accounts; all accounts when left out"
+					)
 					.optional(),
 				category: z.union([z.string(), z.string().array()]).optional(),
 				interval: z.enum(["day", "week", "month"]).optional()
@@ -141,6 +143,7 @@ export default async (
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,
+				accountId: request.query.accountId,
 				category: request.query.category,
 				interval: request.query.interval
 			});

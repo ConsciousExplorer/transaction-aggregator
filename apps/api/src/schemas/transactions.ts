@@ -17,6 +17,10 @@ export const transactionStatusSchema = z.enum([
 	"failed"
 ]);
 
+// -occurredAt is newest first, occurredAt oldest first
+export const transactionSortSchema = z.enum(["-occurredAt", "occurredAt"]);
+export type TransactionSort = z.infer<typeof transactionSortSchema>;
+
 export const listQuerySchema = z.object({
 	from: z.iso.datetime().optional(),
 	to: z.iso.datetime().optional(),
@@ -54,6 +58,7 @@ export const listResponseSchema = z.object({
 	// keyset pagination avoids.
 	meta: collectionMetaSchema.extend({
 		limit: z.number().int(),
+		sort: transactionSortSchema,
 		fromDateTime: z.iso.datetime(),
 		toDateTime: z.iso.datetime(),
 		// For clients that build their own request: send the pair back as

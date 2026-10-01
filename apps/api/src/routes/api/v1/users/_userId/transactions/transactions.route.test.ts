@@ -144,6 +144,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			meta: {
 				count: 2,
 				limit: 50,
+				sort: "-occurredAt",
 				fromDateTime: FROM,
 				toDateTime: TO,
 				nextCursor: null,
@@ -162,16 +163,59 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			userId: USER_ID,
 			fromDateTime: FROM,
 			toDateTime: TO,
+			accountId: undefined,
 			transactionType: "card",
 			category: "groceries",
 			direction: undefined,
 			amountMin: undefined,
 			amountMax: undefined,
+			sort: "-occurredAt",
 			cursorOccurredAt: undefined,
 			cursorTransactionId: undefined,
 			cursorDirection: "next",
 			limit: 51
 		});
+	});
+
+	test("accountId narrows the list to those accounts, one or many", async () => {
+		await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&accountId=5e2f8a10-4b3c-4d1e-9f6a-7b8c9d0e1f2a&accountId=6f3a9b21-5c4d-4e2f-8a7b-8c9d0e1f2a3b`
+		});
+		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
+			| { accountId?: unknown }
+			| undefined;
+		assert.deepStrictEqual(filter?.accountId, [
+			"5e2f8a10-4b3c-4d1e-9f6a-7b8c9d0e1f2a",
+			"6f3a9b21-5c4d-4e2f-8a7b-8c9d0e1f2a3b"
+		]);
+	});
+
+	test("400: an accountId that isn't a UUID → validation problem, repository untouched", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&accountId=not-a-uuid`
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(getTransactions.mock.callCount(), 0);
+	});
+
+	test("sort=occurredAt reaches the repository and every link keeps it", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&sort=occurredAt&limit=1`
+		});
+		assert.strictEqual(res.statusCode, 200);
+		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
+			| { sort?: string }
+			| undefined;
+		assert.strictEqual(filter?.sort, "occurredAt");
+
+		const body = res.json();
+		assert.strictEqual(body.meta.sort, "occurredAt");
+		const next = new URL(body.links.next, "http://client.example");
+		assert.strictEqual(next.searchParams.get("sort"), "occurredAt");
 	});
 
 	test("200: a full page returns limit rows and a cursor from the last one", async () => {

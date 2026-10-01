@@ -25,6 +25,7 @@ export const userSummaryFilter = z.object({
 	userId: z.string(),
 	fromDate: z.iso.datetime(),
 	toDate: z.iso.datetime(),
+	accountId: z.union([z.uuid(), z.uuid().array()]).optional(),
 	transactionType: z
 		.union([transactionTypeSchema, transactionTypeSchema.array()])
 		.optional(),
@@ -77,6 +78,11 @@ export class SummaryRepository {
 			eq(transactions.status, "completed"),
 			gte(transactions.occurredAt, filter.fromDate),
 			lt(transactions.occurredAt, filter.toDate),
+			filter.accountId !== undefined
+				? Array.isArray(filter.accountId)
+					? inArray(transactions.accountId, filter.accountId)
+					: eq(transactions.accountId, filter.accountId)
+				: undefined,
 			filter.transactionType !== undefined
 				? Array.isArray(filter.transactionType)
 					? inArray(transactions.transactionType, filter.transactionType)

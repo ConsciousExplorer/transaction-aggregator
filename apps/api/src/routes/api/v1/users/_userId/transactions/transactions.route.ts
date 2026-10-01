@@ -9,6 +9,7 @@ import {
 	listResponseSchema,
 	mapFundingSource,
 	transactionDetailSchema,
+	transactionSortSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 import {
@@ -72,8 +73,10 @@ export default async (
 						`Exclusive. At most ${maxWindowDays} days after fromDateTime`
 					),
 					accountId: z
-						.union([z.string(), z.string().array()])
-						.describe("The accountId")
+						.union([z.uuid(), z.uuid().array()])
+						.describe(
+							"One or more of the user's accounts; all accounts when left out"
+						)
 						.optional(),
 					transactionType: z
 						.union([transactionTypeSchema, transactionTypeSchema.array()])
@@ -89,8 +92,12 @@ export default async (
 						.optional(),
 					amountMin: z.coerce.number().int().optional(),
 					amountMax: z.coerce.number().int().optional(),
+					sort: transactionSortSchema
+						.default("-occurredAt")
+						.describe("-occurredAt is newest first, occurredAt oldest first"),
 					// A page boundary from meta.nextCursor or meta.prevCursor; links.next
-					// and links.prev already carry them. next reads older rows, prev newer.
+					// and links.prev already carry them. next continues in the sort
+					// order, prev goes back against it.
 					cursorOccurredAt: z.iso.datetime().optional(),
 					cursorTransactionId: z.uuid().optional(),
 					cursorDirection: z.enum(["next", "prev"]).default("next"),
@@ -128,11 +135,13 @@ export default async (
 				userId: request.params.userId,
 				fromDateTime: request.query.fromDateTime,
 				toDateTime: request.query.toDateTime,
+				accountId: request.query.accountId,
 				transactionType: request.query.transactionType,
 				category: request.query.category,
 				direction: request.query.direction,
 				amountMin: request.query.amountMin,
 				amountMax: request.query.amountMax,
+				sort: request.query.sort,
 				cursorOccurredAt: request.query.cursorOccurredAt,
 				cursorTransactionId: request.query.cursorTransactionId,
 				cursorDirection,
@@ -177,6 +186,7 @@ export default async (
 				meta: {
 					count: data.length,
 					limit,
+					sort: request.query.sort,
 					fromDateTime: request.query.fromDateTime,
 					toDateTime: request.query.toDateTime,
 					nextCursor,

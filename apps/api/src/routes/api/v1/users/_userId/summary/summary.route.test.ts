@@ -117,9 +117,34 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			userId: USER_ID,
 			fromDate: FROM,
 			toDate: TO,
+			accountId: undefined,
 			category: undefined,
 			interval: "month"
 		});
+	});
+
+	test("accountId narrows the summary to that account", async () => {
+		await app.inject({
+			method: "GET",
+			url: `${BASE_URL}&accountId=5e2f8a10-4b3c-4d1e-9f6a-7b8c9d0e1f2a`
+		});
+		const filter = getUserSummary.mock.calls[0]?.arguments.at(0) as
+			| { accountId?: unknown }
+			| undefined;
+		assert.strictEqual(
+			filter?.accountId,
+			"5e2f8a10-4b3c-4d1e-9f6a-7b8c9d0e1f2a"
+		);
+	});
+
+	test("400: an accountId that isn't a UUID → validation problem, repository untouched", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${BASE_URL}&accountId=not-a-uuid`
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
 	test("400: missing required query → validation problem, repository untouched", async () => {
