@@ -57,7 +57,9 @@ export default fastifyPlugin<{
 			}
 		);
 
-		fastify.addHook("preHandler", async (request, _reply) => {
+		// onRequest, before validation: a caller without a valid token gets 401,
+		// never a 400 that describes the route's schema
+		fastify.addHook("onRequest", async (request, _reply) => {
 			// Routes are guarded by default, can only opt out by setting config : { authConfig: {public: true }}
 			if (request.routeOptions.config?.authConfig?.public) return;
 			// @fastify/swagger-ui registers its own routes, so they can't carry config.public

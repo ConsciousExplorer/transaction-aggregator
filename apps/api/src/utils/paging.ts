@@ -44,6 +44,10 @@ export function toKeysetPage<Row>(
  * The request's own path and query with the given params set, so every other
  * filter carries over exactly as sent. Relative, so the API never has to know
  * the public host it is reached through.
+ *
+ * ":" is left unencoded: it is legal in a query (RFC 3986 §3.4), and a client
+ * that encodes a pasted link again would turn "%3A" into "%253A" and break
+ * every datetime in it.
  */
 export function linkWith(
 	requestUrl: string,
@@ -59,7 +63,7 @@ export function linkWith(
 		query.set(name, value);
 	}
 
-	return `${path}?${query.toString()}`;
+	return `${path}?${query.toString().replaceAll("%3A", ":")}`;
 }
 
 /**

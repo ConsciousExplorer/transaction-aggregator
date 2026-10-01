@@ -10,7 +10,8 @@ import fastify, {
 	type FastifyError,
 	type FastifyInstance,
 	type FastifyReply,
-	type FastifyServerOptions
+	type FastifyServerOptions,
+	LogController
 } from "fastify";
 import type { Pool } from "pg";
 import { type Logger, pino } from "pino";
@@ -78,6 +79,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
 	const server = fastify({
 		loggerInstance: logger,
+		logController: new LogController({ disableRequestLogging: true }),
 		...serverOptions
 	}).withTypeProvider<ZodTypeProvider>();
 

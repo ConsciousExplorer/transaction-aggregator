@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
+import z from "zod";
 import type { TokenVerifier, VerifiedClaims } from "#src/auth/verifier.ts";
 import { buildServer } from "#src/server.ts";
 import authPlugin from "./auth.ts";
@@ -45,6 +46,14 @@ suite("auth hook", () => {
 			async () => ({ ok: true })
 		);
 		app.get(
+			"/validated",
+			{
+				config: { authConfig: { requiredScope: ["tx:read"] } },
+				schema: { querystring: z.object({ limit: z.coerce.number().int() }) }
+			},
+			async () => ({ ok: true })
+		);
+		app.get(
 			"/open",
 			{ config: { authConfig: { public: true } } },
 			async () => ({ ok: true })
@@ -58,6 +67,15 @@ suite("auth hook", () => {
 
 	test("401 without a token", async () => {
 		const res = await app.inject({ method: "GET", url: "/write-only" });
+		assert.strictEqual(res.statusCode, 401);
+		assert.strictEqual(res.json().type, "unauthorized");
+	});
+
+	test("401, not 400, without a token on a request that would fail validation", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: "/validated?limit=many"
+		});
 		assert.strictEqual(res.statusCode, 401);
 		assert.strictEqual(res.json().type, "unauthorized");
 	});

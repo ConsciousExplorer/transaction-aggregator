@@ -11,8 +11,8 @@ const FROM = "2026-08-01T00:00:00.000Z";
 const TO = "2026-09-01T00:00:00.000Z";
 const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
 const BASE_URL = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
-// links.self is the request with the window as read, its query serialized
-const BASE_SELF = `/api/v1/users/${USER_ID}/summary?${new URLSearchParams({ fromDateTime: FROM, toDateTime: TO })}`;
+// links.self is the request with the window as read; ":" stays unencoded
+const BASE_SELF = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const zar = (amountMinor: number) => ({ amountMinor, currency: "ZAR" });

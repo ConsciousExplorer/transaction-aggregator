@@ -76,6 +76,27 @@ suite("linkWith", () => {
 			"/api/v1/things?a=1"
 		);
 	});
+
+	test("datetime values keep ':' unencoded, however the request sent them", () => {
+		const link = linkWith(
+			"/api/v1/things?fromDateTime=2025-12-01T00%3A00%3A00Z",
+			{
+				cursorOccurredAt: "2025-12-30T13:33:01.634000Z"
+			}
+		);
+		// Nothing left for a client that encodes the link again to double-encode
+		assert.strictEqual(
+			link,
+			"/api/v1/things?fromDateTime=2025-12-01T00:00:00Z&cursorOccurredAt=2025-12-30T13:33:01.634000Z"
+		);
+	});
+
+	test("a value with query delimiters in it is still encoded", () => {
+		const link = linkWith("/api/v1/things", { q: "a&b=c d" });
+		const url = new URL(link, "http://client.example");
+		assert.strictEqual(url.searchParams.get("q"), "a&b=c d");
+		assert.deepStrictEqual([...url.searchParams.keys()], ["q"]);
+	});
 });
 
 suite("pageLinks", () => {

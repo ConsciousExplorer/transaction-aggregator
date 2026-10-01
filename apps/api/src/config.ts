@@ -29,7 +29,9 @@ const configSchema = z
 		DATABASE_USER: z.string().default("api_write"),
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
-		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(50),
+		// D55: 50 RPS × ~20–50 ms per query ≈ 1–3 busy connections; 10 is the
+		// headroom, and the cap is what bounds the load this service puts on Postgres
+		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
 		AUTH_JWKS_URI: z
 			.url()

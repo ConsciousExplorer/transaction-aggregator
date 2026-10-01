@@ -646,7 +646,7 @@ services:
       DATABASE_NAME: txn_agg
       DATABASE_PORT: 5432
       DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 3
+      DATABASE_POOL_MAX: 10
       DATABASE_USER: "api_write"
 
       # Secrets
@@ -660,6 +660,15 @@ services:
       # Widest fromDateTime → toDateTime span per endpoint, in days
       WINDOW_MAX_DAYS_TRANSACTIONS: 92
       WINDOW_MAX_DAYS_SUMMARY: 366
+
+    # Readiness, not liveness: /ready runs SELECT 1, so "healthy" means the API
+    # can answer queries. Docker never restarts an unhealthy container, so a
+    # database outage cannot restart-loop a working process.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8083/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
 
     networks: [txn-network]
 

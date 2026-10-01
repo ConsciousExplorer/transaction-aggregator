@@ -5,9 +5,8 @@ import type { Logger } from "pino";
 export type Queryable = NodePgClient; // Pool | PoolClient | Client
 
 export function createPool(config: PoolConfig, logger: Logger) {
+	// Pool size (min, max) always comes from config
 	const pool = new Pool({
-		min: 3,
-		max: 20,
 		idleTimeoutMillis: 30_000,
 		connectionTimeoutMillis: 10_000,
 		statement_timeout: 5_000,

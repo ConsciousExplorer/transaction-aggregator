@@ -46,13 +46,10 @@ export const transactionItemSchema = z.object({
 	shortDescription: z.string().nullable()
 });
 
-const cursorSchema = z.object({
-	occurredAt: z.iso.datetime(),
-	transactionId: z.uuid()
-});
-
 export const listResponseSchema = z.object({
 	data: z.array(transactionItemSchema),
+	// links.next and links.prev are the only way to page: each carries the
+	// cursor and every filter, so a client never builds a page request itself.
 	links: linksSchema,
 	// No total: counting the whole window on every request is the full scan
 	// keyset pagination avoids.
@@ -60,12 +57,7 @@ export const listResponseSchema = z.object({
 		limit: z.number().int(),
 		sort: transactionSortSchema,
 		fromDateTime: z.iso.datetime(),
-		toDateTime: z.iso.datetime(),
-		// For clients that build their own request: send the pair back as
-		// cursorOccurredAt and cursorTransactionId, with direction=prev for
-		// prevCursor. null when there is no such page.
-		nextCursor: cursorSchema.nullable(),
-		prevCursor: cursorSchema.nullable()
+		toDateTime: z.iso.datetime()
 	})
 });
 

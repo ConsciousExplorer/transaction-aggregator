@@ -12,8 +12,8 @@ const TO = "2026-09-01T00:00:00.000Z";
 const TX_ID = "3f8e8c1a-6b1d-4f4e-9a2b-1c9d8e7f6a5b";
 const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
 const LIST_URL = `/api/v1/users/${USER_ID}/transactions?fromDateTime=${FROM}&toDateTime=${TO}`;
-// links.self is the request with the window as read, its query serialized
-const LIST_SELF = `/api/v1/users/${USER_ID}/transactions?${new URLSearchParams({ fromDateTime: FROM, toDateTime: TO })}`;
+// links.self is the request with the window as read; ":" stays unencoded
+const LIST_SELF = `/api/v1/users/${USER_ID}/transactions?fromDateTime=${FROM}&toDateTime=${TO}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Typed off the real methods so drift in the select shape breaks compilation.
@@ -146,9 +146,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 				limit: 50,
 				sort: "-occurredAt",
 				fromDateTime: FROM,
-				toDateTime: TO,
-				nextCursor: null,
-				prevCursor: null
+				toDateTime: TO
 			}
 		});
 	});
@@ -229,10 +227,6 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(body.data[0].transactionId, TX_ID);
 		assert.strictEqual(body.meta.count, 1);
 		assert.strictEqual(body.meta.limit, 1);
-		assert.deepStrictEqual(body.meta.nextCursor, {
-			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TX_ID
-		});
 
 		const next = new URL(body.links.next, "http://client.example");
 		assert.strictEqual(next.pathname, `/api/v1/users/${USER_ID}/transactions`);
@@ -266,7 +260,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		]);
 	});
 
-	test("the cursor pair from nextCursor is forwarded as the keyset bound", async () => {
+	test("the cursor pair from links.next is forwarded as the keyset bound", async () => {
 		await app.inject({
 			method: "GET",
 			url: `${LIST_URL}&cursorOccurredAt=2026-08-15T09:30:00.000123Z&cursorTransactionId=${TX_ID}`
@@ -472,10 +466,6 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			"2026-09-01T00:00:00.000000Z"
 		);
 		assert.strictEqual(self.searchParams.get("cursorTransactionId"), TX_ID);
-		assert.deepStrictEqual(body.meta.prevCursor, {
-			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TX_ID
-		});
 
 		const prev = new URL(body.links.prev, "http://client.example");
 		assert.strictEqual(prev.searchParams.get("cursorDirection"), "prev");
@@ -483,6 +473,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			prev.searchParams.get("cursorOccurredAt"),
 			"2026-08-15T09:30:00.000123Z"
 		);
+		assert.strictEqual(prev.searchParams.get("cursorTransactionId"), TX_ID);
 	});
 
 	test("a prev page is read upwards and served newest first", async () => {
@@ -508,9 +499,15 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		);
 		// Not full, so nothing newer; came from an older page, so next exists
 		assert.strictEqual("prev" in body.links, false);
-		assert.deepStrictEqual(body.meta.nextCursor, {
-			occurredAt: "2026-08-14T12:00:00.000000Z",
-			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"
-		});
+		const next = new URL(body.links.next, "http://client.example");
+		assert.strictEqual(next.searchParams.get("cursorDirection"), "next");
+		assert.strictEqual(
+			next.searchParams.get("cursorOccurredAt"),
+			"2026-08-14T12:00:00.000000Z"
+		);
+		assert.strictEqual(
+			next.searchParams.get("cursorTransactionId"),
+			"9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"
+		);
 	});
 });

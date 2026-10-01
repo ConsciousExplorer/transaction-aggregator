@@ -95,9 +95,8 @@ export default async (
 					sort: transactionSortSchema
 						.default("-occurredAt")
 						.describe("-occurredAt is newest first, occurredAt oldest first"),
-					// A page boundary from meta.nextCursor or meta.prevCursor; links.next
-					// and links.prev already carry them. next continues in the sort
-					// order, prev goes back against it.
+					// A page boundary, sent by following links.next or links.prev. next
+					// continues in the sort order, prev goes back against it.
 					cursorOccurredAt: z.iso.datetime().optional(),
 					cursorTransactionId: z.uuid().optional(),
 					cursorDirection: z.enum(["next", "prev"]).default("next"),
@@ -188,9 +187,7 @@ export default async (
 					limit,
 					sort: request.query.sort,
 					fromDateTime: request.query.fromDateTime,
-					toDateTime: request.query.toDateTime,
-					nextCursor,
-					prevCursor
+					toDateTime: request.query.toDateTime
 				}
 			});
 		}
