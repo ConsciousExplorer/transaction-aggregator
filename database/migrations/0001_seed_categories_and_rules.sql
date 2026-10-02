@@ -1,4 +1,4 @@
-INSERT INTO categories (category_id, category, label) OVERRIDING SYSTEM VALUE VALUES
+-- Custom SQL migration file, put your code below! --INSERT INTO categories (category_id, category, label) OVERRIDING SYSTEM VALUE VALUES
   ( 1, 'uncategorised',      'Uncategorised'),
   ( 2, 'groceries',          'Groceries'),
   ( 3, 'dining',             'Dining'),

@@ -1,4 +1,4 @@
-
+-- Custom SQL migration file, put your code below! --
 
 CREATE TYPE transaction_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
 CREATE TYPE direction_type AS ENUM ('debit','credit');

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790967774727,
+      "tag": "0000_types_and_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790967805656,
+      "tag": "0001_seed_categories_and_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790967813431,
+      "tag": "0002_schedule_maintenance",
+      "breakpoints": true
+    }
+  ]
+}

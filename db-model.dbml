@@ -11,6 +11,13 @@ Enum "direction_type" {
   "credit"
 }
 
+Enum "transaction_status" {
+  "completed"
+  "pending"
+  "reversed"
+  "failed"
+}
+
 Table "categories" {
   "category_id" SMALLINT [pk, increment]
   "category" TEXT [unique, not null]
@@ -79,6 +86,7 @@ Table "transactions" {
   "external_id" text [not null]
   "occurred_at" timestamptz [not null]
   "direction" direction_type [not null]
+  "status" transaction_status [not null]
   "amount_minor" bigint [not null, check: `amount_minor > 0`]
   "currency" char(3) [not null]
   "long_description" text
@@ -93,24 +101,6 @@ Table "transactions" {
     (transaction_id, occurred_at) [pk]
     (transaction_type, external_id, occurred_at) [unique]
     (user_id, occurred_at, transaction_id) [name: "idx_tx_user_read"]
-  }
-}
-
-Table "ingest_progress" {
-  "topic" text [not null]
-  "partition" int [not null]
-  "last_offset" bigint [not null]
-  "messages_total" bigint [not null, default: 0]
-  "rows_inserted_total" bigint [not null, default: 0]
-  "duplicates_total" bigint [not null, default: 0]
-  "dlq_total" bigint [not null, default: 0]
-  "tombstones_total" bigint [not null, default: 0]
-  "filtered_total" bigint [not null, default: 0]
-  "last_occurred_at" timestamptz
-  "updated_at" timestamptz [not null, default: `now()`]
-
-  Indexes {
-    (topic, partition) [pk]
   }
 }
 
@@ -129,7 +119,7 @@ Ref:"categories"."category_id" <? "transactions"."category_id"
 Ref:"rule_sets"."version" <? "transactions"."rule_version"
 
 Ref:"categorization_rules".("ruleset_version", "priority") ?<? "transactions".("rule_version", "rule_priority")
-// Documentation-only relationship — the database deliberately has NO FK here (D28):
+// Documentation-only relationship — the database deliberately has NO FK here:
 // an FK to a partitioned parent blocks partition drops. This Ref makes the diagram
 // show the logical join the read path performs.
 Ref: "transactions".("transaction_id", "occurred_at") - "user_transaction_overrides".("transaction_id", "occurred_at")

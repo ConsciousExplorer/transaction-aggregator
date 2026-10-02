@@ -1,0 +1,20 @@
+{
+  "name": "database",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "spell": "cspell \"**/*.{ts,js}\"",
+    "generate": "drizzle-kit generate --custom",
+    "migrate": "node migrate.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.23.1",
+    "typescript": "^7.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "cspell": "^10.3.6",
+    "drizzle-kit": "^0.31.11"
+  }
+}

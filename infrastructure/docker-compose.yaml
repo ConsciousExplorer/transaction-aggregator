@@ -1,14 +1,20 @@
 # Transaction Aggregation platform — docker compose
 #
-# Core services have NO profile: `docker compose up` must bring the whole system up.
+# Run it through the Makefile at the repo root (`make up`, `make generate`,
+# `make down`, `make clean`); paths below are relative to this infrastructure/
+# folder. Core services have NO profile: `make up` brings the whole system up.
 #
-# The profiles can be set in the .env file (COMPOSE_PROFILES=obs,ui,cache) or via CLI:
-#   docker compose --profile obs --profile ui up
-# obs, ui, cache — optional
+# Optional profiles: ui (kafbat-ui, avro-datagen-ui — on by default in
+# `make up`, `make up UI=` leaves them out), obs, cache. The Makefile passes
+# them as --profile flags; compose does not read the repo-root .env from here.
 #
 # Broker topology:
 # DEV: ONE combined KRaft node locally (RF 1).
 # PROD: 3 KRaft nodes, RF 3, min.insync.replicas=2, SCRAM over TLS (MSK).
+
+# The name the project had at the repo root: container, image, network and
+# volume names stay transaction-aggregator-*, not infrastructure-*.
+name: transaction-aggregator
 
 services:
   # ──────────────────────────────── Kafka ────────────────────────────────
@@ -59,10 +65,10 @@ services:
       KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
     volumes:
       - kafka1-data:/var/lib/kafka/data
-      - ./infrastructure/kafka/kafka_server_jaas.conf:/etc/kafka/jaas/kafka_server_jaas.conf:ro
+      - ./kafka/kafka_server_jaas.conf:/etc/kafka/jaas/kafka_server_jaas.conf:ro
       # File input of the apache/kafka image: broker defaults + topic guardrails.
       # KAFKA_* env vars above override entries in this file.
-      - ./infrastructure/kafka/server.properties:/mnt/shared/config/server.properties:ro
+      - ./kafka/server.properties:/mnt/shared/config/server.properties:ro
     healthcheck:
       test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 > /dev/null 2>&1
       start_period: 30s
@@ -81,7 +87,7 @@ services:
     entrypoint: ["/bin/bash", "/infrastructure/kafka/init-kafka.sh"]
     restart: "no"
     volumes:
-      - ./infrastructure/kafka/:/infrastructure/kafka:ro
+      - ./kafka/:/infrastructure/kafka:ro
     networks: [txn-network]
 
   # ─────────────────────────── Schema Registry ───────────────────────────
@@ -112,7 +118,7 @@ services:
   # TopicNameStrategy subjects (<topic>-value) — ADR-011.
   schemas-register:
     build: 
-      context: ./infrastructure/schemas
+      context: ./schema-registry
       dockerfile: Dockerfile
     pull_policy: build
     container_name: schemas-register
@@ -122,7 +128,7 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
     restart: "no"
     volumes:
-      - ./schemas/:/schemas:ro
+      - ../schemas/:/schemas:ro
     networks: [txn-network]
 
   # ────────────────────────────── Postgres ───────────────────────────────
@@ -131,7 +137,7 @@ services:
   # on an EMPTY volume — all schema lives in Flyway (drift trap otherwise).
   postgres:
     build:
-      context: ./infrastructure/postgres
+      context: ./postgres
       dockerfile: Dockerfile
     pull_policy: build
     container_name: postgres
@@ -149,7 +155,7 @@ services:
       -c cron.use_background_workers=on
       -c max_worker_processes=16
     volumes:
-      - ./infrastructure/postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql
     healthcheck:
       test: pg_isready -U postgres -d postgres
@@ -162,27 +168,31 @@ services:
   # Versioned schema (V__) plus repeatable R__ files: the category/rule seed and
   # the pg_cron partman-maintenance schedule (premake monthly partitions / drop >18 months).
   migrate:
-    image: flyway/flyway:11-alpine
-    container_name: flyway-migrate
+    build:
+      context: ../database
+    pull_policy: build
+    container_name: migrate
     depends_on:
       postgres: { condition: service_healthy }
-    command: -connectRetries=30 migrate
     environment:
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/txn_agg
-      FLYWAY_USER: admin
-      FLYWAY_PASSWORD: admin
-    restart: "no"
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: txn_agg
+      DATABASE_USER: admin
+      DATABASE_PASSWORD_SECRET_NAME: admin_password
+      SECRET_DIR: /secrets
     volumes:
-      - ./db/migrations:/flyway/sql:ro
+      - ../secrets:/secrets:ro
+    restart: "no"
     networks: [txn-network]
 
   # ─────────────────────────── Applications ──────────────────────────────
   # One-shot: generates GENERATOR_COUNT card transactions (Avro, schema from the
   # registry) onto KAFKA_TOPIC via the in-network CLIENT listener, then exits.
-  # Re-run alone with: docker compose up --no-deps producer-card
+  # Re-run alone with: make generate-card
   producer-card:
     build: 
-      context: ./apps/producers
+      context: ../apps/producers
       dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-card
@@ -193,7 +203,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
     restart: "no"
     volumes:
-      - ./schemas:/schemas:ro
+      - ../schemas:/schemas:ro
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
@@ -211,7 +221,7 @@ services:
   
   producer-eft:
     build: 
-      context: ./apps/producers
+      context: ../apps/producers
       dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-eft
@@ -222,7 +232,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
     restart: "no"
     volumes:
-      - ./schemas:/schemas:ro
+      - ../schemas:/schemas:ro
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
@@ -240,7 +250,7 @@ services:
 
   producer-loan:
     build: 
-      context: ./apps/producers
+      context: ../apps/producers
       dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-loan
@@ -251,7 +261,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
     restart: "no"
     volumes:
-      - ./schemas:/schemas:ro
+      - ../schemas:/schemas:ro
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
@@ -269,7 +279,7 @@ services:
 
   producer-internal-transfer:
     build: 
-      context: ./apps/producers
+      context: ../apps/producers
       dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-internal-transfer
@@ -280,7 +290,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
     restart: "no"
     volumes:
-      - ./schemas:/schemas:ro
+      - ../schemas:/schemas:ro
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
@@ -298,7 +308,7 @@ services:
 
   producer-debit-order:
     build: 
-      context: ./apps/producers
+      context: ../apps/producers
       dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-debit-order
@@ -309,7 +319,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
     restart: "no"
     volumes:
-      - ./schemas:/schemas:ro
+      - ../schemas:/schemas:ro
     environment:
       KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
       KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
@@ -329,7 +339,7 @@ services:
   # consumer-card
   consumer-card:
     build:
-      context: ./apps/consumer
+      context: ../apps/consumer
     pull_policy: build
     container_name: consumer-card
     restart: unless-stopped
@@ -338,7 +348,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
       kafka-init: { condition: service_completed_successfully }
     volumes:
-      - ./secrets:/secrets:ro
+      - ../secrets:/secrets:ro
     environment:
       # NODE and APP configuration
       NODE_ENV: production
@@ -387,7 +397,7 @@ services:
 
   consumer-eft:
     build:
-      context: ./apps/consumer
+      context: ../apps/consumer
     pull_policy: build
     container_name: consumer-eft
     restart: unless-stopped
@@ -396,7 +406,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
       kafka-init: { condition: service_completed_successfully }
     volumes:
-      - ./secrets:/secrets:ro
+      - ../secrets:/secrets:ro
     environment:
       # NODE and APP configuration
       NODE_ENV: production
@@ -445,7 +455,7 @@ services:
 
   consumer-internal-transfer:
     build:
-      context: ./apps/consumer
+      context: ../apps/consumer
     pull_policy: build
     container_name: consumer-internal-transfer
     restart: unless-stopped
@@ -454,7 +464,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
       kafka-init: { condition: service_completed_successfully }
     volumes:
-      - ./secrets:/secrets:ro
+      - ../secrets:/secrets:ro
     environment:
       # NODE and APP configuration
       NODE_ENV: production
@@ -503,7 +513,7 @@ services:
 
   consumer-debit-order:
     build:
-      context: ./apps/consumer
+      context: ../apps/consumer
     pull_policy: build
     container_name: consumer-debit-order
     restart: unless-stopped
@@ -512,7 +522,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
       kafka-init: { condition: service_completed_successfully }
     volumes:
-      - ./secrets:/secrets:ro
+      - ../secrets:/secrets:ro
     environment:
       # NODE and APP configuration
       NODE_ENV: production
@@ -561,7 +571,7 @@ services:
 
   consumer-loan:
     build:
-      context: ./apps/consumer
+      context: ../apps/consumer
     pull_policy: build
     container_name: consumer-loan
     restart: unless-stopped
@@ -570,7 +580,7 @@ services:
       schemas-register: { condition: service_completed_successfully }
       kafka-init: { condition: service_completed_successfully }
     volumes:
-      - ./secrets:/secrets:ro
+      - ../secrets:/secrets:ro
     environment:
       # NODE and APP configuration
       NODE_ENV: production
@@ -618,15 +628,17 @@ services:
     networks: [txn-network]
 
   api:
-    build: { context: ./apps/api }
+    build: { context: ../apps/api }
     pull_policy: build
     container_name: api
     depends_on:
       migrate: { condition: service_completed_successfully }
+      # Tokens are verified against Keycloak's JWKS; no answers before that works
+      keycloak: { condition: service_healthy }
     ports:
       - "8083:8083"
     volumes:
-      - ./secrets:/secrets:ro
+      - ../secrets:/secrets:ro
     environment:
       NODE_ENV: 'production'
       HTTP_PORT: 8083
@@ -681,7 +693,7 @@ services:
     container_name: otel-collector
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
-      - ./infrastructure/obs/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - ./obs/otel-collector.yaml:/etc/otelcol/config.yaml:ro
     networks: [txn-network]
 
   tempo:
@@ -690,7 +702,7 @@ services:
     container_name: tempo
     command: ["-config.file=/etc/tempo/tempo.yaml"]
     volumes:
-      - ./infrastructure/obs/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - ./obs/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
     networks: [txn-network]
 
@@ -699,7 +711,7 @@ services:
     image: prom/prometheus:v3.1.0
     container_name: prometheus
     volumes:
-      - ./infrastructure/obs/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - ./obs/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
     networks: [txn-network]
 
   grafana:
@@ -709,8 +721,8 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - ./infrastructure/obs/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./infrastructure/obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./obs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks: [txn-network]
 
   kafbat-ui:
@@ -734,8 +746,8 @@ services:
       SERVER_REACTIVE_SESSION_TIMEOUT: 12h
       SERVER_REACTIVE_SESSION_COOKIE_MAX_AGE: 12h
     volumes:
-      - ./infrastructure/kafbat/rbac.yml:/etc/kafkaui/rbac.yml:ro
-      - ./infrastructure/kafbat/oauth2.yml:/etc/kafkaui/oauth2.yml:ro
+      - ./kafbat/rbac.yml:/etc/kafkaui/rbac.yml:ro
+      - ./kafbat/oauth2.yml:/etc/kafkaui/oauth2.yml:ro
     depends_on:
       kafka1: { condition: service_healthy }
       keycloak: { condition: service_healthy }
@@ -745,10 +757,10 @@ services:
   # example records to copy/paste while writing normalizers/tests. Kafka producer
   # section is NOT enabled (no --kafka flag, no broker access needed); the mount
   # is read-only, so contract changes still go through git review, never the UI.
-  # Run alone with: docker compose up avro-datagen-ui  →  http://localhost:6500
+  # Starts with `make up` (ui profile)  →  http://localhost:8085
   avro-datagen-ui:
     profiles: ["ui"]
-    build: { context: ./infrastructure/avro-datagen-ui }
+    build: { context: ./avro-datagen-ui }
     pull_policy: build
     container_name: avro-datagen-ui
     environment:
@@ -756,12 +768,12 @@ services:
     ports:
       - "8085:8085"
     volumes:
-      - ./schemas/:/schemas:ro
+      - ../schemas/:/schemas:ro
     networks: [txn-network]
 
+  # Core, not ui: the API verifies every bearer token against this realm's JWKS.
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
-    profiles: ["ui"]
     container_name: keycloak_server
     restart: unless-stopped
     depends_on:
@@ -770,7 +782,7 @@ services:
     # --import-realm loads every realm-export JSON under /opt/keycloak/data/import/
     command: start-dev --import-realm
     volumes:
-      - ./infrastructure/keycloak/txn-api-realm.json:/opt/keycloak/data/import/txn-api-realm.json:ro
+      - ./keycloak/txn-api-realm.json:/opt/keycloak/data/import/txn-api-realm.json:ro
     environment:
       # Database Configuration
       KC_DB: postgres
