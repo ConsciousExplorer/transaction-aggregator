@@ -85,9 +85,6 @@ services:
     networks: [txn-network]
 
   # ─────────────────────────── Schema Registry ───────────────────────────
-  # Replaces Redpanda's built-in SR after the broker swap (ADR-005/011).
-  # Both serdes (confluent-kafka, @platformatic/kafka) point here; the hermetic
-  # CI compat gate hits the same REST API.
   schema-registry:
     image: confluentinc/cp-schema-registry:8.0.0
     container_name: schema-registry
@@ -114,7 +111,9 @@ services:
   # set subject compatibility BACKWARD, register the producers' *.avsc under
   # TopicNameStrategy subjects (<topic>-value) — ADR-011.
   schemas-register:
-    build: { context: ./infrastructure/schemas }
+    build: 
+      context: ./infrastructure/schemas
+      dockerfile: Dockerfile
     pull_policy: build
     container_name: schemas-register
     depends_on:
@@ -182,9 +181,9 @@ services:
   # registry) onto KAFKA_TOPIC via the in-network CLIENT listener, then exits.
   # Re-run alone with: docker compose up --no-deps producer-card
   producer-card:
-    build: { context: ./apps/producers }
-    # Rebuild on every `up` so the image can never lag the source tree.
-    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    build: 
+      context: ./apps/producers
+      dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-card
     depends_on:
@@ -209,11 +208,11 @@ services:
       GENERATOR_SEED: ${GENERATOR_SEED:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
-
+  
   producer-eft:
-    build: { context: ./apps/producers }
-    # Rebuild on every `up` so the image can never lag the source tree.
-    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    build: 
+      context: ./apps/producers
+      dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-eft
     depends_on:
@@ -240,9 +239,9 @@ services:
     networks: [txn-network]
 
   producer-loan:
-    build: { context: ./apps/producers }
-    # Rebuild on every `up` so the image can never lag the source tree.
-    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    build: 
+      context: ./apps/producers
+      dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-loan
     depends_on:
@@ -269,9 +268,9 @@ services:
     networks: [txn-network]
 
   producer-internal-transfer:
-    build: { context: ./apps/producers }
-    # Rebuild on every `up` so the image can never lag the source tree.
-    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+    build: 
+      context: ./apps/producers
+      dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-internal-transfer
     depends_on:
@@ -300,8 +299,7 @@ services:
   producer-debit-order:
     build: 
       context: ./apps/producers
-    # Rebuild on every `up` so the image can never lag the source tree.
-    # (pull_policy is a SERVICE key — nesting it under build: silently does nothing.)
+      dockerfile: Dockerfile
     pull_policy: build
     container_name: producer-debit-order
     depends_on:
@@ -334,9 +332,6 @@ services:
       context: ./apps/consumer
     pull_policy: build
     container_name: consumer-card
-    # Crash-only retry model (D44): a transient failure exits uncommitted and
-    # Docker's restart backoff is the bounded retry; the idempotent sink absorbs
-    # the replay. Without this line a 5s DB blip would kill ingestion for good.
     restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }

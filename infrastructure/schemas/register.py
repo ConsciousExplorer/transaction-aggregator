@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot schema registration (ADR-011).
-
+"""
 Reads every *.avsc in SCHEMAS_DIR, strips avro-datagen generator annotations
 (arg.properties), sets subject compatibility, and registers the cleaned schema
 under TopicNameStrategy subjects: <TOPIC_PREFIX>.<file-stem>-value.
