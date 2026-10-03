@@ -15,4 +15,5 @@ COPY src/ src/
 # Drop privileges after everything is in place. `node` exists in the base image.
 USER node
 
+# Use the OpenTelemetry auto-instrumentation loader to automatically instrument the application.
 CMD ["node", "--import", "@opentelemetry/auto-instrumentations-node/register", "src/app.ts"]

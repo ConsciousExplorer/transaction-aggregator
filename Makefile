@@ -14,8 +14,10 @@ ALL_PROFILES := --profile ui --profile obs --profile cache
 up:
 	$(COMPOSE) $(PROFILES) up
 
+# Every profile, obs included, so tracing is switched on too (compose defaults
+# OTEL_SDK_DISABLED to true; the collector and Tempo only run in this target)
 up-all:
-	$(COMPOSE) $(ALL_PROFILES) up
+	OTEL_SDK_DISABLED=false $(COMPOSE) $(ALL_PROFILES) up
 
 # Stops and removes the containers; Kafka and Postgres data are kept
 down:

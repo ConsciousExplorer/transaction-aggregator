@@ -3,5 +3,8 @@ providers:
   - name: txn-agg
     folder: transaction-aggregator
     type: file
+    # Lets you save while building in the UI. The JSON files stay the source of
+    # truth: Grafana has no volume, so export back into the file or lose it.
+    allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards

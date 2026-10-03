@@ -784,6 +784,8 @@ services:
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Only its own password, not the whole secrets folder the apps mount
+      - ../secrets/grafana_read_password:/secrets/grafana_read_password:ro
     networks: [txn-network]
 
   kafbat-ui:

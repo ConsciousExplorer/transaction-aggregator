@@ -29,6 +29,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'api_read') THEN
         CREATE ROLE api_read LOGIN PASSWORD 'api_read_password';
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'grafana_read') THEN
+        CREATE ROLE grafana_read LOGIN PASSWORD 'grafana_read_password' CONNECTION LIMIT 5;
+    END IF;
 END
 $$;
 
@@ -42,6 +46,13 @@ GRANT txn_agg_write TO kafka_consumer;
 
 -- The API writes user preferences only; it cannot write transaction facts.
 GRANT txn_agg_prefs_write TO api_write;
+
+-- Grafana's Postgres datasource gets its own login, so dashboard load shows up
+-- separately in pg_stat_activity and stays bounded: at most 5 connections, and
+-- a runaway panel query is cancelled after 5 s instead of competing with the
+-- consumers' inserts.
+GRANT txn_agg_read TO grafana_read;
+ALTER ROLE grafana_read SET statement_timeout = '5s';
 
 \connect txn_agg;
 

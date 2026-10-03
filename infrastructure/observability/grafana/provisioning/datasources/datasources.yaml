@@ -1,11 +1,30 @@
 apiVersion: 1
+# A fixed uid on each: exported dashboard JSON refers to its datasources by
+# uid, so a readable, stable one keeps the committed dashboards working.
 datasources:
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
   - name: Tempo
+    uid: tempo
     type: tempo
     access: proxy
     url: http://tempo:3200
+  # What is in the data, not how the pipeline runs (rates and latency come from
+  # Prometheus). Its own read-only login: 5 connections at most, 5 s statement
+  # timeout (postgres/initdb/03-permissions.sql).
+  - name: Postgres
+    uid: postgres
+    type: grafana-postgresql-datasource
+    url: postgres:5432
+    user: grafana_read
+    jsonData:
+      database: txn_agg
+      sslmode: disable
+      postgresVersion: 1500
+      maxOpenConns: 5
+    secureJsonData:
+      password: $__file{/secrets/grafana_read_password}

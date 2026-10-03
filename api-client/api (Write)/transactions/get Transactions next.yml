@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: localhost:8083/api/v1/users/:userId/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=2&transactionType=card
+  url: localhost:8083/api/v1/users/30440930-4207-4d26-bc11-1d65c07fe6c3/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=2&transactionType=card&cursorOccurredAt=2025-12-22T14:24:22.204000Z&cursorTransactionId=01a0f89f-d59f-747a-8d6d-363cabf9763e&cursorDirection=next
   params:
     - name: accountId
       value: c37b3e53-c30c-4c5a-b547-85fdadedd459
@@ -21,6 +21,15 @@ http:
       type: query
     - name: transactionType
       value: card
+      type: query
+    - name: cursorOccurredAt
+      value: 2025-12-22T14:24:22.204000Z
+      type: query
+    - name: cursorTransactionId
+      value: 01a0f89f-d59f-747a-8d6d-363cabf9763e
+      type: query
+    - name: cursorDirection
+      value: next
       type: query
     - name: category
       value: loan_repayment
@@ -50,9 +59,6 @@ http:
       value: ""
       type: query
       disabled: true
-    - name: userId
-      value: 30440930-4207-4d26-bc11-1d65c07fe6c3
-      type: path
   auth: inherit
 
 settings:
