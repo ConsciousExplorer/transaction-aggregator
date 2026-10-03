@@ -121,8 +121,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	server.setNotFoundHandler((_req, reply) => send(reply, notFound()));
 
 	/**
-	 * Register the httpMetrics plugin to collect RED metrics for every route.
-	 * Register before autoloading routes so that the hooks are added to every route, including those registered by autoload.
+	 * RED metrics and the trace span's route for every request. Registered
+	 * before the plugin autoload so its onRequest runs before auth's: auth
+	 * throws 401/403 from onRequest, which skips every onRequest hook after it
+	 * but still runs onResponse. Registered later, the in-flight gauge would
+	 * dec without inc and go negative, and rejected requests' spans would have
+	 * no route.
 	 */
 	server.register(httpMetrics);
 

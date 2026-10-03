@@ -712,6 +712,19 @@ services:
       WINDOW_MAX_DAYS_TRANSACTIONS: 92
       WINDOW_MAX_DAYS_SUMMARY: 366
 
+      # Tracing: the Dockerfile loads the OTel auto-instrumentation, configured
+      # entirely from these. Off unless an obs run opts in (OTEL_SDK_DISABLED=false).
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: api
+      # The collector carries traces only: metrics are Prometheus pull from
+      # /metrics, logs go to stdout. Both exporters default to otlp otherwise.
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      # Incoming requests and their queries; everything else is noise
+      OTEL_NODE_ENABLED_INSTRUMENTATIONS: http,pg
+
     # Readiness, not liveness: /ready runs SELECT 1, so "healthy" means the API
     # can answer queries. Docker never restarts an unhealthy container, so a
     # database outage cannot restart-loop a working process.
@@ -733,7 +746,9 @@ services:
   # ──────────────────────── Optional: obs profile ────────────────────────
   otel-collector:
     profiles: ["obs"]
-    image: otel/opentelemetry-collector-contrib:0.116.0
+    # 0.116.0's arm64 image ships a dynamically linked binary with no loader:
+    # "exec /otelcol-contrib: no such file or directory" on Apple silicon
+    image: otel/opentelemetry-collector-contrib:0.161.0
     container_name: otel-collector
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:

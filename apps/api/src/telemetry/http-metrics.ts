@@ -1,3 +1,5 @@
+import { context } from "@opentelemetry/api";
+import { getRPCMetadata, RPCType } from "@opentelemetry/core";
 import { fastifyPlugin } from "fastify-plugin";
 import {
 	httpRequestDurationSeconds,
@@ -9,8 +11,19 @@ import {
 // would blow up Prometheus's storage.
 export default fastifyPlugin(
 	async (fastify) => {
-		fastify.addHook("onRequest", async () => {
+		fastify.addHook("onRequest", async (request) => {
 			httpRequestsInFlight.inc();
+
+			// The auto-instrumentation has no Fastify support, so its http span only
+			// knows "GET". Handing it the route pattern names the span
+			// "GET /v1/users/:userId/transactions" and sets http.route. With tracing
+			// disabled there is no metadata, and this does nothing. A 404 matched no
+			// route, so its span keeps the bare method name.
+			const rpcMetadata = getRPCMetadata(context.active());
+			const route = request.routeOptions.url;
+			if (rpcMetadata?.type === RPCType.HTTP && route) {
+				rpcMetadata.route = route;
+			}
 		});
 
 		fastify.addHook("onResponse", async (request, reply) => {
