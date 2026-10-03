@@ -1,9 +1,15 @@
 import { fileLogger } from "#src/logger.ts";
-import { batchSize, messagesConsumedTotal } from "#src/telemetry/metrics.ts";
+import {
+	batchFlushDurationSeconds,
+	batchFlushTotal,
+	batchSize,
+	dlqMessagesTotal
+} from "#src/telemetry/metrics.ts";
 
 const logger = fileLogger(import.meta.url);
 
 import {
+	type BaseOptions,
 	type BeforeHookPayloadType,
 	type ConsumeOptions,
 	Consumer,
@@ -17,6 +23,8 @@ import {
 	type ProducerOptions,
 	stringSerializer
 } from "@platformatic/kafka";
+import type { Registry } from "@prometheus-io/client";
+import * as prometheusClient from "@prometheus-io/client";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import { commitBatch } from "./commit.ts";
 import type {
@@ -37,10 +45,31 @@ export type KafkaMessage = Message<string, ConsumedValue, string, string>;
 
 export type KafkaConsumer = Consumer<string, ConsumedValue, string, string>;
 
+/**
+ * The client declares its own copy of the prom-client types, which the real
+ * client satisfies at runtime but not exactly as types — hence the cast.
+ */
+function kafkaMetrics(registry: Registry) {
+	return { registry, client: prometheusClient } as unknown as NonNullable<
+		BaseOptions["metrics"]
+	>;
+}
+
+/**
+ * Given a registry, the client records its own metrics there
+ * (kafka_consumed_messages, kafka_consumers_lags, ...). Without one, none.
+ */
 export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
-	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>
+	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>,
+	registry?: Registry
 ) {
-	const kafkaConsumer = new Consumer(options);
+	const consumerOptions = { ...options };
+
+	if (registry) {
+		consumerOptions.metrics = kafkaMetrics(registry);
+	}
+
+	const kafkaConsumer = new Consumer(consumerOptions);
 
 	// Register listeners
 	kafkaConsumer.addListener("consumer:group:rebalance", () =>
@@ -58,13 +87,16 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
  * Creates a DLQ kafka producer
  * No serializers should be passed.
  * Raw messages should be persisted as is
+ * Given a registry, the client records its own metrics there
+ * (kafka_produced_messages, ...). Without one, none.
  */
 export type DlqProducer = Producer<string, Buffer, string, string>;
 
 export async function createKafkaDlqProducer(
-	options: Omit<ProducerOptions<string, Buffer, string, string>, "serializers">
+	options: Omit<ProducerOptions<string, Buffer, string, string>, "serializers">,
+	registry?: Registry
 ) {
-	const kafkaDlqProducer = new Producer({
+	const producerOptions = {
 		...options,
 		acks: ProduceAcks.ALL,
 		serializers: {
@@ -72,7 +104,13 @@ export async function createKafkaDlqProducer(
 			headerKey: stringSerializer,
 			headerValue: stringSerializer
 		}
-	});
+	};
+
+	if (registry) {
+		producerOptions.metrics = kafkaMetrics(registry);
+	}
+
+	const kafkaDlqProducer = new Producer(producerOptions);
 
 	return kafkaDlqProducer;
 }
@@ -108,6 +146,10 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 		}
 
 		await dlqProducer.send({ messages: records, acks: -1 });
+
+		for (const record of records) {
+			dlqMessagesTotal.inc({ reason: record.headers["x-dlq-reason"] });
+		}
 	};
 }
 
@@ -172,6 +214,8 @@ export interface BatchConsumerOptions {
 	lingerMs: number;
 }
 
+type FlushTrigger = "size" | "linger" | "stream_end";
+
 export async function startBatchConsumer(
 	consumer: KafkaConsumer,
 	onBatch: BatchHandler,
@@ -198,7 +242,7 @@ export async function startBatchConsumer(
 	// `messageBatch` mutated in between. Every flush chains onto the previous.
 	let inFlight: Promise<void> = Promise.resolve();
 
-	async function drainBatch() {
+	async function drainBatch(trigger: FlushTrigger) {
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 			timeoutId = null;
@@ -208,6 +252,9 @@ export async function startBatchConsumer(
 		messageBatch = [];
 
 		if (batch.length === 0) return;
+
+		const endFlushTimer = batchFlushDurationSeconds.startTimer();
+		batchFlushTotal.inc({ trigger });
 		batchSize.observe(batch.length);
 
 		await onBatch(classifyMessages(batch));
@@ -220,10 +267,12 @@ export async function startBatchConsumer(
 				"Commit failed after a successful flush."
 			);
 		}
+
+		endFlushTimer();
 	}
 
-	function flushBatch(): Promise<void> {
-		const flushed = inFlight.then(drainBatch);
+	function flushBatch(trigger: FlushTrigger): Promise<void> {
+		const flushed = inFlight.then(() => drainBatch(trigger));
 		// The queue swallows the rejection so one failure does not poison every
 		// later flush; the returned promise still carries it to the caller.
 		inFlight = flushed.catch(() => {});
@@ -232,11 +281,10 @@ export async function startBatchConsumer(
 
 	for await (const message of messageStream) {
 		messageBatch.push(message);
-		messagesConsumedTotal.inc({ topic: message.topic });
 
 		if (messageBatch.length === 1) {
 			timeoutId = setTimeout(() => {
-				flushBatch().catch((error: unknown) => {
+				flushBatch("linger").catch((error: unknown) => {
 					messageStream.destroy(
 						error instanceof Error ? error : new Error(String(error))
 					);
@@ -245,11 +293,11 @@ export async function startBatchConsumer(
 		}
 
 		if (messageBatch.length >= options.batchSize) {
-			await flushBatch();
+			await flushBatch("size");
 		}
 	}
 
 	// The stream ended with a partial batch still buffered — flush it, and let
 	// a failure propagate rather than dropping the messages silently.
-	await flushBatch();
+	await flushBatch("stream_end");
 }

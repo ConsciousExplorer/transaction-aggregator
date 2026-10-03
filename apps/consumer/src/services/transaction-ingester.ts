@@ -6,8 +6,15 @@ import type {
 	CategorisedTransactionSchema,
 	DomainTransactionSchema
 } from "#src/schemas/transaction.ts";
+import {
+	categorisationVerdictsTotal,
+	duplicatesSkippedTotal,
+	ingestLagSeconds,
+	insertDurationSeconds,
+	rowsInsertedTotal
+} from "#src/telemetry/metrics.ts";
 import type { Normaliser } from "./domain-normaliser.ts";
-import type { RuleCategoriser } from "./rule-categoriser.ts";
+import type { RuleCategoriser, Verdict } from "./rule-categoriser.ts";
 
 export interface BatchOutcome {
 	attempted: number;
@@ -32,6 +39,7 @@ export function createTransactionIngester(
 		transactions: DomainTransactionSchema[]
 	): Promise<BatchOutcome> {
 		const categorisedTransactions: CategorisedTransactionSchema[] = [];
+		const matcherTypes: Verdict["matcherType"][] = [];
 
 		for (const transaction of transactions) {
 			// The normaliser validates its own output, so this is canonical.
@@ -43,17 +51,50 @@ export function createTransactionIngester(
 				...normalisedTransaction,
 				...categorisedTransaction
 			});
+			matcherTypes.push(categorisedTransaction.matcherType);
 		}
 
 		// Insert batch rows
+		const endInsertTimer = insertDurationSeconds.startTimer();
+		let outcome: BatchOutcome;
 		try {
-			return await withTransaction(pool, async (client) => {
+			outcome = await withTransaction(pool, async (client) => {
 				return await batchInsertTransactions(client, categorisedTransactions);
 			});
 		} catch (error) {
 			throw classifyPostgresError(error, "Batch insert failed");
 		}
+		endInsertTimer();
+
+		recordCommittedBatch(transactions, matcherTypes, outcome);
+
+		return outcome;
 	}
 
 	return { ingest };
+}
+
+/**
+ * Records only after the database transaction committed, so a batch that
+ * rolls back and is then retried one message at a time is not counted twice.
+ */
+function recordCommittedBatch(
+	transactions: DomainTransactionSchema[],
+	matcherTypes: Verdict["matcherType"][],
+	outcome: BatchOutcome
+) {
+	rowsInsertedTotal.inc(outcome.inserted);
+	duplicatesSkippedTotal.inc(outcome.attempted - outcome.inserted);
+
+	for (const matcherType of matcherTypes) {
+		categorisationVerdictsTotal.inc({ matcher_type: matcherType });
+	}
+
+	const now = Date.now();
+	for (const transaction of transactions) {
+		// 0 = the producer did not stamp an emit time
+		if (transaction.producedAt === 0) continue;
+
+		ingestLagSeconds.observe((now - transaction.producedAt) / 1000);
+	}
 }

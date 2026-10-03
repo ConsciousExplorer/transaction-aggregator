@@ -415,7 +415,8 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing
+      # Metrics and tracing — lag interval matches Prometheus scrape_interval
+      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
@@ -476,7 +477,8 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing
+      # Metrics and tracing — lag interval matches Prometheus scrape_interval
+      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
@@ -537,7 +539,8 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing
+      # Metrics and tracing — lag interval matches Prometheus scrape_interval
+      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
@@ -598,7 +601,8 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing
+      # Metrics and tracing — lag interval matches Prometheus scrape_interval
+      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
@@ -659,7 +663,8 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing
+      # Metrics and tracing — lag interval matches Prometheus scrape_interval
+      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on

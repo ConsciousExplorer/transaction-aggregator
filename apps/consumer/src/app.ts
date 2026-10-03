@@ -46,6 +46,7 @@ import {
 	type RuleSet
 } from "./services/rule-categoriser.ts";
 import { createTransactionIngester } from "./services/transaction-ingester.ts";
+import { registry } from "./telemetry/metrics.ts";
 
 const logger = fileLogger(import.meta.url);
 
@@ -157,7 +158,7 @@ try {
 			`${config.kafka.topics.main}-value`
 		])
 	);
-	fetchOnMiss = avroDeserializer.fetchOnMiss;
+	fetchOnMiss = avroDeserializer.fetchOnMiss; //TODO: might need to remove this.
 
 	// Explicit type arguments: `Value` must include `undefined` (tombstones),
 	// but inference absorbs the deserializer's `| undefined` into the generic.
@@ -166,40 +167,46 @@ try {
 		ConsumedValue,
 		string,
 		string
-	>({
-		groupId: config.kafka.groupId,
-		clientId: `${config.kafka.clientId}_consumer`,
-		bootstrapBrokers: config.kafka.brokers,
+	>(
+		{
+			groupId: config.kafka.groupId,
+			clientId: `${config.kafka.clientId}_consumer`,
+			bootstrapBrokers: config.kafka.brokers,
 
-		// Kafka group membership
-		sessionTimeout: config.kafka.sessionTimeout,
-		heartbeatInterval: config.kafka.heartbeatInterval, // 5_000
-		rebalanceTimeout: config.kafka.rebalanceTimeout, // 30_000
-		requestTimeout: config.kafka.requestTimeout,
+			// Kafka group membership
+			sessionTimeout: config.kafka.sessionTimeout,
+			heartbeatInterval: config.kafka.heartbeatInterval, // 5_000
+			rebalanceTimeout: config.kafka.rebalanceTimeout, // 30_000
+			requestTimeout: config.kafka.requestTimeout,
 
-		sasl: {
-			mechanism: config.kafka.sasl.mechanism,
-			username: config.kafka.sasl.username,
-			password: secrets.kafkaPassword
+			sasl: {
+				mechanism: config.kafka.sasl.mechanism,
+				username: config.kafka.sasl.username,
+				password: secrets.kafkaPassword
+			},
+			deserializers: {
+				key: stringDeserializer,
+				value: avroDeserializer.deserialize,
+				headerKey: stringDeserializer,
+				headerValue: stringDeserializer
+			}
 		},
-		deserializers: {
-			key: stringDeserializer,
-			value: avroDeserializer.deserialize,
-			headerKey: stringDeserializer,
-			headerValue: stringDeserializer
-		}
-	});
+		registry
+	);
 
-	kafkaDlqProducer = await createKafkaDlqProducer({
-		clientId: `${config.kafka.clientId}_producer`,
-		acks: -1,
-		bootstrapBrokers: config.kafka.brokers,
-		sasl: {
-			mechanism: config.kafka.sasl.mechanism,
-			username: config.kafka.sasl.username,
-			password: secrets.kafkaPassword
-		}
-	});
+	kafkaDlqProducer = await createKafkaDlqProducer(
+		{
+			clientId: `${config.kafka.clientId}_producer`,
+			acks: -1,
+			bootstrapBrokers: config.kafka.brokers,
+			sasl: {
+				mechanism: config.kafka.sasl.mechanism,
+				username: config.kafka.sasl.username,
+				password: secrets.kafkaPassword
+			}
+		},
+		registry
+	);
 
 	const ruleset: RuleSet = {
 		version: rulesetVersion,
@@ -241,6 +248,15 @@ try {
 	logger.info(
 		{ topic: config.kafka.topics.main, mode: config.kafka.readMode },
 		"Starting consumer"
+	);
+
+	// The client's kafka_consumers_lags metric only gets values while this
+	// runs. A timer, not per flush: a stuck consumer stops flushing, which is
+	// exactly when its lag must keep climbing. The client skips ticks
+	// mid-rebalance and stops the timer on close().
+	kafkaConsumer.startLagMonitoring(
+		{ topics: [config.kafka.topics.main] },
+		config.kafka.lagMonitoringInterval
 	);
 
 	await startBatchConsumer(

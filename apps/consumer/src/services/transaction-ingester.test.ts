@@ -33,7 +33,12 @@ const normaliserEmitting = (value: unknown): Normaliser => ({
 });
 
 const categoriser = {
-	categorise: () => ({ categoryId: 10, ruleVersion: 1, rulePriority: 100 })
+	categorise: () => ({
+		categoryId: 10,
+		ruleVersion: 1,
+		rulePriority: 100,
+		matcherType: "mcc"
+	})
 } as unknown as RuleCategoriser;
 
 suite("transaction ingestion", () => {
@@ -55,7 +60,9 @@ suite("transaction ingestion", () => {
 			pool
 		);
 
-		const outcome = await ingester.ingest([{} as DomainTransactionSchema]);
+		const outcome = await ingester.ingest([
+			{ producedAt: Date.now() } as DomainTransactionSchema
+		]);
 
 		assert.equal(inserted, 1, "the valid row is inserted");
 		assert.equal(outcome.attempted, 1);

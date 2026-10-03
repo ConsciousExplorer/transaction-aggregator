@@ -2,6 +2,7 @@ import { RetryableError } from "#src/errors/consumer-errors.ts";
 import { fileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type { TransactionIngester } from "#src/services/transaction-ingester.ts";
+import { tombstonesSkippedTotal } from "#src/telemetry/metrics.ts";
 import { assertNever } from "#src/utils/assert-never.ts";
 
 const logger = fileLogger(import.meta.url);
@@ -57,6 +58,7 @@ export function createTransactionBatchHandler(
 		}
 
 		if (tombstones > 0) {
+			tombstonesSkippedTotal.inc(tombstones);
 			logger.debug({ tombstones }, "Tombstones in batch — no-op by design");
 		}
 

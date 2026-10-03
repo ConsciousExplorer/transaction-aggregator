@@ -101,7 +101,15 @@ const configSchema = z
 		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(1_000),
 		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(100),
 		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
-		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("committed")
+		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("committed"),
+
+		// How often the client measures lag for kafka_consumers_lags. Match the
+		// Prometheus scrape_interval: refreshing faster is wasted work.
+		KAFKA_LAG_MONITORING_INTERVAL_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(10_000)
 	})
 	.superRefine((e, ctx) => {
 		if (e.KAFKA_HEARTBEAT_INTERVAL_MS > e.KAFKA_SESSION_TIMEOUT_MS / 3) {
@@ -173,7 +181,8 @@ const configSchema = z
 				maxWaitTime: e.KAFKA_MAX_WAIT_TIME_MS,
 				batchSize: e.KAFKA_BATCH_SIZE,
 				lingerMs: e.KAFKA_BATCH_LINGER_MS,
-				readMode: e.KAFKA_READ_MODE
+				readMode: e.KAFKA_READ_MODE,
+				lagMonitoringInterval: e.KAFKA_LAG_MONITORING_INTERVAL_MS
 			}),
 			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
 
