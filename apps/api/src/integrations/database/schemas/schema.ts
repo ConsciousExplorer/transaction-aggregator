@@ -1,15 +1,12 @@
 import {
-	boolean,
 	foreignKey,
-	index,
 	integer,
 	pgEnum,
 	pgTable,
 	smallint,
 	text,
 	timestamp,
-	uuid,
-	varchar
+	uuid
 } from "drizzle-orm/pg-core";
 
 export const directionType = pgEnum("direction_type", ["debit", "credit"]);
@@ -26,30 +23,6 @@ export const transactionType = pgEnum("transaction_type", [
 	"eft",
 	"internal_transfer"
 ]);
-
-export const flywaySchemaHistory = pgTable(
-	"flyway_schema_history",
-	{
-		installedRank: integer("installed_rank").notNull(),
-		version: varchar({ length: 50 }),
-		description: varchar({ length: 200 }).notNull(),
-		type: varchar({ length: 20 }).notNull(),
-		script: varchar({ length: 1000 }).notNull(),
-		checksum: integer(),
-		installedBy: varchar("installed_by", { length: 100 }).notNull(),
-		installedOn: timestamp("installed_on", { mode: "string" })
-			.defaultNow()
-			.notNull(),
-		executionTime: integer("execution_time").notNull(),
-		success: boolean().notNull()
-	},
-	(table) => [
-		index("flyway_schema_history_s_idx").using(
-			"btree",
-			table.success.asc().nullsLast().op("bool_ops")
-		)
-	]
-);
 
 export const ruleSets = pgTable("rule_sets", {
 	version: integer().notNull(),

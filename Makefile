@@ -56,5 +56,7 @@ db-diagram:
 	@chmod +x ./scripts/db-diagram.sh
 	@./scripts/db-diagram.sh
 
+# Re-runs the migrate one-shot; already-applied files are skipped. No command
+# argument: one would replace the image's CMD (npx drizzle-kit migrate).
 migrate:
-	$(COMPOSE) run --rm migrate migrate
+	$(COMPOSE) run --rm migrate

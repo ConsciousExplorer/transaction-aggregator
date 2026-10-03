@@ -132,11 +132,6 @@ export async function gracefulShutdown(code = 0): Promise<never> {
 // #region: Kill Processes
 process.on("SIGTERM", () => void gracefulShutdown());
 process.on("SIGINT", () => void gracefulShutdown());
-
-await startupCheck(
-	"test",
-	() => new Promise((resolve) => setTimeout(resolve, 2000))
-);
 // #endregion
 
 // #region: Main entrypoint
@@ -241,10 +236,11 @@ try {
 		sendToDlq
 	);
 
-	Promise.all([
-		// Connects and authenticates. Same as postgres select 1
-		await kafkaDlqProducer.metadata({ forceUpdate: true }),
-		await kafkaConsumer.metadata({ forceUpdate: true })
+	// Connects and authenticates both clients, the broker's SELECT 1. Awaited, so
+	// a broker failure lands in the catch below instead of an unhandled rejection.
+	await Promise.all([
+		kafkaDlqProducer.metadata({ forceUpdate: true }),
+		kafkaConsumer.metadata({ forceUpdate: true })
 	]);
 
 	server = await createServer();

@@ -4,7 +4,8 @@
 --   txn_agg_read        SELECT on every table
 --   txn_agg_write       inserts transaction facts (the consumers)
 --   txn_agg_prefs_write writes the two user override tables (the API)
--- The per-table write grants live in the Flyway migration, next to the tables.
+-- The per-table write grants live in the migration, next to the tables
+-- (database/migrations/0000_types_and_tables.sql).
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'txn_agg_read') THEN
@@ -63,7 +64,7 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT CONNECT ON DATABASE txn_agg TO txn_agg_read;
 GRANT USAGE ON SCHEMA public TO txn_agg_read;
 
--- Flyway-created tables are owned by admin, so reads are granted as a default
+-- Migration-created tables are owned by admin, so reads are granted as a default
 -- privilege on anything admin creates later.
 ALTER DEFAULT PRIVILEGES FOR ROLE admin IN SCHEMA public
     GRANT SELECT ON TABLES TO txn_agg_read;

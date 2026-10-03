@@ -158,7 +158,7 @@ services:
   # ────────────────────────────── Postgres ───────────────────────────────
   # Custom build = postgres:18 base (pinned) + pg_cron + pg_stat_statements.
   # initdb/ holds superuser bootstrap ONLY (CREATE EXTENSION ...); it runs solely
-  # on an EMPTY volume — all schema lives in Flyway (drift trap otherwise).
+  # on an EMPTY volume — all schema lives in the migrations (drift trap otherwise).
   postgres:
     build:
       context: ./postgres
@@ -189,8 +189,9 @@ services:
       retries: 10
     networks: [txn-network]
 
-  # Versioned schema (V__) plus repeatable R__ files: the category/rule seed and
-  # the pg_cron partman-maintenance schedule (premake monthly partitions / drop >18 months).
+  # drizzle-kit migrations (database/migrations), applied once each in journal
+  # order: 0000 tables + grants, 0001 the category/rule seed, 0002 the pg_cron
+  # partman-maintenance schedule (premake monthly partitions / drop >18 months).
   migrate:
     build:
       context: ../database
