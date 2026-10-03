@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: txn-agg
+    folder: transaction-aggregator
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

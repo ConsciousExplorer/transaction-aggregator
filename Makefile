@@ -1,4 +1,4 @@
-.PHONY: up down clean logs ps generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order db-diagram migrate
+.PHONY: up up-all down clean logs ps generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order db-diagram migrate
 
 # Every compose call goes through here: the compose file lives in infrastructure/
 COMPOSE := docker compose -f infrastructure/docker-compose.yaml
@@ -13,6 +13,9 @@ ALL_PROFILES := --profile ui --profile obs --profile cache
 # The whole system, producers included (random seeds unless GENERATOR_SEED is set)
 up:
 	$(COMPOSE) $(PROFILES) up
+
+up-all:
+	$(COMPOSE) $(ALL_PROFILES) up
 
 # Stops and removes the containers; Kafka and Postgres data are kept
 down:

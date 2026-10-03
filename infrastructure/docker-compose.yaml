@@ -11,6 +11,30 @@
 # Broker topology:
 # DEV: ONE combined KRaft node locally (RF 1).
 # PROD: 3 KRaft nodes, RF 3, min.insync.replicas=2, SCRAM over TLS (MSK).
+#
+# Apps and ports. Host = published on localhost; "-" = in-network only.
+# Third-party apps keep their vendor default container port.
+#
+#   Service           Profile  Host   Container  Notes
+#   kafka1            core     9092   9092       EXTERNAL SASL listener (host tools)
+#                                     29092      INTERNAL plaintext (SR, kafbat-ui, kafka-init)
+#                                     9093       KRaft controller
+#                                     9094       CLIENT SASL listener (producers, consumers)
+#   schema-registry   core     8081   8081
+#   postgres          core     5432   5432
+#   keycloak          core     8086   8080       host 8080 belongs to kafbat-ui; health on 9000
+#   api               core     8083   8083       REST API, /ready
+#   consumer-* (x5)   core     -      8080       health + metrics; one image, one port, like
+#                                                replicas on k8s/ECS. Prometheus scrapes in-network
+#   kafbat-ui         ui       8080   8080
+#   avro-datagen-ui   ui       8501   8501       Streamlit default
+#   grafana           obs      3000   3000
+#   prometheus        obs      9090   9090
+#   tempo             obs      -      3200       HTTP query API (Grafana); OTLP gRPC in on 4317
+#   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
+#   redis             cache    -      6379
+#
+#   No ports (one-shots): kafka-init, schemas-register, migrate, producer-*
 
 # The name the project had at the repo root: container, image, network and
 # volume names stay transaction-aggregator-*, not infrastructure-*.
@@ -354,7 +378,7 @@ services:
       NODE_ENV: production
       APP_NAME: "transaction-aggregator"
       HOST: 0.0.0.0
-      PORT: 3001
+      PORT: 8080
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: card
@@ -391,8 +415,11 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      # Metrics and tracing
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: consumer-card
     networks: [txn-network]
 
   consumer-eft:
@@ -412,7 +439,7 @@ services:
       NODE_ENV: production
       APP_NAME: "transaction-aggregator"
       HOST: 0.0.0.0
-      PORT: 3002
+      PORT: 8080
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: eft
@@ -449,8 +476,11 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      # Metrics and tracing
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: consumer-eft
     networks: [txn-network]
 
   consumer-internal-transfer:
@@ -470,7 +500,7 @@ services:
       NODE_ENV: production
       APP_NAME: "transaction-aggregator"
       HOST: 0.0.0.0
-      PORT: 3003
+      PORT: 8080
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: internal_transfer
@@ -507,8 +537,11 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      # Metrics and tracing
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: consumer-internal-transfer
     networks: [txn-network]
 
   consumer-debit-order:
@@ -528,7 +561,7 @@ services:
       NODE_ENV: production
       APP_NAME: "transaction-aggregator"
       HOST: 0.0.0.0
-      PORT: 3004
+      PORT: 8080
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: debit_order
@@ -565,8 +598,11 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      # Metrics and tracing
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: consumer-debit-order
     networks: [txn-network]
 
   consumer-loan:
@@ -586,7 +622,7 @@ services:
       NODE_ENV: production
       APP_NAME: "transaction-aggregator"
       HOST: 0.0.0.0
-      PORT: 3005
+      PORT: 8080
       # Secrets and certs
       SECRET_DIR: "/secrets"
       TRANSACTION_TYPE: loan
@@ -623,8 +659,11 @@ services:
       # Secrets
       DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
       KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
+      # Metrics and tracing
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: consumer-loan
     networks: [txn-network]
 
   api:
@@ -710,6 +749,8 @@ services:
     profiles: ["obs"]
     image: prom/prometheus:v3.1.0
     container_name: prometheus
+    ports:
+      - "9090:9090"
     volumes:
       - ./obs/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
     networks: [txn-network]
@@ -719,7 +760,7 @@ services:
     image: grafana/grafana:11.4.0
     container_name: grafana
     ports:
-      - "3001:3000"
+      - "3000:3000"
     volumes:
       - ./obs/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -757,16 +798,16 @@ services:
   # example records to copy/paste while writing normalizers/tests. Kafka producer
   # section is NOT enabled (no --kafka flag, no broker access needed); the mount
   # is read-only, so contract changes still go through git review, never the UI.
-  # Starts with `make up` (ui profile)  →  http://localhost:8085
+  # Starts with `make up` (ui profile)  →  http://localhost:8501
   avro-datagen-ui:
     profiles: ["ui"]
     build: { context: ./avro-datagen-ui }
     pull_policy: build
     container_name: avro-datagen-ui
     environment:
-      PORT: "8085" # compose owns the port; the image hardcodes nothing
+      PORT: "8501" # Streamlit's default; compose owns the port
     ports:
-      - "8085:8085"
+      - "8501:8501"
     volumes:
       - ../schemas/:/schemas:ro
     networks: [txn-network]

@@ -5,7 +5,7 @@
   "scripts": {
     "spell": "cspell \"**/*.{ts,js}\"",
     "generate": "drizzle-kit generate --custom",
-    "migrate": "node migrate.ts"
+    "migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.3",
