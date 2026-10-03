@@ -27,6 +27,7 @@ import {
 import type { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
+import httpMetrics from "./telemetry/http-metrics.ts";
 
 // Tests live next to the code they test. Autoload would otherwise register a
 // test file as a plugin or route and run its suite inside the server.
@@ -118,6 +119,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	});
 
 	server.setNotFoundHandler((_req, reply) => send(reply, notFound()));
+
+	/**
+	 * Register the httpMetrics plugin to collect RED metrics for every route.
+	 * Register before autoloading routes so that the hooks are added to every route, including those registered by autoload.
+	 */
+	server.register(httpMetrics);
 
 	// // OpenAPI spec + /docs
 	if (pluginAutoLoadParameters) {

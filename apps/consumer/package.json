@@ -44,6 +44,11 @@
 		"typescript": "7.0.2"
 	},
 	"dependencies": {
+		"@opentelemetry/api": "1.9.1",
+		"@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+		"@opentelemetry/resources": "2.11.0",
+		"@opentelemetry/sdk-trace-node": "2.11.0",
+		"@opentelemetry/semantic-conventions": "1.43.0",
 		"@platformatic/kafka": "^2.13.0",
 		"@prometheus-io/client": "0.16.1",
 		"avsc": "^5.7.9",

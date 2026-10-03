@@ -13,6 +13,7 @@ import {
 	insertDurationSeconds,
 	rowsInsertedTotal
 } from "#src/telemetry/metrics.ts";
+import { withSpan } from "#src/telemetry/tracing.ts";
 import type { Normaliser } from "./domain-normaliser.ts";
 import type { RuleCategoriser, Verdict } from "./rule-categoriser.ts";
 
@@ -35,9 +36,7 @@ export function createTransactionIngester(
 	categoriser: RuleCategoriser,
 	pool: Pool
 ): TransactionIngester {
-	async function ingest(
-		transactions: DomainTransactionSchema[]
-	): Promise<BatchOutcome> {
+	function categoriseAll(transactions: DomainTransactionSchema[]) {
 		const categorisedTransactions: CategorisedTransactionSchema[] = [];
 		const matcherTypes: Verdict["matcherType"][] = [];
 
@@ -54,13 +53,43 @@ export function createTransactionIngester(
 			matcherTypes.push(categorisedTransaction.matcherType);
 		}
 
+		return { categorisedTransactions, matcherTypes };
+	}
+
+	async function ingest(
+		transactions: DomainTransactionSchema[]
+	): Promise<BatchOutcome> {
+		const { categorisedTransactions, matcherTypes } = await withSpan(
+			"categorize",
+			{ attributes: { "transaction.count": transactions.length } },
+			() => categoriseAll(transactions)
+		);
+
 		// Insert batch rows
 		const endInsertTimer = insertDurationSeconds.startTimer();
 		let outcome: BatchOutcome;
 		try {
-			outcome = await withTransaction(pool, async (client) => {
-				return await batchInsertTransactions(client, categorisedTransactions);
-			});
+			outcome = await withSpan(
+				"db.insert",
+				{
+					attributes: {
+						"db.system.name": "postgresql",
+						"db.operation.name": "INSERT",
+						"db.collection.name": "transactions",
+						"rows.attempted": categorisedTransactions.length
+					}
+				},
+				async (span) => {
+					const result = await withTransaction(pool, async (client) => {
+						return await batchInsertTransactions(
+							client,
+							categorisedTransactions
+						);
+					});
+					span.setAttribute("rows.inserted", result.inserted);
+					return result;
+				}
+			);
 		} catch (error) {
 			throw classifyPostgresError(error, "Batch insert failed");
 		}

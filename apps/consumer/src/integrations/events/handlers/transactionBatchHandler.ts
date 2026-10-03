@@ -1,3 +1,4 @@
+import { trace } from "@opentelemetry/api";
 import { RetryableError } from "#src/errors/consumer-errors.ts";
 import { fileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
@@ -56,6 +57,13 @@ export function createTransactionBatchHandler(
 					assertNever(message); // new kind ⇒ compile error, not a silent commit
 			}
 		}
+
+		// Outcome counts on the batch span (no-op when tracing is off)
+		trace.getActiveSpan()?.setAttributes({
+			"batch.valid": validMessages.length,
+			"batch.poison": poisonFailures.length,
+			"batch.tombstones": tombstones
+		});
 
 		if (tombstones > 0) {
 			tombstonesSkippedTotal.inc(tombstones);

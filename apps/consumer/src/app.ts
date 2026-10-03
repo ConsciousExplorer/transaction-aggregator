@@ -47,8 +47,12 @@ import {
 } from "./services/rule-categoriser.ts";
 import { createTransactionIngester } from "./services/transaction-ingester.ts";
 import { registry } from "./telemetry/metrics.ts";
+import { startTracing } from "./telemetry/tracing.ts";
 
 const logger = fileLogger(import.meta.url);
+
+// Undefined when tracing is disabled
+const tracerProvider = startTracing(config.tracing);
 
 // Dependencies
 let writerPool: Pool;
@@ -112,6 +116,14 @@ export async function gracefulShutdown(code = 0): Promise<never> {
 		server.close();
 	} catch (err) {
 		logger.error({ err }, "Health server close failed");
+	}
+
+	// One flush on the graceful path, so the last batch's spans (including a
+	// failed one) reach Tempo. A crash loses tail spans, accepted (D46).
+	try {
+		await tracerProvider?.forceFlush();
+	} catch (err) {
+		logger.error({ err }, "Trace flush failed");
 	}
 
 	process.exit(code);

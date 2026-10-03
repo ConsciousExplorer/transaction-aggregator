@@ -15,4 +15,4 @@ COPY src/ src/
 # Drop privileges after everything is in place. `node` exists in the base image.
 USER node
 
-CMD ["node", "src/app.ts"]
+CMD ["node", "--import", "@opentelemetry/auto-instrumentations-node/register", "src/app.ts"]

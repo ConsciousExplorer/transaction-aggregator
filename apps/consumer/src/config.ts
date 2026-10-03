@@ -109,7 +109,11 @@ const configSchema = z
 			.number()
 			.int()
 			.positive()
-			.default(10_000)
+			.default(10_000),
+
+		// Tracing is off unless the obs profile sets OTEL_SDK_DISABLED=false.
+		OTEL_SDK_DISABLED: z.stringbool().default(true),
+		OTEL_SERVICE_NAME: z.string().default("consumer")
 	})
 	.superRefine((e, ctx) => {
 		if (e.KAFKA_HEARTBEAT_INTERVAL_MS > e.KAFKA_SESSION_TIMEOUT_MS / 3) {
@@ -185,6 +189,10 @@ const configSchema = z
 				lagMonitoringInterval: e.KAFKA_LAG_MONITORING_INTERVAL_MS
 			}),
 			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
+			tracing: Object.freeze({
+				enabled: !e.OTEL_SDK_DISABLED,
+				serviceName: e.OTEL_SERVICE_NAME
+			}),
 
 			// Keeping secrets separate to ensure they are not logged out by mistake
 			secretsSpec: Object.freeze({

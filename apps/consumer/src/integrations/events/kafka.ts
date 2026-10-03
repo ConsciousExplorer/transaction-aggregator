@@ -5,9 +5,17 @@ import {
 	batchSize,
 	dlqMessagesTotal
 } from "#src/telemetry/metrics.ts";
+import { withSpan } from "#src/telemetry/tracing.ts";
 
 const logger = fileLogger(import.meta.url);
 
+import {
+	type Link,
+	propagation,
+	ROOT_CONTEXT,
+	SpanKind,
+	trace
+} from "@opentelemetry/api";
 import {
 	type BaseOptions,
 	type BeforeHookPayloadType,
@@ -140,12 +148,25 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 	return async function sendToDlq(failures: DlqFailure[]) {
 		if (failures.length === 0) return;
 
-		const records = [];
+		const records: ReturnType<typeof toDlqRecord>[] = [];
 		for (const failure of failures) {
 			records.push(toDlqRecord(dlqTopic, failure));
 		}
 
-		await dlqProducer.send({ messages: records, acks: -1 });
+		// One span per send: it is one produce request, however many records
+		await withSpan(
+			"dlq.publish",
+			{
+				kind: SpanKind.PRODUCER,
+				attributes: {
+					"messaging.system": "kafka",
+					"messaging.operation.type": "send",
+					"messaging.destination.name": dlqTopic,
+					"messaging.batch.message_count": records.length
+				}
+			},
+			() => dlqProducer.send({ messages: records, acks: -1 })
+		);
 
 		for (const record of records) {
 			dlqMessagesTotal.inc({ reason: record.headers["x-dlq-reason"] });
@@ -216,6 +237,25 @@ export interface BatchConsumerOptions {
 
 type FlushTrigger = "size" | "linger" | "stream_end";
 
+/**
+ * One link per message that carries a W3C traceparent header, pointing back
+ * at the producer's span. Empty until the producers emit traceparent.
+ */
+function linksFrom(batch: KafkaMessage[]): Link[] {
+	const links: Link[] = [];
+
+	for (const message of batch) {
+		const traceparent = message.headers.get("traceparent");
+		if (!traceparent) continue;
+
+		const extracted = propagation.extract(ROOT_CONTEXT, { traceparent });
+		const spanContext = trace.getSpanContext(extracted);
+		if (spanContext) links.push({ context: spanContext });
+	}
+
+	return links;
+}
+
 export async function startBatchConsumer(
 	consumer: KafkaConsumer,
 	onBatch: BatchHandler,
@@ -257,16 +297,35 @@ export async function startBatchConsumer(
 		batchFlushTotal.inc({ trigger });
 		batchSize.observe(batch.length);
 
-		await onBatch(classifyMessages(batch));
+		const topic = options.topics.join(",");
+		await withSpan(
+			`consume.batch ${topic}`,
+			{
+				// Each batch is its own trace. The producers' traces are links,
+				// not parents: one span cannot have a parent per message.
+				root: true,
+				kind: SpanKind.CONSUMER,
+				links: linksFrom(batch),
+				attributes: {
+					"messaging.system": "kafka",
+					"messaging.destination.name": topic,
+					"messaging.batch.message_count": batch.length,
+					"batch.trigger": trigger
+				}
+			},
+			async () => {
+				await onBatch(classifyMessages(batch));
 
-		try {
-			await commitBatch(batch);
-		} catch (error) {
-			logger.warn(
-				{ error: error, size: batch.length },
-				"Commit failed after a successful flush."
-			);
-		}
+				try {
+					await commitBatch(batch);
+				} catch (error) {
+					logger.warn(
+						{ error: error, size: batch.length },
+						"Commit failed after a successful flush."
+					);
+				}
+			}
+		);
 
 		endFlushTimer();
 	}
