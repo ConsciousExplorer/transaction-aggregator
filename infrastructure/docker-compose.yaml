@@ -732,7 +732,7 @@ services:
     container_name: otel-collector
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
-      - ./obs/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
     networks: [txn-network]
 
   tempo:
@@ -741,7 +741,7 @@ services:
     container_name: tempo
     command: ["-config.file=/etc/tempo/tempo.yaml"]
     volumes:
-      - ./obs/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - ./observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
     networks: [txn-network]
 
@@ -752,7 +752,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./obs/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
     networks: [txn-network]
 
   grafana:
@@ -762,8 +762,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./obs/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks: [txn-network]
 
   kafbat-ui:

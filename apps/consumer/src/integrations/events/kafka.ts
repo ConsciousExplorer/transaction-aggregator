@@ -1,4 +1,5 @@
 import { fileLogger } from "#src/logger.ts";
+import { batchSize, messagesConsumedTotal } from "#src/telemetry/metrics.ts";
 
 const logger = fileLogger(import.meta.url);
 
@@ -207,6 +208,7 @@ export async function startBatchConsumer(
 		messageBatch = [];
 
 		if (batch.length === 0) return;
+		batchSize.observe(batch.length);
 
 		await onBatch(classifyMessages(batch));
 
@@ -230,6 +232,7 @@ export async function startBatchConsumer(
 
 	for await (const message of messageStream) {
 		messageBatch.push(message);
+		messagesConsumedTotal.inc({ topic: message.topic });
 
 		if (messageBatch.length === 1) {
 			timeoutId = setTimeout(() => {
