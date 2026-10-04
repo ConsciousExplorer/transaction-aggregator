@@ -40,6 +40,20 @@ class GeneratorSettings(BaseSettings):
         return None if isinstance(v, str) and v.strip() == "" else v
 
 
+class ProducerSettings(BaseSettings):
+    """oneshot sends the generated corpus and exits; stream sends until stopped."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=False, extra="ignore", frozen=True
+    )
+
+    mode: Literal["oneshot", "stream"] = Field(
+        default="oneshot", validation_alias="PRODUCER_MODE"
+    )
+    # Messages per second in stream mode
+    rate: float = Field(default=10, gt=0, validation_alias="PRODUCER_RATE")
+
+
 class SchemaRegistrySettings(BaseSettings):
     """initialises the schema registry settings from the environment variables on startup."""
 
@@ -118,6 +132,7 @@ class AppConfig(BaseModel):
     kafka: KafkaSettings
     schemaRegistry: SchemaRegistrySettings
     generator: GeneratorSettings
+    producer: ProducerSettings
 
 
 def get_config() -> AppConfig:
@@ -127,4 +142,5 @@ def get_config() -> AppConfig:
         kafka=KafkaSettings(),  # pyright: ignore[reportCallIssue]
         schemaRegistry=SchemaRegistrySettings(),  # pyright: ignore[reportCallIssue]
         generator=GeneratorSettings(),
+        producer=ProducerSettings(),
     )

@@ -1,7 +1,7 @@
 import json
 import logging
+import secrets
 import time
-import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Protocol
 
@@ -43,6 +43,11 @@ def _kafka_delivery_callback(err, msg) -> None:
         key,
         len(msg.value()),
     )
+
+
+def _mint_traceparent() -> str:
+    """A fresh W3C trace context: new trace-id and parent-id, sampled."""
+    return f"00-{secrets.token_hex(16)}-{secrets.token_hex(8)}-01"
 
 
 def build_serializer(
@@ -112,8 +117,8 @@ def produce_records(
 
     Headers carry transport metadata readable without deserializing the value:
     `static_headers` (e.g. producer identity) go on every message, x-producer is
-    defaulted if the caller supplies none, and a fresh x-correlation-id is
-    minted per message for cross-service tracing/DLQ diagnostics. Business data
+    defaulted if the caller supplies none, and a fresh W3C traceparent is
+    minted per message for cross-service tracing. Business data
     stays in the schema'd payload.
     """
 
@@ -129,8 +134,7 @@ def produce_records(
             value = serializer(record, serializer_context)
             key = extract_key(record, key_fields)
 
-            # Correlation id stays UUIDv4: tracing-only, never an index key.
-            headers = {**(static_headers or {}), "x-correlation-id": str(uuid.uuid4())}
+            headers = {**(static_headers or {}), "traceparent": _mint_traceparent()}
             headers.setdefault("x-producer", "producers/unknown")
 
             try:

@@ -10,7 +10,7 @@ Everything runs through `make` from the repo root; the compose file lives in
 
 ```
 make up          # the whole system, producers included (dev UIs too; `make up UI=` skips them)
-make generate    # run all five producers again (GENERATOR_SEED=42 make generate for a fixed seed)
+make produce    # run all five producers again (GENERATOR_SEED=42 make produce for a fixed seed)
 make logs        # follow the logs
 make ps          # container status
 make down        # stop and remove containers, keep the data

@@ -1,14 +1,18 @@
 import logging
 import secrets
+import signal
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from importlib.metadata import version
+from typing import Any
 
 from avro_datagen import generate
 from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 
-from config import get_config
+from config import AppConfig, get_config
 from producer_core import build_serializer, produce_records, resolve_key_fields
+from stream import stream_records
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,21 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    logger.info("starting producer for topic %s", config.kafka.topic)
+    # docker compose stop sends SIGTERM: treat it as Ctrl-C so produce_records flushes
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
+
+    if config.producer.mode == "stream":
+        logger.info(
+            "starting producer for topic %s in stream mode at %g messages/s",
+            config.kafka.topic,
+            config.producer.rate,
+        )
+        records = stream_records(config.generator.schema_path, config.producer.rate)
+    else:
+        logger.info(
+            "starting producer for topic %s in oneshot mode", config.kafka.topic
+        )
+        records = oneshot_records(config)
 
     schema_registry = SchemaRegistryClient({"url": config.schemaRegistry.url})
     # TopicNameStrategy: the value schema for topic T lives under subject "T-value"
@@ -31,9 +49,27 @@ def main():
 
     producer = Producer(config.kafka.to_producer_config())
 
-    # The seed should be random for chaos and tests.
-    # For reproduceable tests, a seed value should be set to ensure
-    # all test records are not randomised.
+    stats = produce_records(
+        producer,
+        serializer,
+        config.kafka.topic,
+        records,
+        key_fields,
+        static_headers={
+            "x-producer": f"producers/{version('producers')}",
+        },
+    )
+    logger.info(
+        "produced %d records (%d errors, %d undelivered) in %.1fs",
+        stats.produced,
+        stats.errors,
+        stats.undelivered,
+        stats.elapsed_s,
+    )
+
+
+def oneshot_records(config: AppConfig) -> Iterator[dict[str, Any]]:
+    # Random unless GENERATOR_SEED pins it; pin it for reproducible runs
     seed = config.generator.seed
     seed_source = "env"
     if seed is None:
@@ -57,28 +93,11 @@ def main():
     )
 
     anchor = datetime(anchor_date.year, anchor_date.month, anchor_date.day, tzinfo=UTC)
-    records = generate(
+    return generate(
         schema_path=config.generator.schema_path,
         count=config.generator.count,
         seed=seed,
         now=anchor,
-    )
-    stats = produce_records(
-        producer,
-        serializer,
-        config.kafka.topic,
-        records,
-        key_fields,
-        static_headers={
-            "x-producer": f"producers/{version('producers')}",
-        },
-    )
-    logger.info(
-        "produced %d records (%d errors, %d undelivered) in %.1fs",
-        stats.produced,
-        stats.errors,
-        stats.undelivered,
-        stats.elapsed_s,
     )
 
 

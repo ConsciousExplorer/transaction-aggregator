@@ -1,4 +1,4 @@
-.PHONY: up up-all down clean logs ps generate generate-card generate-eft generate-loan generate-internal-transfer generate-debit-order db-diagram migrate
+.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-loan produce-internal-transfer produce-debit-order produce-stream db-diagram migrate
 
 # Every compose call goes through here: the compose file lives in infrastructure/
 COMPOSE := docker compose -f infrastructure/docker-compose.yaml
@@ -41,23 +41,29 @@ ps:
 # All five sources in one run: random transactions (a fresh seed, history
 # ending today) unless the shell sets GENERATOR_SEED / GENERATOR_ANCHOR_DATE.
 # Always the same customers and accounts: the schemas seed those pools.
-generate:
+produce:
 	$(COMPOSE) up --no-deps producer-card producer-eft producer-loan producer-internal-transfer producer-debit-order
 
-generate-card:
+produce-card:
 	$(COMPOSE) up --no-deps producer-card
 
-generate-eft:
+produce-eft:
 	$(COMPOSE) up --no-deps producer-eft
 
-generate-loan:
+produce-loan:
 	$(COMPOSE) up --no-deps producer-loan
 
-generate-internal-transfer:
+produce-internal-transfer:
 	$(COMPOSE) up --no-deps producer-internal-transfer
 
-generate-debit-order:
+produce-debit-order:
 	$(COMPOSE) up --no-deps producer-debit-order
+
+# Live transactions until Ctrl-C, stamped with the time they are sent, at a retail
+# bank's mix per second: card 25, eft 8, debit-order 4, internal-transfer 2, loan 1
+# (defaults in compose). Override one: make produce-stream CARD_RATE=100
+produce-stream:
+	PRODUCER_MODE=stream $(COMPOSE) up --build --no-deps producer-card producer-eft producer-loan producer-internal-transfer producer-debit-order
 
 db-diagram:
 	@chmod +x ./scripts/db-diagram.sh

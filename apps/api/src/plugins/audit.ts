@@ -16,7 +16,7 @@ export default fastifyPlugin(
 					method: request.method,
 					route: request.routeOptions.url,
 					status: reply.statusCode,
-					// The request id until OTel tracing lands; a 500 problem carries the same id
+					// request.id is the W3C trace id; a 500 problem carries the same id
 					trace_id: request.id
 				},
 				"audit"

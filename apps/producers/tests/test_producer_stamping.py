@@ -1,6 +1,9 @@
+import re
 from typing import Any
 
 from producer_core import produce_records
+
+TRACEPARENT = re.compile(r"^00-[0-9a-f]{32}-[0-9a-f]{16}-01$")
 
 
 class FakeProducer:
@@ -45,7 +48,7 @@ def test_produce_records_serializes_the_record_without_stamping_it():
     assert seen == [record]
 
 
-def test_headers_include_producer_identity_and_fresh_correlation_id():
+def test_headers_include_producer_identity_and_fresh_traceparent():
     producer = FakeProducer()
 
     produce_records(
@@ -58,7 +61,9 @@ def test_headers_include_producer_identity_and_fresh_correlation_id():
 
     first, second = (call["headers"] for call in producer.calls)
     assert first["x-producer"]  # identity present even with no static_headers
-    assert first["x-correlation-id"] != second["x-correlation-id"]
+    assert TRACEPARENT.match(first["traceparent"])
+    assert TRACEPARENT.match(second["traceparent"])
+    assert first["traceparent"] != second["traceparent"]
 
 
 def test_headers_keep_caller_supplied_producer_identity():

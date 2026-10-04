@@ -28,6 +28,7 @@ import type { CategoryRepository } from "./integrations/database/repositories/ca
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 import httpMetrics from "./telemetry/http-metrics.ts";
+import { requestTraceId } from "./utils/trace-id.ts";
 
 // Tests live next to the code they test. Autoload would otherwise register a
 // test file as a plugin or route and run its suite inside the server.
@@ -81,6 +82,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const server = fastify({
 		loggerInstance: logger,
 		logController: new LogController({ disableRequestLogging: true }),
+		genReqId: requestTraceId,
 		...serverOptions
 	}).withTypeProvider<ZodTypeProvider>();
 

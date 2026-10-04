@@ -239,8 +239,8 @@ export interface BatchConsumerOptions {
 type FlushTrigger = "size" | "linger" | "stream_end";
 
 /**
- * One link per message that carries a W3C traceparent header, pointing back
- * at the producer's span. Empty until the producers emit traceparent.
+ * One link per message that carries a W3C traceparent header, pointing at the
+ * trace context the producer minted for it.
  */
 function linksFrom(batch: KafkaMessage[]): Link[] {
 	const links: Link[] = [];
