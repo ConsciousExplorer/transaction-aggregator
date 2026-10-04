@@ -219,30 +219,19 @@
     "list": [
       {
         "current": {
-          "text": [
-            "/api/v1/categories",
-            "/api/v1/users/:userId/categories",
-            "/api/v1/users/:userId/category-overrides",
-            "/api/v1/users/:userId/summary",
-            "/api/v1/users/:userId/transactions",
-            "/api/v1/users/:userId/transactions/:transactionId"
-          ],
+          "text": "All",
           "value": [
-            "/api/v1/categories",
-            "/api/v1/users/:userId/categories",
-            "/api/v1/users/:userId/category-overrides",
-            "/api/v1/users/:userId/summary",
-            "/api/v1/users/:userId/transactions",
-            "/api/v1/users/:userId/transactions/:transactionId"
+            "$__all"
           ]
         },
-        "definition": "label_values(http_request_duration_seconds_count{job=\"api\"},route)",
+        "definition": "label_values(route)",
+        "includeAll": true,
         "multi": true,
         "name": "route",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(http_request_duration_seconds_count{job=\"api\"},route)",
+          "query": "label_values(route)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -259,6 +248,6 @@
   "timezone": "browser",
   "title": "Api",
   "uid": "eg05a82ea85j4c",
-  "version": 18,
+  "version": 4,
   "weekStart": ""
 }
