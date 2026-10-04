@@ -239,9 +239,11 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
       GENERATOR_COUNT: "60000"
-      # Add a seed value for stable reproducible tests
+      # Empty = a random seed per run (make generate). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
-      # Day the 18 months of history end on (00:00 UTC); unset = today
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
       GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
@@ -270,9 +272,11 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
       GENERATOR_COUNT: "20000"
-      # Add a seed value for stable reproducible tests
+      # Empty = a random seed per run (make generate). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
-      # Day the 18 months of history end on (00:00 UTC); unset = today
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
       GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
@@ -301,9 +305,11 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
       GENERATOR_COUNT: "20000"
-      # Add a seed value for stable reproducible tests
+      # Empty = a random seed per run (make generate). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
-      # Day the 18 months of history end on (00:00 UTC); unset = today
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
       GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
@@ -332,9 +338,11 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
       GENERATOR_COUNT: "10000"
-      # Add a seed value for stable reproducible tests
+      # Empty = a random seed per run (make generate). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
-      # Day the 18 months of history end on (00:00 UTC); unset = today
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
       GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
@@ -363,10 +371,11 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
       GENERATOR_COUNT: "20000"
-      # Add a seed value for stable reproducible tests, for random chaos, don't add a 
-      # seed value. No seed is added to ensure we get random data in kafka
+      # Empty = a random seed per run (make generate). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
-      # Day the 18 months of history end on (00:00 UTC); unset = today
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
       GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]

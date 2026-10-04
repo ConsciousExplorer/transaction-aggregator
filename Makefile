@@ -10,14 +10,19 @@ PROFILES := $(if $(UI),--profile ui)
 # down and clean name every profile, so no profiled container is left behind
 ALL_PROFILES := --profile ui --profile obs --profile cache
 
-# The whole system, producers included (random seeds unless GENERATOR_SEED is set)
+# make up always sends the same records: a fixed seed, and history ending on a
+# fixed day. Change them for one run: make up SEED=7 ANCHOR_DATE=2026-12-01
+SEED ?= 42
+ANCHOR_DATE ?= 2026-10-04
+
+# The whole system, producers included
 up:
-	$(COMPOSE) $(PROFILES) up
+	GENERATOR_SEED=$(SEED) GENERATOR_ANCHOR_DATE=$(ANCHOR_DATE) $(COMPOSE) $(PROFILES) up
 
 # Every profile, obs included, so tracing is switched on too (compose defaults
 # OTEL_SDK_DISABLED to true; the collector and Tempo only run in this target)
 up-all:
-	OTEL_SDK_DISABLED=false $(COMPOSE) $(ALL_PROFILES) up
+	GENERATOR_SEED=$(SEED) GENERATOR_ANCHOR_DATE=$(ANCHOR_DATE) OTEL_SDK_DISABLED=false $(COMPOSE) $(ALL_PROFILES) up
 
 # Stops and removes the containers; Kafka and Postgres data are kept
 down:
@@ -33,7 +38,9 @@ logs:
 ps:
 	$(COMPOSE) $(ALL_PROFILES) ps
 
-# All five sources in one run (random seeds unless GENERATOR_SEED is set)
+# All five sources in one run: random transactions (a fresh seed, history
+# ending today) unless the shell sets GENERATOR_SEED / GENERATOR_ANCHOR_DATE.
+# Always the same customers and accounts: the schemas seed those pools.
 generate:
 	$(COMPOSE) up --no-deps producer-card producer-eft producer-loan producer-internal-transfer producer-debit-order
 
