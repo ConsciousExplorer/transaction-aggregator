@@ -182,7 +182,7 @@
     },
     {
       "type": "stat",
-      "title": "DLQ messages in range (S4)",
+      "title": "DLQ in range (S4)",
       "description": "Errors. Messages sent to the dead-letter topic over the selected range. S4: zero. Any value means a poison message: see DLQ by reason below.",
       "datasource": {
         "type": "prometheus",
@@ -322,7 +322,7 @@
     },
     {
       "type": "stat",
-      "title": "Ingest lag p95 in range (S2)",
+      "title": "Lag p95 in range (S2)",
       "description": "Duration. 95th percentile of insert time minus the Kafka record timestamp, over the selected range. S2: under 5 s.",
       "datasource": {
         "type": "prometheus",
@@ -933,7 +933,7 @@
     },
     {
       "type": "row",
-      "title": "Max throughput (load test)",
+      "title": "Observed max",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -946,8 +946,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak transactions/s",
-      "description": "The most messages consumed in one second, over the selected range. Each message is one transaction. Measured between consecutive scrapes, 10 s apart, so a short burst reads at its real height. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max transactions/s",
+      "description": "The most messages consumed in one second, over the selected range. Each message is one transaction. Measured between consecutive scrapes, 10 s apart, so a short burst reads at its real height. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1012,8 +1012,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak transactions/min",
-      "description": "The most messages consumed in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max transactions/min",
+      "description": "The most messages consumed in any 60 seconds of the selected range. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1078,8 +1078,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak rows inserted/s",
-      "description": "The most rows committed in one second. Below peak transactions/s means duplicates, poison messages or tombstones. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max rows inserted/s",
+      "description": "The most rows committed in one second. Below max transactions/s means duplicates, poison messages or tombstones. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1144,8 +1144,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak rows inserted/min",
-      "description": "The most rows committed in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max rows inserted/min",
+      "description": "The most rows committed in any 60 seconds of the selected range. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1210,8 +1210,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak transactions/s within S2",
-      "description": "The most messages consumed in one second while ingest lag p95 (over the minute before) stayed under 5 s: the throughput the consumers sustain and still meet S2. Below peak transactions/s means the peak was reached by falling behind. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max tx/s within S2",
+      "description": "The most messages consumed in one second while ingest lag p95 (over the minute before) stayed under 5 s: the throughput the consumers sustain and still meet S2. Below max transactions/s means the peak was reached by falling behind. A dash means no minute of the range stayed under 5 s, or there was no traffic. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1233,7 +1233,7 @@
           },
           "mappings": [],
           "decimals": 0,
-          "noValue": "never within S2"
+          "noValue": "\u2014"
         },
         "overrides": []
       },
@@ -1277,8 +1277,8 @@
     },
     {
       "type": "stat",
-      "title": "Average transactions/s while busy",
-      "description": "Messages consumed per second, averaged over the moments of the range with any traffic: the sustained rate, where the peak is the best 10 s. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Avg tx/s while busy",
+      "description": "Messages consumed per second, averaged over the moments of the range with any traffic: the sustained rate, where the max is the best 10 s. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

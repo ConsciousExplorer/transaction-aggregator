@@ -7,13 +7,8 @@ export async function createServer(options?: {
 	description?: string;
 }): Promise<Server> {
 	return http.createServer(async (req, res) => {
-		if (req.method === "GET" && ["/alive", "/alivez"].includes(req.url ?? "")) {
-			return res.end("ok");
-		}
-
 		/**
-		 * Health endpoint for application liveness and readiness.
-		 * It is useful for monitoring and debugging purposes.
+		 * Health endpoints to see if the service is up and running.
 		 */
 		if (
 			req.method === "GET" &&

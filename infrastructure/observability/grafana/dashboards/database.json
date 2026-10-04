@@ -197,7 +197,7 @@
     },
     {
       "type": "stat",
-      "title": "Deadlocks in range",
+      "title": "Deadlocks",
       "description": "Errors. Deadlocks Postgres detected in txn_agg over the selected range. Postgres cancels one side; any value is worth a look at the statements involved (Postgres logs them).",
       "datasource": {
         "type": "prometheus",
@@ -267,7 +267,7 @@
     },
     {
       "type": "stat",
-      "title": "Mean statement time",
+      "title": "Statement mean",
       "description": "Duration. Statement time divided by calls over the last 5 minutes, every role. A route's latency is the sum of its statements plus pool wait. From pg_stat_statements (the 50 statements with the most time).",
       "datasource": {
         "type": "prometheus",
@@ -498,7 +498,7 @@
     },
     {
       "type": "stat",
-      "title": "Oldest transaction",
+      "title": "Oldest open tx",
       "description": "Age of the longest-running open transaction in txn_agg. A long one holds locks and stops autovacuum from cleaning dead rows. Orange from 1 minute, red from 5.",
       "datasource": {
         "type": "prometheus",
@@ -1034,7 +1034,7 @@
     },
     {
       "type": "row",
-      "title": "Max throughput (load test) (txn_agg)",
+      "title": "Observed max (txn_agg)",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -1047,8 +1047,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak DB transactions/s",
-      "description": "The most database transactions committed or rolled back in one second, between consecutive scrapes. A consumer batch of up to 100 rows is one transaction, so this is far below the Consumers dashboard's transactions/s. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max DB transactions/s",
+      "description": "The most database transactions committed or rolled back in one second, between consecutive scrapes. A consumer batch of up to 100 rows is one transaction, so this is far below the Consumers dashboard's transactions/s. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1113,8 +1113,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak DB transactions/min",
-      "description": "The most database transactions in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max DB transactions/min",
+      "description": "The most database transactions in any 60 seconds of the selected range. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1179,8 +1179,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak rows inserted/s",
-      "description": "The most rows Postgres inserted in one second. Rows skipped by ON CONFLICT DO NOTHING are not inserts. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max rows inserted/s",
+      "description": "The most rows Postgres inserted in one second. Rows skipped by ON CONFLICT DO NOTHING are not inserts. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1245,8 +1245,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak busy connections",
-      "description": "The most connections executing statements at once, averaged over 10 s (statement time per second). Near the pool sizes (consumers 3 each, API 10) the pools, not Postgres, are the limit. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max busy connections",
+      "description": "The most connections executing statements at once, averaged over 10 s (statement time per second). Near the pool sizes (consumers 3 each, API 10) the pools, not Postgres, are the limit. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1311,8 +1311,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak connections",
-      "description": "The most client connections open to txn_agg. Orange above the budget of 32. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max connections",
+      "description": "The most client connections open to txn_agg. Orange above the budget of 32. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1385,8 +1385,8 @@
     },
     {
       "type": "stat",
-      "title": "Worst mean statement time (1 min)",
-      "description": "The slowest minute of the range for the average statement. Rising with load means Postgres is the bottleneck; flat while throughput stops climbing means the limit is elsewhere. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max statement mean",
+      "description": "The slowest minute of the range for the average statement. Rising with load means Postgres is the bottleneck; flat while throughput stops climbing means the limit is elsewhere. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1406,8 +1406,7 @@
               }
             ]
           },
-          "mappings": [],
-          "decimals": 4
+          "mappings": []
         },
         "overrides": []
       },

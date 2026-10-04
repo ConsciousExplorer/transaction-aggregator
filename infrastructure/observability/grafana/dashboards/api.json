@@ -672,7 +672,8 @@
             },
             "thresholdsStyle": {
               "mode": "dashed"
-            }
+            },
+            "axisSoftMax": 0.01
           },
           "thresholds": {
             "mode": "absolute",
@@ -876,7 +877,7 @@
     },
     {
       "type": "row",
-      "title": "Max throughput (load test): every /api/v1 route",
+      "title": "Observed max: every /api/v1 route",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -889,8 +890,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak requests/s",
-      "description": "The most requests answered in one second, any status, measured between consecutive scrapes (10 s apart). Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max requests/s",
+      "description": "The most requests answered in one second, any status, measured between consecutive scrapes (10 s apart). The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -955,8 +956,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak requests/min",
-      "description": "The most requests answered in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max requests/min",
+      "description": "The most requests answered in any 60 seconds of the selected range. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1021,8 +1022,8 @@
     },
     {
       "type": "stat",
-      "title": "Peak requests/s within SLO",
-      "description": "The highest request rate (over a minute) at which p95 stayed under 200 ms (S1) and 5xx under 0.1%: the most the API serves before it breaks. Below peak requests/s means load past this point broke an SLO. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max req/s within SLO",
+      "description": "The highest request rate (over a minute) at which p95 stayed under 200 ms (S1) and 5xx under 0.1%: the most the API serves before it breaks. Below max requests/s means load past this point broke an SLO. A dash means no minute of the range met both, or there was no traffic. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1044,7 +1045,7 @@
           },
           "mappings": [],
           "decimals": 1,
-          "noValue": "never within SLO"
+          "noValue": "\u2014"
         },
         "overrides": []
       },
@@ -1088,8 +1089,8 @@
     },
     {
       "type": "stat",
-      "title": "Worst p95 (1 min)",
-      "description": "The highest p95 latency over any minute of the range. Red from 200 ms (S1). Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max p95 (1 min)",
+      "description": "The highest p95 latency over any minute of the range. Red from 200 ms (S1). The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1113,8 +1114,7 @@
               }
             ]
           },
-          "mappings": [],
-          "decimals": 3
+          "mappings": []
         },
         "overrides": []
       },
@@ -1158,8 +1158,8 @@
     },
     {
       "type": "stat",
-      "title": "Worst 5xx ratio (1 min)",
-      "description": "The highest share of 5xx responses over any minute of the range. Red from 0.1%. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Max 5xx ratio (1 min)",
+      "description": "The highest share of 5xx responses over any minute of the range. Red from 0.1%. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1228,8 +1228,8 @@
     },
     {
       "type": "stat",
-      "title": "Average requests/s while busy",
-      "description": "Requests per second averaged over the moments of the range with any traffic: the sustained rate. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "title": "Avg req/s while busy",
+      "description": "Requests per second averaged over the moments of the range with any traffic: the sustained rate. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1414,7 +1414,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (status_code) (irate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[30s]))",
+          "expr": "sum by (status_code) (irate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[30s])) > 0",
           "legendFormat": "{{status_code}}",
           "range": true,
           "instant": false,
@@ -1433,7 +1433,7 @@
     {
       "type": "xychart",
       "title": "Latency vs throughput",
-      "description": "Each point is one moment of the range: requests/s over the minute before it (x) against p95 latency over the same minute (y). Under a ramping load test the points run flat, then bend upward: the bend is the throughput where the API stops keeping up. Points above 0.2 s are outside S1.",
+      "description": "Each point is one moment of the range: requests/s over the minute before it (x) against p95 latency over the same minute (y). As traffic rises the points run flat, then bend upward: the bend is the throughput where the API stops keeping up. Points above 0.2 s are outside S1.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
