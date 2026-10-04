@@ -61,7 +61,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		await app.register(summaryRoute, {
 			prefix: "/api/v1/users/:userId/summary",
 			summaryRepository,
-			queryWindow: { transactionsMaxDays: 92, summaryMaxDays: 366 }
+			queryWindow: { maxDays: 366 }
 		});
 		await app.ready();
 	});

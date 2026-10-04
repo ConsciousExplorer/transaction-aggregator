@@ -729,9 +729,8 @@ services:
       AUTH_ISSUER: "http://localhost:8086/realms/txn-api"
       AUTH_AUDIENCE: 'txn-api'
 
-      # Widest fromDateTime → toDateTime span per endpoint, in days
-      WINDOW_MAX_DAYS_TRANSACTIONS: 92
-      WINDOW_MAX_DAYS_SUMMARY: 366
+      # Widest fromDateTime → toDateTime span for the list and summary, in days
+      WINDOW_MAX_DAYS: 366
 
       # Tracing: the Dockerfile loads the OTel auto-instrumentation, configured
       # entirely from these. Off unless an obs run opts in (OTEL_SDK_DISABLED=false).

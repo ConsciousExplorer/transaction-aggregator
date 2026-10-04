@@ -50,7 +50,7 @@ export default async (
 		queryWindow: QueryWindowConfig;
 	}
 ) => {
-	const maxWindowDays = opts.queryWindow.transactionsMaxDays;
+	const maxWindowDays = opts.queryWindow.maxDays;
 
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",

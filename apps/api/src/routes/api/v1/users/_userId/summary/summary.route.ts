@@ -92,7 +92,7 @@ export default async (
 	fastify: FastifyInstance,
 	opts: { summaryRepository: SummaryRepository; queryWindow: QueryWindowConfig }
 ) => {
-	const maxWindowDays = opts.queryWindow.summaryMaxDays;
+	const maxWindowDays = opts.queryWindow.maxDays;
 
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",

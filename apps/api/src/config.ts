@@ -43,14 +43,9 @@ const configSchema = z
 			.default("http://keycloak:8086/realms/txn-api"),
 		AUTH_AUDIENCE: z.string().optional().default("txn-api"),
 
-		// Widest fromDateTime → toDateTime span each endpoint accepts. Any three
-		// calendar months fit in 92 days, any twelve in 366.
-		WINDOW_MAX_DAYS_TRANSACTIONS: z.coerce
-			.number()
-			.int()
-			.positive()
-			.default(92),
-		WINDOW_MAX_DAYS_SUMMARY: z.coerce.number().int().positive().default(366)
+		// Widest fromDateTime → toDateTime span the list and summary accept. Any
+		// twelve calendar months fit in 366 days.
+		WINDOW_MAX_DAYS: z.coerce.number().int().positive().default(366)
 	})
 	.transform((e) =>
 		Object.freeze({
@@ -81,8 +76,7 @@ const configSchema = z
 				audience: e.AUTH_AUDIENCE
 			}),
 			queryWindow: Object.freeze({
-				transactionsMaxDays: e.WINDOW_MAX_DAYS_TRANSACTIONS,
-				summaryMaxDays: e.WINDOW_MAX_DAYS_SUMMARY
+				maxDays: e.WINDOW_MAX_DAYS
 			}),
 			secretsSpec: Object.freeze({
 				dir: e.SECRET_DIR,
