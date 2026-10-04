@@ -12,8 +12,6 @@ const overrideUrl = (categoryId: number | string) =>
 	`/api/v1/users/${USER_ID}/categories/${categoryId}`;
 
 // Typed off the real methods so drift in the select shapes breaks compilation.
-// D34: ids are the wire identifiers on writes; the route nests category/label
-// display fields around them for both reads and write responses.
 const USER_CATEGORY_ROWS: Awaited<
 	ReturnType<CategoryRepository["getUserCategories"]>
 > = [
@@ -124,7 +122,6 @@ suite(
 		});
 
 		test("PUT 400: unknown id (FK violation → repo returns undefined), nothing usable written", async () => {
-			// The repo maps a 23503 foreign-key violation to undefined (D34).
 			updateUserCategory.mock.mockImplementationOnce(
 				async () => undefined as unknown as typeof OVERRIDE
 			);

@@ -3,7 +3,10 @@ import { RetryableError } from "#src/errors/consumer-errors.ts";
 import { fileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type { TransactionIngester } from "#src/services/transaction-ingester.ts";
-import { tombstonesSkippedTotal } from "#src/telemetry/metrics.ts";
+import {
+	ingestLagSeconds,
+	tombstonesSkippedTotal
+} from "#src/telemetry/metrics.ts";
 import { assertNever } from "#src/utils/assert-never.ts";
 
 const logger = fileLogger(import.meta.url);
@@ -15,7 +18,11 @@ interface MessageOrigin {
 }
 
 export type ClassifiedMessage =
-	| (MessageOrigin & { kind: "valid"; value: DomainTransactionSchema })
+	| (MessageOrigin & {
+			kind: "valid";
+			value: DomainTransactionSchema;
+			recordTimestamp: number;
+	  })
 	| (MessageOrigin & { kind: "tombstone" })
 	| (MessageOrigin & { kind: "poison"; raw: Buffer | null; error: unknown });
 
@@ -73,6 +80,7 @@ export function createTransactionBatchHandler(
 		if (validMessages.length > 0) {
 			try {
 				await ingester.ingest(transactions);
+				observeIngestLag(validMessages);
 			} catch (error) {
 				// "The world is broken": rethrow uncommitted so the whole batch
 				// replays from the source topic. Never DLQ good data.
@@ -112,9 +120,18 @@ async function ingestOneByOne(
 	for (const message of validMessages) {
 		try {
 			await ingester.ingest([message.value]);
+			observeIngestLag([message]);
 		} catch (error) {
 			if (error instanceof RetryableError) throw error;
 			await sendToDlq([{ message, error }]);
 		}
+	}
+}
+
+function observeIngestLag(messages: ValidMessage[]) {
+	const now = Date.now();
+
+	for (const message of messages) {
+		ingestLagSeconds.observe((now - message.recordTimestamp) / 1000);
 	}
 }

@@ -1,5 +1,6 @@
 import logging
 import secrets
+from datetime import UTC, datetime
 from importlib.metadata import version
 
 from avro_datagen import generate
@@ -38,17 +39,29 @@ def main():
     if seed is None:
         seed = secrets.randbelow(2**31)
         seed_source = "random"
+
+    anchor_date = config.generator.anchor_date
+    anchor_source = "env"
+    if anchor_date is None:
+        anchor_date = datetime.now(UTC).date()
+        anchor_source = "today"
     logger.info(
-        "generator seed %d (%s) — rerun with GENERATOR_SEED=%d to reproduce this corpus",
+        "generator seed %d (%s), history ending %s (%s) — rerun with "
+        "GENERATOR_SEED=%d GENERATOR_ANCHOR_DATE=%s to reproduce this corpus",
         seed,
         seed_source,
+        anchor_date,
+        anchor_source,
         seed,
+        anchor_date,
     )
 
+    anchor = datetime(anchor_date.year, anchor_date.month, anchor_date.day, tzinfo=UTC)
     records = generate(
         schema_path=config.generator.schema_path,
         count=config.generator.count,
         seed=seed,
+        now=anchor,
     )
     stats = produce_records(
         producer,

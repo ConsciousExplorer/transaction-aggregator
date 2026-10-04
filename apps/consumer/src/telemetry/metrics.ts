@@ -74,7 +74,7 @@ export const categorisationVerdictsTotal = new Counter({
 
 export const ingestLagSeconds = new Histogram({
 	name: "ingest_lag_seconds",
-	help: "Insert time minus producedAt; skipped when producedAt unknown (0)",
+	help: "Insert time minus the Kafka record timestamp (CreateTime, set by the producer client at send)",
 	buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
 	registers: [registry]
 });

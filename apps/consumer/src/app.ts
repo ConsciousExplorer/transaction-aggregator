@@ -118,8 +118,6 @@ export async function gracefulShutdown(code = 0): Promise<never> {
 		logger.error({ err }, "Health server close failed");
 	}
 
-	// One flush on the graceful path, so the last batch's spans (including a
-	// failed one) reach Tempo. A crash loses tail spans, accepted (D46).
 	try {
 		await tracerProvider?.forceFlush();
 	} catch (err) {

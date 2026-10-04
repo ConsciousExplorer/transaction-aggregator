@@ -1,10 +1,5 @@
 import { fastifyPlugin } from "fastify-plugin";
 
-// One info line per authenticated request, written after the response: the
-// compensating control for the coarse tx:read scope (D20), keyed on the
-// calling app (azp, D52). A hook, so no route can leave it out. A request whose
-// token never verified (401) has no caller to name; auth logs it as
-// "auth rejected". Public routes have no caller either.
 export default fastifyPlugin(
 	async (fastify) => {
 		fastify.addHook("onResponse", async (request, reply) => {

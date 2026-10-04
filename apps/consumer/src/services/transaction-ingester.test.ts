@@ -60,9 +60,8 @@ suite("transaction ingestion", () => {
 			pool
 		);
 
-		const outcome = await ingester.ingest([
-			{ producedAt: Date.now() } as DomainTransactionSchema
-		]);
+		// The faked normaliser ignores its input, so any wire value will do
+		const outcome = await ingester.ingest([{} as DomainTransactionSchema]);
 
 		assert.equal(inserted, 1, "the valid row is inserted");
 		assert.equal(outcome.attempted, 1);

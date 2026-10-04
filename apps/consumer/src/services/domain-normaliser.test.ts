@@ -13,8 +13,6 @@ import { createNormaliser } from "#src/services/domain-normaliser.ts";
 function cardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
 	return {
 		transactionId: "txn-0001",
-		eventId: "0190c3f1-0000-7000-8000-000000000001",
-		producedAt: 1_790_000_000_000,
 		sourceType: "card",
 		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
 		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",

@@ -7,6 +7,7 @@ import {
 } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type { BatchOutcome } from "#src/services/transaction-ingester.ts";
+import { ingestLagSeconds } from "#src/telemetry/metrics.ts";
 import {
 	type ClassifiedMessage,
 	createTransactionBatchHandler,
@@ -24,8 +25,18 @@ function validMessage(externalId: string, offset: number): ClassifiedMessage {
 		value: {
 			sourceType: "card",
 			transactionId: externalId
-		} as unknown as DomainTransactionSchema
+		} as unknown as DomainTransactionSchema,
+		recordTimestamp: Date.now()
 	};
+}
+
+/** The histogram is a process-wide singleton, so tests compare before/after. */
+async function ingestLagObservations(): Promise<number> {
+	const metric = await ingestLagSeconds.get();
+	for (const value of metric.values) {
+		if (value.metricName === "ingest_lag_seconds_count") return value.value;
+	}
+	return 0;
 }
 
 function poisonMessage(offset: number): ClassifiedMessage {
@@ -140,6 +151,34 @@ suite("transaction batch handler", () => {
 			externalIdOf((dlqMessage as ValidMessage).value),
 			"b",
 			"the dead-lettered row is the one that failed, not a bystander"
+		);
+	});
+
+	test("observes ingest lag once per committed row, none for failed ones", async () => {
+		// The batch insert fails; per-message retries succeed except for "b".
+		const ingestion = recordingIngestion((transactions) => {
+			if (transactions.length > 1) throw new NonRetryableError("bad batch");
+			if (externalIdOf(transactions[0]!) === "b") {
+				throw new NonRetryableError("row b violates a constraint");
+			}
+			return { attempted: 1, inserted: 1 };
+		});
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			recordingDlq().sendToDlq
+		);
+		const before = await ingestLagObservations();
+
+		await handle([
+			validMessage("a", 1),
+			validMessage("b", 2),
+			validMessage("c", 3)
+		]);
+
+		assert.equal(
+			(await ingestLagObservations()) - before,
+			2,
+			"a and c committed; the failed batch attempt and row b add nothing"
 		);
 	});
 

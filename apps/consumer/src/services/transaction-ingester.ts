@@ -9,7 +9,6 @@ import type {
 import {
 	categorisationVerdictsTotal,
 	duplicatesSkippedTotal,
-	ingestLagSeconds,
 	insertDurationSeconds,
 	rowsInsertedTotal
 } from "#src/telemetry/metrics.ts";
@@ -95,7 +94,7 @@ export function createTransactionIngester(
 		}
 		endInsertTimer();
 
-		recordCommittedBatch(transactions, matcherTypes, outcome);
+		recordCommittedBatch(matcherTypes, outcome);
 
 		return outcome;
 	}
@@ -108,7 +107,6 @@ export function createTransactionIngester(
  * rolls back and is then retried one message at a time is not counted twice.
  */
 function recordCommittedBatch(
-	transactions: DomainTransactionSchema[],
 	matcherTypes: Verdict["matcherType"][],
 	outcome: BatchOutcome
 ) {
@@ -117,13 +115,5 @@ function recordCommittedBatch(
 
 	for (const matcherType of matcherTypes) {
 		categorisationVerdictsTotal.inc({ matcher_type: matcherType });
-	}
-
-	const now = Date.now();
-	for (const transaction of transactions) {
-		// 0 = the producer did not stamp an emit time
-		if (transaction.producedAt === 0) continue;
-
-		ingestLagSeconds.observe((now - transaction.producedAt) / 1000);
 	}
 }

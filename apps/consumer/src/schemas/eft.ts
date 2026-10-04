@@ -5,10 +5,6 @@ import { z } from "zod";
 /** Electronic Funds Transfer — inter-bank. debit = outbound push to a beneficiary; credit = inbound receipt (e.g. salary), where the beneficiary* fields describe the counterparty (the payer). */
 export const eftTransactionSchema = z.object({
 	transactionId: z.string(),
-	// Delivery identity: fresh UUIDv7 per emit, including redeliveries and chaos duplicates.
-	eventId: z.string(),
-	// Emit timestamp stamped by the producer at send time. 0 = unknown; the consumer records no ingest_lag_seconds observation for that message.
-	producedAt: z.number(),
 	sourceType: z.string(),
 	customerId: z.string(),
 	// Customer account the transaction occurred on.

@@ -219,7 +219,8 @@ export function classifyMessages(messages: KafkaMessage[]) {
 			classifiedMessages.push({
 				...origin,
 				kind: "valid",
-				value: message.value
+				value: message.value,
+				recordTimestamp: Number(message.timestamp)
 			});
 		}
 	}

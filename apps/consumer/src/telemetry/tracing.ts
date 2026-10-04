@@ -16,7 +16,6 @@ import {
  * register nothing, so tracer() hands out no-op spans and the hot path stays
  * clean. Enabled: export over OTLP/HTTP to the collector; the exporter and
  * sampler read OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_TRACES_SAMPLER themselves.
- * Returns the provider so the graceful shutdown can flush it once (D46).
  */
 export function startTracing(options: {
 	enabled: boolean;

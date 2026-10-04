@@ -85,7 +85,8 @@ echo "Creating topics..."
   --partitions 12 \
   --replication-factor 1 \
   --config retention.ms=604800000 \
-  --config compression.type=producer
+  --config compression.type=producer \
+  --config message.timestamp.type=CreateTime
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
@@ -93,7 +94,8 @@ echo "Creating topics..."
   --partitions 12 \
   --replication-factor 1 \
   --config retention.ms=604800000 \
-  --config compression.type=producer
+  --config compression.type=producer \
+  --config message.timestamp.type=CreateTime
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
@@ -101,7 +103,8 @@ echo "Creating topics..."
   --partitions 12 \
   --replication-factor 1 \
   --config retention.ms=604800000 \
-  --config compression.type=producer
+  --config compression.type=producer \
+  --config message.timestamp.type=CreateTime
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
@@ -109,7 +112,8 @@ echo "Creating topics..."
   --partitions 12 \
   --replication-factor 1 \
   --config retention.ms=604800000 \
-  --config compression.type=producer
+  --config compression.type=producer \
+  --config message.timestamp.type=CreateTime
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
@@ -117,7 +121,8 @@ echo "Creating topics..."
   --partitions 12 \
   --replication-factor 1 \
   --config retention.ms=604800000 \
-  --config compression.type=producer
+  --config compression.type=producer \
+  --config message.timestamp.type=CreateTime
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \

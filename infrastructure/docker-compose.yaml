@@ -241,6 +241,8 @@ services:
       GENERATOR_COUNT: "60000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); unset = today
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
   
@@ -270,6 +272,8 @@ services:
       GENERATOR_COUNT: "20000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); unset = today
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -299,6 +303,8 @@ services:
       GENERATOR_COUNT: "20000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); unset = today
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -328,6 +334,8 @@ services:
       GENERATOR_COUNT: "10000"
       # Add a seed value for stable reproducible tests
       GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); unset = today
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 
@@ -358,6 +366,8 @@ services:
       # Add a seed value for stable reproducible tests, for random chaos, don't add a 
       # seed value. No seed is added to ensure we get random data in kafka
       GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); unset = today
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
       LOG_LEVEL: INFO
     networks: [txn-network]
 

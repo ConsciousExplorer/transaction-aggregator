@@ -12,7 +12,6 @@ const TX_ID = "3f8e8c1a-6b1d-4f4e-9a2b-1c9d8e7f6a5b";
 const URL = `/api/v1/users/${USER_ID}/transactions/${TX_ID}`;
 
 // Typed off the real methods so drift in the select shapes breaks compilation.
-// D34: the detail row carries the effective categoryId; slugs are display-only.
 // This route only reads occurredAt/categoryId off the fixture (ownership
 // probe) — the rest exists purely to satisfy the real repository return type.
 const ORIGINAL: Awaited<
@@ -112,7 +111,6 @@ suite(
 				isOverridden: true, // original effective categoryId was 1
 				updatedAt: "2026-09-03T08:00:00.000Z"
 			});
-			// The immutable occurredAt comes from the ownership read (D34: no resolve).
 			assert.deepStrictEqual(
 				setTransactionCategory.mock.calls[0]?.arguments.at(0),
 				{
@@ -139,7 +137,6 @@ suite(
 		});
 
 		test("PUT 400: unknown categoryId (FK violation → repo returns undefined)", async () => {
-			// The repo maps a 23503 foreign-key violation to undefined (D34).
 			setTransactionCategory.mock.mockImplementationOnce(
 				async () => undefined as unknown as typeof OVERRIDE
 			);

@@ -12,7 +12,6 @@ import categoriesRoute from "./categories.route.ts";
 // object satisfies the contract.
 const database = {} as Pool;
 
-// D34: the id IS the wire identifier — test 1 proves it reaches the wire.
 const ROWS = [
 	{ categoryId: 1, category: "groceries", label: "Groceries" },
 	{ categoryId: 2, category: "dining", label: "Dining" }
@@ -53,7 +52,7 @@ suite("GET /api/v1/categories", () => {
 		getCategories.mock.mockImplementation(async () => ROWS);
 	});
 
-	test("200: maps rows to { categoryId, category, label } — ids are public (D34)", async () => {
+	test("200: maps rows to { categoryId, category, label } — ids are public", async () => {
 		const res = await app.inject({ method: "GET", url: "/api/v1/categories" });
 		assert.strictEqual(res.statusCode, 200);
 		assert.deepStrictEqual(res.json(), {
