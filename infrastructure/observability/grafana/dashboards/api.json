@@ -890,7 +890,7 @@
     {
       "type": "barchart",
       "title": "Requests per endpoint per window",
-      "description": "Requests each endpoint (method and route) answered in each window, any status, exact. A bar labelled 09:00 counts 08:50 to 09:00; the window in progress appears once it closes. The Bucket picker sets the window; a long time range widens it to keep the bars readable.",
+      "description": "Requests each endpoint (method and route) answered in each window, any status, exact. A bar labelled 09:00 counts 09:00 to 09:10. The last group is the window in progress: it grows every scrape until the window closes. The Bucket picker sets the window; a long time range widens it to keep the bars readable.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -954,7 +954,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} offset $__interval)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"})",
+          "expr": "(sum by (method, route) (last_over_time(http_request_duration_seconds_count{job=\"api\", route=~\"$route\"}[$__interval] offset -$__interval)) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"})) >= 0 or sum by (method, route) (last_over_time(http_request_duration_seconds_count{job=\"api\", route=~\"$route\"}[$__interval] offset -$__interval))",
           "legendFormat": "{{method}} {{route}}",
           "range": true,
           "instant": false,

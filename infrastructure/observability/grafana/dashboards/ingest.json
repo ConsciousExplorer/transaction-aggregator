@@ -947,7 +947,7 @@
     {
       "type": "barchart",
       "title": "Messages consumed per window",
-      "description": "Messages each consumer took from Kafka in each window, exact. A bar labelled 09:00 counts 08:50 to 09:00; the window in progress appears once it closes. The Bucket picker sets the window; a long time range widens it to keep the bars readable.",
+      "description": "Messages each consumer took from Kafka in each window, exact. A bar labelled 09:00 counts 09:00 to 09:10. The last group is the window in progress: it grows every scrape until the window closes. The Bucket picker sets the window; a long time range widens it to keep the bars readable.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1086,7 +1086,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(sum by (job) (kafka_consumed_messages{job=~\"$job\"}) - sum by (job) (kafka_consumed_messages{job=~\"$job\"} offset $__interval)) >= 0 or sum by (job) (kafka_consumed_messages{job=~\"$job\"})",
+          "expr": "(sum by (job) (last_over_time(kafka_consumed_messages{job=~\"$job\"}[$__interval] offset -$__interval)) - sum by (job) (kafka_consumed_messages{job=~\"$job\"})) >= 0 or sum by (job) (last_over_time(kafka_consumed_messages{job=~\"$job\"}[$__interval] offset -$__interval))",
           "legendFormat": "{{job}}",
           "range": true,
           "instant": false,
@@ -1113,7 +1113,7 @@
     {
       "type": "barchart",
       "title": "Rows inserted per window",
-      "description": "Rows each consumer committed in each window, exact. Lower than consumed means duplicates, poison messages or tombstones. A bar labelled 09:00 counts 08:50 to 09:00.",
+      "description": "Rows each consumer committed in each window, exact. Lower than consumed means duplicates, poison messages or tombstones. A bar labelled 09:00 counts 09:00 to 09:10; the last group is the window in progress.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1252,7 +1252,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(sum by (job) (rows_inserted_total{job=~\"$job\"}) - sum by (job) (rows_inserted_total{job=~\"$job\"} offset $__interval)) >= 0 or sum by (job) (rows_inserted_total{job=~\"$job\"})",
+          "expr": "(sum by (job) (last_over_time(rows_inserted_total{job=~\"$job\"}[$__interval] offset -$__interval)) - sum by (job) (rows_inserted_total{job=~\"$job\"})) >= 0 or sum by (job) (last_over_time(rows_inserted_total{job=~\"$job\"}[$__interval] offset -$__interval))",
           "legendFormat": "{{job}}",
           "range": true,
           "instant": false,
