@@ -14,3 +14,8 @@ GRANT ALL ON ALL PROCEDURES IN SCHEMA partman TO admin;
 -- admin (database/migrations/0002_schedule_maintenance.sql).
 CREATE EXTENSION pg_cron;
 GRANT USAGE ON SCHEMA cron TO admin;
+
+-- Per-statement timing for the Database dashboard. The library is preloaded by
+-- the compose command (shared_preload_libraries); this creates its view, in
+-- public, where the metrics exporter reads it.
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;

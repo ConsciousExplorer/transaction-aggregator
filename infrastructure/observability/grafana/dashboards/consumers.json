@@ -933,7 +933,7 @@
     },
     {
       "type": "row",
-      "title": "Counts per window",
+      "title": "Max throughput (load test)",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -941,6 +941,690 @@
         "w": 24,
         "x": 0,
         "y": 13
+      },
+      "id": 34
+    },
+    {
+      "type": "stat",
+      "title": "Peak transactions/s",
+      "description": "The most messages consumed in one second, over the selected range. Each message is one transaction. Measured between consecutive scrapes, 10 s apart, so a short burst reads at its real height. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((sum(irate(kafka_consumed_messages{job=~\"$job\"}[30s])))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 14
+      },
+      "id": 35
+    },
+    {
+      "type": "stat",
+      "title": "Peak transactions/min",
+      "description": "The most messages consumed in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((avg_over_time((sum(irate(kafka_consumed_messages{job=~\"$job\"}[30s])))[1m:10s]) * 60)[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 14
+      },
+      "id": 36
+    },
+    {
+      "type": "stat",
+      "title": "Peak rows inserted/s",
+      "description": "The most rows committed in one second. Below peak transactions/s means duplicates, poison messages or tombstones. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((sum(irate(rows_inserted_total{job=~\"$job\"}[30s])))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 14
+      },
+      "id": 37
+    },
+    {
+      "type": "stat",
+      "title": "Peak rows inserted/min",
+      "description": "The most rows committed in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((avg_over_time((sum(irate(rows_inserted_total{job=~\"$job\"}[30s])))[1m:10s]) * 60)[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 14
+      },
+      "id": 38
+    },
+    {
+      "type": "stat",
+      "title": "Peak transactions/s within S2",
+      "description": "The most messages consumed in one second while ingest lag p95 (over the minute before) stayed under 5 s: the throughput the consumers sustain and still meet S2. Below peak transactions/s means the peak was reached by falling behind. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0,
+          "noValue": "never within S2"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((sum(irate(kafka_consumed_messages{job=~\"$job\"}[30s])) and on () (histogram_quantile(0.95, sum by (le) (rate(ingest_lag_seconds_bucket{job=~\"$job\"}[1m]))) < 5))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 14
+      },
+      "id": 39
+    },
+    {
+      "type": "stat",
+      "title": "Average transactions/s while busy",
+      "description": "Messages consumed per second, averaged over the moments of the range with any traffic: the sustained rate, where the peak is the best 10 s. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time(((sum(irate(kafka_consumed_messages{job=~\"$job\"}[30s]))) > 0)[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 14
+      },
+      "id": 40
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions/s by consumer (10 s resolution)",
+      "description": "Messages consumed per second between consecutive scrapes, stacked by consumer, so the top edge is the total. The RED row's rate averages over a minute and flattens a burst to a third of its height; this doesn't.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^consumer-card( .*)?$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^consumer-debit-order( .*)?$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d95926"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^consumer-eft( .*)?$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#199e70"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^consumer-internal-transfer( .*)?$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#c98500"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^consumer-loan( .*)?$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (job) (irate(kafka_consumed_messages{job=~\"$job\"}[30s]))",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "instant": false,
+          "refId": "A"
+        }
+      ],
+      "interval": "10s",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 41
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions per minute",
+      "description": "Messages consumed and rows inserted in the minute ending at each point, all consumers.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "consumed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "inserted"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d95926"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time((sum(irate(kafka_consumed_messages{job=~\"$job\"}[30s])))[1m:10s]) * 60",
+          "legendFormat": "consumed",
+          "range": true,
+          "instant": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time((sum(irate(rows_inserted_total{job=~\"$job\"}[30s])))[1m:10s]) * 60",
+          "legendFormat": "inserted",
+          "range": true,
+          "instant": false,
+          "refId": "B"
+        }
+      ],
+      "interval": "10s",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 42
+    },
+    {
+      "type": "row",
+      "title": "Counts per window",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
       },
       "id": 11
     },
@@ -1106,7 +1790,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 27
       },
       "id": 12
     },
@@ -1272,7 +1956,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 27
       },
       "id": 13
     },
@@ -1439,7 +2123,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 36
       },
       "id": 14
     },
@@ -1452,7 +2136,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 43
       },
       "id": 15
     },
@@ -1604,7 +2288,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 31
+        "y": 44
       },
       "id": 16
     },
@@ -1726,7 +2410,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 31
+        "y": 44
       },
       "id": 17
     },
@@ -1908,7 +2592,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 31
+        "y": 44
       },
       "id": 18
     },
@@ -1921,7 +2605,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 52
       },
       "id": 19
     },
@@ -2073,7 +2757,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 40
+        "y": 53
       },
       "id": 20
     },
@@ -2225,7 +2909,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 40
+        "y": 53
       },
       "id": 21
     },
@@ -2378,7 +3062,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 40
+        "y": 53
       },
       "id": 22
     },
@@ -2391,7 +3075,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 61
       },
       "id": 23
     },
@@ -2543,7 +3227,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 62
       },
       "id": 24
     },
@@ -2695,7 +3379,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 62
       },
       "id": 25
     },
@@ -2862,7 +3546,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 70
       },
       "id": 26
     },
@@ -3014,7 +3698,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 70
       },
       "id": 27
     },
@@ -3027,7 +3711,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 78
       },
       "id": 28
     },
@@ -3179,7 +3863,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 66
+        "y": 79
       },
       "id": 29
     },
@@ -3331,7 +4015,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 66
+        "y": 79
       },
       "id": 30
     },
@@ -3483,7 +4167,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 66
+        "y": 79
       },
       "id": 31
     },
@@ -3496,7 +4180,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 74
+        "y": 87
       },
       "id": 32
     },
@@ -3533,7 +4217,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 75
+        "y": 88
       },
       "id": 33
     }
@@ -3624,8 +4308,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Ingest",
-  "uid": "ingest",
+  "title": "Consumers",
+  "uid": "consumers",
   "version": 1,
   "weekStart": ""
 }

@@ -876,7 +876,7 @@
     },
     {
       "type": "row",
-      "title": "Counts per window (follows the route picker)",
+      "title": "Max throughput (load test): every /api/v1 route",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -884,6 +884,693 @@
         "w": 24,
         "x": 0,
         "y": 13
+      },
+      "id": 25
+    },
+    {
+      "type": "stat",
+      "title": "Peak requests/s",
+      "description": "The most requests answered in one second, any status, measured between consecutive scrapes (10 s apart). Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((sum(irate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[30s])))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 14
+      },
+      "id": 26
+    },
+    {
+      "type": "stat",
+      "title": "Peak requests/min",
+      "description": "The most requests answered in any 60 seconds of the selected range. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((avg_over_time((sum(irate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[30s])))[1m:10s]) * 60)[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 14
+      },
+      "id": 27
+    },
+    {
+      "type": "stat",
+      "title": "Peak requests/s within SLO",
+      "description": "The highest request rate (over a minute) at which p95 stayed under 200 ms (S1) and 5xx under 0.1%: the most the API serves before it breaks. Below peak requests/s means load past this point broke an SLO. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1,
+          "noValue": "never within SLO"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((sum(rate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[1m])) and on () (histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api\", route=~\"/api/v1/.*\"}[1m]))) < 0.2) and on () ((sum(rate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\", status_code=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[1m])) < 0.001))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 14
+      },
+      "id": 28
+    },
+    {
+      "type": "stat",
+      "title": "Worst p95 (1 min)",
+      "description": "The highest p95 latency over any minute of the range. Red from 200 ms (S1). Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api\", route=~\"/api/v1/.*\"}[1m]))))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 14
+      },
+      "id": 29
+    },
+    {
+      "type": "stat",
+      "title": "Worst 5xx ratio (1 min)",
+      "description": "The highest share of 5xx responses over any minute of the range. Red from 0.1%. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.001
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time(((sum(rate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\", status_code=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[1m])))[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 14
+      },
+      "id": 30
+    },
+    {
+      "type": "stat",
+      "title": "Average requests/s while busy",
+      "description": "Requests per second averaged over the moments of the range with any traffic: the sustained rate. Set the time range to cover the load test: the number is the whole range's, so it stays after the test ends.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time(((sum(irate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[30s]))) > 0)[$__range:10s])",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 14
+      },
+      "id": 31
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests/s by status code (10 s resolution)",
+      "description": "Requests answered per second between consecutive scrapes, stacked by status code: 2xx green, 4xx orange, 5xx red. Under load, the first sign of breaking is 5xx (statement timeouts) or a flat top while latency climbs.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^2\\d\\d$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^3\\d\\d$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^4\\d\\d$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^5\\d\\d$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (status_code) (irate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[30s]))",
+          "legendFormat": "{{status_code}}",
+          "range": true,
+          "instant": false,
+          "refId": "A"
+        }
+      ],
+      "interval": "10s",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 32
+    },
+    {
+      "type": "xychart",
+      "title": "Latency vs throughput",
+      "description": "Each point is one moment of the range: requests/s over the minute before it (x) against p95 latency over the same minute (y). Under a ramping load test the points run flat, then bend upward: the bend is the throughput where the API stops keeping up. Points above 0.2 s are outside S1.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "interval": "10s",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "show": "points",
+            "pointSize": {
+              "fixed": 6
+            },
+            "axisPlacement": "auto",
+            "axisSoftMin": 0
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "requests/s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "requests/s (1 min)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "p95 latency (1 min)"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(http_request_duration_seconds_count{job=\"api\", route=~\"/api/v1/.*\"}[1m]))",
+          "legendFormat": "requests/s",
+          "range": true,
+          "instant": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api\", route=~\"/api/v1/.*\"}[1m])))",
+          "legendFormat": "p95",
+          "range": true,
+          "instant": false,
+          "refId": "B"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "Time",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "requests/s": 0,
+              "p95": 1
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 33
+    },
+    {
+      "type": "row",
+      "title": "Counts per window (follows the route picker)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
       },
       "id": 11
     },
@@ -974,7 +1661,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 28
       },
       "id": 12
     },
@@ -1143,7 +1830,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 37
       },
       "id": 13
     },
@@ -1156,7 +1843,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 44
       },
       "id": 14
     },
@@ -1297,7 +1984,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 31
+        "y": 45
       },
       "id": 15
     },
@@ -1375,7 +2062,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 31
+        "y": 45
       },
       "id": 16
     },
@@ -1452,7 +2139,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 39
+        "y": 53
       },
       "id": 17
     },
@@ -1529,7 +2216,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 39
+        "y": 53
       },
       "id": 18
     },
@@ -1606,7 +2293,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 39
+        "y": 53
       },
       "id": 19
     },
@@ -1619,7 +2306,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 61
       },
       "id": 20
     },
@@ -1699,7 +2386,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 62
       },
       "id": 21
     },
@@ -1775,7 +2462,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 62
       },
       "id": 22
     },
@@ -2080,7 +2767,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 70
       },
       "id": 23
     },
@@ -2117,7 +2804,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 79
       },
       "id": 24
     }
@@ -2209,7 +2896,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "API",
+  "title": "Api",
   "uid": "api",
   "version": 1,
   "weekStart": ""

@@ -32,6 +32,7 @@
 #   prometheus        obs      9090   9090
 #   tempo             obs      -      3200       HTTP query API (Grafana); OTLP gRPC in on 4317
 #   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
+#   postgres-exporter obs      -      9187       Postgres statistics as metrics; Prometheus scrapes
 #   redis             cache    -      6379
 #
 #   No ports (one-shots): kafka-init, schemas-register, migrate, producer-*
@@ -783,6 +784,32 @@ services:
     volumes:
       - ./observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
+    networks: [txn-network]
+
+  # Postgres's own statistics (pg_stat_*, pg_stat_statements) as Prometheus
+  # metrics. Logs in as postgres_exporter: pg_monitor, no table data.
+  postgres-exporter:
+    profiles: ["obs"]
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    container_name: postgres-exporter
+    command:
+      - --collector.stat_statements
+      - --collector.stat_statements.include_query
+      - --collector.stat_statements.query_length=200
+      - --collector.stat_statements.limit=50
+      # Its own scrape queries would otherwise rank among the slowest statements
+      - --collector.stat_statements.exclude_users=postgres_exporter
+      - --collector.long_running_transactions
+      - --collector.stat_checkpointer
+    environment:
+      DATA_SOURCE_URI: postgres:5432/txn_agg?sslmode=disable
+      DATA_SOURCE_USER: postgres_exporter
+      DATA_SOURCE_PASS_FILE: /secrets/postgres_exporter_password
+    volumes:
+      # Only its own password, not the whole secrets folder the apps mount
+      - ../secrets/postgres_exporter_password:/secrets/postgres_exporter_password:ro
+    depends_on:
+      postgres: { condition: service_healthy }
     networks: [txn-network]
 
   prometheus:
