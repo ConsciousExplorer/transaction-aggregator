@@ -876,7 +876,7 @@
     },
     {
       "type": "row",
-      "title": "Saturation",
+      "title": "Counts per window (follows the route picker)",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -886,6 +886,279 @@
         "y": 13
       },
       "id": 11
+    },
+    {
+      "type": "barchart",
+      "title": "Requests per endpoint per window",
+      "description": "Requests each endpoint (method and route) answered in each window, any status, exact. A bar labelled 09:00 counts 08:50 to 09:00; the window in progress appears once it closes. The Bucket picker sets the window; a long time range widens it to keep the bars readable.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "interval": "$bucket",
+      "maxDataPoints": 48,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 90,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisSoftMin": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:HH:mm"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "orientation": "vertical",
+        "xField": "Time",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "barRadius": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} offset $__interval)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"})",
+          "legendFormat": "{{method}} {{route}}",
+          "range": true,
+          "instant": false,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "Time",
+            "mode": "outer"
+          }
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 12
+    },
+    {
+      "type": "table",
+      "title": "Requests in range by endpoint",
+      "description": "Exact request counts over the selected time range, by status class. Total = 2xx + 3xx + 4xx + 5xx. An API restart inside the range counts from the restart.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5xx"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Total",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} offset $__range)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"}) or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} * 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "A",
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"2..\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"2..\"} offset $__range)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"2..\"}) or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} * 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "B",
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"3..\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"3..\"} offset $__range)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"3..\"}) or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} * 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "C",
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"4..\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"4..\"} offset $__range)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"4..\"}) or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} * 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "D",
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"5..\"}) - sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"5..\"} offset $__range)) >= 0 or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\", status_code=~\"5..\"}) or sum by (method, route) (http_request_duration_seconds_count{job=\"api\", route=~\"$route\"} * 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "refId": "E",
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "method": 0,
+              "route": 1,
+              "Value #A": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5,
+              "Value #E": 6
+            },
+            "renameByName": {
+              "method": "Method",
+              "route": "Route",
+              "Value #A": "Total",
+              "Value #B": "2xx",
+              "Value #C": "3xx",
+              "Value #D": "4xx",
+              "Value #E": "5xx"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "id": 13
+    },
+    {
+      "type": "row",
+      "title": "Saturation",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 14
     },
     {
       "type": "timeseries",
@@ -1024,9 +1297,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 31
       },
-      "id": 12
+      "id": 15
     },
     {
       "type": "timeseries",
@@ -1102,9 +1375,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 31
       },
-      "id": 13
+      "id": 16
     },
     {
       "type": "timeseries",
@@ -1179,9 +1452,9 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 22
+        "y": 39
       },
-      "id": 14
+      "id": 17
     },
     {
       "type": "timeseries",
@@ -1256,9 +1529,9 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 22
+        "y": 39
       },
-      "id": 15
+      "id": 18
     },
     {
       "type": "timeseries",
@@ -1333,9 +1606,9 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 22
+        "y": 39
       },
-      "id": 16
+      "id": 19
     },
     {
       "type": "row",
@@ -1346,9 +1619,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 47
       },
-      "id": 17
+      "id": 20
     },
     {
       "type": "timeseries",
@@ -1426,9 +1699,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 31
+        "y": 48
       },
-      "id": 18
+      "id": 21
     },
     {
       "type": "timeseries",
@@ -1502,9 +1775,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 31
+        "y": 48
       },
-      "id": 19
+      "id": 22
     },
     {
       "type": "table",
@@ -1807,9 +2080,9 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 56
       },
-      "id": 20
+      "id": 23
     },
     {
       "type": "table",
@@ -1844,9 +2117,9 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 65
       },
-      "id": 21
+      "id": 24
     }
   ],
   "preload": false,
@@ -1886,6 +2159,47 @@
         "sort": 1,
         "type": "query",
         "allValue": "/api/v1/.*"
+      },
+      {
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "text": "10m",
+          "value": "10m"
+        },
+        "label": "Bucket",
+        "name": "bucket",
+        "options": [
+          {
+            "selected": false,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": true,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          }
+        ],
+        "query": "1m,5m,10m,30m,1h",
+        "refresh": 2,
+        "type": "interval"
       }
     ]
   },
