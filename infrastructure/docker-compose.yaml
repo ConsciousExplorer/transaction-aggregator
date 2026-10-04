@@ -192,7 +192,8 @@ services:
 
   # drizzle-kit migrations (database/migrations), applied once each in journal
   # order: 0000 tables + grants, 0001 the category/rule seed, 0002 the pg_cron
-  # partman-maintenance schedule (premake monthly partitions / drop >18 months).
+  # partman-maintenance schedule (premake monthly partitions / drop >18 months),
+  # 0003 makes that schedule hourly.
   migrate:
     build:
       context: ../database
@@ -236,7 +237,7 @@ services:
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
       KAFKA_TOPIC: transactions.card
-      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      PRODUCER_NAME: producer-card
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
       GENERATOR_COUNT: "60000"
@@ -272,7 +273,7 @@ services:
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
       KAFKA_TOPIC: transactions.eft
-      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      PRODUCER_NAME: producer-eft
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
       GENERATOR_COUNT: "20000"
@@ -308,7 +309,7 @@ services:
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
       KAFKA_TOPIC: transactions.loan
-      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      PRODUCER_NAME: producer-loan
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
       GENERATOR_COUNT: "20000"
@@ -344,7 +345,7 @@ services:
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
       KAFKA_TOPIC: transactions.internal-transfer
-      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      PRODUCER_NAME: producer-internal-transfer
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
       GENERATOR_COUNT: "10000"
@@ -380,7 +381,7 @@ services:
       KAFKA_USERNAME: producer
       KAFKA_PASSWORD: producer-password # dev only; secret store in real use
       KAFKA_TOPIC: transactions.debit-order
-      KAFKA_KEY_FIELDS: customerId,userId,user_id,correlationId,id,key
+      PRODUCER_NAME: producer-debit-order
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
       GENERATOR_COUNT: "20000"

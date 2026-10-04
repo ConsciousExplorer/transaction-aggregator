@@ -47,6 +47,8 @@ class ProducerSettings(BaseSettings):
         env_file=".env", case_sensitive=False, extra="ignore", frozen=True
     )
 
+    # Sent as the x-producer header with the version: producer-card/0.1.0
+    name: str = Field(validation_alias="PRODUCER_NAME", min_length=1)
     mode: Literal["oneshot", "stream"] = Field(
         default="oneshot", validation_alias="PRODUCER_MODE"
     )
@@ -84,7 +86,7 @@ class KafkaSettings(BaseSettings):
 
     # Record fields that may hold the partition key, in priority order
     key_fields: Annotated[list[str], NoDecode] = Field(
-        default=["userId", "user_id", "correlationId", "id", "key"],
+        default=["customerId"],
         validation_alias="KAFKA_KEY_FIELDS",
         min_length=1,
     )
@@ -142,5 +144,5 @@ def get_config() -> AppConfig:
         kafka=KafkaSettings(),  # pyright: ignore[reportCallIssue]
         schemaRegistry=SchemaRegistrySettings(),  # pyright: ignore[reportCallIssue]
         generator=GeneratorSettings(),
-        producer=ProducerSettings(),
+        producer=ProducerSettings(),  # pyright: ignore[reportCallIssue]
     )

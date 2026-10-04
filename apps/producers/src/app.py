@@ -56,7 +56,7 @@ def main():
         records,
         key_fields,
         static_headers={
-            "x-producer": f"producers/{version('producers')}",
+            "x-producer": f"{config.producer.name}/{version('producers')}",
         },
     )
     logger.info(
