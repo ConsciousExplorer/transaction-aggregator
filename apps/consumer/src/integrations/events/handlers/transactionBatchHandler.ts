@@ -15,12 +15,14 @@ interface MessageOrigin {
 	topic: string;
 	partition: number;
 	offset: bigint;
+	headers: Map<string, string>;
 }
 
 export type ClassifiedMessage =
 	| (MessageOrigin & {
 			kind: "valid";
 			value: DomainTransactionSchema;
+			raw: Buffer;
 			recordTimestamp: number;
 	  })
 	| (MessageOrigin & { kind: "tombstone" })

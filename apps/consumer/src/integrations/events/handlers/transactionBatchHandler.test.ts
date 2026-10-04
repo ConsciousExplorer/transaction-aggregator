@@ -20,12 +20,14 @@ function validMessage(externalId: string, offset: number): ClassifiedMessage {
 		topic: "transactions",
 		partition: 0,
 		offset: BigInt(offset),
+		headers: new Map(),
 		kind: "valid",
 		// Only `sourceType` and identity matter here — ingestion is faked.
 		value: {
 			sourceType: "card",
 			transactionId: externalId
 		} as unknown as DomainTransactionSchema,
+		raw: Buffer.from(`avro bytes ${externalId}`),
 		recordTimestamp: Date.now()
 	};
 }
@@ -44,6 +46,7 @@ function poisonMessage(offset: number): ClassifiedMessage {
 		topic: "transactions",
 		partition: 0,
 		offset: BigInt(offset),
+		headers: new Map(),
 		kind: "poison",
 		raw: Buffer.from("not avro"),
 		error: new Error("bad magic byte")
@@ -55,6 +58,7 @@ function tombstoneMessage(offset: number): ClassifiedMessage {
 		topic: "transactions",
 		partition: 0,
 		offset: BigInt(offset),
+		headers: new Map(),
 		kind: "tombstone"
 	};
 }

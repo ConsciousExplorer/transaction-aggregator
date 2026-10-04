@@ -15,7 +15,7 @@ import {
 	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
 import {
-	createAvroDeserializer,
+	createAvroDeserialiser,
 	type FetchOnMiss
 } from "./integrations/events/avro-deserialiser.ts";
 import { deserialisationErrorHandler } from "./integrations/events/handlers/deserialiserErrorHandler.ts";
@@ -158,15 +158,15 @@ try {
 	rulesetVersion = await loadRulesetVersion(writerDb);
 	uncategorisedId = await loadUncategorisedId(writerDb);
 
-	const avroDeserializer = await startupCheck("SchemaRegistry", () =>
-		createAvroDeserializer<DomainTransactionSchema>(config.schemaRegistry.url, [
+	const avroDeserialiser = await startupCheck("SchemaRegistry", () =>
+		createAvroDeserialiser<DomainTransactionSchema>(config.schemaRegistry.url, [
 			`${config.kafka.topics.main}-value`
 		])
 	);
-	fetchOnMiss = avroDeserializer.fetchOnMiss; //TODO: might need to remove this.
+	fetchOnMiss = avroDeserialiser.fetchOnMiss; //TODO: might need to remove this.
 
 	// Explicit type arguments: `Value` must include `undefined` (tombstones),
-	// but inference absorbs the deserializer's `| undefined` into the generic.
+	// but inference absorbs the deserialiser's `| undefined` into the generic.
 	kafkaConsumer = await createKafkaConsumer<
 		string,
 		ConsumedValue,
@@ -191,7 +191,7 @@ try {
 			},
 			deserializers: {
 				key: stringDeserializer,
-				value: avroDeserializer.deserialize,
+				value: avroDeserialiser.deserialise,
 				headerKey: stringDeserializer,
 				headerValue: stringDeserializer
 			}

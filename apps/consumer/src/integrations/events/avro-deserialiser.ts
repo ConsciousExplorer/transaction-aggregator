@@ -19,8 +19,14 @@ export type FetchOnMiss = (
 	type: BeforeHookPayloadType
 ) => Promise<void>;
 
-export interface AvroDeserializer<T> {
-	deserialize: (data?: Buffer) => T | undefined;
+/** The bytes as they arrived travel with the decoded value, for the DLQ. */
+export interface DecodedValue<T> {
+	raw: Buffer;
+	value: T;
+}
+
+export interface AvroDeserialiser<T> {
+	deserialise: (data?: Buffer) => DecodedValue<T> | undefined;
 	fetchOnMiss: FetchOnMiss;
 }
 
@@ -31,10 +37,10 @@ function isConfluentFramed(payload: Buffer): boolean {
 }
 
 /**
- * Runs before each message is deserialized (the library's deserializers are
+ * Runs before each message is deserialised (the library's deserialisers are
  * synchronous, so the registry read has to happen here). A schema id the boot
  * priming did not see is read from the registry and kept. A failed read
- * propagates to the deserialization error handler.
+ * propagates to the deserialisation error handler.
  */
 export function createFetchOnMiss(
 	types: Map<number, avsc.Type>,
@@ -54,10 +60,35 @@ export function createFetchOnMiss(
 	};
 }
 
-export async function createAvroDeserializer<T>(
+export function deserialise<T>(
+	types: Map<number, avsc.Type>,
+	data?: Buffer
+): DecodedValue<T> | undefined {
+	if (!data?.length) return undefined;
+
+	if (!isConfluentFramed(data)) {
+		throw new UserError(`Not Confluent wire format (${data.length} bytes)`);
+	}
+
+	const schemaId = data.readInt32BE(1);
+	const type = types.get(schemaId);
+
+	if (!type) {
+		throw new UserError(
+			`Unknown schema id ${schemaId}; loaded: ${[...types.keys()].join(", ")}`
+		);
+	}
+
+	return {
+		raw: data,
+		value: type.fromBuffer(data.subarray(WIRE_HEADER_BYTES)) as T
+	};
+}
+
+export async function createAvroDeserialiser<T>(
 	registryUrl: string,
 	subjects: string[]
-): Promise<AvroDeserializer<T>> {
+): Promise<AvroDeserialiser<T>> {
 	const types = new Map<number, avsc.Type>();
 
 	await Promise.all(
@@ -86,27 +117,8 @@ export async function createAvroDeserializer<T>(
 		return schema;
 	}
 
-	function deserialize(data?: Buffer): T | undefined {
-		if (!data?.length) return undefined;
-
-		if (!isConfluentFramed(data)) {
-			throw new UserError(`Not Confluent wire format (${data.length} bytes)`);
-		}
-
-		const schemaId = data.readInt32BE(1);
-		const type = types.get(schemaId);
-
-		if (!type) {
-			throw new UserError(
-				`Unknown schema id ${schemaId}; loaded: ${[...types.keys()].join(", ")}`
-			);
-		}
-
-		return type.fromBuffer(data.subarray(WIRE_HEADER_BYTES)) as T;
-	}
-
 	return {
-		deserialize,
+		deserialise: (data?: Buffer) => deserialise<T>(types, data),
 		fetchOnMiss: createFetchOnMiss(types, fetchSchemaText)
 	};
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { suite, test } from "node:test";
 import avsc from "avsc";
-import { createFetchOnMiss } from "./avro-deserialiser.ts";
+import { createFetchOnMiss, deserialise } from "./avro-deserialiser.ts";
 
 const SCHEMA = JSON.stringify({
 	type: "record",
@@ -31,6 +31,30 @@ function countingFetch(respond: () => Promise<string>) {
 
 	return { calls, fetchSchemaText };
 }
+
+suite("deserialise", () => {
+	const types = new Map([[7, avsc.Type.forSchema(JSON.parse(SCHEMA))]]);
+
+	test("a framed record decodes and keeps the bytes it arrived as", () => {
+		const data = framed(7);
+
+		const decoded = deserialise<{ amount: number }>(types, data);
+
+		assert.equal(decoded?.value.amount, 1);
+		assert.strictEqual(decoded?.raw, data);
+	});
+
+	test("an empty payload is a tombstone", () => {
+		assert.equal(deserialise(types, Buffer.alloc(0)), undefined);
+	});
+
+	test("unframed bytes are rejected", () => {
+		assert.throws(
+			() => deserialise(types, Buffer.from("not avro")),
+			/Not Confluent wire format/
+		);
+	});
+});
 
 suite("fetch-on-miss", () => {
 	test("a schema id already loaded is not fetched", async () => {

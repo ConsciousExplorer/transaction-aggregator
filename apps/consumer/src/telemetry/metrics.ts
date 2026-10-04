@@ -54,7 +54,7 @@ export const duplicatesSkippedTotal = new Counter({
 
 export const dlqMessagesTotal = new Counter({
 	name: "dlq_messages_total",
-	help: "Messages published to the dead-letter topic, by deserialization or processing failure",
+	help: "Messages published to the dead-letter topic, by deserialisation or processing failure",
 	labelNames: ["reason"] as const,
 	registers: [registry]
 });

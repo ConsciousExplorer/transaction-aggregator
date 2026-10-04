@@ -34,6 +34,7 @@ import {
 import type { Registry } from "@prometheus-io/client";
 import * as prometheusClient from "@prometheus-io/client";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
+import type { DecodedValue } from "./avro-deserialiser.ts";
 import { commitBatch } from "./commit.ts";
 import type {
 	BatchHandler,
@@ -47,7 +48,7 @@ import type {
  * anything reading `message.value` must check `hasDeserialisationFailure`
  * first and cope with a missing value.
  */
-export type ConsumedValue = DomainTransactionSchema | undefined;
+export type ConsumedValue = DecodedValue<DomainTransactionSchema> | undefined;
 
 export type KafkaMessage = Message<string, ConsumedValue, string, string>;
 
@@ -123,24 +124,34 @@ export async function createKafkaDlqProducer(
 	return kafkaDlqProducer;
 }
 
+function dlqReason(failure: DlqFailure) {
+	return failure.message.kind === "poison" ? "deserialisation" : "processing";
+}
+
+/**
+ * The record as it arrived: its raw bytes and its own headers, so a redrive
+ * re-produces the original. The DLQ headers go on top and win a name clash.
+ */
 function toDlqRecord(dlqTopic: string, failure: DlqFailure) {
 	const { message, error } = failure;
+
+	const headers: Record<string, string> = {};
+	// A failed before-deserialisation hook leaves the header values as Buffers
+	for (const [key, value] of message.headers) {
+		headers[String(key)] = String(value);
+	}
+	headers["x-dlq-reason"] = dlqReason(failure);
+	headers["x-dlq-error"] =
+		error instanceof Error ? error.message : String(error);
+	headers["x-source-topic"] = message.topic;
+	headers["x-source-partition"] = String(message.partition);
+	headers["x-source-offset"] = message.offset.toString();
 
 	return {
 		topic: dlqTopic,
 		key: `${message.topic}-${message.partition}-${message.offset}`,
-		value:
-			message.kind === "poison"
-				? (message.raw ?? Buffer.alloc(0))
-				: Buffer.from(JSON.stringify(message.value)),
-		headers: {
-			"x-dlq-reason":
-				message.kind === "poison" ? "deserialization" : "processing",
-			"x-dlq-error": error instanceof Error ? error.message : String(error),
-			"x-source-topic": message.topic,
-			"x-source-partition": String(message.partition),
-			"x-source-offset": message.offset.toString()
-		}
+		value: message.raw ?? Buffer.alloc(0),
+		headers
 	};
 }
 
@@ -168,8 +179,8 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 			() => dlqProducer.send({ messages: records, acks: -1 })
 		);
 
-		for (const record of records) {
-			dlqMessagesTotal.inc({ reason: record.headers["x-dlq-reason"] });
+		for (const failure of failures) {
+			dlqMessagesTotal.inc({ reason: dlqReason(failure) });
 		}
 	};
 }
@@ -201,7 +212,8 @@ export function classifyMessages(messages: KafkaMessage[]) {
 		const origin = {
 			topic: message.topic,
 			partition: message.partition,
-			offset: message.offset
+			offset: message.offset,
+			headers: message.headers
 		};
 		const failure = deserialisationFailureOf(message);
 		if (failure) {
@@ -219,7 +231,8 @@ export function classifyMessages(messages: KafkaMessage[]) {
 			classifiedMessages.push({
 				...origin,
 				kind: "valid",
-				value: message.value,
+				value: message.value.value,
+				raw: message.value.raw,
 				recordTimestamp: Number(message.timestamp)
 			});
 		}
