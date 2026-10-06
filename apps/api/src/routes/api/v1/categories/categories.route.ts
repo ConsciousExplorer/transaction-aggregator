@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
-import { notFound } from "#src/errors/http-problem.ts";
+import { notFoundError } from "#src/errors/http-problem.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import {
 	collectionMetaSchema,
@@ -43,7 +43,7 @@ export default async (
 		handler: async (request, reply) => {
 			const result = await opts.categoryRepository.getCategories();
 
-			if (!result) throw notFound();
+			if (!result) throw notFoundError();
 
 			const data = result.map((item) => ({
 				categoryId: item.categoryId,

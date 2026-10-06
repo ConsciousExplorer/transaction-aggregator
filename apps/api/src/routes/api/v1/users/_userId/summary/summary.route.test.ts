@@ -15,7 +15,7 @@ const BASE_URL = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTi
 const BASE_SELF = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const zar = (amountMinor: number) => ({ amountMinor, currency: "ZAR" });
+const toZar = (amountMinor: number) => ({ amountMinor, currency: "ZAR" });
 
 // Typed off the real method so drift in the select shape breaks compilation.
 const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
@@ -80,24 +80,24 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			totals: {
 				transactionCount: 4,
 				// credit − debit: (500−1500) + (0−700); the currency comes from the rows
-				netAmount: zar(-1700),
-				debit: { count: 3, total: zar(2200) },
-				credit: { count: 1, total: zar(500) }
+				netAmount: toZar(-1700),
+				debit: { count: 3, total: toZar(2200) },
+				credit: { count: 1, total: toZar(500) }
 			},
 			data: [
 				{
 					group: { category: "groceries" },
 					count: 3,
-					netAmount: zar(-1000),
-					debit: { count: 2, total: zar(1500) },
-					credit: { count: 1, total: zar(500) }
+					netAmount: toZar(-1000),
+					debit: { count: 2, total: toZar(1500) },
+					credit: { count: 1, total: toZar(500) }
 				},
 				{
 					group: { category: "dining" },
 					count: 1,
-					netAmount: zar(-700),
-					debit: { count: 1, total: zar(700) },
-					credit: { count: 0, total: zar(0) }
+					netAmount: toZar(-700),
+					debit: { count: 1, total: toZar(700) },
+					credit: { count: 0, total: toZar(0) }
 				}
 			],
 			links: { self: BASE_SELF },

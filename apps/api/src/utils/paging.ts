@@ -49,7 +49,7 @@ export function toKeysetPage<Row>(
  * that encodes a pasted link again would turn "%3A" into "%253A" and break
  * every datetime in it.
  */
-export function linkWith(
+export function buildLink(
 	requestUrl: string,
 	params: Record<string, string>
 ): string {
@@ -71,18 +71,18 @@ export function linkWith(
  * values this page was read with, so a walk keeps one window from start to
  * end. next and prev are left out when there is no such page.
  */
-export function pageLinks(
+export function buildPageLinks(
 	requestUrl: string,
 	windowParams: Record<string, string>,
 	nextParams: Record<string, string> | null,
 	prevParams: Record<string, string> | null
 ): Links {
-	const links: Links = { self: linkWith(requestUrl, windowParams) };
+	const links: Links = { self: buildLink(requestUrl, windowParams) };
 	if (nextParams) {
-		links.next = linkWith(requestUrl, { ...windowParams, ...nextParams });
+		links.next = buildLink(requestUrl, { ...windowParams, ...nextParams });
 	}
 	if (prevParams) {
-		links.prev = linkWith(requestUrl, { ...windowParams, ...prevParams });
+		links.prev = buildLink(requestUrl, { ...windowParams, ...prevParams });
 	}
 	return links;
 }

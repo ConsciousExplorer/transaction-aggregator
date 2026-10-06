@@ -12,7 +12,7 @@ const REGISTRY_TIMEOUT_MS = 5_000;
  * undefined when the registry was unreachable), so callers can tell "not found"
  * from "registry down" without parsing messages.
  */
-export async function registryFetch<S extends z.ZodType>(
+export async function fetchFromRegistry<S extends z.ZodType>(
 	url: string,
 	schema: S
 ): Promise<z.infer<S>> {
@@ -57,26 +57,26 @@ export function getSubjectVersion(
 	subject: string,
 	version: number
 ) {
-	return registryFetch(
+	return fetchFromRegistry(
 		`${registryUrl}/subjects/${subject}/versions/${version}`,
 		AvroSchemaObject
 	);
 }
 
 export function getSubjectVersions(registryUrl: string, subject: string) {
-	return registryFetch(
+	return fetchFromRegistry(
 		`${registryUrl}/subjects/${subject}/versions`,
 		z.array(z.number().int().positive())
 	);
 }
 
 export function getLatestSubjectVersion(registryUrl: string, subject: string) {
-	return registryFetch(
+	return fetchFromRegistry(
 		`${registryUrl}/subjects/${subject}/versions/latest`,
 		AvroSchemaObject
 	);
 }
 
 export function getSchemaById(registryUrl: string, id: number) {
-	return registryFetch(`${registryUrl}/schemas/ids/${id}`, SchemaById);
+	return fetchFromRegistry(`${registryUrl}/schemas/ids/${id}`, SchemaById);
 }

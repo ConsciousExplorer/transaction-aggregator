@@ -8,7 +8,7 @@ import { buildServer } from "#src/server.ts";
 import categoryOverridesRoute from "./category-overrides.route.ts";
 
 const USER_ID = "7a1e5b3c-2d4f-4e6a-8b9c-0d1e2f3a4b5c";
-const overrideUrl = (categoryId: number | string) =>
+const buildOverrideUrl = (categoryId: number | string) =>
 	`/api/v1/users/${USER_ID}/categories/${categoryId}`;
 
 // Typed off the real methods so drift in the select shapes breaks compilation.
@@ -98,7 +98,7 @@ suite(
 		test('PUT 200: same shape as GET "" — id/category/label plus the new mappedTo', async () => {
 			const res = await app.inject({
 				method: "PUT",
-				url: overrideUrl(1),
+				url: buildOverrideUrl(1),
 				payload: { toCategoryId: 5 }
 			});
 			assert.strictEqual(res.statusCode, 200);
@@ -127,7 +127,7 @@ suite(
 			);
 			const res = await app.inject({
 				method: "PUT",
-				url: overrideUrl(999),
+				url: buildOverrideUrl(999),
 				payload: { toCategoryId: 5 }
 			});
 			assert.strictEqual(res.statusCode, 400);
@@ -137,7 +137,7 @@ suite(
 		test("PUT 400: self-remap → validation problem, nothing written", async () => {
 			const res = await app.inject({
 				method: "PUT",
-				url: overrideUrl(1),
+				url: buildOverrideUrl(1),
 				payload: { toCategoryId: 1 }
 			});
 			assert.strictEqual(res.statusCode, 400);
@@ -146,7 +146,7 @@ suite(
 		});
 
 		test("DELETE 204: archives by id, no body", async () => {
-			const res = await app.inject({ method: "DELETE", url: overrideUrl(1) });
+			const res = await app.inject({ method: "DELETE", url: buildOverrideUrl(1) });
 			assert.strictEqual(res.statusCode, 204);
 			assert.strictEqual(res.body, "");
 			assert.deepStrictEqual(archiveUserCategory.mock.calls[0]?.arguments, [
@@ -160,7 +160,7 @@ suite(
 			archiveUserCategory.mock.mockImplementationOnce(
 				async () => undefined as unknown as typeof OVERRIDE
 			);
-			const res = await app.inject({ method: "DELETE", url: overrideUrl(999) });
+			const res = await app.inject({ method: "DELETE", url: buildOverrideUrl(999) });
 			assert.strictEqual(res.statusCode, 204);
 		});
 
@@ -170,7 +170,7 @@ suite(
 			});
 			const res = await app.inject({
 				method: "PUT",
-				url: overrideUrl(1),
+				url: buildOverrideUrl(1),
 				payload: { toCategoryId: 5 }
 			});
 			assert.strictEqual(res.statusCode, 500);

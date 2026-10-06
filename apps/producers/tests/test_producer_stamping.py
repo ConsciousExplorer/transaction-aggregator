@@ -22,7 +22,7 @@ class FakeProducer:
         return 0
 
 
-def capturing_serializer(seen: list) -> Any:
+def create_capturing_serializer(seen: list) -> Any:
     """Stands in for AvroSerializer: records what it was asked to serialize.
     Typed Any because produce_records only calls it, never AvroSerializer's API."""
 
@@ -39,7 +39,7 @@ def test_produce_records_serializes_the_record_without_stamping_it():
 
     produce_records(
         FakeProducer(),
-        capturing_serializer(seen),
+        create_capturing_serializer(seen),
         "transactions.card",
         [dict(record)],
         key_fields=["customerId"],
@@ -53,7 +53,7 @@ def test_headers_include_producer_identity_and_fresh_traceparent():
 
     produce_records(
         producer,
-        capturing_serializer([]),
+        create_capturing_serializer([]),
         "transactions.card",
         [{"customerId": "c-1"}, {"customerId": "c-2"}],
         key_fields=["customerId"],
@@ -71,7 +71,7 @@ def test_headers_keep_caller_supplied_producer_identity():
 
     produce_records(
         producer,
-        capturing_serializer([]),
+        create_capturing_serializer([]),
         "transactions.card",
         [{"customerId": "c-1"}],
         key_fields=["customerId"],

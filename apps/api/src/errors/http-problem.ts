@@ -24,7 +24,7 @@ export function validationError(issues: unknown[]) {
 	});
 }
 
-export function invalidCursor() {
+export function invalidCursorError() {
 	return new HttpProblem({
 		type: "invalid-cursor",
 		title: "Malformed pagination cursor",
@@ -32,7 +32,7 @@ export function invalidCursor() {
 	});
 }
 
-export function windowTooLarge(maxDays: number) {
+export function windowTooLargeError(maxDays: number) {
 	return new HttpProblem({
 		type: "window-too-large",
 		title: "Time window too large",
@@ -41,7 +41,7 @@ export function windowTooLarge(maxDays: number) {
 	});
 }
 
-export function unauthorized() {
+export function unauthorizedError() {
 	return new HttpProblem({
 		type: "unauthorized",
 		title: "Authentication required",
@@ -49,7 +49,7 @@ export function unauthorized() {
 	});
 }
 
-export function forbidden() {
+export function forbiddenError() {
 	return new HttpProblem({
 		type: "forbidden",
 		title: "Insufficient scope",
@@ -57,7 +57,7 @@ export function forbidden() {
 	});
 }
 
-export function notFound() {
+export function notFoundError() {
 	return new HttpProblem({
 		type: "not-found",
 		title: "Resource not found",
@@ -65,7 +65,7 @@ export function notFound() {
 	});
 }
 
-export function internal(traceId: string) {
+export function internalError(traceId: string) {
 	return new HttpProblem({
 		type: "internal",
 		title: "Internal server error",
@@ -76,7 +76,7 @@ export function internal(traceId: string) {
 
 /** Generic 4xx fallback for errors that carry a Fastify statusCode but aren't
  *  one of the named HttpProblem factories above (e.g. a framework-thrown 413). */
-export function fromStatus(status: number, detail?: string) {
+export function clientError(status: number, detail?: string) {
 	return new HttpProblem({
 		type: "client-error",
 		title: "Request could not be processed",

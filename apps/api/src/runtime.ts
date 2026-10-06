@@ -13,6 +13,6 @@ export const secrets = loadSecrets(config.secretsSpec);
 export const baseLogger = createLogger(config.logging);
 
 /** Child logger tagged with the calling module's name. */
-export function fileLogger(metaUrl: string): Logger {
+export function createFileLogger(metaUrl: string): Logger {
 	return baseLogger.child({ module: basename(fileURLToPath(metaUrl), ".ts") });
 }

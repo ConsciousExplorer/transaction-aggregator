@@ -52,10 +52,10 @@ try {
 	process.exit(1);
 }
 
-process.on("SIGTERM", () => gracefulShutdown());
-process.on("SIGINT", () => gracefulShutdown());
+process.on("SIGTERM", () => shutDownGracefully());
+process.on("SIGINT", () => shutDownGracefully());
 
-export async function gracefulShutdown(code = 0) {
+export async function shutDownGracefully(code = 0) {
 	try {
 		logger.warn("Shutting down services");
 		server.close();

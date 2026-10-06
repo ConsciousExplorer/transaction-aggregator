@@ -1,4 +1,4 @@
-import { windowTooLarge } from "#src/errors/http-problem.ts";
+import { windowTooLargeError } from "#src/errors/http-problem.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -9,5 +9,5 @@ export function assertWindowWithin(
 	maxDays: number
 ): void {
 	const spanMs = Date.parse(toDateTime) - Date.parse(fromDateTime);
-	if (spanMs > maxDays * DAY_MS) throw windowTooLarge(maxDays);
+	if (spanMs > maxDays * DAY_MS) throw windowTooLargeError(maxDays);
 }

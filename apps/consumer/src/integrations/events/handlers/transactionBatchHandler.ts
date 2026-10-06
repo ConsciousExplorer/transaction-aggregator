@@ -1,6 +1,6 @@
 import { trace } from "@opentelemetry/api";
 import { RetryableError } from "#src/errors/consumer-errors.ts";
-import { fileLogger } from "#src/logger.ts";
+import { createFileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type { TransactionIngester } from "#src/services/transaction-ingester.ts";
 import {
@@ -9,7 +9,7 @@ import {
 } from "#src/telemetry/metrics.ts";
 import { assertNever } from "#src/utils/assert-never.ts";
 
-const logger = fileLogger(import.meta.url);
+const logger = createFileLogger(import.meta.url);
 
 interface MessageOrigin {
 	topic: string;

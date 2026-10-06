@@ -38,7 +38,7 @@ const captureStream = {
 };
 
 /** The audit lines logged so far. onResponse runs once the response is sent. */
-async function auditLines() {
+async function readAuditLines() {
 	await new Promise((resolve) => setImmediate(resolve));
 	return logLines.filter((line) => line.event === "audit");
 }
@@ -87,7 +87,7 @@ suite("audit line", () => {
 		});
 		assert.strictEqual(res.statusCode, 200);
 
-		const lines = await auditLines();
+		const lines = await readAuditLines();
 		assert.strictEqual(lines.length, 1);
 		const line = lines[0];
 		assert.strictEqual(line?.client_id, "banking-service");
@@ -106,7 +106,7 @@ suite("audit line", () => {
 		});
 		assert.strictEqual(res.statusCode, 403);
 
-		const lines = await auditLines();
+		const lines = await readAuditLines();
 		assert.strictEqual(lines.length, 1);
 		assert.strictEqual(lines[0]?.status, 403);
 		assert.strictEqual(lines[0]?.user_id, null);
@@ -120,7 +120,7 @@ suite("audit line", () => {
 		});
 		assert.strictEqual(res.statusCode, 400);
 
-		const lines = await auditLines();
+		const lines = await readAuditLines();
 		assert.strictEqual(lines.length, 1);
 		assert.strictEqual(lines[0]?.status, 400);
 	});
@@ -132,13 +132,13 @@ suite("audit line", () => {
 		});
 		// 401, not the 400 its query would earn: auth runs before validation
 		assert.strictEqual(res.statusCode, 401);
-		assert.strictEqual((await auditLines()).length, 0);
+		assert.strictEqual((await readAuditLines()).length, 0);
 	});
 
 	test("a public route is not audited", async () => {
 		const res = await app.inject({ method: "GET", url: "/open" });
 		assert.strictEqual(res.statusCode, 200);
-		assert.strictEqual((await auditLines()).length, 0);
+		assert.strictEqual((await readAuditLines()).length, 0);
 	});
 
 	test("no built-in request lines: the audit line is the only one", async () => {
@@ -147,7 +147,7 @@ suite("audit line", () => {
 			url: `/users/${USER_ID}/things?limit=5`,
 			headers: READ_TOKEN
 		});
-		await auditLines();
+		await readAuditLines();
 		assert.deepStrictEqual(
 			logLines.map((line) => line.msg),
 			["audit"]

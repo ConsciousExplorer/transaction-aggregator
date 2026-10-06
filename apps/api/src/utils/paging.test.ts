@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
-import { linkWith, pageLinks, toKeysetPage } from "./paging.ts";
+import { buildLink, buildPageLinks, toKeysetPage } from "./paging.ts";
 
 // Rows as a keyset query returns them, named by age: a is the newest
 const NEWEST_FIRST = ["a", "b", "c"];
@@ -59,9 +59,9 @@ suite("toKeysetPage", () => {
 	});
 });
 
-suite("linkWith", () => {
+suite("buildLink", () => {
 	test("sets the given params and keeps the path and every other param as sent", () => {
-		const link = linkWith("/api/v1/things?type=card&type=eft&cursor=old", {
+		const link = buildLink("/api/v1/things?type=card&type=eft&cursor=old", {
 			cursor: "new"
 		});
 		const url = new URL(link, "http://client.example");
@@ -72,13 +72,13 @@ suite("linkWith", () => {
 
 	test("adds a query to a request that had none", () => {
 		assert.strictEqual(
-			linkWith("/api/v1/things", { a: "1" }),
+			buildLink("/api/v1/things", { a: "1" }),
 			"/api/v1/things?a=1"
 		);
 	});
 
 	test("datetime values keep ':' unencoded, however the request sent them", () => {
-		const link = linkWith(
+		const link = buildLink(
 			"/api/v1/things?fromDateTime=2025-12-01T00%3A00%3A00Z",
 			{
 				cursorOccurredAt: "2025-12-30T13:33:01.634000Z"
@@ -92,19 +92,24 @@ suite("linkWith", () => {
 	});
 
 	test("a value with query delimiters in it is still encoded", () => {
-		const link = linkWith("/api/v1/things", { q: "a&b=c d" });
+		const link = buildLink("/api/v1/things", { q: "a&b=c d" });
 		const url = new URL(link, "http://client.example");
 		assert.strictEqual(url.searchParams.get("q"), "a&b=c d");
 		assert.deepStrictEqual([...url.searchParams.keys()], ["q"]);
 	});
 });
 
-suite("pageLinks", () => {
+suite("buildPageLinks", () => {
 	const REQUEST = "/api/v1/things?toDateTime=2099-01-01T00:00:00.000Z&limit=2";
 	const WINDOW = { toDateTime: "2026-10-01T12:00:00.000Z" };
 
 	test("every link carries the window as read", () => {
-		const links = pageLinks(REQUEST, WINDOW, { cursor: "b" }, { cursor: "a" });
+		const links = buildPageLinks(
+			REQUEST,
+			WINDOW,
+			{ cursor: "b" },
+			{ cursor: "a" }
+		);
 		for (const link of [links.self, links.next, links.prev]) {
 			const url = new URL(link ?? "", "http://client.example");
 			assert.strictEqual(url.searchParams.get("toDateTime"), WINDOW.toDateTime);
@@ -115,7 +120,7 @@ suite("pageLinks", () => {
 	});
 
 	test("next and prev are left out when there is no such page", () => {
-		const links = pageLinks(REQUEST, WINDOW, null, null);
+		const links = buildPageLinks(REQUEST, WINDOW, null, null);
 		assert.deepStrictEqual(Object.keys(links), ["self"]);
 	});
 });

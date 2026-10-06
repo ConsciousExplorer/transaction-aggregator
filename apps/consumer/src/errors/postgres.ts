@@ -45,7 +45,9 @@ export function isRetryablePostgresCode(code: string): boolean {
 	return RETRYABLE_CODES.has(code) || RETRYABLE_CLASSES.has(code.slice(0, 2));
 }
 
-function diagnostics(error: Record<string, unknown>): Record<string, unknown> {
+function extractDiagnostics(
+	error: Record<string, unknown>
+): Record<string, unknown> {
 	const details: Record<string, unknown> = {};
 
 	for (const field of PG_DIAGNOSTIC_FIELDS) {
@@ -70,7 +72,7 @@ export function classifyPostgresError(
 
 	const candidate = error as Record<string, unknown>;
 	const code = typeof candidate.code === "string" ? candidate.code : undefined;
-	const details = diagnostics(candidate);
+	const details = extractDiagnostics(candidate);
 	const reason =
 		error instanceof Error ? `${message}: ${error.message}` : message;
 

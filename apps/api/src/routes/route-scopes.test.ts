@@ -9,7 +9,7 @@ import { buildServer } from "#src/server.ts";
 
 const READ_METHODS = ["GET", "HEAD"];
 
-function methodsOf(route: RouteOptions): string[] {
+function getMethods(route: RouteOptions): string[] {
 	return Array.isArray(route.method) ? route.method : [route.method];
 }
 
@@ -43,7 +43,7 @@ suite("route auth config", () => {
 		for (const route of apiRoutes) {
 			const scopes = route.config?.authConfig?.requiredScope ?? [];
 
-			for (const method of methodsOf(route)) {
+			for (const method of getMethods(route)) {
 				const expected = READ_METHODS.includes(method) ? "tx:read" : "tx:write";
 				assert.deepStrictEqual(
 					scopes,

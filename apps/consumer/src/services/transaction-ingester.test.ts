@@ -8,7 +8,7 @@ import type { Normaliser } from "#src/services/domain-normaliser.ts";
 import type { RuleCategoriser } from "#src/services/rule-categoriser.ts";
 import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 
-function canonical(
+function buildCanonical(
 	over: Partial<CanonicalTransactionSchema> = {}
 ): CanonicalTransactionSchema {
 	return {
@@ -28,7 +28,7 @@ function canonical(
 	};
 }
 
-const normaliserEmitting = (value: unknown): Normaliser => ({
+const createEmittingNormaliser = (value: unknown): Normaliser => ({
 	normalise: () => value as CanonicalTransactionSchema
 });
 
@@ -55,7 +55,7 @@ suite("transaction ingestion", () => {
 		} as never;
 
 		const ingester = createTransactionIngester(
-			normaliserEmitting(canonical()),
+			createEmittingNormaliser(buildCanonical()),
 			categoriser,
 			pool
 		);

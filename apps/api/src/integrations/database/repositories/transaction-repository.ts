@@ -80,7 +80,7 @@ export type SetTransactionCategory = z.infer<
  * next continues in the sort order. prev reads against it from the cursor,
  * so that LIMIT keeps the rows nearest the cursor rather than the furthest.
  */
-export function readsAscending(
+export function isAscendingRead(
 	sort: TransactionSort,
 	cursorDirection: CursorDirection
 ): boolean {
@@ -107,7 +107,7 @@ export class UserTransactionRepository {
 					? filter.category
 					: [filter.category];
 
-		const ascending = readsAscending(filter.sort, filter.cursorDirection);
+		const ascending = isAscendingRead(filter.sort, filter.cursorDirection);
 
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),

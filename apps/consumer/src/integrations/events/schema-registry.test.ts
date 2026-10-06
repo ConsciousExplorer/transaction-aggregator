@@ -14,7 +14,7 @@ function respondWith(status: number, body: unknown) {
 	mock.method(globalThis, "fetch", async () => Response.json(body, { status }));
 }
 
-async function registryErrorFrom(read: Promise<unknown>) {
+async function catchRegistryError(read: Promise<unknown>) {
 	try {
 		await read;
 	} catch (error) {
@@ -40,7 +40,7 @@ suite("schema registry reads", () => {
 	test("404 carries its status, so the caller can dead-letter", async () => {
 		respondWith(404, { error_code: 40403, message: "Schema not found" });
 
-		const error = await registryErrorFrom(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
 
 		assert.equal(error.status, 404);
 	});
@@ -48,7 +48,7 @@ suite("schema registry reads", () => {
 	test("5xx carries its status", async () => {
 		respondWith(503, { message: "unavailable" });
 
-		const error = await registryErrorFrom(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
 
 		assert.equal(error.status, 503);
 	});
@@ -58,7 +58,7 @@ suite("schema registry reads", () => {
 			throw new TypeError("fetch failed");
 		});
 
-		const error = await registryErrorFrom(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
 
 		assert.equal(error.status, undefined);
 	});
@@ -66,7 +66,7 @@ suite("schema registry reads", () => {
 	test("a body that is not a schema is a registry error, not a crash elsewhere", async () => {
 		respondWith(200, { unexpected: true });
 
-		const error = await registryErrorFrom(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
 
 		assert.equal(error.status, 200);
 	});

@@ -18,17 +18,17 @@ import { type Logger, pino } from "pino";
 import type { TokenVerifier } from "./auth/verifier.ts";
 import type { AppInfoConfig, QueryWindowConfig } from "./config.ts";
 import {
-	fromStatus,
+	clientError,
 	HttpProblem,
-	internal,
-	notFound,
+	internalError,
+	notFoundError,
 	validationError
 } from "./errors/http-problem.ts";
 import type { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import type { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 import httpMetrics from "./telemetry/http-metrics.ts";
-import { requestTraceId } from "./utils/trace-id.ts";
+import { resolveTraceId } from "./utils/trace-id.ts";
 
 // Tests live next to the code they test. Autoload would otherwise register a
 // test file as a plugin or route and run its suite inside the server.
@@ -82,15 +82,19 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	const server = fastify({
 		loggerInstance: logger,
 		logController: new LogController({ disableRequestLogging: true }),
-		genReqId: requestTraceId,
+		genReqId: resolveTraceId,
 		...serverOptions
 	}).withTypeProvider<ZodTypeProvider>();
 
-	// Zod owns request validation and response serialization
+	/**
+	 * Zod owns request validation and response serialization
+	 */
 	server.setValidatorCompiler(validatorCompiler);
 	server.setSerializerCompiler(serializerCompiler);
 
-	// Setting error handlers
+	/**
+	 *  Setting error handlers
+	 */
 	server.setErrorHandler((err: FastifyError, req, reply) => {
 		const log = req.log.child({ method: req.method, url: req.url });
 
@@ -109,18 +113,18 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		}
 		if (isResponseSerializationError(err)) {
 			log.error({ err }, "response schema violation");
-			return send(reply, internal(req.id));
+			return send(reply, internalError(req.id));
 		}
 		const status = err.statusCode;
 		if (typeof status === "number" && status >= 400 && status < 500) {
 			log.warn({ err }, "client error");
-			return send(reply, fromStatus(status, err.message));
+			return send(reply, clientError(status, err.message));
 		}
 		log.error({ err }, "unhandled");
-		return send(reply, internal(req.id));
+		return send(reply, internalError(req.id));
 	});
 
-	server.setNotFoundHandler((_req, reply) => send(reply, notFound()));
+	server.setNotFoundHandler((_req, reply) => send(reply, notFoundError()));
 
 	/**
 	 * RED metrics and the trace span's route for every request. Registered
@@ -132,7 +136,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 	 */
 	server.register(httpMetrics);
 
-	// // OpenAPI spec + /docs
+	/**
+	 * Plugin autoload
+	 * Autoload every plugin in the specified directory
+	 *
+	 * OpenAPI spec + /docs
+	 */
 	if (pluginAutoLoadParameters) {
 		server.register(fastifyAutoload, {
 			...pluginAutoLoadParameters,
@@ -145,8 +154,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		});
 	}
 
-	// No autoLoadParameters → no autoload: the server carries zero routes and
-	// the caller registers what it wants (this is what route tests do).
+	/**
+	 * No autoLoadParameters → no autoload: the server carries zero routes and
+	 * the caller registers what it wants (this is what route tests do).
+	 */
 	if (routeAutoLoadParameters) {
 		server.register(fastifyAutoload, {
 			...routeAutoLoadParameters,
@@ -161,7 +172,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		});
 	}
 
-	// rewrite / to /docs
+	/**  rewrite / to /docs */
 	server.get("/", {
 		schema: { hide: true },
 		config: { authConfig: { public: true } },
@@ -170,12 +181,25 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 		}
 	});
 
+	/**
+	 * Returns the actual server instance, which is a FastifyInstance with all the plugins and routes registered.
+	 * The caller can then call server.listen() to start the server.
+	 */
 	return server;
 }
 
+// #region: Helpers
+
+/**
+ * Helpers to send a problem+json response.
+ * The FastifyReply type is used to ensure that the reply object is correctly typed
+ * The response is sent with the correct status code and content type.
+ */
 function send(reply: FastifyReply, problem: HttpProblem) {
 	return reply
 		.code(problem.payload.status)
 		.type("application/problem+json")
 		.send(problem.payload);
 }
+
+// #endregion

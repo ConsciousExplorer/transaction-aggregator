@@ -6,9 +6,9 @@ import {
 	type QueryResult,
 	type QueryResultRow
 } from "pg";
-import { fileLogger } from "#src/logger.ts";
+import { createFileLogger } from "#src/logger.ts";
 
-const logger = fileLogger(import.meta.url);
+const logger = createFileLogger(import.meta.url);
 
 // Minimal common interface — both Pool and PoolClient satisfy this
 export interface Queryable {
@@ -41,7 +41,7 @@ export async function createPool(config: PoolConfig): Promise<Pool> {
 	return pool;
 }
 
-export async function withTransaction<T>(
+export async function runInTransaction<T>(
 	pool: Pool,
 	fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {

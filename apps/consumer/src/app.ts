@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 import process from "node:process";
 import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
-import { fileLogger } from "#src/logger.ts";
+import { createFileLogger } from "#src/logger.ts";
 import { config, secrets } from "#src/runtime.ts";
 import {
 	createDatabase,
@@ -18,7 +18,7 @@ import {
 	createAvroDeserialiser,
 	type FetchOnMiss
 } from "./integrations/events/avro-deserialiser.ts";
-import { deserialisationErrorHandler } from "./integrations/events/handlers/deserialiserErrorHandler.ts";
+import { handleDeserialisationError } from "./integrations/events/handlers/handleDeserialisationError.ts";
 import {
 	type BatchHandler,
 	createTransactionBatchHandler,
@@ -49,7 +49,7 @@ import { createTransactionIngester } from "./services/transaction-ingester.ts";
 import { registry } from "./telemetry/metrics.ts";
 import { startTracing } from "./telemetry/tracing.ts";
 
-const logger = fileLogger(import.meta.url);
+const logger = createFileLogger(import.meta.url);
 
 // Undefined when tracing is disabled
 const tracerProvider = startTracing(config.tracing);
@@ -69,7 +69,7 @@ let sendToDlq: SendToDlq;
 let transactionBatchHandler: BatchHandler;
 let fetchOnMiss: FetchOnMiss;
 
-export async function startupCheck<T>(
+export async function runStartupCheck<T>(
 	name: string,
 	action: () => Promise<T>
 ): Promise<T> {
@@ -89,7 +89,7 @@ export async function startupCheck<T>(
 	}
 }
 
-export async function gracefulShutdown(code = 0): Promise<never> {
+export async function shutDownGracefully(code = 0): Promise<never> {
 	// Consumer first. force closes the open message stream, which close()
 	// otherwise refuses to leave the group over; LeaveGroup is what stops the
 	// next start from waiting out the session timeout on a zombie member. A
@@ -128,14 +128,14 @@ export async function gracefulShutdown(code = 0): Promise<never> {
 }
 
 // #region: Kill Processes
-process.on("SIGTERM", () => void gracefulShutdown());
-process.on("SIGINT", () => void gracefulShutdown());
+process.on("SIGTERM", () => void shutDownGracefully());
+process.on("SIGINT", () => void shutDownGracefully());
 // #endregion
 
 // #region: Main entrypoint
 try {
 	// Create database pool to manage connections
-	writerPool = await startupCheck("PostgreSQL", async () => {
+	writerPool = await runStartupCheck("PostgreSQL", async () => {
 		const pool = await createPool({
 			min: config.database.min,
 			max: config.database.max,
@@ -158,7 +158,7 @@ try {
 	rulesetVersion = await loadRulesetVersion(writerDb);
 	uncategorisedId = await loadUncategorisedId(writerDb);
 
-	const avroDeserialiser = await startupCheck("SchemaRegistry", () =>
+	const avroDeserialiser = await runStartupCheck("SchemaRegistry", () =>
 		createAvroDeserialiser<DomainTransactionSchema>(config.schemaRegistry.url, [
 			`${config.kafka.topics.main}-value`
 		])
@@ -245,7 +245,7 @@ try {
 	server.listen(config.app.port);
 } catch (err) {
 	logger.error({ err }, "Startup failed");
-	await gracefulShutdown(1);
+	await shutDownGracefully(1);
 	process.exit(1);
 }
 
@@ -268,7 +268,7 @@ try {
 	await startBatchConsumer(
 		kafkaConsumer,
 		transactionBatchHandler,
-		deserialisationErrorHandler,
+		handleDeserialisationError,
 		{
 			topics: Array(config.kafka.topics.main),
 			mode: config.kafka.readMode,
@@ -280,7 +280,7 @@ try {
 	);
 } catch (err) {
 	logger.error({ err }, "Consumer stopped on an unrecoverable error");
-	await gracefulShutdown(1);
+	await shutDownGracefully(1);
 }
 
 // #endregion

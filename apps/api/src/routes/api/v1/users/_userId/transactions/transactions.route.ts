@@ -2,7 +2,7 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
-import { notFound } from "#src/errors/http-problem.ts";
+import { notFoundError } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
 import {
@@ -13,26 +13,32 @@ import {
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 import {
+	buildPageLinks,
 	type CursorDirection,
-	pageLinks,
 	toKeysetPage
 } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
+/**
+ * Represents a cursor for pagination
+ *
+ */
 interface Cursor {
 	occurredAt: string;
 	transactionId: string;
 }
 
-function cursorOf(row: {
+function toCursor(row: {
 	cursorOccurredAt: string;
 	transactionId: string;
 }): Cursor {
 	return { occurredAt: row.cursorOccurredAt, transactionId: row.transactionId };
 }
 
-/** The query params that ask for the page on the other side of a cursor */
-function cursorParams(
+/**
+ * Returns the query parameters for a cursor-based pagination request
+ */
+function toCursorParams(
 	cursor: Cursor,
 	cursorDirection: CursorDirection
 ): Record<string, string> {
@@ -163,8 +169,8 @@ export default async (
 				shortDescription: row.shortDescription
 			}));
 
-			const nextCursor = page.nextFrom ? cursorOf(page.nextFrom) : null;
-			const prevCursor = page.prevFrom ? cursorOf(page.prevFrom) : null;
+			const nextCursor = page.nextFrom ? toCursor(page.nextFrom) : null;
+			const prevCursor = page.prevFrom ? toCursor(page.prevFrom) : null;
 
 			// The window as parsed, so a future toDateTime is already now. Every
 			// link carries it, and the whole walk reads the same window.
@@ -172,11 +178,11 @@ export default async (
 				fromDateTime: request.query.fromDateTime,
 				toDateTime: request.query.toDateTime
 			};
-			const links = pageLinks(
+			const links = buildPageLinks(
 				request.url,
 				windowParams,
-				nextCursor ? cursorParams(nextCursor, "next") : null,
-				prevCursor ? cursorParams(prevCursor, "prev") : null
+				nextCursor ? toCursorParams(nextCursor, "next") : null,
+				prevCursor ? toCursorParams(prevCursor, "prev") : null
 			);
 
 			return reply.send({
@@ -220,7 +226,7 @@ export default async (
 				transactionId: request.params.transactionId
 			});
 
-			if (!row) throw notFound();
+			if (!row) throw notFoundError();
 
 			return reply.send({
 				transactionId: row.transactionId,

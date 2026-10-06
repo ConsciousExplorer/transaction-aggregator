@@ -29,7 +29,7 @@ const tokenVerifier: TokenVerifier = {
 	}
 };
 
-function withToken(token: string) {
+function buildAuthHeaders(token: string) {
 	return { authorization: `Bearer ${token}` };
 }
 
@@ -84,7 +84,7 @@ suite("auth hook", () => {
 		const res = await app.inject({
 			method: "GET",
 			url: "/write-only",
-			headers: withToken("forged")
+			headers: buildAuthHeaders("forged")
 		});
 		assert.strictEqual(res.statusCode, 401);
 	});
@@ -93,7 +93,7 @@ suite("auth hook", () => {
 		const res = await app.inject({
 			method: "GET",
 			url: "/write-only",
-			headers: withToken("read-token")
+			headers: buildAuthHeaders("read-token")
 		});
 		assert.strictEqual(res.statusCode, 403);
 		assert.strictEqual(res.json().type, "forbidden");
@@ -103,7 +103,7 @@ suite("auth hook", () => {
 		const res = await app.inject({
 			method: "GET",
 			url: "/write-only",
-			headers: withToken("write-token")
+			headers: buildAuthHeaders("write-token")
 		});
 		assert.strictEqual(res.statusCode, 200);
 	});

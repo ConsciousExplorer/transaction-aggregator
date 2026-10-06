@@ -42,7 +42,7 @@ export function isForeignKeyViolation(error: unknown) {
 	return false;
 }
 
-export async function withTransaction<T>(
+export async function runInTransaction<T>(
 	pool: Pool,
 	fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {

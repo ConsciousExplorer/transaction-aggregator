@@ -76,7 +76,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 		rulePriority: null,
 		matcherType: "fallback"
 	};
-	const verdictOf = (rule: Rule): Verdict => ({
+	const toVerdict = (rule: Rule): Verdict => ({
 		categoryId: rule.categoryId,
 		ruleVersion: version,
 		rulePriority: rule.priority,
@@ -101,7 +101,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 			) {
 				const rule = mccMap.get(transaction.metadata.mcc);
 				if (rule) {
-					return verdictOf(rule);
+					return toVerdict(rule);
 				}
 			}
 
@@ -110,7 +110,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 				const terms =
 					`${transaction.shortDescription ?? ""} ${transaction.longDescription ?? ""}`.toLowerCase();
 				for (const { term, rule } of keywordRules) {
-					if (terms.includes(term)) return verdictOf(rule);
+					if (terms.includes(term)) return toVerdict(rule);
 				}
 			}
 
@@ -120,18 +120,18 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 				const rule = sourceTransactionTypeMap.get(
 					`${transaction.transactionType}:${sourceTransactionType}`
 				);
-				if (rule) return verdictOf(rule);
+				if (rule) return toVerdict(rule);
 			}
 
 			// 4. source:direction
 			const directionRule = sourceDirectionMap.get(
 				`${transaction.transactionType}:${transaction.direction}`
 			);
-			if (directionRule) return verdictOf(directionRule);
+			if (directionRule) return toVerdict(directionRule);
 
 			// 5. source defaults
 			const rule = defaultMap.get(transaction.transactionType);
-			if (rule) return verdictOf(rule);
+			if (rule) return toVerdict(rule);
 
 			// 6. Fallback
 			return fallback;

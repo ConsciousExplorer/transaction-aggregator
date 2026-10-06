@@ -1,13 +1,13 @@
 import { type BeforeHookPayloadType, UserError } from "@platformatic/kafka";
 import avsc from "avsc";
-import { fileLogger } from "#src/logger.ts";
+import { createFileLogger } from "#src/logger.ts";
 import {
 	getSchemaById,
 	getSubjectVersion,
 	getSubjectVersions
 } from "./schema-registry.ts";
 
-const logger = fileLogger(import.meta.url);
+const logger = createFileLogger(import.meta.url);
 
 const MAGIC_BYTE = 0;
 const WIRE_HEADER_BYTES = 5; // magic byte + int32 schema id

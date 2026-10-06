@@ -17,7 +17,7 @@ import {
 	startBatchConsumer
 } from "./kafka.ts";
 
-function message(offset: number): KafkaMessage {
+function buildMessage(offset: number): KafkaMessage {
 	let committed = false;
 
 	return {
@@ -43,13 +43,13 @@ function message(offset: number): KafkaMessage {
  * an array-backed stream delivers everything in one microtask burst, so the
  * linger timer never gets to fire mid-flush and the race stays hidden.
  */
-function fakeConsumer(count: number, gapMs = 0): KafkaConsumer {
+function createFakeConsumer(count: number, gapMs = 0): KafkaConsumer {
 	async function* messages() {
 		for (let index = 1; index <= count; index += 1) {
 			if (gapMs > 0) {
 				await new Promise((resolve) => setTimeout(resolve, gapMs));
 			}
-			yield message(index);
+			yield buildMessage(index);
 		}
 	}
 
@@ -59,11 +59,11 @@ function fakeConsumer(count: number, gapMs = 0): KafkaConsumer {
 }
 
 /** A stream that stays open, like a live topic, until the test pushes into it. */
-function openConsumer(stream: Readable): KafkaConsumer {
+function createOpenConsumer(stream: Readable): KafkaConsumer {
 	return { consume: async () => stream } as unknown as KafkaConsumer;
 }
 
-const options = (over: Partial<BatchConsumerOptions> = {}) =>
+const buildOptions = (over: Partial<BatchConsumerOptions> = {}) =>
 	({
 		topics: ["transactions"],
 		mode: "latest",
@@ -90,10 +90,10 @@ suite("startBatchConsumer", () => {
 		}
 
 		await startBatchConsumer(
-			fakeConsumer(7, 5),
+			createFakeConsumer(7, 5),
 			onBatch,
 			() => "continue" as never,
-			options()
+			buildOptions()
 		);
 
 		assert.equal(maxActive, 1, "flushes must not overlap");
@@ -109,12 +109,12 @@ suite("startBatchConsumer", () => {
 
 		// 4 messages with batchSize 3 leaves one buffered at stream end.
 		await startBatchConsumer(
-			fakeConsumer(4, 1),
+			createFakeConsumer(4, 1),
 			async (messages) => {
 				for (const item of messages) seen.push(item.offset);
 			},
 			() => "continue" as never,
-			options({ lingerMs: 10_000 })
+			buildOptions({ lingerMs: 10_000 })
 		);
 
 		assert.deepEqual(seen, [1n, 2n, 3n, 4n], "the 4th must not be dropped");
@@ -125,15 +125,15 @@ suite("startBatchConsumer", () => {
 		const failure = new Error("database unavailable");
 
 		const consuming = startBatchConsumer(
-			openConsumer(stream),
+			createOpenConsumer(stream),
 			async () => {
 				throw failure;
 			},
 			() => "continue" as never,
-			options({ batchSize: 10, lingerMs: 1 })
+			buildOptions({ batchSize: 10, lingerMs: 1 })
 		);
 
-		stream.push(message(1));
+		stream.push(buildMessage(1));
 
 		await assert.rejects(consuming, failure);
 	});
@@ -141,7 +141,7 @@ suite("startBatchConsumer", () => {
 
 const TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
 
-function incomingHeaders(): Map<string, string> {
+function buildIncomingHeaders(): Map<string, string> {
 	return new Map([
 		["traceparent", TRACEPARENT],
 		["x-producer", "producers/0.1.0"]
@@ -152,9 +152,9 @@ suite("classifyMessages", () => {
 	test("a valid message keeps its decoded value, raw bytes and headers", () => {
 		const raw = Buffer.from("framed avro");
 		const value = { transactionId: "t1" } as unknown as DomainTransactionSchema;
-		const headers = incomingHeaders();
+		const headers = buildIncomingHeaders();
 		const consumed = {
-			...message(1),
+			...buildMessage(1),
 			value: { raw, value },
 			headers
 		} as unknown as KafkaMessage;
@@ -171,9 +171,9 @@ suite("classifyMessages", () => {
 	test("a poison message keeps its raw bytes and headers", () => {
 		const raw = Buffer.from("not avro");
 		const consumed = {
-			...message(2),
+			...buildMessage(2),
 			value: raw,
-			headers: incomingHeaders(),
+			headers: buildIncomingHeaders(),
 			metadata: {
 				deserializationError: { error: new Error("bad"), payloadType: "value" }
 			}
@@ -194,7 +194,7 @@ interface SentRecord {
 	headers: Record<string, string>;
 }
 
-function recordingDlqProducer() {
+function createRecordingDlqProducer() {
 	const sent: SentRecord[] = [];
 	const producer = {
 		send: async (request: { messages: SentRecord[] }) => {
@@ -204,7 +204,10 @@ function recordingDlqProducer() {
 	return { sent, producer };
 }
 
-function validFailure(error: unknown, headers = incomingHeaders()): DlqFailure {
+function buildValidFailure(
+	error: unknown,
+	headers = buildIncomingHeaders()
+): DlqFailure {
 	return {
 		message: {
 			topic: "transactions.card",
@@ -220,13 +223,13 @@ function validFailure(error: unknown, headers = incomingHeaders()): DlqFailure {
 	};
 }
 
-function poisonFailure(error: unknown): DlqFailure {
+function buildPoisonFailure(error: unknown): DlqFailure {
 	return {
 		message: {
 			topic: "transactions.card",
 			partition: 3,
 			offset: 43n,
-			headers: incomingHeaders(),
+			headers: buildIncomingHeaders(),
 			kind: "poison",
 			raw: Buffer.from("not avro"),
 			error
@@ -237,10 +240,10 @@ function poisonFailure(error: unknown): DlqFailure {
 
 suite("createDlqSender", () => {
 	test("a record is dead-lettered as it arrived, with the DLQ headers on top", async () => {
-		const dlq = recordingDlqProducer();
-		const headers = incomingHeaders();
+		const dlq = createRecordingDlqProducer();
+		const headers = buildIncomingHeaders();
 		headers.set("x-dlq-reason", "from an earlier redrive");
-		const failure = validFailure(
+		const failure = buildValidFailure(
 			new NonRetryableError("status outside the enum"),
 			headers
 		);
@@ -262,12 +265,12 @@ suite("createDlqSender", () => {
 	});
 
 	test("a poison record keeps its raw bytes and headers, reason deserialisation", async () => {
-		const dlq = recordingDlqProducer();
+		const dlq = createRecordingDlqProducer();
 
 		await createDlqSender(
 			dlq.producer,
 			"transactions.card.dlq"
-		)([poisonFailure(new Error("Not Confluent wire format"))]);
+		)([buildPoisonFailure(new Error("Not Confluent wire format"))]);
 
 		const [record] = dlq.sent;
 		assert.deepEqual(record?.value, Buffer.from("not avro"));

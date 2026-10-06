@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { classifyPostgresError } from "#src/errors/postgres.ts";
-import { withTransaction } from "#src/integrations/database/pool.ts";
+import { runInTransaction } from "#src/integrations/database/pool.ts";
 import { batchInsertTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
 import type {
 	CategorisedTransactionSchema,
@@ -12,7 +12,7 @@ import {
 	insertDurationSeconds,
 	rowsInsertedTotal
 } from "#src/telemetry/metrics.ts";
-import { withSpan } from "#src/telemetry/tracing.ts";
+import { runInSpan } from "#src/telemetry/tracing.ts";
 import type { Normaliser } from "./domain-normaliser.ts";
 import type { RuleCategoriser, Verdict } from "./rule-categoriser.ts";
 
@@ -58,7 +58,7 @@ export function createTransactionIngester(
 	async function ingest(
 		transactions: DomainTransactionSchema[]
 	): Promise<BatchOutcome> {
-		const { categorisedTransactions, matcherTypes } = await withSpan(
+		const { categorisedTransactions, matcherTypes } = await runInSpan(
 			"categorize",
 			{ attributes: { "transaction.count": transactions.length } },
 			() => categoriseAll(transactions)
@@ -68,7 +68,7 @@ export function createTransactionIngester(
 		const endInsertTimer = insertDurationSeconds.startTimer();
 		let outcome: BatchOutcome;
 		try {
-			outcome = await withSpan(
+			outcome = await runInSpan(
 				"db.insert",
 				{
 					attributes: {
@@ -79,7 +79,7 @@ export function createTransactionIngester(
 					}
 				},
 				async (span) => {
-					const result = await withTransaction(pool, async (client) => {
+					const result = await runInTransaction(pool, async (client) => {
 						return await batchInsertTransactions(
 							client,
 							categorisedTransactions

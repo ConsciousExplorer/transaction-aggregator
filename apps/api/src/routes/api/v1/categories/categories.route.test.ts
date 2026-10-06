@@ -65,7 +65,7 @@ suite("GET /api/v1/categories", () => {
 		});
 	});
 
-	test("200: empty table → empty data — the notFound branch is unreachable", async () => {
+	test("200: empty table → empty data — the notFoundError branch is unreachable", async () => {
 		getCategories.mock.mockImplementationOnce(async () => []);
 		const res = await app.inject({ method: "GET", url: "/api/v1/categories" });
 		assert.strictEqual(res.statusCode, 200);

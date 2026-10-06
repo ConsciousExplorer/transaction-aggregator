@@ -35,7 +35,7 @@ class GeneratorSettings(BaseSettings):
 
     @field_validator("seed", "anchor_date", mode="before")
     @classmethod
-    def _empty_is_none(cls, v: object) -> object:
+    def _empty_to_none(cls, v: object) -> object:
         # compose passes GENERATOR_SEED: ${GENERATOR_SEED:-} — an unset shell var arrives as ""
         return None if isinstance(v, str) and v.strip() == "" else v
 

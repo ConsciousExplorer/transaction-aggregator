@@ -6,7 +6,7 @@ import {
 	getContext,
 	type TokenVerifier
 } from "#src/auth/verifier.ts";
-import { forbidden, unauthorized } from "#src/errors/http-problem.ts";
+import { forbiddenError, unauthorizedError } from "#src/errors/http-problem.ts";
 
 declare module "fastify" {
 	interface FastifyInstance {
@@ -41,7 +41,7 @@ export default fastifyPlugin<{
 						{ reason: "missing-or-malformed-header" },
 						"auth rejected"
 					);
-					throw unauthorized();
+					throw unauthorizedError();
 				}
 
 				const token = header.slice("Bearer ".length);
@@ -52,7 +52,7 @@ export default fastifyPlugin<{
 				} catch (err) {
 					// reason stays internal in logs and not returned in the response
 					request.log.warn({ err }, "auth rejected");
-					throw unauthorized();
+					throw unauthorizedError();
 				}
 			}
 		);
@@ -79,7 +79,7 @@ export default fastifyPlugin<{
 					"Caller does not have the required scopes"
 				);
 				// The caller is known but not allowed: 403, not 401
-				throw forbidden();
+				throw forbiddenError();
 			}
 		});
 	},

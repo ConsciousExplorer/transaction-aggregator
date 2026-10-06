@@ -12,7 +12,7 @@ import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
  * answer that no retry changes, so that message continues as poison to the DLQ,
  * like every other message that cannot be decoded.
  */
-export function deserialisationErrorHandler(
+export function handleDeserialisationError(
 	context: DeserializationErrorContext
 ): DeserializationErrorAction {
 	const registryUnavailable =

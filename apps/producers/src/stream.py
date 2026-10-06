@@ -10,11 +10,11 @@ from avro_datagen import generate
 BATCH_SIZE = 1000
 
 
-def epoch_ms_now() -> int:
+def get_epoch_ms() -> int:
     return time.time_ns() // 1_000_000
 
 
-def endless_records(
+def generate_records_forever(
     schema_path: str | Path, batch_size: int = BATCH_SIZE
 ) -> Iterator[dict[str, Any]]:
     """Generates records forever, in batches that each get a fresh random seed."""
@@ -28,12 +28,12 @@ def endless_records(
         )
 
 
-def paced_records(
+def pace_records(
     records: Iterable[dict[str, Any]],
     rate: float,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
-    now_ms: Callable[[], int] = epoch_ms_now,
+    now_ms: Callable[[], int] = get_epoch_ms,
 ) -> Iterator[dict[str, Any]]:
     """Releases record i at start + i / rate and stamps its timestamp with the emit time."""
     start = clock()
@@ -46,4 +46,4 @@ def paced_records(
 
 
 def stream_records(schema_path: str | Path, rate: float) -> Iterator[dict[str, Any]]:
-    return paced_records(endless_records(schema_path), rate)
+    return pace_records(generate_records_forever(schema_path), rate)

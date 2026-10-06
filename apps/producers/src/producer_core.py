@@ -29,7 +29,7 @@ class ProducerStats(BaseModel):
     elapsed_s: float
 
 
-def _kafka_delivery_callback(err, msg) -> None:
+def _log_delivery(err, msg) -> None:
     """Per-message delivery callback"""
     if err is not None:
         logger.error("Message failed delivery: %s", err)
@@ -142,7 +142,7 @@ def produce_records(
                     topic=topic,
                     value=value,
                     key=key,
-                    callback=_kafka_delivery_callback,
+                    callback=_log_delivery,
                     headers=headers,
                 )
                 produced += 1
@@ -153,7 +153,7 @@ def produce_records(
                     topic=topic,
                     value=value,
                     key=key,
-                    callback=_kafka_delivery_callback,
+                    callback=_log_delivery,
                     headers=headers,
                 )
                 produced += 1

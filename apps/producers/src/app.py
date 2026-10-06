@@ -39,7 +39,7 @@ def main():
         logger.info(
             "starting producer for topic %s in oneshot mode", config.kafka.topic
         )
-        records = oneshot_records(config)
+        records = generate_oneshot_records(config)
 
     schema_registry = SchemaRegistryClient({"url": config.schemaRegistry.url})
     # TopicNameStrategy: the value schema for topic T lives under subject "T-value"
@@ -68,7 +68,7 @@ def main():
     )
 
 
-def oneshot_records(config: AppConfig) -> Iterator[dict[str, Any]]:
+def generate_oneshot_records(config: AppConfig) -> Iterator[dict[str, Any]]:
     # Random unless GENERATOR_SEED pins it; pin it for reproducible runs
     seed = config.generator.seed
     seed_source = "env"

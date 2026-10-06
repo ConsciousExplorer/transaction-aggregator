@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
-import { notFound, validationError } from "#src/errors/http-problem.ts";
+import { notFoundError, validationError } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 
@@ -49,7 +49,7 @@ export default async (
 					userId,
 					transactionId
 				});
-			if (!originalTransaction) throw notFound();
+			if (!originalTransaction) throw notFoundError();
 
 			const overrideTransaction =
 				await opts.transactionRepository.setTransactionCategory({

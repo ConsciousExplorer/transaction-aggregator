@@ -11,7 +11,7 @@ import {
 	signedAmountSchema,
 	windowDateTimeSchema
 } from "#src/schemas/common.ts";
-import { linkWith } from "#src/utils/paging.ts";
+import { buildLink } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 // Every amount is a money object. debit and credit totals are positive;
@@ -57,7 +57,7 @@ type SummaryRow = Awaited<
 >[number];
 type SummaryTotal = z.infer<typeof summaryTotalSchema>;
 
-function money(amountMinor: number, currency: string) {
+function toMoney(amountMinor: number, currency: string) {
 	return { amountMinor, currency };
 }
 
@@ -82,9 +82,9 @@ function sumTotals(rows: SummaryRow[]): SummaryTotal {
 
 	return {
 		transactionCount,
-		netAmount: money(creditTotal - debitTotal, currency),
-		debit: { count: debitCount, total: money(debitTotal, currency) },
-		credit: { count: creditCount, total: money(creditTotal, currency) }
+		netAmount: toMoney(creditTotal - debitTotal, currency),
+		debit: { count: debitCount, total: toMoney(debitTotal, currency) },
+		credit: { count: creditCount, total: toMoney(creditTotal, currency) }
 	};
 }
 
@@ -160,19 +160,19 @@ export default async (
 							request.query.interval === "month" ? row.bucketStart : undefined
 					},
 					count: row.count,
-					netAmount: money(row.creditAmount - row.debitAmount, row.currency),
+					netAmount: toMoney(row.creditAmount - row.debitAmount, row.currency),
 					debit: {
 						count: row.debitCount,
-						total: money(row.debitAmount, row.currency)
+						total: toMoney(row.debitAmount, row.currency)
 					},
 					credit: {
 						count: row.creditCount,
-						total: money(row.creditAmount, row.currency)
+						total: toMoney(row.creditAmount, row.currency)
 					}
 				})),
 				// The window as parsed, so a future toDateTime shows as now
 				links: {
-					self: linkWith(request.url, {
+					self: buildLink(request.url, {
 						fromDateTime: request.query.fromDateTime,
 						toDateTime: request.query.toDateTime
 					})

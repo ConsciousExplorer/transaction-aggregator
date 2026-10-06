@@ -1,13 +1,13 @@
-import { fileLogger } from "#src/logger.ts";
+import { createFileLogger } from "#src/logger.ts";
 import {
 	batchFlushDurationSeconds,
 	batchFlushTotal,
 	batchSize,
 	dlqMessagesTotal
 } from "#src/telemetry/metrics.ts";
-import { withSpan } from "#src/telemetry/tracing.ts";
+import { runInSpan } from "#src/telemetry/tracing.ts";
 
-const logger = fileLogger(import.meta.url);
+const logger = createFileLogger(import.meta.url);
 
 import {
 	type Link,
@@ -58,7 +58,7 @@ export type KafkaConsumer = Consumer<string, ConsumedValue, string, string>;
  * The client declares its own copy of the prom-client types, which the real
  * client satisfies at runtime but not exactly as types — hence the cast.
  */
-function kafkaMetrics(registry: Registry) {
+function buildKafkaMetricsOptions(registry: Registry) {
 	return { registry, client: prometheusClient } as unknown as NonNullable<
 		BaseOptions["metrics"]
 	>;
@@ -75,7 +75,7 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	const consumerOptions = { ...options };
 
 	if (registry) {
-		consumerOptions.metrics = kafkaMetrics(registry);
+		consumerOptions.metrics = buildKafkaMetricsOptions(registry);
 	}
 
 	const kafkaConsumer = new Consumer(consumerOptions);
@@ -116,7 +116,7 @@ export async function createKafkaDlqProducer(
 	};
 
 	if (registry) {
-		producerOptions.metrics = kafkaMetrics(registry);
+		producerOptions.metrics = buildKafkaMetricsOptions(registry);
 	}
 
 	const kafkaDlqProducer = new Producer(producerOptions);
@@ -124,7 +124,7 @@ export async function createKafkaDlqProducer(
 	return kafkaDlqProducer;
 }
 
-function dlqReason(failure: DlqFailure) {
+function toDlqReason(failure: DlqFailure) {
 	return failure.message.kind === "poison" ? "deserialisation" : "processing";
 }
 
@@ -140,7 +140,7 @@ function toDlqRecord(dlqTopic: string, failure: DlqFailure) {
 	for (const [key, value] of message.headers) {
 		headers[String(key)] = String(value);
 	}
-	headers["x-dlq-reason"] = dlqReason(failure);
+	headers["x-dlq-reason"] = toDlqReason(failure);
 	headers["x-dlq-error"] =
 		error instanceof Error ? error.message : String(error);
 	headers["x-source-topic"] = message.topic;
@@ -165,7 +165,7 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 		}
 
 		// One span per send: it is one produce request, however many records
-		await withSpan(
+		await runInSpan(
 			"dlq.publish",
 			{
 				kind: SpanKind.PRODUCER,
@@ -180,7 +180,7 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 		);
 
 		for (const failure of failures) {
-			dlqMessagesTotal.inc({ reason: dlqReason(failure) });
+			dlqMessagesTotal.inc({ reason: toDlqReason(failure) });
 		}
 	};
 }
@@ -195,7 +195,7 @@ interface DeserialisationFailure {
 	payloadType: BeforeHookPayloadType;
 }
 
-function deserialisationFailureOf(
+function getDeserialisationFailure(
 	message: KafkaMessage
 ): DeserialisationFailure | undefined {
 	const failure = message.metadata.deserializationError;
@@ -215,7 +215,7 @@ export function classifyMessages(messages: KafkaMessage[]) {
 			offset: message.offset,
 			headers: message.headers
 		};
-		const failure = deserialisationFailureOf(message);
+		const failure = getDeserialisationFailure(message);
 		if (failure) {
 			classifiedMessages.push({
 				...origin,
@@ -255,7 +255,7 @@ type FlushTrigger = "size" | "linger" | "stream_end";
  * One link per message that carries a W3C traceparent header, pointing at the
  * trace context the producer minted for it.
  */
-function linksFrom(batch: KafkaMessage[]): Link[] {
+function buildSpanLinks(batch: KafkaMessage[]): Link[] {
 	const links: Link[] = [];
 
 	for (const message of batch) {
@@ -312,14 +312,14 @@ export async function startBatchConsumer(
 		batchSize.observe(batch.length);
 
 		const topic = options.topics.join(",");
-		await withSpan(
+		await runInSpan(
 			`consume.batch ${topic}`,
 			{
 				// Each batch is its own trace. The producers' traces are links,
 				// not parents: one span cannot have a parent per message.
 				root: true,
 				kind: SpanKind.CONSUMER,
-				links: linksFrom(batch),
+				links: buildSpanLinks(batch),
 				attributes: {
 					"messaging.system": "kafka",
 					"messaging.destination.name": topic,

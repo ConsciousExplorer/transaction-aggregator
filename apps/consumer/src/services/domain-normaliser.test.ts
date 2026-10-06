@@ -10,7 +10,7 @@ import { createNormaliser } from "#src/services/domain-normaliser.ts";
  * types every one of these as bare `z.string()`/`z.number()`, which is exactly
  * why the normaliser has to validate what it produces.
  */
-function cardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
+function buildCardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
 	return {
 		transactionId: "txn-0001",
 		sourceType: "card",
@@ -33,14 +33,14 @@ function cardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
 	};
 }
 
-const asDomain = (record: CardTransaction) =>
+const toDomain = (record: CardTransaction) =>
 	record as unknown as DomainTransactionSchema;
 
 const cardNormaliser = createNormaliser("card");
 
 suite("domain normaliser validation", () => {
 	test("accepts a well-formed record and returns canonical fields", () => {
-		const result = cardNormaliser.normalise(asDomain(cardRecord()));
+		const result = cardNormaliser.normalise(toDomain(buildCardRecord()));
 
 		assert.equal(result.transactionType, "card");
 		assert.equal(result.direction, "debit");
@@ -55,7 +55,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					asDomain(cardRecord({ transactionType: "DEBIT" }))
+					toDomain(buildCardRecord({ transactionType: "DEBIT" }))
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -75,7 +75,7 @@ suite("domain normaliser validation", () => {
 
 		for (const { wire, stored } of cases) {
 			const result = cardNormaliser.normalise(
-				asDomain(cardRecord({ status: wire }))
+				toDomain(buildCardRecord({ status: wire }))
 			);
 			assert.equal(result.status, stored);
 		}
@@ -84,7 +84,9 @@ suite("domain normaliser validation", () => {
 	test("rejects a status the canonical enum does not allow", () => {
 		assert.throws(
 			() =>
-				cardNormaliser.normalise(asDomain(cardRecord({ status: "posted" }))),
+				cardNormaliser.normalise(
+					toDomain(buildCardRecord({ status: "posted" }))
+				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
 				assert.match(String(error.details.issues), /status/);
@@ -97,7 +99,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					asDomain(cardRecord({ customerId: "not-a-uuid" }))
+					toDomain(buildCardRecord({ customerId: "not-a-uuid" }))
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -111,7 +113,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					asDomain(cardRecord({ transactionType: "purchase" }))
+					toDomain(buildCardRecord({ transactionType: "purchase" }))
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -128,7 +130,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					asDomain(cardRecord({ timestamp: Number.NaN }))
+					toDomain(buildCardRecord({ timestamp: Number.NaN }))
 				),
 			NonRetryableError
 		);
