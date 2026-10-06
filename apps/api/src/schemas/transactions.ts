@@ -87,7 +87,8 @@ const eftFundingSourceSchema = z.object({
 	beneficiaryBank: z.string(),
 	branchCode: z.string().nullable(),
 	reference: z.string().nullable(),
-	clearingType: z.string().nullable()
+	// Rows ingested before the consumer stored clearingType have no such key
+	clearingType: z.string().nullable().default(null)
 });
 
 const debitOrderFundingSourceSchema = z.object({

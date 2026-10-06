@@ -176,6 +176,7 @@ services:
       postgres
       -c shared_preload_libraries='pg_stat_statements,pg_cron'
       -c pg_stat_statements.track=all
+      -c pg_stat_statements.track_planning=on
       -c cron.database_name=txn_agg
       -c cron.use_background_workers=on
       -c max_worker_processes=16

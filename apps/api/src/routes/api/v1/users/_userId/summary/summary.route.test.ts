@@ -1,8 +1,8 @@
 // src/routes/api/v1/users/_userId/summary/summary.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
 import { buildServer } from "#src/server.ts";
 import summaryRoute from "./summary.route.ts";
@@ -42,11 +42,11 @@ const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
 ];
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `dbClient` is here only to satisfy
+// a signature, this fake stops compiling. `db` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
 const getUserSummary = mock.fn(async () => ROWS);
 const summaryRepository = {
-	dbClient: {} as Pool,
+	db: {} as NodePgDatabase,
 	getUserSummary
 } satisfies SummaryRepository;
 

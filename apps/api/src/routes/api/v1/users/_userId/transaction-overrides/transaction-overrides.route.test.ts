@@ -1,8 +1,8 @@
 // src/routes/api/v1/users/_userId/transaction-overrides/transaction-overrides.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
 import transactionOverridesRoute from "./transaction-overrides.route.ts";
@@ -57,13 +57,13 @@ const ARCHIVED: NonNullable<
 > = { ...OVERRIDE, archivedAt: "2026-09-05T08:00:00.000Z" };
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `dbClient` is here only to satisfy
+// a signature, this fake stops compiling. `db` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
 const getTransactionDetail = mock.fn(async () => ORIGINAL);
 const setTransactionCategory = mock.fn(async () => OVERRIDE);
 const archiveTransactionCategory = mock.fn(async () => ARCHIVED);
 const transactionRepository = {
-	dbClient: {} as Pool,
+	db: {} as NodePgDatabase,
 	getTransactions: mock.fn(async () => []),
 	getTransactionDetail,
 	setTransactionCategory,

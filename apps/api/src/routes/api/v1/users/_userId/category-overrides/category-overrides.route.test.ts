@@ -1,8 +1,8 @@
 // src/routes/api/v1/users/_userId/category-overrides/category-overrides.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { buildServer } from "#src/server.ts";
 import categoryOverridesRoute from "./category-overrides.route.ts";
@@ -53,13 +53,13 @@ const OVERRIDE: NonNullable<
 };
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `dbClient` is here only to satisfy
+// a signature, this fake stops compiling. `db` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
 const getUserCategories = mock.fn(async () => USER_CATEGORY_ROWS);
 const updateUserCategory = mock.fn(async () => OVERRIDE);
 const archiveUserCategory = mock.fn(async () => OVERRIDE);
 const categoryRepository = {
-	dbClient: {} as Pool,
+	db: {} as NodePgDatabase,
 	getCategories: mock.fn(async () => []),
 	getUserCategories,
 	resolveCategory: mock.fn(async () => undefined),

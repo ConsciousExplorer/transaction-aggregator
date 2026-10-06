@@ -1,8 +1,8 @@
 // src/routes/api/v1/users/_userId/transactions/transactions.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
 import transactionsRoute from "./transactions.route.ts";
@@ -77,12 +77,12 @@ const DETAIL: Awaited<
 };
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `dbClient` is here only to satisfy
+// a signature, this fake stops compiling. `db` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
 const getTransactions = mock.fn(async () => ROWS);
 const getTransactionDetail = mock.fn(async () => DETAIL);
 const transactionRepository = {
-	dbClient: {} as Pool,
+	db: {} as NodePgDatabase,
 	getTransactions,
 	getTransactionDetail,
 	setTransactionCategory: mock.fn(async () => undefined),

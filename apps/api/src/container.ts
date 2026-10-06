@@ -1,8 +1,10 @@
 import { asClass, asFunction, asValue, createContainer } from "awilix";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
 import type { Logger } from "pino";
 import type { AppInfoConfig, Config } from "#src/config.ts";
 import { createPool } from "#src/integrations/database/pool.ts";
+import { QueryPlanLogger } from "#src/integrations/database/query-logger.ts";
 import { appInfo, baseLogger, config, secrets } from "#src/runtime.ts";
 import { createTokenVerifier, type TokenVerifier } from "./auth/verifier.ts";
 import { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
@@ -17,6 +19,7 @@ export type AppCradle = {
 	logger: Logger;
 	tokenVerifier: TokenVerifier;
 	database: Pool;
+	db: NodePgDatabase;
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;
 	summaryRepository: SummaryRepository;
@@ -55,6 +58,21 @@ export async function buildContainer() {
 			.disposer(async (pool) => {
 				pool.end();
 			}),
+
+		// One drizzle instance for every repository. DATABASE_QUERY_LOG (development
+		// only) logs each statement it sends, and in plan mode its plan.
+		db: asFunction(({ config, database, logger }: AppCradle) => {
+			const queryLog = config.database.queryLog;
+			if (queryLog === "off") {
+				return drizzle(database);
+			}
+			const queryLogger = new QueryPlanLogger(
+				database,
+				logger.child({ module: "query-logger" }),
+				queryLog
+			);
+			return drizzle(database, { logger: queryLogger });
+		}).singleton(),
 
 		categoryRepository: asClass(CategoryRepository),
 

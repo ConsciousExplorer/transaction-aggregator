@@ -11,7 +11,7 @@ import {
 	type SQL,
 	sql
 } from "drizzle-orm";
-import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
 import { transactionTypeSchema } from "#src/schemas/transactions.ts";
@@ -53,10 +53,10 @@ const BUCKET_FORMAT = {
 >;
 
 export class SummaryRepository {
-	dbClient: NodePgClient;
+	db: NodePgDatabase;
 
-	constructor({ database }: AppCradle) {
-		this.dbClient = database;
+	constructor({ db }: AppCradle) {
+		this.db = db;
 	}
 
 	async getUserSummary(filter: UserSummaryFilter) {
@@ -112,7 +112,7 @@ export class SummaryRepository {
 				Number
 			);
 
-		const result = await drizzle(this.dbClient)
+		const result = await this.db
 			.select({
 				bucketStart,
 				category: categories.category,
@@ -159,8 +159,13 @@ export class SummaryRepository {
 				categories.category,
 				transactions.currency
 			)
-			// Buckets in time order; within a bucket the biggest spend first
-			.orderBy(bucketStart, desc(debitAmount), categories.category);
+			// Buckets in time order; within a bucket the biggest spend first.
+			// Without an interval the bucket is one constant, so it orders nothing.
+			.orderBy(
+				...(filter.interval ? [bucketStart] : []),
+				desc(debitAmount),
+				categories.category
+			);
 
 		return result;
 	}

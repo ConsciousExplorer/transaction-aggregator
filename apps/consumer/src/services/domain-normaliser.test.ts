@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { suite, test } from "node:test";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
+import type { EftTransaction } from "#src/schemas/eft.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import { createNormaliser } from "#src/services/domain-normaliser.ts";
 
@@ -134,5 +135,47 @@ suite("domain normaliser validation", () => {
 				),
 			NonRetryableError
 		);
+	});
+});
+
+/** A well-formed EFT record as the producer emits it, every field set. */
+function buildEftRecord(over: Partial<EftTransaction> = {}): EftTransaction {
+	return {
+		transactionId: "txn-0002",
+		sourceType: "eft",
+		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
+		beneficiaryName: "Thandi Mokoena",
+		beneficiaryAccountNumber: "62001234567",
+		beneficiaryBank: "TymeBank",
+		branchCode: "678910",
+		reference: "Rent October",
+		amount: 850000,
+		currency: "ZAR",
+		transactionType: "debit",
+		clearingType: "same-day",
+		description: "EFT TO THANDI MOKOENA",
+		status: "COMPLETED",
+		timestamp: 1_790_000_000_000,
+		...over
+	};
+}
+
+suite("EFT normaliser", () => {
+	test("keeps the clearing type in metadata", () => {
+		const eftNormaliser = createNormaliser("eft");
+
+		const result = eftNormaliser.normalise(
+			buildEftRecord() as unknown as DomainTransactionSchema
+		);
+
+		assert.deepStrictEqual(result.metadata, {
+			beneficiaryName: "Thandi Mokoena",
+			beneficiaryAccountLast4: "4567",
+			beneficiaryBank: "TymeBank",
+			branchCode: "678910",
+			reference: "Rent October",
+			clearingType: "same-day"
+		});
 	});
 });

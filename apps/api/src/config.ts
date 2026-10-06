@@ -30,6 +30,9 @@ const configSchema = z
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+		// Development only. sql logs each statement with its values filled in;
+		// plan also logs its plan (EXPLAIN ANALYZE re-runs every read)
+		DATABASE_QUERY_LOG: z.enum(["off", "sql", "plan"]).default("off"),
 
 		AUTH_JWKS_URI: z
 			.url()
@@ -47,6 +50,13 @@ const configSchema = z
 		// twelve calendar months fit in 366 days.
 		WINDOW_MAX_DAYS: z.coerce.number().int().positive().default(366)
 	})
+	.refine(
+		(e) => e.DATABASE_QUERY_LOG === "off" || e.NODE_ENV === "development",
+		{
+			message: "query logging is for NODE_ENV=development only",
+			path: ["DATABASE_QUERY_LOG"]
+		}
+	)
 	.transform((e) =>
 		Object.freeze({
 			app: Object.freeze({
@@ -68,7 +78,8 @@ const configSchema = z
 				database: e.DATABASE_NAME,
 				user: e.DATABASE_USER,
 				min: e.DATABASE_POOL_MIN,
-				max: e.DATABASE_POOL_MAX
+				max: e.DATABASE_POOL_MAX,
+				queryLog: e.DATABASE_QUERY_LOG
 			}),
 			auth: Object.freeze({
 				jwksUri: e.AUTH_JWKS_URI,

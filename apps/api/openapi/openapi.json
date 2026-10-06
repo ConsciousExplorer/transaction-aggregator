@@ -2339,6 +2339,7 @@
                               "type": "string"
                             },
                             "clearingType": {
+                              "default": null,
                               "nullable": true,
                               "type": "string"
                             },

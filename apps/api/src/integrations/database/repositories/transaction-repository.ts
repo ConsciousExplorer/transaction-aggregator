@@ -11,7 +11,7 @@ import {
 	type SQL,
 	sql
 } from "drizzle-orm";
-import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
 import {
@@ -92,10 +92,10 @@ export function isAscendingRead(
 }
 
 export class UserTransactionRepository {
-	dbClient: NodePgClient;
+	db: NodePgDatabase;
 
-	constructor({ database }: AppCradle) {
-		this.dbClient = database;
+	constructor({ db }: AppCradle) {
+		this.db = db;
 	}
 
 	async getTransactions(filter: ListTransactionsFilter) {
@@ -109,8 +109,30 @@ export class UserTransactionRepository {
 
 		const ascending = isAscendingRead(filter.sort, filter.cursorDirection);
 
+		// The cursor conditions go before the window. Postgres starts each
+		// partition's index scan at the first occurred_at bound it finds, so with
+		// the window first a deep page walks every entry from toDateTime down to
+		// the cursor. The plain bound repeats the row comparison's first column,
+		// which is what an ascending (backward) scan can start from.
+		let cursorBound: SQL | undefined;
+		let cursorSeek: SQL | undefined;
+		if (
+			filter.cursorOccurredAt !== undefined &&
+			filter.cursorTransactionId !== undefined
+		) {
+			if (ascending) {
+				cursorBound = gte(transactions.occurredAt, filter.cursorOccurredAt);
+				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`;
+			} else {
+				cursorBound = lte(transactions.occurredAt, filter.cursorOccurredAt);
+				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`;
+			}
+		}
+
 		const conditions: (SQL | undefined)[] = [
 			eq(transactions.userId, filter.userId),
+			cursorBound,
+			cursorSeek,
 			gte(transactions.occurredAt, filter.fromDateTime),
 			lt(transactions.occurredAt, filter.toDateTime),
 			filter.accountId !== undefined
@@ -136,12 +158,6 @@ export class UserTransactionRepository {
 				: undefined,
 			categoryValues && categoryValues.length > 0
 				? inArray(categories.category, categoryValues)
-				: undefined,
-			filter.cursorOccurredAt !== undefined &&
-			filter.cursorTransactionId !== undefined
-				? ascending
-					? sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
-					: sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`
 				: undefined
 		];
 
@@ -149,7 +165,7 @@ export class UserTransactionRepository {
 			? [asc(transactions.occurredAt), asc(transactions.transactionId)]
 			: [desc(transactions.occurredAt), desc(transactions.transactionId)];
 
-		const result = await drizzle(this.dbClient)
+		const result = await this.db
 			.select({
 				transactionId: transactions.transactionId,
 				occurredAt: transactions.occurredAt,
@@ -196,7 +212,7 @@ export class UserTransactionRepository {
 	async getTransactionDetail(filter: TransactionDetailFilter) {
 		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
-		const [result] = await drizzle(this.dbClient)
+		const [result] = await this.db
 			.select({
 				transactionId: transactions.transactionId,
 				accountId: transactions.accountId,
@@ -246,7 +262,7 @@ export class UserTransactionRepository {
 
 	async setTransactionCategory(transaction: SetTransactionCategory) {
 		try {
-			const [result] = await drizzle(this.dbClient)
+			const [result] = await this.db
 				.insert(userTransactionOverrides)
 				.values({
 					userId: transaction.userId,
@@ -275,7 +291,7 @@ export class UserTransactionRepository {
 	}
 
 	async archiveTransactionCategory(userId: string, transactionId: string) {
-		const [result] = await drizzle(this.dbClient)
+		const [result] = await this.db
 			.update(userTransactionOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(

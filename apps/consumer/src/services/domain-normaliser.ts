@@ -180,7 +180,8 @@ export function normaliseEft(
 			beneficiaryAccountLast4: record.beneficiaryAccountNumber.slice(-4),
 			beneficiaryBank: record.beneficiaryBank,
 			branchCode: record.branchCode,
-			reference: record.reference
+			reference: record.reference,
+			clearingType: record.clearingType
 		}
 	};
 }

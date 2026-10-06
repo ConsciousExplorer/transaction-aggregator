@@ -36,6 +36,20 @@
       "when": 1791147910382,
       "tag": "0004_last_maintenance_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791324041209,
+      "tag": "0005_account_in_read_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791324041715,
+      "tag": "0006_analyze_partitioned_tables",
+      "breakpoints": true
     }
   ]
 }

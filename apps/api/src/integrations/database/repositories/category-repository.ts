@@ -1,19 +1,19 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { drizzle, type NodePgClient } from "drizzle-orm/node-postgres";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { alias } from "drizzle-orm/pg-core";
 import type { AppCradle } from "#src/container.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 
 export class CategoryRepository {
-	dbClient: NodePgClient;
+	db: NodePgDatabase;
 
-	constructor({ database }: AppCradle) {
-		this.dbClient = database;
+	constructor({ db }: AppCradle) {
+		this.db = db;
 	}
 
 	async getCategories() {
-		const result = await drizzle(this.dbClient)
+		const result = await this.db
 			.select({
 				categoryId: categories.categoryId,
 				category: categories.category,
@@ -25,7 +25,7 @@ export class CategoryRepository {
 	}
 
 	async resolveCategory(category: string) {
-		const [result] = await drizzle(this.dbClient)
+		const [result] = await this.db
 			.select({
 				categoryId: categories.categoryId,
 				category: categories.category,
@@ -39,7 +39,7 @@ export class CategoryRepository {
 	async getUserCategories(userId: string) {
 		const toCategories = alias(categories, "to_categories");
 
-		const result = await drizzle(this.dbClient)
+		const result = await this.db
 			.select({
 				categoryId: categories.categoryId,
 				category: categories.category,
@@ -74,7 +74,7 @@ export class CategoryRepository {
 		toCategoryId: number
 	) {
 		try {
-			const [override] = await drizzle(this.dbClient)
+			const [override] = await this.db
 				.insert(userCategoryOverrides)
 				.values({ userId, fromCategoryId, toCategoryId })
 				.onConflictDoUpdate({
@@ -92,7 +92,7 @@ export class CategoryRepository {
 			if (!override) return undefined;
 
 			const toCategories = alias(categories, "to_categories");
-			const [names] = await drizzle(this.dbClient)
+			const [names] = await this.db
 				.select({
 					category: categories.category,
 					label: categories.label,
@@ -112,7 +112,7 @@ export class CategoryRepository {
 	}
 
 	async archiveUserCategory(userId: string, fromCategoryId: number) {
-		const [result] = await drizzle(this.dbClient)
+		const [result] = await this.db
 			.update(userCategoryOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(

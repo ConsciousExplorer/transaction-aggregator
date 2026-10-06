@@ -13,8 +13,10 @@
     "Millis",
     "Miswiring",
     "normaliser",
+    "savepoint",
     "stringbool",
     "timestamptz",
+    "Tyme",
     "upserts",
     "uuidv",
     "uuidv4"

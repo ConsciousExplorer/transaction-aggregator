@@ -1,28 +1,24 @@
 // src/routes/api/v1/categories/categories.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
-import type { Pool } from "pg";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { buildServer } from "#src/server.ts";
 import categoriesRoute from "./categories.route.ts";
 
 // ── This suite's fakes — only what the route touches ─────────────────────────
-// The route declares `database` in its opts but never dereferences it, so any
-// object satisfies the contract.
-const database = {} as Pool;
-
 const ROWS = [
 	{ categoryId: 1, category: "groceries", label: "Groceries" },
 	{ categoryId: 2, category: "dining", label: "Dining" }
 ];
 
 // `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `dbClient` is here only to satisfy
+// a signature, this fake stops compiling. `db` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
 const getCategories = mock.fn(async () => ROWS);
 const categoryRepository = {
-	dbClient: database,
+	db: {} as NodePgDatabase,
 	getCategories,
 	getUserCategories: mock.fn(async () => []),
 	resolveCategory: mock.fn(async () => undefined),
