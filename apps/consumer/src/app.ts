@@ -146,7 +146,7 @@ try {
 			password: secrets.databasePassword
 		});
 
-		// Force a real connection and release client directly
+		/** Force a real connection and release client directly */
 		await pool.query("SELECT 1");
 
 		return pool;
@@ -165,8 +165,10 @@ try {
 	);
 	fetchOnMiss = avroDeserialiser.fetchOnMiss; //TODO: might need to remove this.
 
-	// Explicit type arguments: `Value` must include `undefined` (tombstones),
-	// but inference absorbs the deserialiser's `| undefined` into the generic.
+
+	/** 
+	 * Create the Kafka consumer instance.
+	 */
 	kafkaConsumer = await createKafkaConsumer<
 		string,
 		ConsumedValue,
@@ -234,8 +236,10 @@ try {
 		sendToDlq
 	);
 
-	// Connects and authenticates both clients, the broker's SELECT 1. Awaited, so
-	// a broker failure lands in the catch below instead of an unhandled rejection.
+	/**
+	 * Connects and authenticates both clients, the broker's SELECT 1. Awaited, so
+	 * a broker failure lands in the catch below instead of an unhandled rejection.
+	 */
 	await Promise.all([
 		kafkaDlqProducer.metadata({ forceUpdate: true }),
 		kafkaConsumer.metadata({ forceUpdate: true })
@@ -249,22 +253,29 @@ try {
 	process.exit(1);
 }
 
-// The consumer closes the loop for subsequent calls. Server.listen must be called earlier
+
+/**
+ * The consumer closes the loop for subsequent calls. Server.listen must be called earlier
+ */
 try {
 	logger.info(
 		{ topic: config.kafka.topics.main, mode: config.kafka.readMode },
 		"Starting consumer"
 	);
 
-	// The client's kafka_consumers_lags metric only gets values while this
-	// runs. A timer, not per flush: a stuck consumer stops flushing, which is
-	// exactly when its lag must keep climbing. The client skips ticks
-	// mid-rebalance and stops the timer on close().
+	/**
+	 * Used for metrics and tracing. 
+	 * The consumer's lag is the difference between the last offset in the partition and the last offset the consumer has committed. 
+	 * This is a measure of how far behind the consumer is in processing messages from the topic.
+	 */
 	kafkaConsumer.startLagMonitoring(
 		{ topics: [config.kafka.topics.main] },
 		config.kafka.lagMonitoringInterval
 	);
 
+	/**
+	 * Start the main consumer loop.
+	 */
 	await startBatchConsumer(
 		kafkaConsumer,
 		transactionBatchHandler,
