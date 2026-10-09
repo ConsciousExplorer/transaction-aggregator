@@ -21,6 +21,10 @@ export const linksSchema = z.object({
 
 export type Links = z.infer<typeof linksSchema>;
 
+// next continues in the sort order from the cursor, prev goes back against it
+export const cursorDirectionSchema = z.enum(["next", "prev"]);
+export type CursorDirection = z.infer<typeof cursorDirectionSchema>;
+
 /** There are no future transactions to read, so a future instant means now. */
 function clampToNow(isoDateTime: string): string {
 	const now = new Date();

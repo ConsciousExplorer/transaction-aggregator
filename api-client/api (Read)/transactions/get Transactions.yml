@@ -59,16 +59,8 @@ http:
       value: "-9007199254740991"
       type: query
       disabled: true
-    - name: cursorOccurredAt
+    - name: cursor
       value: ""
-      type: query
-      disabled: true
-    - name: cursorTransactionId
-      value: ""
-      type: query
-      disabled: true
-    - name: cursorDirection
-      value: prev
       type: query
       disabled: true
     - name: sort

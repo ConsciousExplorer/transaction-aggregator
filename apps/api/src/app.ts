@@ -16,8 +16,6 @@ const {
 	summaryRepository
 } = container.cradle;
 
-console.log("config", config);
-
 const server: FastifyInstance = buildServer({
 	appInfo: appInfo,
 	logger: logger,
@@ -44,8 +42,10 @@ try {
 
 	// Start the server and start listening for requests
 	await server.listen({ host: config.app.host, port: config.app.port });
-	logger.info(server.printRoutes());
 	logger.info({ event: "app.start", port: config.app.port });
+	const { secretsSpec, ...configToLog } = config;
+	logger.debug({ config: configToLog }, "Starting server with configuration");
+	logger.debug(`Registered routes\n${server.printRoutes()}`);
 } catch (err) {
 	logger.error({ err }, "boot failed");
 	await container.dispose();

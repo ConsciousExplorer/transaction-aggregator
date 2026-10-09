@@ -423,8 +423,6 @@ services:
       KAFKA_TOPIC: transactions.card
       # Logging configuration
       LOG_LEVEL: info
-      LOG_FORMAT: json
-      LOG_PRETTY: false
       # Postgres configuration
       DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
@@ -485,8 +483,6 @@ services:
       KAFKA_TOPIC: transactions.eft
       # Logging configuration
       LOG_LEVEL: info
-      LOG_FORMAT: json
-      LOG_PRETTY: false
       # Postgres configuration
       DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
@@ -547,8 +543,6 @@ services:
       KAFKA_TOPIC: transactions.internal-transfer
       # Logging configuration
       LOG_LEVEL: info
-      LOG_FORMAT: json
-      LOG_PRETTY: false
       # Postgres configuration
       DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
@@ -609,8 +603,6 @@ services:
       KAFKA_TOPIC: transactions.debit-order
       # Logging configuration
       LOG_LEVEL: info
-      LOG_FORMAT: json
-      LOG_PRETTY: false
       # Postgres configuration
       DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
@@ -671,8 +663,6 @@ services:
       KAFKA_TOPIC: transactions.loan
       # Logging configuration
       LOG_LEVEL: info
-      LOG_FORMAT: json
-      LOG_PRETTY: false
       # Postgres configuration
       DATABASE_HOST: postgres
       DATABASE_NAME: txn_agg
@@ -726,7 +716,6 @@ services:
       HTTP_PORT: 8083
       ENABLE_SWAGGER: true
       LOG_LEVEL: 'debug'
-      LOG_PRETTY: 'true'
 
       SECRET_DIR: "/secrets"
 

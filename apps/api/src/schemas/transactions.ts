@@ -1,5 +1,10 @@
 import z from "zod";
-import { amountSchema, collectionMetaSchema, linksSchema } from "./common.ts";
+import {
+	amountSchema,
+	collectionMetaSchema,
+	cursorDirectionSchema,
+	linksSchema
+} from "./common.ts";
 
 export const transactionTypeSchema = z.enum([
 	"card",
@@ -21,17 +26,15 @@ export const transactionStatusSchema = z.enum([
 export const transactionSortSchema = z.enum(["-occurredAt", "occurredAt"]);
 export type TransactionSort = z.infer<typeof transactionSortSchema>;
 
-export const listQuerySchema = z.object({
-	from: z.iso.datetime().optional(),
-	to: z.iso.datetime().optional(),
-	transactionType: transactionTypeSchema.optional(),
-	categoryId: z.coerce.number().int().optional(),
-	direction: z.enum(["debit", "credit"]).optional(),
-	amountMin: z.coerce.number().int().optional(),
-	amountMax: z.coerce.number().int().optional(),
-	cursor: z.string().optional(),
-	limit: z.coerce.number().int().min(1).max(100).default(50)
+// What a list cursor carries: the boundary row's keyset and which way to read
+// from it. occurredAt is exact to the microsecond, because rows can differ only
+// in microseconds and a millisecond bound would skip or repeat them.
+export const transactionCursorSchema = z.object({
+	occurredAt: z.iso.datetime({ precision: 6 }),
+	transactionId: z.uuid(),
+	direction: cursorDirectionSchema
 });
+export type TransactionCursor = z.infer<typeof transactionCursorSchema>;
 
 export const transactionItemSchema = z.object({
 	transactionId: z.uuid(),

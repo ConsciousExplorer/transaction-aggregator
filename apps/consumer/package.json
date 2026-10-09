@@ -11,7 +11,7 @@
 		"check": "npx tsc",
 		"lib:update": "npx npm-check-updates --interactive --format group",
 		"lib:audit": "npm audit",
-		"start": "node --env-file=.env src/app.ts",
+		"start": "node --env-file=.env src/app.ts | pino-pretty",
 		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
 		"format": "npx @biomejs/biome format src/",
 		"lint": "npx @biomejs/biome check --write src/ && npm run lint:spelling",

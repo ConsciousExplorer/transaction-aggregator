@@ -10,9 +10,6 @@ const appInfoSchema = z.object({
 
 const configSchema = z
 	.object({
-		NODE_ENV: z
-			.enum(["development", "production", "test"])
-			.default("development"),
 		HOST: z.string().default("0.0.0.0"),
 		HTTP_PORT: z.coerce.number().int().positive().default(3000),
 		SECRET_DIR: z.string().default("/secrets"),
@@ -20,8 +17,6 @@ const configSchema = z
 		ENABLE_SWAGGER: z.stringbool().default(false),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
-		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
-		LOG_PRETTY: z.stringbool().default(false),
 
 		DATABASE_HOST: z.string().default("localhost"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
@@ -30,8 +25,8 @@ const configSchema = z
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
-		// Development only. sql logs each statement with its values filled in;
-		// plan also logs its plan (EXPLAIN ANALYZE re-runs every read)
+		// sql logs each statement with its values filled in; plan also logs its
+		// plan (EXPLAIN ANALYZE re-runs every read)
 		DATABASE_QUERY_LOG: z.enum(["off", "sql", "plan"]).default("off"),
 
 		AUTH_JWKS_URI: z
@@ -50,17 +45,9 @@ const configSchema = z
 		// twelve calendar months fit in 366 days.
 		WINDOW_MAX_DAYS: z.coerce.number().int().positive().default(366)
 	})
-	.refine(
-		(e) => e.DATABASE_QUERY_LOG === "off" || e.NODE_ENV === "development",
-		{
-			message: "query logging is for NODE_ENV=development only",
-			path: ["DATABASE_QUERY_LOG"]
-		}
-	)
 	.transform((e) =>
 		Object.freeze({
 			app: Object.freeze({
-				env: e.NODE_ENV,
 				host: e.HOST,
 				port: e.HTTP_PORT
 			}),
@@ -68,9 +55,7 @@ const configSchema = z
 				enableSwagger: e.ENABLE_SWAGGER
 			}),
 			logging: Object.freeze({
-				level: e.LOG_LEVEL,
-				format: e.LOG_FORMAT,
-				pretty: e.LOG_PRETTY
+				level: e.LOG_LEVEL
 			}),
 			database: Object.freeze({
 				host: e.DATABASE_HOST,

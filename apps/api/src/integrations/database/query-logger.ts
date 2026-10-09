@@ -4,7 +4,6 @@ import type { Logger } from "pino";
 
 export type QueryLogMode = "sql" | "plan";
 
-
 // TODO: review this logger
 
 /**
@@ -12,7 +11,6 @@ export type QueryLogMode = "sql" | "plan";
  * pasted into psql or DBeaver as it stands. In plan mode the entry also holds
  * the statement's plan: EXPLAIN (ANALYZE, BUFFERS) for a read, which runs the
  * read a second time, and plain EXPLAIN for a write, which does not run it.
- * Development only: config refuses it under any other NODE_ENV.
  */
 export class QueryPlanLogger implements DrizzleLogger {
 	pool: Pool;

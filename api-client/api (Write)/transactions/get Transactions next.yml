@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: localhost:8083/api/v1/users/30440930-4207-4d26-bc11-1d65c07fe6c3/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=2&transactionType=card&cursorOccurredAt=2025-12-22T14:24:22.204000Z&cursorTransactionId=01a0f89f-d59f-747a-8d6d-363cabf9763e&cursorDirection=next
+  url: localhost:8083/api/v1/users/30440930-4207-4d26-bc11-1d65c07fe6c3/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=2&transactionType=card&cursor=eyJvY2N1cnJlZEF0IjoiMjAyNS0xMi0yMlQxNDoyNDoyMi4yMDQwMDBaIiwidHJhbnNhY3Rpb25JZCI6IjAxYTBmODlmLWQ1OWYtNzQ3YS04ZDZkLTM2M2NhYmY5NzYzZSIsImRpcmVjdGlvbiI6Im5leHQifQ
   params:
     - name: accountId
       value: c37b3e53-c30c-4c5a-b547-85fdadedd459
@@ -22,14 +22,8 @@ http:
     - name: transactionType
       value: card
       type: query
-    - name: cursorOccurredAt
-      value: 2025-12-22T14:24:22.204000Z
-      type: query
-    - name: cursorTransactionId
-      value: 01a0f89f-d59f-747a-8d6d-363cabf9763e
-      type: query
-    - name: cursorDirection
-      value: next
+    - name: cursor
+      value: eyJvY2N1cnJlZEF0IjoiMjAyNS0xMi0yMlQxNDoyNDoyMi4yMDQwMDBaIiwidHJhbnNhY3Rpb25JZCI6IjAxYTBmODlmLWQ1OWYtNzQ3YS04ZDZkLTM2M2NhYmY5NzYzZSIsImRpcmVjdGlvbiI6Im5leHQifQ
       type: query
     - name: category
       value: loan_repayment
@@ -51,11 +45,7 @@ http:
       value: "-9007199254740991"
       type: query
       disabled: true
-    - name: cursorOccurredAt
-      value: ""
-      type: query
-      disabled: true
-    - name: cursorTransactionId
+    - name: cursor
       value: ""
       type: query
       disabled: true
@@ -124,11 +114,7 @@ examples:
           value: "-9007199254740991"
           type: query
           disabled: true
-        - name: cursorOccurredAt
-          value: ""
-          type: query
-          disabled: true
-        - name: cursorTransactionId
+        - name: cursor
           value: ""
           type: query
           disabled: true
@@ -160,5 +146,8 @@ examples:
                 "merchantName": ""
               }
             ],
-            "nextCursor": ""
+            "links": {
+              "self": "",
+              "next": ""
+            }
           }

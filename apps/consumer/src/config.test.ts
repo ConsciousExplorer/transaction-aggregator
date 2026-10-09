@@ -13,7 +13,6 @@ writeFileSync(join(secretsDir, "kafka_password"), "  kafka-pw-from-file  ");
 
 const sampleEnv: Record<string, string | undefined> = {
 	// # NODE and APP configuration
-	NODE_ENV: "production",
 	APP_NAME: "transaction-aggregator",
 	HOST: "0.0.0.0",
 	PORT: "6000",
@@ -23,8 +22,6 @@ const sampleEnv: Record<string, string | undefined> = {
 
 	// # Logging configuration
 	LOG_LEVEL: "info",
-	LOG_FORMAT: "json",
-	LOG_PRETTY: "false",
 
 	// # Postgres configuration
 	DATABASE_HOST: "localhost",

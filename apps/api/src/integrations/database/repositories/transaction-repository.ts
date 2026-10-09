@@ -14,12 +14,13 @@ import {
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
+import type { CursorDirection } from "#src/schemas/common.ts";
 import {
 	type TransactionSort,
+	transactionCursorSchema,
 	transactionSortSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
-import type { CursorDirection } from "#src/utils/paging.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import {
 	transactions,
@@ -43,11 +44,9 @@ export const listTransactionsFilterSchema = z.object({
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
 	sort: transactionSortSchema.default("-occurredAt"),
-	cursorOccurredAt: z.iso.datetime().optional(),
-	cursorTransactionId: z.uuid().optional(),
-	// next: the rows after the cursor in sort order. prev: the rows before it,
-	// read the other way; the caller flips them back.
-	cursorDirection: z.enum(["next", "prev"]).default("next"),
+	// Left out on the first page. next: the rows after the cursor in sort order.
+	// prev: the rows before it, read the other way; the caller flips them back.
+	cursor: transactionCursorSchema.optional(),
 	limit: z.number().int().min(1).max(100).default(50)
 });
 
@@ -107,7 +106,8 @@ export class UserTransactionRepository {
 					? filter.category
 					: [filter.category];
 
-		const ascending = isAscendingRead(filter.sort, filter.cursorDirection);
+		const cursorDirection = filter.cursor?.direction ?? "next";
+		const ascending = isAscendingRead(filter.sort, cursorDirection);
 
 		// The cursor conditions go before the window. Postgres starts each
 		// partition's index scan at the first occurred_at bound it finds, so with
@@ -116,16 +116,14 @@ export class UserTransactionRepository {
 		// which is what an ascending (backward) scan can start from.
 		let cursorBound: SQL | undefined;
 		let cursorSeek: SQL | undefined;
-		if (
-			filter.cursorOccurredAt !== undefined &&
-			filter.cursorTransactionId !== undefined
-		) {
+		if (filter.cursor !== undefined) {
+			const { occurredAt, transactionId } = filter.cursor;
 			if (ascending) {
-				cursorBound = gte(transactions.occurredAt, filter.cursorOccurredAt);
-				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`;
+				cursorBound = gte(transactions.occurredAt, occurredAt);
+				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${occurredAt}::timestamptz, ${transactionId}::uuid)`;
 			} else {
-				cursorBound = lte(transactions.occurredAt, filter.cursorOccurredAt);
-				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${filter.cursorOccurredAt}::timestamptz, ${filter.cursorTransactionId}::uuid)`;
+				cursorBound = lte(transactions.occurredAt, occurredAt);
+				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${occurredAt}::timestamptz, ${transactionId}::uuid)`;
 			}
 		}
 

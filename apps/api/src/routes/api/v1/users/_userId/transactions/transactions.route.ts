@@ -4,48 +4,37 @@ import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
 import { notFoundError } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
+import {
+	type CursorDirection,
+	problemSchema,
+	windowDateTimeSchema
+} from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
 	mapFundingSource,
+	type TransactionCursor,
+	transactionCursorSchema,
 	transactionDetailSchema,
 	transactionSortSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 import {
 	buildPageLinks,
-	type CursorDirection,
+	decodeCursor,
+	encodeCursor,
 	toKeysetPage
 } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
-/**
- * Represents a cursor for pagination
- *
- */
-interface Cursor {
-	occurredAt: string;
-	transactionId: string;
-}
-
-function toCursor(row: {
-	cursorOccurredAt: string;
-	transactionId: string;
-}): Cursor {
-	return { occurredAt: row.cursorOccurredAt, transactionId: row.transactionId };
-}
-
-/**
- * Returns the query parameters for a cursor-based pagination request
- */
-function toCursorParams(
-	cursor: Cursor,
-	cursorDirection: CursorDirection
-): Record<string, string> {
+/** The cursor a page boundary row hands to the next or previous page */
+function toCursor(
+	row: { cursorOccurredAt: string; transactionId: string },
+	direction: CursorDirection
+): TransactionCursor {
 	return {
-		cursorOccurredAt: cursor.occurredAt,
-		cursorTransactionId: cursor.transactionId,
-		cursorDirection
+		occurredAt: row.cursorOccurredAt,
+		transactionId: row.transactionId,
+		direction
 	};
 }
 
@@ -72,52 +61,40 @@ export default async (
 			params: z.object({
 				userId: z.uuid()
 			}),
-			querystring: z
-				.object({
-					fromDateTime: windowDateTimeSchema,
-					toDateTime: windowDateTimeSchema.describe(
-						`Exclusive. At most ${maxWindowDays} days after fromDateTime`
-					),
-					accountId: z
-						.union([z.uuid(), z.uuid().array()])
-						.describe(
-							"One or more of the user's accounts; all accounts when left out"
-						)
-						.optional(),
-					transactionType: z
-						.union([transactionTypeSchema, transactionTypeSchema.array()])
-						.optional(),
-					category: z
-						.union([z.coerce.string(), z.coerce.string().array()])
-						.optional(),
-					direction: z
-						.union([
-							z.enum(["debit", "credit"]),
-							z.enum(["debit", "credit"]).array()
-						])
-						.optional(),
-					amountMin: z.coerce.number().int().optional(),
-					amountMax: z.coerce.number().int().optional(),
-					sort: transactionSortSchema
-						.default("-occurredAt")
-						.describe("-occurredAt is newest first, occurredAt oldest first"),
-					// A page boundary, sent by following links.next or links.prev. next
-					// continues in the sort order, prev goes back against it.
-					cursorOccurredAt: z.iso.datetime().optional(),
-					cursorTransactionId: z.uuid().optional(),
-					cursorDirection: z.enum(["next", "prev"]).default("next"),
-					limit: z.coerce.number().int().min(1).max(100).default(50)
-				})
-				.refine(
-					(query) =>
-						(query.cursorOccurredAt === undefined) ===
-						(query.cursorTransactionId === undefined),
-					{
-						message:
-							"cursorOccurredAt and cursorTransactionId must be sent together",
-						path: ["cursorTransactionId"]
-					}
+			querystring: z.object({
+				fromDateTime: windowDateTimeSchema,
+				toDateTime: windowDateTimeSchema.describe(
+					`Exclusive. At most ${maxWindowDays} days after fromDateTime`
 				),
+				accountId: z
+					.union([z.uuid(), z.uuid().array()])
+					.describe(
+						"One or more of the user's accounts; all accounts when left out"
+					)
+					.optional(),
+				transactionType: z
+					.union([transactionTypeSchema, transactionTypeSchema.array()])
+					.optional(),
+				category: z
+					.union([z.coerce.string(), z.coerce.string().array()])
+					.optional(),
+				direction: z
+					.union([
+						z.enum(["debit", "credit"]),
+						z.enum(["debit", "credit"]).array()
+					])
+					.optional(),
+				amountMin: z.coerce.number().int().optional(),
+				amountMax: z.coerce.number().int().optional(),
+				sort: transactionSortSchema
+					.default("-occurredAt")
+					.describe("-occurredAt is newest first, occurredAt oldest first"),
+				cursor: z
+					.string()
+					.optional()
+					.describe("Opaque. Follow links.next or links.prev; never build one"),
+				limit: z.coerce.number().int().min(1).max(100).default(50)
+			}),
 			response: {
 				200: listResponseSchema,
 				400: problemSchema,
@@ -132,8 +109,11 @@ export default async (
 			);
 
 			const limit = request.query.limit;
-			const cursorDirection = request.query.cursorDirection;
-			const hasCursor = request.query.cursorOccurredAt !== undefined;
+			const cursor =
+				request.query.cursor === undefined
+					? undefined
+					: decodeCursor(request.query.cursor, transactionCursorSchema);
+			const cursorDirection = cursor?.direction ?? "next";
 
 			// One extra row tells us whether another page exists in that direction
 			const rows = await opts.transactionRepository.getTransactions({
@@ -147,13 +127,16 @@ export default async (
 				amountMin: request.query.amountMin,
 				amountMax: request.query.amountMax,
 				sort: request.query.sort,
-				cursorOccurredAt: request.query.cursorOccurredAt,
-				cursorTransactionId: request.query.cursorTransactionId,
-				cursorDirection,
+				cursor,
 				limit: limit + 1
 			});
 
-			const page = toKeysetPage(rows, limit, cursorDirection, hasCursor);
+			const page = toKeysetPage(
+				rows,
+				limit,
+				cursorDirection,
+				cursor !== undefined
+			);
 
 			const data = page.rows.map((row) => ({
 				transactionId: row.transactionId,
@@ -169,8 +152,12 @@ export default async (
 				shortDescription: row.shortDescription
 			}));
 
-			const nextCursor = page.nextFrom ? toCursor(page.nextFrom) : null;
-			const prevCursor = page.prevFrom ? toCursor(page.prevFrom) : null;
+			const nextParams = page.nextFrom
+				? { cursor: encodeCursor(toCursor(page.nextFrom, "next")) }
+				: null;
+			const prevParams = page.prevFrom
+				? { cursor: encodeCursor(toCursor(page.prevFrom, "prev")) }
+				: null;
 
 			// The window as parsed, so a future toDateTime is already now. Every
 			// link carries it, and the whole walk reads the same window.
@@ -181,8 +168,8 @@ export default async (
 			const links = buildPageLinks(
 				request.url,
 				windowParams,
-				nextCursor ? toCursorParams(nextCursor, "next") : null,
-				prevCursor ? toCursorParams(prevCursor, "prev") : null
+				nextParams,
+				prevParams
 			);
 
 			return reply.send({

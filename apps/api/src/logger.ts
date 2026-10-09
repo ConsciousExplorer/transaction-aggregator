@@ -28,7 +28,6 @@ const BASE_SENSITIVE_FIELDS = [
  */
 export const loggerOptionsSchema = z.object({
 	level: z.enum(LOG_LEVELS).default("info"),
-	pretty: z.boolean().default(false),
 	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
 	redactedFields: z.array(z.string()).default([]),
 	/**
@@ -40,7 +39,7 @@ export const loggerOptionsSchema = z.object({
 export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
 
 export function createLogger(options: LoggerOptions = {}): Logger {
-	const { level, pretty, redactedFields, redactDepth } =
+	const { level, redactedFields, redactDepth } =
 		loggerOptionsSchema.parse(options);
 
 	const sensitiveFields = [
@@ -55,9 +54,6 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 
 	return pino({
 		level,
-		...(pretty && {
-			transport: { target: "pino-pretty", options: { colorize: true } }
-		}),
 		redact: { paths: redactPaths, censor: "[REDACTED]" }
 	});
 }

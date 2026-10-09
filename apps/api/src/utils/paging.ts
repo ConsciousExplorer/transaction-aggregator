@@ -1,7 +1,6 @@
-import type { Links } from "#src/schemas/common.ts";
-
-// next continues in the sort order from the cursor, prev goes back against it
-export type CursorDirection = "next" | "prev";
+import type { ZodType } from "zod";
+import { invalidCursorError } from "#src/errors/http-problem.ts";
+import type { CursorDirection, Links } from "#src/schemas/common.ts";
 
 export interface KeysetPage<Row> {
 	/** At most limit rows, in sort order */
@@ -38,6 +37,34 @@ export function toKeysetPage<Row>(
 		nextFrom: hasNext ? (rows.at(-1) ?? null) : null,
 		prevFrom: hasPrev ? (rows.at(0) ?? null) : null
 	};
+}
+
+/**
+ * A cursor as it travels in links: JSON, then base64url, so a client sees one
+ * opaque query value and the cursor's shape is never part of the contract.
+ */
+export function encodeCursor(cursor: object): string {
+	return Buffer.from(JSON.stringify(cursor)).toString("base64url");
+}
+
+/**
+ * The cursor a client sent back, checked against its schema. Decoding
+ * base64url never fails on its own (bad input decodes to garbage), so the JSON
+ * parse and the schema are the checks. Either one failing is a 400.
+ */
+export function decodeCursor<Cursor>(text: string, schema: ZodType<Cursor>) {
+	let payload: unknown;
+	try {
+		payload = JSON.parse(Buffer.from(text, "base64url").toString("utf8"));
+	} catch {
+		throw invalidCursorError();
+	}
+
+	const parsed = schema.safeParse(payload);
+	if (!parsed.success) {
+		throw invalidCursorError();
+	}
+	return parsed.data;
 }
 
 /**

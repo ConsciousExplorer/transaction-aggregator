@@ -71,146 +71,141 @@ const transactionRepository = {
 } satisfies UserTransactionRepository;
 
 // ── Suite ────────────────────────────────────────────────────────────────────
-suite(
-	"PUT/DELETE /api/v1/users/:userId/transactions/:transactionId/category",
-	() => {
-		let app: FastifyInstance;
+suite("PUT/DELETE /api/v1/users/:userId/transactions/:transactionId/category", () => {
+	let app: FastifyInstance;
 
-		before(async () => {
-			// buildServer({}) = defaults only, NO autoload — we register the one
-			// route under test ourselves, with exactly the opts it declares.
-			app = buildServer({});
-			await app.register(transactionOverridesRoute, {
-				prefix: "/api/v1/users/:userId/transactions",
-				transactionRepository
-			});
-			await app.ready();
+	before(async () => {
+		// buildServer({}) = defaults only, NO autoload — we register the one
+		// route under test ourselves, with exactly the opts it declares.
+		app = buildServer({});
+		await app.register(transactionOverridesRoute, {
+			prefix: "/api/v1/users/:userId/transactions",
+			transactionRepository
 		});
-		after(async () => {
-			await app.close();
-		});
-		beforeEach(() => {
-			getTransactionDetail.mock.resetCalls();
-			getTransactionDetail.mock.mockImplementation(async () => ORIGINAL);
-			setTransactionCategory.mock.resetCalls();
-			setTransactionCategory.mock.mockImplementation(async () => OVERRIDE);
-			archiveTransactionCategory.mock.resetCalls();
-			archiveTransactionCategory.mock.mockImplementation(async () => ARCHIVED);
-		});
+		await app.ready();
+	});
+	after(async () => {
+		await app.close();
+	});
+	beforeEach(() => {
+		getTransactionDetail.mock.resetCalls();
+		getTransactionDetail.mock.mockImplementation(async () => ORIGINAL);
+		setTransactionCategory.mock.resetCalls();
+		setTransactionCategory.mock.mockImplementation(async () => OVERRIDE);
+		archiveTransactionCategory.mock.resetCalls();
+		archiveTransactionCategory.mock.mockImplementation(async () => ARCHIVED);
+	});
 
-		test("PUT 200: upserts by id with the original occurredAt, reports isOverridden", async () => {
-			const res = await app.inject({
-				method: "PUT",
-				url: URL,
-				payload: { categoryId: 5 }
-			});
-			assert.strictEqual(res.statusCode, 200);
-			assert.deepStrictEqual(res.json(), {
+	test("PUT 200: upserts by id with the original occurredAt, reports isOverridden", async () => {
+		const res = await app.inject({
+			method: "PUT",
+			url: URL,
+			payload: { categoryId: 5 }
+		});
+		assert.strictEqual(res.statusCode, 200);
+		assert.deepStrictEqual(res.json(), {
+			transactionId: TX_ID,
+			categoryId: 5,
+			isOverridden: true, // original effective categoryId was 1
+			updatedAt: "2026-09-03T08:00:00.000Z"
+		});
+		assert.deepStrictEqual(
+			setTransactionCategory.mock.calls[0]?.arguments.at(0),
+			{
+				userId: USER_ID,
 				transactionId: TX_ID,
-				categoryId: 5,
-				isOverridden: true, // original effective categoryId was 1
-				updatedAt: "2026-09-03T08:00:00.000Z"
-			});
-			assert.deepStrictEqual(
-				setTransactionCategory.mock.calls[0]?.arguments.at(0),
-				{
-					userId: USER_ID,
-					transactionId: TX_ID,
-					occurredAt: "2026-08-15T09:30:00.000Z",
-					categoryId: 5
-				}
-			);
-		});
+				occurredAt: "2026-08-15T09:30:00.000Z",
+				categoryId: 5
+			}
+		);
+	});
 
-		test("PUT 200: re-putting the current effective category → isOverridden false", async () => {
-			setTransactionCategory.mock.mockImplementationOnce(async () => ({
-				...OVERRIDE,
-				categoryId: 1
-			}));
-			const res = await app.inject({
-				method: "PUT",
-				url: URL,
-				payload: { categoryId: 1 }
-			});
-			assert.strictEqual(res.statusCode, 200);
-			assert.strictEqual(res.json().isOverridden, false);
+	test("PUT 200: re-putting the current effective category → isOverridden false", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(async () => ({
+			...OVERRIDE,
+			categoryId: 1
+		}));
+		const res = await app.inject({
+			method: "PUT",
+			url: URL,
+			payload: { categoryId: 1 }
 		});
+		assert.strictEqual(res.statusCode, 200);
+		assert.strictEqual(res.json().isOverridden, false);
+	});
 
-		test("PUT 400: unknown categoryId (FK violation → repo returns undefined)", async () => {
-			setTransactionCategory.mock.mockImplementationOnce(
-				async () => undefined as unknown as typeof OVERRIDE
-			);
-			const res = await app.inject({
-				method: "PUT",
-				url: URL,
-				payload: { categoryId: 999 }
-			});
-			assert.strictEqual(res.statusCode, 400);
-			assert.strictEqual(res.json().type, "validation-error");
+	test("PUT 400: unknown categoryId (FK violation → repo returns undefined)", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(
+			async () => undefined as unknown as typeof OVERRIDE
+		);
+		const res = await app.inject({
+			method: "PUT",
+			url: URL,
+			payload: { categoryId: 999 }
 		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(res.json().type, "validation-error");
+	});
 
-		test("PUT 404: transaction not owned/not found → not-found problem, nothing written", async () => {
-			// The repo types the `[result]` destructure as Row, but at runtime a
-			// missing row yields undefined — exactly what the route's guard handles.
-			getTransactionDetail.mock.mockImplementationOnce(
-				async () => undefined as unknown as typeof ORIGINAL
-			);
-			const res = await app.inject({
-				method: "PUT",
-				url: URL,
-				payload: { categoryId: 5 }
-			});
-			assert.strictEqual(res.statusCode, 404);
-			assert.strictEqual(res.json().type, "not-found");
-			assert.strictEqual(setTransactionCategory.mock.callCount(), 0);
+	test("PUT 404: transaction not owned/not found → not-found problem, nothing written", async () => {
+		// The repo types the `[result]` destructure as Row, but at runtime a
+		// missing row yields undefined — exactly what the route's guard handles.
+		getTransactionDetail.mock.mockImplementationOnce(
+			async () => undefined as unknown as typeof ORIGINAL
+		);
+		const res = await app.inject({
+			method: "PUT",
+			url: URL,
+			payload: { categoryId: 5 }
 		});
+		assert.strictEqual(res.statusCode, 404);
+		assert.strictEqual(res.json().type, "not-found");
+		assert.strictEqual(setTransactionCategory.mock.callCount(), 0);
+	});
 
-		test("PUT repository failure → 500 problem+json with zero internals on the wire", async () => {
-			setTransactionCategory.mock.mockImplementationOnce(async () => {
-				throw new Error("pg password=hunter2");
-			});
-			const res = await app.inject({
-				method: "PUT",
-				url: URL,
-				payload: { categoryId: 5 }
-			});
-			assert.strictEqual(res.statusCode, 500);
-			assert.ok(
-				String(res.headers["content-type"]).startsWith(
-					"application/problem+json"
-				)
-			);
-			assert.strictEqual(res.json().type, "internal");
-			assert.ok(!res.body.includes("hunter2"));
+	test("PUT repository failure → 500 problem+json with zero internals on the wire", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(async () => {
+			throw new Error("pg password=hunter2");
 		});
+		const res = await app.inject({
+			method: "PUT",
+			url: URL,
+			payload: { categoryId: 5 }
+		});
+		assert.strictEqual(res.statusCode, 500);
+		assert.ok(
+			String(res.headers["content-type"]).startsWith("application/problem+json")
+		);
+		assert.strictEqual(res.json().type, "internal");
+		assert.ok(!res.body.includes("hunter2"));
+	});
 
-		test("DELETE 204: archives by transactionId, no ownership probe, no body", async () => {
-			const res = await app.inject({ method: "DELETE", url: URL });
-			assert.strictEqual(res.statusCode, 204);
-			assert.strictEqual(res.body, "");
-			assert.deepStrictEqual(
-				archiveTransactionCategory.mock.calls[0]?.arguments,
-				[USER_ID, TX_ID]
-			);
-		});
+	test("DELETE 204: archives by transactionId, no ownership probe, no body", async () => {
+		const res = await app.inject({ method: "DELETE", url: URL });
+		assert.strictEqual(res.statusCode, 204);
+		assert.strictEqual(res.body, "");
+		assert.deepStrictEqual(
+			archiveTransactionCategory.mock.calls[0]?.arguments,
+			[USER_ID, TX_ID]
+		);
+	});
 
-		test("DELETE 204: idempotent — nothing to archive is still success", async () => {
-			// Zero-row update: the repo's [result] destructure yields undefined.
-			archiveTransactionCategory.mock.mockImplementationOnce(
-				async () => undefined as unknown as typeof ARCHIVED
-			);
-			const res = await app.inject({ method: "DELETE", url: URL });
-			assert.strictEqual(res.statusCode, 204);
-		});
+	test("DELETE 204: idempotent — nothing to archive is still success", async () => {
+		// Zero-row update: the repo's [result] destructure yields undefined.
+		archiveTransactionCategory.mock.mockImplementationOnce(
+			async () => undefined as unknown as typeof ARCHIVED
+		);
+		const res = await app.inject({ method: "DELETE", url: URL });
+		assert.strictEqual(res.statusCode, 204);
+	});
 
-		test("DELETE repository failure → 500 problem+json with zero internals on the wire", async () => {
-			archiveTransactionCategory.mock.mockImplementationOnce(async () => {
-				throw new Error("pg password=hunter2");
-			});
-			const res = await app.inject({ method: "DELETE", url: URL });
-			assert.strictEqual(res.statusCode, 500);
-			assert.strictEqual(res.json().type, "internal");
-			assert.ok(!res.body.includes("hunter2"));
+	test("DELETE repository failure → 500 problem+json with zero internals on the wire", async () => {
+		archiveTransactionCategory.mock.mockImplementationOnce(async () => {
+			throw new Error("pg password=hunter2");
 		});
-	}
-);
+		const res = await app.inject({ method: "DELETE", url: URL });
+		assert.strictEqual(res.statusCode, 500);
+		assert.strictEqual(res.json().type, "internal");
+		assert.ok(!res.body.includes("hunter2"));
+	});
+});

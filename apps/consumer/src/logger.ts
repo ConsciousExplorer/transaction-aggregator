@@ -31,7 +31,6 @@ const BASE_SENSITIVE_FIELDS = [
  */
 export const loggerOptionsSchema = z.object({
 	level: z.enum(LOG_LEVELS).default("warn"),
-	pretty: z.boolean().default(false),
 	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
 	redactedFields: z.array(z.string()).default([]),
 	/**
@@ -43,7 +42,7 @@ export const loggerOptionsSchema = z.object({
 export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
 
 function createLogger(options: LoggerOptions = {}): Logger {
-	const { level, pretty, redactedFields, redactDepth } =
+	const { level, redactedFields, redactDepth } =
 		loggerOptionsSchema.parse(options);
 
 	const sensitiveFields = [
@@ -58,9 +57,6 @@ function createLogger(options: LoggerOptions = {}): Logger {
 
 	return pino({
 		level,
-		...(pretty && {
-			transport: { target: "pino-pretty", options: { colorize: true } }
-		}),
 		redact: { paths: redactPaths, censor: "[REDACTED]" }
 	});
 }
@@ -78,7 +74,6 @@ const redactedFields = (process.env.LOG_REDACTED_FIELDS ?? "")
 
 const baseLogger = createLogger({
 	level,
-	pretty: process.env.LOG_PRETTY === "true",
 	redactedFields,
 	redactDepth: Number(process.env.LOG_REDACT_DEPTH) || undefined
 });

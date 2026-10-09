@@ -59,11 +59,7 @@ http:
       value: "-9007199254740991"
       type: query
       disabled: true
-    - name: cursorOccurredAt
-      value: ""
-      type: query
-      disabled: true
-    - name: cursorTransactionId
+    - name: cursor
       value: ""
       type: query
       disabled: true
@@ -135,11 +131,7 @@ examples:
           value: "-9007199254740991"
           type: query
           disabled: true
-        - name: cursorOccurredAt
-          value: ""
-          type: query
-          disabled: true
-        - name: cursorTransactionId
+        - name: cursor
           value: ""
           type: query
           disabled: true
@@ -171,5 +163,8 @@ examples:
                 "merchantName": ""
               }
             ],
-            "nextCursor": ""
+            "links": {
+              "self": "",
+              "next": ""
+            }
           }

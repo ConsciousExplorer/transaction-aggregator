@@ -50,7 +50,8 @@ ORDER BY count(*) DESC, user_id
 LIMIT 5;
 
 -- That user's rows in the window, newest first, numbered. Each cursor value is
--- written exactly as the API puts it in links.next/links.prev:
+-- written exactly as the API puts it inside the base64url cursor in
+-- links.next/links.prev ({occurredAt, transactionId, direction}):
 --   row 10 → a next page from page 1 at limit=10
 --   row 11 → a prev page back from page 2
 --   row 1  → a transaction to fetch, override or archive

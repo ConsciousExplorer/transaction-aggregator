@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
-import { buildLink, buildPageLinks, toKeysetPage } from "./paging.ts";
+import z from "zod";
+import { invalidCursorError } from "#src/errors/http-problem.ts";
+import {
+	buildLink,
+	buildPageLinks,
+	decodeCursor,
+	encodeCursor,
+	toKeysetPage
+} from "./paging.ts";
 
 // Rows as a keyset query returns them, named by age: a is the newest
 const NEWEST_FIRST = ["a", "b", "c"];
@@ -59,6 +67,33 @@ suite("toKeysetPage", () => {
 	});
 });
 
+suite("encodeCursor and decodeCursor", () => {
+	const positionSchema = z.object({ at: z.string(), id: z.number() });
+	const INVALID_CURSOR = { payload: invalidCursorError().payload };
+
+	test("a cursor decodes back to what was encoded, as URL-safe text", () => {
+		const text = encodeCursor({ at: "2026-10-01T00:00:00.000000Z", id: 7 });
+		assert.match(text, /^[A-Za-z0-9_-]+$/);
+		assert.deepStrictEqual(decodeCursor(text, positionSchema), {
+			at: "2026-10-01T00:00:00.000000Z",
+			id: 7
+		});
+	});
+
+	test("text that isn't base64url JSON is an invalid cursor", () => {
+		assert.throws(
+			() => decodeCursor("not-a-cursor", positionSchema),
+			INVALID_CURSOR
+		);
+		assert.throws(() => decodeCursor("", positionSchema), INVALID_CURSOR);
+	});
+
+	test("JSON that doesn't match the schema is an invalid cursor", () => {
+		const text = encodeCursor({ at: "2026-10-01T00:00:00.000000Z", id: "7" });
+		assert.throws(() => decodeCursor(text, positionSchema), INVALID_CURSOR);
+	});
+});
+
 suite("buildLink", () => {
 	test("sets the given params and keeps the path and every other param as sent", () => {
 		const link = buildLink("/api/v1/things?type=card&type=eft&cursor=old", {
@@ -81,13 +116,13 @@ suite("buildLink", () => {
 		const link = buildLink(
 			"/api/v1/things?fromDateTime=2025-12-01T00%3A00%3A00Z",
 			{
-				cursorOccurredAt: "2025-12-30T13:33:01.634000Z"
+				toDateTime: "2025-12-30T13:33:01.634000Z"
 			}
 		);
 		// Nothing left for a client that encodes the link again to double-encode
 		assert.strictEqual(
 			link,
-			"/api/v1/things?fromDateTime=2025-12-01T00:00:00Z&cursorOccurredAt=2025-12-30T13:33:01.634000Z"
+			"/api/v1/things?fromDateTime=2025-12-01T00:00:00Z&toDateTime=2025-12-30T13:33:01.634000Z"
 		);
 	});
 

@@ -28,17 +28,12 @@ export function separateByDelimiter(value: string, delimiter: string) {
 
 const configSchema = z
 	.object({
-		NODE_ENV: z
-			.enum(["development", "production", "test"])
-			.default("development"),
 		APP_NAME: z.string().default("transaction-aggregator"),
 		HOST: z.string().default("0.0.0.0"),
 		PORT: z.coerce.number().int().positive().default(6000),
 		SECRET_DIR: z.string().default("/secrets"),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
-		LOG_FORMAT: z.enum(["json", "text"]).default("json"),
-		LOG_PRETTY: z.stringbool().default(false),
 		LOG_REDACTED_FIELDS: z
 			.string()
 			.default("")
@@ -143,16 +138,12 @@ const configSchema = z
 	.transform((e) =>
 		Object.freeze({
 			app: Object.freeze({
-				env: e.NODE_ENV,
 				name: e.APP_NAME,
 				host: e.HOST,
-				port: e.PORT,
-				isProduction: e.NODE_ENV === "production"
+				port: e.PORT
 			}),
 			logging: Object.freeze({
 				level: e.LOG_LEVEL,
-				format: e.LOG_FORMAT,
-				pretty: e.LOG_PRETTY,
 				redactedFields: e.LOG_REDACTED_FIELDS,
 				redactDepth: e.LOG_REDACT_DEPTH
 			}),

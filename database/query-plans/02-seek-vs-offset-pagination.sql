@@ -7,8 +7,8 @@
 --   userId               00000000-0000-4000-8000-000000000001
 --   fromDateTime         2025-10-04T00:00:00.000Z
 --   toDateTime           2026-10-04T00:00:00.000Z
---   cursorOccurredAt     2025-11-09T21:00:00.000000Z   (row 90,000)
---   cursorTransactionId  10000000-0000-4000-8000-000000090000
+--   cursor occurredAt    2025-11-09T21:00:00.000000Z   (row 90,000)
+--   cursor transactionId 10000000-0000-4000-8000-000000090000
 --
 -- Compare the Buffers line under Limit (index and table pages touched) and
 -- Execution Time. Run each twice; the first run reads pages into cache.
@@ -122,14 +122,14 @@ SELECT (SELECT count(*) FROM by_seek) AS page_rows,
        (SELECT count(*) FROM (SELECT * FROM by_seek EXCEPT SELECT * FROM by_offset) d) AS rows_that_differ;
 
 -- 4. Seek with the cursor conditions first: the SQL the API sends now
--- Two changes to 1's WHERE: a plain occurred_at <= cursorOccurredAt bound,
+-- Two changes to 1's WHERE: a plain occurred_at <= (cursor occurredAt) bound,
 -- and both cursor conditions before the window. The rows are the same:
 -- every row before the cursor already satisfies occurred_at <= cursor.
 -- Look for: about 110 buffers under Limit instead of 1's ~1,500, most of them
 -- the override joins, and well under a millisecond. The partitions newer than
 -- the cursor are gone from the plan (the plain bound prunes them), the
--- cursor's partition starts at the cursor, and the scan stops at 51 rows. For an ascending read (cursorDirection=prev, or
--- sort=occurredAt) the plain bound is occurred_at >= cursorOccurredAt.
+-- cursor's partition starts at the cursor, and the scan stops at 51 rows. For an ascending read (a prev cursor, or
+-- sort=occurredAt) the plain bound is occurred_at >= the cursor's occurredAt.
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT transactions.transaction_id,
        transactions.occurred_at,
@@ -165,6 +165,6 @@ LIMIT 51;
 
 -- Other depths: the test data makes any row's cursor easy to compute. For the
 -- page after row N:
---   cursorOccurredAt     2026-10-04 00:00:00 UTC minus N × 315 seconds
---   cursorTransactionId  10000000-0000-4000-8000-<N padded to 12 digits>
+--   cursor occurredAt    2026-10-04 00:00:00 UTC minus N × 315 seconds
+--   cursor transactionId 10000000-0000-4000-8000-<N padded to 12 digits>
 --   OFFSET               N
