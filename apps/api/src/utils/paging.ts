@@ -21,7 +21,7 @@ export function buildKeysetPage<Row>(
 	limit: number,
 	cursorDirection: CursorDirection,
 	hasCursor: boolean
-): KeysetPage<Row> {
+) {
 	const hasMore = fetched.length > limit;
 	const kept = hasMore ? fetched.slice(0, limit) : fetched;
 	const rows = cursorDirection === "prev" ? kept.slice().reverse() : kept;
@@ -43,7 +43,7 @@ export function buildKeysetPage<Row>(
  * A cursor as it travels in links: JSON, then base64url, so a client sees one
  * opaque query value and the cursor's shape is never part of the contract.
  */
-export function encodeCursor(cursor: object): string {
+export function encodeCursor(cursor: object) {
 	return Buffer.from(JSON.stringify(cursor)).toString("base64url");
 }
 
