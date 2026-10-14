@@ -28,32 +28,33 @@ import {
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 /** The cursor a page boundary row hands to the next or previous page */
-function toPageCursor(
-	row: { cursorOccurredAt: string; transactionId: string },
+function buildPageCursor(
+	boundaryRow: { cursorOccurredAt: string; transactionId: string },
 	direction: CursorDirection
 ): TransactionPageCursor {
 	return {
 		direction,
 		position: {
-			occurredAt: row.cursorOccurredAt,
-			transactionId: row.transactionId
+			occurredAt: boundaryRow.cursorOccurredAt,
+			transactionId: boundaryRow.transactionId
 		}
 	};
 }
 
 /**
- * The order the repository reads a page in. next continues in the sort
- * order. prev reads against it from the cursor, so that LIMIT keeps the rows
- * nearest the cursor rather than the furthest; toKeysetPage flips them back.
+ * The order the repository reads a page in. next continues in the requested
+ * sort order. prev reads against it from the cursor, so that LIMIT keeps the
+ * rows nearest the cursor rather than the furthest; toKeysetPage flips them
+ * back.
  */
-function toReadSort(
-	sort: TransactionSort,
+function chooseReadSort(
+	requestedSort: TransactionSort,
 	cursorDirection: CursorDirection
 ): TransactionSort {
 	if (cursorDirection === "next") {
-		return sort;
+		return requestedSort;
 	}
-	if (sort === "occurredAt") {
+	if (requestedSort === "occurredAt") {
 		return "-occurredAt";
 	}
 	return "occurredAt";
@@ -147,7 +148,7 @@ export default async (
 				direction: request.query.direction,
 				amountMin: request.query.amountMin,
 				amountMax: request.query.amountMax,
-				sort: toReadSort(request.query.sort, cursorDirection),
+				sort: chooseReadSort(request.query.sort, cursorDirection),
 				cursor: pageCursor?.position,
 				limit: limit + 1
 			});
@@ -174,10 +175,10 @@ export default async (
 			}));
 
 			const nextParams = page.nextFrom
-				? { cursor: encodeCursor(toPageCursor(page.nextFrom, "next")) }
+				? { cursor: encodeCursor(buildPageCursor(page.nextFrom, "next")) }
 				: null;
 			const prevParams = page.prevFrom
-				? { cursor: encodeCursor(toPageCursor(page.prevFrom, "prev")) }
+				? { cursor: encodeCursor(buildPageCursor(page.prevFrom, "prev")) }
 				: null;
 
 			// The window as parsed, so a future toDateTime is already now. Every
