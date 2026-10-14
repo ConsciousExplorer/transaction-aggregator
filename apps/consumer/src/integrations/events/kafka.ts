@@ -3,7 +3,7 @@ import {
 	batchFlushDurationSeconds,
 	batchFlushTotal,
 	batchSize,
-	dlqMessagesTotal
+	deadLetterMessagesTotal
 } from "#src/telemetry/metrics.ts";
 import { runInSpan } from "#src/telemetry/tracing.ts";
 
@@ -39,7 +39,7 @@ import { commitBatch } from "./commit.ts";
 import type {
 	BatchHandler,
 	ClassifiedMessage,
-	DlqFailure
+	DeadLetterFailure
 } from "./handlers/transactionBatchHandler.ts";
 
 /**
@@ -99,9 +99,9 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
  * Given a registry, the client records its own metrics there
  * (kafka_produced_messages, ...). Without one, none.
  */
-export type DlqProducer = Producer<string, Buffer, string, string>;
+export type DeadLetterProducer = Producer<string, Buffer, string, string>;
 
-export async function createKafkaDlqProducer(
+export async function createKafkaDeadLetterProducer(
 	options: Omit<ProducerOptions<string, Buffer, string, string>, "serializers">,
 	registry?: Registry
 ) {
@@ -119,12 +119,12 @@ export async function createKafkaDlqProducer(
 		producerOptions.metrics = buildKafkaMetricsOptions(registry);
 	}
 
-	const kafkaDlqProducer = new Producer(producerOptions);
+	const kafkaDeadLetterProducer = new Producer(producerOptions);
 
-	return kafkaDlqProducer;
+	return kafkaDeadLetterProducer;
 }
 
-function chooseDeadLetterReason(failure: DlqFailure) {
+function chooseDeadLetterReason(failure: DeadLetterFailure) {
 	return failure.message.kind === "poison" ? "deserialisation" : "processing";
 }
 
@@ -132,7 +132,10 @@ function chooseDeadLetterReason(failure: DlqFailure) {
  * The record as it arrived: its raw bytes and its own headers, so a redrive
  * re-produces the original. The DLQ headers go on top and win a name clash.
  */
-function buildDeadLetterRecord(dlqTopic: string, failure: DlqFailure) {
+function buildDeadLetterRecord(
+	deadLetterTopic: string,
+	failure: DeadLetterFailure
+) {
 	const { message, error } = failure;
 
 	const headers: Record<string, string> = {};
@@ -148,20 +151,23 @@ function buildDeadLetterRecord(dlqTopic: string, failure: DlqFailure) {
 	headers["x-source-offset"] = message.offset.toString();
 
 	return {
-		topic: dlqTopic,
+		topic: deadLetterTopic,
 		key: `${message.topic}-${message.partition}-${message.offset}`,
 		value: message.raw ?? Buffer.alloc(0),
 		headers
 	};
 }
 
-export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
-	return async function sendToDlq(failures: DlqFailure[]) {
+export function createDeadLetterSender(
+	deadLetterProducer: DeadLetterProducer,
+	deadLetterTopic: string
+) {
+	return async function sendToDeadLetterQueue(failures: DeadLetterFailure[]) {
 		if (failures.length === 0) return;
 
 		const records: ReturnType<typeof buildDeadLetterRecord>[] = [];
 		for (const failure of failures) {
-			records.push(buildDeadLetterRecord(dlqTopic, failure));
+			records.push(buildDeadLetterRecord(deadLetterTopic, failure));
 		}
 
 		// One span per send: it is one produce request, however many records
@@ -172,15 +178,15 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 				attributes: {
 					"messaging.system": "kafka",
 					"messaging.operation.type": "send",
-					"messaging.destination.name": dlqTopic,
+					"messaging.destination.name": deadLetterTopic,
 					"messaging.batch.message_count": records.length
 				}
 			},
-			() => dlqProducer.send({ messages: records, acks: -1 })
+			() => deadLetterProducer.send({ messages: records, acks: -1 })
 		);
 
 		for (const failure of failures) {
-			dlqMessagesTotal.inc({ reason: chooseDeadLetterReason(failure) });
+			deadLetterMessagesTotal.inc({ reason: chooseDeadLetterReason(failure) });
 		}
 	};
 }

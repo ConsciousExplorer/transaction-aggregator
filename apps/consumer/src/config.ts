@@ -167,7 +167,7 @@ const configSchema = z
 				}),
 				topics: Object.freeze({
 					main: e.KAFKA_TOPIC,
-					dlq: `${e.KAFKA_TOPIC}.dlq`
+					deadLetter: `${e.KAFKA_TOPIC}.dlq`
 				}),
 				sessionTimeout: e.KAFKA_SESSION_TIMEOUT_MS,
 				heartbeatInterval: e.KAFKA_HEARTBEAT_INTERVAL_MS,

@@ -52,7 +52,7 @@ export const duplicatesSkippedTotal = new Counter({
 	registers: [registry]
 });
 
-export const dlqMessagesTotal = new Counter({
+export const deadLetterMessagesTotal = new Counter({
 	name: "dlq_messages_total",
 	help: "Messages published to the dead-letter topic, by deserialisation or processing failure",
 	labelNames: ["reason"] as const,

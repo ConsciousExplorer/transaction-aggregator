@@ -1,34 +1,34 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
-import { buildExplainStatement, inlineParams } from "./query-logger.ts";
+import { buildExplainStatement, inlineParameters } from "./query-logger.ts";
 
-suite("inlineParams", () => {
+suite("inlineParameters", () => {
 	test("fills each placeholder with its own value, $10 not read as $1", () => {
 		const params = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
 
 		assert.equal(
-			inlineParams("select $1, $10, $2", params),
+			inlineParameters("select $1, $10, $2", params),
 			"select 'a', 'j', 'b'"
 		);
 	});
 
 	test("writes numbers bare and null as NULL", () => {
 		assert.equal(
-			inlineParams("limit $1 offset $2 where x = $3", [51, 0, null]),
+			inlineParameters("limit $1 offset $2 where x = $3", [51, 0, null]),
 			"limit 51 offset 0 where x = NULL"
 		);
 	});
 
 	test("doubles quotes inside a string", () => {
 		assert.equal(
-			inlineParams("where reference = $1", ["the tenant's rent"]),
+			inlineParameters("where reference = $1", ["the tenant's rent"]),
 			"where reference = 'the tenant''s rent'"
 		);
 	});
 
 	test("leaves a value that contains $1 as it is", () => {
 		assert.equal(
-			inlineParams("where a = $1 and b = $2", ["costs $1", "x"]),
+			inlineParameters("where a = $1 and b = $2", ["costs $1", "x"]),
 			"where a = 'costs $1' and b = 'x'"
 		);
 	});

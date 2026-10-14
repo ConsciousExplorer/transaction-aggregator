@@ -11,7 +11,7 @@ import { ingestLagSeconds } from "#src/telemetry/metrics.ts";
 import {
 	type ClassifiedMessage,
 	createTransactionBatchHandler,
-	type DlqFailure,
+	type DeadLetterFailure,
 	type ValidMessage
 } from "./transactionBatchHandler.ts";
 
@@ -81,11 +81,11 @@ function createRecordingIngestion(
 	};
 }
 
-function createRecordingDlq() {
-	const sent: DlqFailure[][] = [];
+function createRecordingDeadLetterQueue() {
+	const sent: DeadLetterFailure[][] = [];
 	return {
 		sent,
-		sendToDlq: async (failures: DlqFailure[]) => {
+		sendToDeadLetterQueue: async (failures: DeadLetterFailure[]) => {
 			sent.push(failures);
 		}
 	};
@@ -100,8 +100,11 @@ suite("transaction batch handler", () => {
 			attempted: transactions.length,
 			inserted: transactions.length
 		}));
-		const dlq = createRecordingDlq();
-		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
+		const deadLetterQueue = createRecordingDeadLetterQueue();
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			deadLetterQueue.sendToDeadLetterQueue
+		);
 
 		await handle([buildValidMessage("a", 1), buildValidMessage("b", 2)]);
 
@@ -111,7 +114,7 @@ suite("transaction batch handler", () => {
 			"one batch insert, not per-message"
 		);
 		assert.equal(ingestion.calls[0]?.length, 2);
-		assert.deepEqual(dlq.sent, []);
+		assert.deepEqual(deadLetterQueue.sent, []);
 	});
 
 	test("dead-letters poison without sending it to ingestion", async () => {
@@ -119,8 +122,11 @@ suite("transaction batch handler", () => {
 			attempted: transactions.length,
 			inserted: transactions.length
 		}));
-		const dlq = createRecordingDlq();
-		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
+		const deadLetterQueue = createRecordingDeadLetterQueue();
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			deadLetterQueue.sendToDeadLetterQueue
+		);
 
 		await handle([
 			buildValidMessage("a", 1),
@@ -130,8 +136,8 @@ suite("transaction batch handler", () => {
 
 		assert.equal(ingestion.calls.length, 1);
 		assert.equal(ingestion.calls[0]?.length, 1, "only the valid message");
-		assert.equal(dlq.sent.length, 1);
-		assert.equal(dlq.sent[0]?.length, 1);
+		assert.equal(deadLetterQueue.sent.length, 1);
+		assert.equal(deadLetterQueue.sent[0]?.length, 1);
 	});
 
 	test("isolates one poison row instead of losing the batch", async () => {
@@ -144,8 +150,11 @@ suite("transaction batch handler", () => {
 			}
 			return { attempted: 1, inserted: 1 };
 		});
-		const dlq = createRecordingDlq();
-		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
+		const deadLetterQueue = createRecordingDeadLetterQueue();
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			deadLetterQueue.sendToDeadLetterQueue
+		);
 
 		await handle([
 			buildValidMessage("a", 1),
@@ -155,11 +164,15 @@ suite("transaction batch handler", () => {
 
 		// 1 failed batch attempt + 3 single-message retries
 		assert.equal(ingestion.calls.length, 4);
-		assert.equal(dlq.sent.length, 1, "only the offending row is dead-lettered");
-		const dlqMessage = dlq.sent[0]![0]!.message;
-		assert.equal(dlqMessage.kind, "valid");
 		assert.equal(
-			getExternalId((dlqMessage as ValidMessage).value),
+			deadLetterQueue.sent.length,
+			1,
+			"only the offending row is dead-lettered"
+		);
+		const deadLetterMessage = deadLetterQueue.sent[0]![0]!.message;
+		assert.equal(deadLetterMessage.kind, "valid");
+		assert.equal(
+			getExternalId((deadLetterMessage as ValidMessage).value),
 			"b",
 			"the dead-lettered row is the one that failed, not a bystander"
 		);
@@ -176,7 +189,7 @@ suite("transaction batch handler", () => {
 		});
 		const handle = createTransactionBatchHandler(
 			ingestion,
-			createRecordingDlq().sendToDlq
+			createRecordingDeadLetterQueue().sendToDeadLetterQueue
 		);
 		const before = await countIngestLagObservations();
 
@@ -197,8 +210,11 @@ suite("transaction batch handler", () => {
 		const ingestion = createRecordingIngestion(() => {
 			throw new RetryableError("connection died");
 		});
-		const dlq = createRecordingDlq();
-		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
+		const deadLetterQueue = createRecordingDeadLetterQueue();
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			deadLetterQueue.sendToDeadLetterQueue
+		);
 
 		await assert.rejects(
 			() => handle([buildValidMessage("a", 1)]),
@@ -211,7 +227,11 @@ suite("transaction batch handler", () => {
 			1,
 			"no per-message isolation attempted"
 		);
-		assert.deepEqual(dlq.sent, [], "good data must never be dead-lettered");
+		assert.deepEqual(
+			deadLetterQueue.sent,
+			[],
+			"good data must never be dead-lettered"
+		);
 	});
 
 	test("rethrows a retryable failure raised during isolation", async () => {
@@ -219,15 +239,18 @@ suite("transaction batch handler", () => {
 			if (transactions.length > 1) throw new NonRetryableError("bad batch");
 			throw new RetryableError("connection died mid-isolation");
 		});
-		const dlq = createRecordingDlq();
-		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
+		const deadLetterQueue = createRecordingDeadLetterQueue();
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			deadLetterQueue.sendToDeadLetterQueue
+		);
 
 		await assert.rejects(
 			() => handle([buildValidMessage("a", 1), buildValidMessage("b", 2)]),
 			RetryableError
 		);
 
-		assert.deepEqual(dlq.sent, []);
+		assert.deepEqual(deadLetterQueue.sent, []);
 	});
 
 	test("still dead-letters poison when there is no valid data", async () => {
@@ -235,12 +258,15 @@ suite("transaction batch handler", () => {
 			attempted: 0,
 			inserted: 0
 		}));
-		const dlq = createRecordingDlq();
-		const handle = createTransactionBatchHandler(ingestion, dlq.sendToDlq);
+		const deadLetterQueue = createRecordingDeadLetterQueue();
+		const handle = createTransactionBatchHandler(
+			ingestion,
+			deadLetterQueue.sendToDeadLetterQueue
+		);
 
 		await handle([buildPoisonMessage(1), buildTombstoneMessage(2)]);
 
 		assert.equal(ingestion.calls.length, 0, "nothing to ingest");
-		assert.equal(dlq.sent.length, 1);
+		assert.equal(deadLetterQueue.sent.length, 1);
 	});
 });

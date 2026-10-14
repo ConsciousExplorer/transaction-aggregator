@@ -30,22 +30,24 @@ export type ClassifiedMessage =
 
 export type ValidMessage = Extract<ClassifiedMessage, { kind: "valid" }>;
 
-export interface DlqFailure {
+export interface DeadLetterFailure {
 	message: Exclude<ClassifiedMessage, { kind: "tombstone" }>;
 	error: unknown;
 }
 
 export type BatchHandler = (messages: ClassifiedMessage[]) => Promise<void>;
-export type SendToDlq = (failures: DlqFailure[]) => Promise<void>;
+export type SendToDeadLetterQueue = (
+	failures: DeadLetterFailure[]
+) => Promise<void>;
 
 export function createTransactionBatchHandler(
 	ingester: TransactionIngester,
-	sendToDlq: SendToDlq
+	sendToDeadLetterQueue: SendToDeadLetterQueue
 ): BatchHandler {
 	return async function transactionBatchHandler(messages) {
 		const validMessages: ValidMessage[] = [];
 		const transactions: DomainTransactionSchema[] = [];
-		const poisonFailures: DlqFailure[] = [];
+		const poisonFailures: DeadLetterFailure[] = [];
 		let tombstones = 0;
 
 		for (const message of messages) {
@@ -92,12 +94,12 @@ export function createTransactionBatchHandler(
 					{ err: error, size: validMessages.length },
 					"Batch ingest failed — isolating messages one by one"
 				);
-				await ingestOneByOne(validMessages, ingester, sendToDlq);
+				await ingestOneByOne(validMessages, ingester, sendToDeadLetterQueue);
 			}
 		}
 
 		if (poisonFailures.length > 0) {
-			await sendToDlq(poisonFailures);
+			await sendToDeadLetterQueue(poisonFailures);
 			logger.warn(
 				{ size: poisonFailures.length },
 				"Dead-lettered undeserialisable messages"
@@ -117,7 +119,7 @@ export function createTransactionBatchHandler(
 async function ingestOneByOne(
 	validMessages: ValidMessage[],
 	ingester: TransactionIngester,
-	sendToDlq: SendToDlq
+	sendToDeadLetterQueue: SendToDeadLetterQueue
 ): Promise<void> {
 	for (const message of validMessages) {
 		try {
@@ -125,7 +127,7 @@ async function ingestOneByOne(
 			observeIngestLag([message]);
 		} catch (error) {
 			if (error instanceof RetryableError) throw error;
-			await sendToDlq([{ message, error }]);
+			await sendToDeadLetterQueue([{ message, error }]);
 		}
 	}
 }

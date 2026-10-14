@@ -5,13 +5,13 @@ import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type {
 	ClassifiedMessage,
-	DlqFailure
+	DeadLetterFailure
 } from "./handlers/transactionBatchHandler.ts";
 import {
 	type BatchConsumerOptions,
 	classifyMessages,
-	createDlqSender,
-	type DlqProducer,
+	createDeadLetterSender,
+	type DeadLetterProducer,
 	type KafkaConsumer,
 	type KafkaMessage,
 	startBatchConsumer
@@ -194,20 +194,20 @@ interface SentRecord {
 	headers: Record<string, string>;
 }
 
-function createRecordingDlqProducer() {
+function createRecordingDeadLetterProducer() {
 	const sent: SentRecord[] = [];
 	const producer = {
 		send: async (request: { messages: SentRecord[] }) => {
 			for (const record of request.messages) sent.push(record);
 		}
-	} as unknown as DlqProducer;
+	} as unknown as DeadLetterProducer;
 	return { sent, producer };
 }
 
 function buildValidFailure(
 	error: unknown,
 	headers = buildIncomingHeaders()
-): DlqFailure {
+): DeadLetterFailure {
 	return {
 		message: {
 			topic: "transactions.card",
@@ -223,7 +223,7 @@ function buildValidFailure(
 	};
 }
 
-function buildPoisonFailure(error: unknown): DlqFailure {
+function buildPoisonFailure(error: unknown): DeadLetterFailure {
 	return {
 		message: {
 			topic: "transactions.card",
@@ -238,9 +238,9 @@ function buildPoisonFailure(error: unknown): DlqFailure {
 	};
 }
 
-suite("createDlqSender", () => {
+suite("createDeadLetterSender", () => {
 	test("a record is dead-lettered as it arrived, with the DLQ headers on top", async () => {
-		const dlq = createRecordingDlqProducer();
+		const deadLetter = createRecordingDeadLetterProducer();
 		const headers = buildIncomingHeaders();
 		headers.set("x-dlq-reason", "from an earlier redrive");
 		const failure = buildValidFailure(
@@ -248,9 +248,12 @@ suite("createDlqSender", () => {
 			headers
 		);
 
-		await createDlqSender(dlq.producer, "transactions.card.dlq")([failure]);
+		await createDeadLetterSender(
+			deadLetter.producer,
+			"transactions.card.dlq"
+		)([failure]);
 
-		const [record] = dlq.sent;
+		const [record] = deadLetter.sent;
 		assert.equal(record?.key, "transactions.card-3-42");
 		assert.deepEqual(record?.value, Buffer.from("framed avro"));
 		assert.deepEqual(record?.headers, {
@@ -265,14 +268,14 @@ suite("createDlqSender", () => {
 	});
 
 	test("a poison record keeps its raw bytes and headers, reason deserialisation", async () => {
-		const dlq = createRecordingDlqProducer();
+		const deadLetter = createRecordingDeadLetterProducer();
 
-		await createDlqSender(
-			dlq.producer,
+		await createDeadLetterSender(
+			deadLetter.producer,
 			"transactions.card.dlq"
 		)([buildPoisonFailure(new Error("Not Confluent wire format"))]);
 
-		const [record] = dlq.sent;
+		const [record] = deadLetter.sent;
 		assert.deepEqual(record?.value, Buffer.from("not avro"));
 		assert.equal(record?.headers.traceparent, TRACEPARENT);
 		assert.equal(record?.headers["x-dlq-reason"], "deserialisation");

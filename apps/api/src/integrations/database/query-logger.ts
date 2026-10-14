@@ -29,11 +29,11 @@ export class QueryPlanLogger implements DrizzleLogger {
 			return;
 		}
 
-		this.logger.info({ params }, `${inlineParams(query, params)};`);
+		this.logger.info({ params }, `${inlineParameters(query, params)};`);
 	}
 
 	async logPlan(query: string, params: unknown[]): Promise<void> {
-		const statement = `${inlineParams(query, params)};`;
+		const statement = `${inlineParameters(query, params)};`;
 		const explainStatement = buildExplainStatement(query);
 
 		if (explainStatement === undefined) {
@@ -67,7 +67,7 @@ export class QueryPlanLogger implements DrizzleLogger {
  * The query with each $n replaced by its value as a SQL literal. One pass, so
  * a value that itself contains "$1" is left as it is.
  */
-export function inlineParams(query: string, params: unknown[]): string {
+export function inlineParameters(query: string, params: unknown[]): string {
 	return query.replace(/\$(\d+)/g, (_placeholder, position: string) =>
 		formatSqlLiteral(params[Number(position) - 1])
 	);

@@ -79,7 +79,7 @@ suite("loadConfig", () => {
 			"transactions.internal-transfer"
 		);
 		assert.strictEqual(
-			config.kafka.topics.dlq,
+			config.kafka.topics.deadLetter,
 			"transactions.internal-transfer.dlq"
 		);
 	});

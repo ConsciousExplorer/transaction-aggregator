@@ -22,14 +22,14 @@ import { handleDeserialisationError } from "./integrations/events/handlers/handl
 import {
 	type BatchHandler,
 	createTransactionBatchHandler,
-	type SendToDlq
+	type SendToDeadLetterQueue
 } from "./integrations/events/handlers/transactionBatchHandler.ts";
 import {
 	type ConsumedValue,
-	createDlqSender,
+	createDeadLetterSender,
 	createKafkaConsumer,
-	createKafkaDlqProducer,
-	type DlqProducer,
+	createKafkaDeadLetterProducer,
+	type DeadLetterProducer,
 	type KafkaConsumer,
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
@@ -58,14 +58,14 @@ const tracerProvider = startTracing(config.tracing);
 let writerPool: Pool;
 let writerDb: Database;
 let kafkaConsumer: KafkaConsumer;
-let kafkaDlqProducer: DlqProducer;
+let kafkaDeadLetterProducer: DeadLetterProducer;
 let server: Server;
 let rules: Rule[];
 let rulesetVersion: number;
 let uncategorisedId: number;
 let transactionNormaliser: Normaliser;
 let ruleCategoriser: RuleCategoriser;
-let sendToDlq: SendToDlq;
+let sendToDeadLetterQueue: SendToDeadLetterQueue;
 let transactionBatchHandler: BatchHandler;
 let fetchOnMiss: FetchOnMiss;
 
@@ -107,7 +107,7 @@ export async function shutDownGracefully(code = 0): Promise<never> {
 	}
 
 	try {
-		await kafkaDlqProducer.close();
+		await kafkaDeadLetterProducer.close();
 	} catch (err) {
 		logger.error({ err }, "Producer close failed");
 	}
@@ -165,8 +165,7 @@ try {
 	);
 	fetchOnMiss = avroDeserialiser.fetchOnMiss; //TODO: might need to remove this.
 
-
-	/** 
+	/**
 	 * Create the Kafka consumer instance.
 	 */
 	kafkaConsumer = await createKafkaConsumer<
@@ -201,7 +200,7 @@ try {
 		registry
 	);
 
-	kafkaDlqProducer = await createKafkaDlqProducer(
+	kafkaDeadLetterProducer = await createKafkaDeadLetterProducer(
 		{
 			clientId: `${config.kafka.clientId}_producer`,
 			acks: -1,
@@ -230,10 +229,13 @@ try {
 		writerPool
 	);
 
-	sendToDlq = createDlqSender(kafkaDlqProducer, config.kafka.topics.dlq);
+	sendToDeadLetterQueue = createDeadLetterSender(
+		kafkaDeadLetterProducer,
+		config.kafka.topics.deadLetter
+	);
 	transactionBatchHandler = createTransactionBatchHandler(
 		transactionIngester,
-		sendToDlq
+		sendToDeadLetterQueue
 	);
 
 	/**
@@ -241,7 +243,7 @@ try {
 	 * a broker failure lands in the catch below instead of an unhandled rejection.
 	 */
 	await Promise.all([
-		kafkaDlqProducer.metadata({ forceUpdate: true }),
+		kafkaDeadLetterProducer.metadata({ forceUpdate: true }),
 		kafkaConsumer.metadata({ forceUpdate: true })
 	]);
 
@@ -253,7 +255,6 @@ try {
 	process.exit(1);
 }
 
-
 /**
  * The consumer closes the loop for subsequent calls. Server.listen must be called earlier
  */
@@ -264,8 +265,8 @@ try {
 	);
 
 	/**
-	 * Used for metrics and tracing. 
-	 * The consumer's lag is the difference between the last offset in the partition and the last offset the consumer has committed. 
+	 * Used for metrics and tracing.
+	 * The consumer's lag is the difference between the last offset in the partition and the last offset the consumer has committed.
 	 * This is a measure of how far behind the consumer is in processing messages from the topic.
 	 */
 	kafkaConsumer.startLagMonitoring(
