@@ -14,9 +14,7 @@ import {
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import type { CursorDirection } from "#src/schemas/common.ts";
 import {
-	type TransactionSort,
 	transactionCursorSchema,
 	transactionSortSchema,
 	transactionTypeSchema
@@ -43,9 +41,10 @@ export const listTransactionsFilterSchema = z.object({
 		.optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
+	// The order rows are read in
 	sort: transactionSortSchema.default("-occurredAt"),
-	// Left out on the first page. next: the rows after the cursor in sort order.
-	// prev: the rows before it, read the other way; the caller flips them back.
+	// Left out to read from the start. Otherwise only the rows after this
+	// keyset, in sort order.
 	cursor: transactionCursorSchema.optional(),
 	limit: z.number().int().min(1).max(100).default(50)
 });
@@ -74,22 +73,6 @@ export type SetTransactionCategory = z.infer<
 	typeof setTransactionCategorySchema
 >;
 
-/**
- * Whether a page is read in ascending (occurred_at, transaction_id) order.
- * next continues in the sort order. prev reads against it from the cursor,
- * so that LIMIT keeps the rows nearest the cursor rather than the furthest.
- */
-export function isAscendingRead(
-	sort: TransactionSort,
-	cursorDirection: CursorDirection
-): boolean {
-	const sortAscending = sort === "occurredAt";
-	if (cursorDirection === "next") {
-		return sortAscending;
-	}
-	return !sortAscending;
-}
-
 export class UserTransactionRepository {
 	db: NodePgDatabase;
 
@@ -106,8 +89,7 @@ export class UserTransactionRepository {
 					? filter.category
 					: [filter.category];
 
-		const cursorDirection = filter.cursor?.direction ?? "next";
-		const ascending = isAscendingRead(filter.sort, cursorDirection);
+		const ascending = filter.sort === "occurredAt";
 
 		// The cursor conditions go before the window. Postgres starts each
 		// partition's index scan at the first occurred_at bound it finds, so with

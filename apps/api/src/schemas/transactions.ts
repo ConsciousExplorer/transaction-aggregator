@@ -26,15 +26,22 @@ export const transactionStatusSchema = z.enum([
 export const transactionSortSchema = z.enum(["-occurredAt", "occurredAt"]);
 export type TransactionSort = z.infer<typeof transactionSortSchema>;
 
-// What a list cursor carries: the boundary row's keyset and which way to read
-// from it. occurredAt is exact to the microsecond, because rows can differ only
-// in microseconds and a millisecond bound would skip or repeat them.
+// The boundary row's keyset, which the query seeks from. occurredAt is exact to
+// the microsecond, because rows can differ only in microseconds and a
+// millisecond bound would skip or repeat them.
 export const transactionCursorSchema = z.object({
 	occurredAt: z.iso.datetime({ precision: 6 }),
-	transactionId: z.uuid(),
-	direction: cursorDirectionSchema
+	transactionId: z.uuid()
 });
 export type TransactionCursor = z.infer<typeof transactionCursorSchema>;
+
+// What the opaque cursor in links carries: which way to read, and the row to
+// read from
+export const transactionPageCursorSchema = z.object({
+	direction: cursorDirectionSchema,
+	position: transactionCursorSchema
+});
+export type TransactionPageCursor = z.infer<typeof transactionPageCursorSchema>;
 
 export const transactionItemSchema = z.object({
 	transactionId: z.uuid(),

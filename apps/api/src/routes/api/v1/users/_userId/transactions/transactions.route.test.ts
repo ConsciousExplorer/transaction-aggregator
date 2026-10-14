@@ -246,17 +246,21 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(next.searchParams.get("toDateTime"), TO);
 		assert.strictEqual(next.searchParams.get("limit"), "1");
 		assert.deepStrictEqual(readLinkCursor(body.links.next), {
-			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TX_ID,
-			direction: "next"
+			direction: "next",
+			position: {
+				occurredAt: "2026-08-15T09:30:00.000123Z",
+				transactionId: TX_ID
+			}
 		});
 	});
 
 	test("the next link keeps every filter as sent and replaces the previous cursor", async () => {
 		const sent = encodeTestCursor({
-			occurredAt: "2026-09-01T00:00:00.000000Z",
-			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
-			direction: "next"
+			direction: "next",
+			position: {
+				occurredAt: "2026-09-01T00:00:00.000000Z",
+				transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"
+			}
 		});
 		const res = await app.inject({
 			method: "GET",
@@ -272,26 +276,28 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		]);
 		assert.strictEqual(next.searchParams.getAll("cursor").length, 1);
 		assert.deepStrictEqual(readLinkCursor(body.links.next), {
-			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TX_ID,
-			direction: "next"
+			direction: "next",
+			position: {
+				occurredAt: "2026-08-15T09:30:00.000123Z",
+				transactionId: TX_ID
+			}
 		});
 	});
 
-	test("the cursor from links.next is forwarded as the keyset bound", async () => {
-		const cursor = {
+	test("the cursor from links.next reaches the repository as the keyset alone", async () => {
+		const position = {
 			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TX_ID,
-			direction: "next"
+			transactionId: TX_ID
 		};
 		await app.inject({
 			method: "GET",
-			url: `${LIST_URL}&cursor=${encodeTestCursor(cursor)}`
+			url: `${LIST_URL}&cursor=${encodeTestCursor({ direction: "next", position })}`
 		});
 		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
-			| { cursor?: unknown }
+			| { cursor?: unknown; sort?: string }
 			| undefined;
-		assert.deepStrictEqual(filter?.cursor, cursor);
+		assert.deepStrictEqual(filter?.cursor, position);
+		assert.strictEqual(filter?.sort, "-occurredAt");
 	});
 
 	const INVALID_CURSORS = [
@@ -299,23 +305,34 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		[
 			"an unknown direction",
 			encodeTestCursor({
-				occurredAt: "2026-08-15T09:30:00.000123Z",
-				transactionId: TX_ID,
-				direction: "sideways"
+				direction: "sideways",
+				position: {
+					occurredAt: "2026-08-15T09:30:00.000123Z",
+					transactionId: TX_ID
+				}
 			})
 		],
 		[
 			"an occurredAt that isn't a datetime",
 			encodeTestCursor({
-				occurredAt: "yesterday",
-				transactionId: TX_ID,
-				direction: "next"
+				direction: "next",
+				position: { occurredAt: "yesterday", transactionId: TX_ID }
 			})
 		],
 		[
 			"a millisecond occurredAt",
 			encodeTestCursor({
-				occurredAt: "2026-08-15T09:30:00.000Z",
+				direction: "next",
+				position: {
+					occurredAt: "2026-08-15T09:30:00.000Z",
+					transactionId: TX_ID
+				}
+			})
+		],
+		[
+			"a cursor without a position",
+			encodeTestCursor({
+				occurredAt: "2026-08-15T09:30:00.000123Z",
 				transactionId: TX_ID,
 				direction: "next"
 			})
@@ -350,9 +367,11 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	test("self, next and prev all carry the window as read, a future toDateTime as now", async () => {
 		const fromDateTime = new Date(Date.now() - 80 * DAY_MS).toISOString();
 		const sent = encodeTestCursor({
-			occurredAt: "2026-09-01T00:00:00.000000Z",
-			transactionId: TX_ID,
-			direction: "next"
+			direction: "next",
+			position: {
+				occurredAt: "2026-09-01T00:00:00.000000Z",
+				transactionId: TX_ID
+			}
 		});
 		// A cursor page that comes back full has both neighbours
 		const res = await app.inject({
@@ -515,9 +534,11 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 
 	test("a page reached through next links back with prev from its first row", async () => {
 		const sent = encodeTestCursor({
-			occurredAt: "2026-09-01T00:00:00.000000Z",
-			transactionId: TX_ID,
-			direction: "next"
+			direction: "next",
+			position: {
+				occurredAt: "2026-09-01T00:00:00.000000Z",
+				transactionId: TX_ID
+			}
 		});
 		const res = await app.inject({
 			method: "GET",
@@ -529,9 +550,11 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(self.searchParams.get("cursor"), sent);
 
 		assert.deepStrictEqual(readLinkCursor(body.links.prev), {
-			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TX_ID,
-			direction: "prev"
+			direction: "prev",
+			position: {
+				occurredAt: "2026-08-15T09:30:00.000123Z",
+				transactionId: TX_ID
+			}
 		});
 	});
 
@@ -542,9 +565,11 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		);
 
 		const sent = encodeTestCursor({
-			occurredAt: "2026-08-01T00:00:00.000000Z",
-			transactionId: TX_ID,
-			direction: "prev"
+			direction: "prev",
+			position: {
+				occurredAt: "2026-08-01T00:00:00.000000Z",
+				transactionId: TX_ID
+			}
 		});
 		const res = await app.inject({
 			method: "GET",
@@ -553,9 +578,10 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		const body = res.json();
 
 		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
-			| { cursor?: { direction?: string } }
+			| { sort?: string }
 			| undefined;
-		assert.strictEqual(filter?.cursor?.direction, "prev");
+		assert.strictEqual(filter?.sort, "occurredAt");
+		assert.strictEqual(body.meta.sort, "-occurredAt");
 		assert.deepStrictEqual(
 			body.data.map((row: { transactionId: string }) => row.transactionId),
 			[TX_ID, "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"],
@@ -564,9 +590,34 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		// Not full, so nothing newer; came from an older page, so next exists
 		assert.strictEqual("prev" in body.links, false);
 		assert.deepStrictEqual(readLinkCursor(body.links.next), {
-			occurredAt: "2026-08-14T12:00:00.000000Z",
-			transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f",
-			direction: "next"
+			direction: "next",
+			position: {
+				occurredAt: "2026-08-14T12:00:00.000000Z",
+				transactionId: "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"
+			}
 		});
+	});
+
+	test("an oldest-first prev page is read newest first, and the links keep the sort", async () => {
+		const sent = encodeTestCursor({
+			direction: "prev",
+			position: {
+				occurredAt: "2026-08-20T00:00:00.000000Z",
+				transactionId: TX_ID
+			}
+		});
+		const res = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&sort=occurredAt&cursor=${sent}`
+		});
+		const body = res.json();
+
+		const filter = getTransactions.mock.calls[0]?.arguments.at(0) as
+			| { sort?: string }
+			| undefined;
+		assert.strictEqual(filter?.sort, "-occurredAt");
+		assert.strictEqual(body.meta.sort, "occurredAt");
+		const next = new URL(body.links.next, "http://client.example");
+		assert.strictEqual(next.searchParams.get("sort"), "occurredAt");
 	});
 });

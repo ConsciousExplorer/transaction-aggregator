@@ -1,7 +1,7 @@
 -- Query plans for the API's SQL, against the dev database.
 --
 -- To see the SQL the API sends, run the API locally with DATABASE_QUERY_LOG in
--- apps/api/.env (development only; see apps/api/sample.env):
+-- apps/api/.env (see apps/api/sample.env):
 --   sql   logs each statement with its values filled in, ready to paste into
 --         DBeaver or psql
 --   plan  also logs its plan: EXPLAIN (ANALYZE, BUFFERS) for a read, which runs

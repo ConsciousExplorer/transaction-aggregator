@@ -12,9 +12,10 @@ import {
 import {
 	listResponseSchema,
 	mapFundingSource,
-	type TransactionCursor,
-	transactionCursorSchema,
+	type TransactionPageCursor,
+	type TransactionSort,
 	transactionDetailSchema,
+	transactionPageCursorSchema,
 	transactionSortSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
@@ -27,15 +28,35 @@ import {
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
 /** The cursor a page boundary row hands to the next or previous page */
-function toCursor(
+function toPageCursor(
 	row: { cursorOccurredAt: string; transactionId: string },
 	direction: CursorDirection
-): TransactionCursor {
+): TransactionPageCursor {
 	return {
-		occurredAt: row.cursorOccurredAt,
-		transactionId: row.transactionId,
-		direction
+		direction,
+		position: {
+			occurredAt: row.cursorOccurredAt,
+			transactionId: row.transactionId
+		}
 	};
+}
+
+/**
+ * The order the repository reads a page in. next continues in the sort
+ * order. prev reads against it from the cursor, so that LIMIT keeps the rows
+ * nearest the cursor rather than the furthest; toKeysetPage flips them back.
+ */
+function toReadSort(
+	sort: TransactionSort,
+	cursorDirection: CursorDirection
+): TransactionSort {
+	if (cursorDirection === "next") {
+		return sort;
+	}
+	if (sort === "occurredAt") {
+		return "-occurredAt";
+	}
+	return "occurredAt";
 }
 
 export default async (
@@ -109,11 +130,11 @@ export default async (
 			);
 
 			const limit = request.query.limit;
-			const cursor =
+			const pageCursor =
 				request.query.cursor === undefined
 					? undefined
-					: decodeCursor(request.query.cursor, transactionCursorSchema);
-			const cursorDirection = cursor?.direction ?? "next";
+					: decodeCursor(request.query.cursor, transactionPageCursorSchema);
+			const cursorDirection = pageCursor?.direction ?? "next";
 
 			// One extra row tells us whether another page exists in that direction
 			const rows = await opts.transactionRepository.getTransactions({
@@ -126,8 +147,8 @@ export default async (
 				direction: request.query.direction,
 				amountMin: request.query.amountMin,
 				amountMax: request.query.amountMax,
-				sort: request.query.sort,
-				cursor,
+				sort: toReadSort(request.query.sort, cursorDirection),
+				cursor: pageCursor?.position,
 				limit: limit + 1
 			});
 
@@ -135,7 +156,7 @@ export default async (
 				rows,
 				limit,
 				cursorDirection,
-				cursor !== undefined
+				pageCursor !== undefined
 			);
 
 			const data = page.rows.map((row) => ({
@@ -153,10 +174,10 @@ export default async (
 			}));
 
 			const nextParams = page.nextFrom
-				? { cursor: encodeCursor(toCursor(page.nextFrom, "next")) }
+				? { cursor: encodeCursor(toPageCursor(page.nextFrom, "next")) }
 				: null;
 			const prevParams = page.prevFrom
-				? { cursor: encodeCursor(toCursor(page.prevFrom, "prev")) }
+				? { cursor: encodeCursor(toPageCursor(page.prevFrom, "prev")) }
 				: null;
 
 			// The window as parsed, so a future toDateTime is already now. Every

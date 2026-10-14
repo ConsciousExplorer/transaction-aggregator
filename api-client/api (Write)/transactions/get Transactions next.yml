@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: localhost:8083/api/v1/users/30440930-4207-4d26-bc11-1d65c07fe6c3/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=2&transactionType=card&cursor=eyJvY2N1cnJlZEF0IjoiMjAyNS0xMi0yMlQxNDoyNDoyMi4yMDQwMDBaIiwidHJhbnNhY3Rpb25JZCI6IjAxYTBmODlmLWQ1OWYtNzQ3YS04ZDZkLTM2M2NhYmY5NzYzZSIsImRpcmVjdGlvbiI6Im5leHQifQ
+  url: localhost:8083/api/v1/users/30440930-4207-4d26-bc11-1d65c07fe6c3/transactions?accountId=c37b3e53-c30c-4c5a-b547-85fdadedd459&fromDateTime=2025-12-01T02:23:56.764Z&toDateTime=2025-12-31T02:23:56.764Z&limit=2&transactionType=card&cursor=eyJkaXJlY3Rpb24iOiJuZXh0IiwicG9zaXRpb24iOnsib2NjdXJyZWRBdCI6IjIwMjUtMTItMjJUMTQ6MjQ6MjIuMjA0MDAwWiIsInRyYW5zYWN0aW9uSWQiOiIwMWEwZjg5Zi1kNTlmLTc0N2EtOGQ2ZC0zNjNjYWJmOTc2M2UifX0
   params:
     - name: accountId
       value: c37b3e53-c30c-4c5a-b547-85fdadedd459
@@ -23,7 +23,7 @@ http:
       value: card
       type: query
     - name: cursor
-      value: eyJvY2N1cnJlZEF0IjoiMjAyNS0xMi0yMlQxNDoyNDoyMi4yMDQwMDBaIiwidHJhbnNhY3Rpb25JZCI6IjAxYTBmODlmLWQ1OWYtNzQ3YS04ZDZkLTM2M2NhYmY5NzYzZSIsImRpcmVjdGlvbiI6Im5leHQifQ
+      value: eyJkaXJlY3Rpb24iOiJuZXh0IiwicG9zaXRpb24iOnsib2NjdXJyZWRBdCI6IjIwMjUtMTItMjJUMTQ6MjQ6MjIuMjA0MDAwWiIsInRyYW5zYWN0aW9uSWQiOiIwMWEwZjg5Zi1kNTlmLTc0N2EtOGQ2ZC0zNjNjYWJmOTc2M2UifX0
       type: query
     - name: category
       value: loan_repayment
