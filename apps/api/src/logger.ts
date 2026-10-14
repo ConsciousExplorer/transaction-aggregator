@@ -1,4 +1,4 @@
-import { type Logger, pino } from "pino";
+import { pino } from "pino";
 import { z } from "zod";
 
 /** The levels pino understands. config.ts reuses this for LOG_LEVEL. */
@@ -38,7 +38,7 @@ export const loggerOptionsSchema = z.object({
 
 export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
 
-export function createLogger(options: LoggerOptions = {}): Logger {
+export function createLogger(options: LoggerOptions = {}) {
 	const { level, redactedFields, redactDepth } =
 		loggerOptionsSchema.parse(options);
 

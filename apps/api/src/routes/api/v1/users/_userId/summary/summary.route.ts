@@ -55,14 +55,13 @@ const metaSchema = collectionMetaSchema.extend({
 type SummaryRow = Awaited<
 	ReturnType<SummaryRepository["getUserSummary"]>
 >[number];
-type SummaryTotal = z.infer<typeof summaryTotalSchema>;
 
 function buildAmount(amountMinor: number, currency: string) {
 	return { amountMinor, currency };
 }
 
 /** Grand totals over all rows. */
-function sumTotals(rows: SummaryRow[]): SummaryTotal {
+function sumTotals(rows: SummaryRow[]) {
 	// The database holds one currency; an empty window has no row to read it from
 	const currency = rows[0]?.currency ?? "ZAR";
 

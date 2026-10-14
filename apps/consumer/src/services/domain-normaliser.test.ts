@@ -11,7 +11,7 @@ import { createNormaliser } from "#src/services/domain-normaliser.ts";
  * types every one of these as bare `z.string()`/`z.number()`, which is exactly
  * why the normaliser has to validate what it produces.
  */
-function buildCardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
+function buildCardRecord(over: Partial<CardTransaction> = {}) {
 	return {
 		transactionId: "txn-0001",
 		sourceType: "card",
@@ -144,7 +144,7 @@ suite("domain normaliser validation", () => {
 });
 
 /** A well-formed EFT record as the producer emits it, every field set. */
-function buildEftRecord(over: Partial<EftTransaction> = {}): EftTransaction {
+function buildEftRecord(over: Partial<EftTransaction> = {}) {
 	return {
 		transactionId: "txn-0002",
 		sourceType: "eft",

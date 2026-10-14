@@ -120,7 +120,7 @@ async function ingestOneByOne(
 	validMessages: ValidMessage[],
 	ingester: TransactionIngester,
 	sendToDeadLetterQueue: SendToDeadLetterQueue
-): Promise<void> {
+) {
 	for (const message of validMessages) {
 		try {
 			await ingester.ingest([message.value]);

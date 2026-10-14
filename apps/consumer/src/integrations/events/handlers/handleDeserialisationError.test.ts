@@ -7,7 +7,7 @@ import {
 import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
 import { handleDeserialisationError } from "./handleDeserialisationError.ts";
 
-function buildErrorContext(error: unknown): DeserializationErrorContext {
+function buildErrorContext(error: unknown) {
 	return { error, payloadType: "value" } as DeserializationErrorContext;
 }
 

@@ -31,7 +31,7 @@ export class InvalidClaimsError extends TokenVerificationError {
 
 // Map known jose errors. Always keep internal
 // error types: https://github.com/panva/jose/blob/main/docs/util/errors/README.md
-export function translateJoseError(err: unknown): TokenVerificationError {
+export function translateJoseError(err: unknown) {
 	const name = err instanceof Error ? err.name : "";
 	if (name === "JWTExpired")
 		return new TokenVerificationError("Token expired", "expired");

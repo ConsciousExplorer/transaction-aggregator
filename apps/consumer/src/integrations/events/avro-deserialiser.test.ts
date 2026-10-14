@@ -10,7 +10,7 @@ const SCHEMA = JSON.stringify({
 });
 
 /** Confluent wire format: magic byte 0, int32 schema id, Avro body. */
-function buildFramedPayload(schemaId: number): Buffer {
+function buildFramedPayload(schemaId: number) {
 	const header = Buffer.alloc(5);
 	header.writeUInt8(0, 0);
 	header.writeInt32BE(schemaId, 1);

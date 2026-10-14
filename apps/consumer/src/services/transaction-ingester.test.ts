@@ -4,7 +4,6 @@ import type {
 	CanonicalTransactionSchema,
 	DomainTransactionSchema
 } from "#src/schemas/transaction.ts";
-import type { Normaliser } from "#src/services/domain-normaliser.ts";
 import type { RuleCategoriser } from "#src/services/rule-categoriser.ts";
 import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 
@@ -28,7 +27,7 @@ function buildCanonical(
 	};
 }
 
-const createEmittingNormaliser = (value: unknown): Normaliser => ({
+const createEmittingNormaliser = (value: unknown) => ({
 	normalise: () => value as CanonicalTransactionSchema
 });
 

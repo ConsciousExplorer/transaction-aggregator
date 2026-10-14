@@ -32,7 +32,7 @@ const NORMALISERS: Record<TransactionType, DomainNormaliser> = {
 		normaliseInternalTransfer(record as InternalTransferTransaction)
 };
 
-function lookupNormaliser(transactionType: TransactionType): DomainNormaliser {
+function lookupNormaliser(transactionType: TransactionType) {
 	return NORMALISERS[transactionType];
 }
 
@@ -45,9 +45,7 @@ function lookupNormaliser(transactionType: TransactionType): DomainNormaliser {
  * it raises NonRetryableError and the batch handler dead-letters that record
  * instead of replaying it forever against the same bad mapping.
  */
-function parseCanonical(
-	transaction: CanonicalTransactionSchema
-): CanonicalTransactionSchema {
+function parseCanonical(transaction: CanonicalTransactionSchema) {
 	const result = canonicalTransactionSchema.safeParse(transaction);
 
 	if (!result.success) {
@@ -76,7 +74,7 @@ function parseCanonical(
 function normaliseAndValidate(
 	normalise: DomainNormaliser,
 	transaction: DomainTransactionSchema
-): CanonicalTransactionSchema {
+) {
 	let normalised: CanonicalTransactionSchema;
 
 	try {
@@ -104,9 +102,7 @@ export function createNormaliser(transactionType: TransactionType): Normaliser {
 	};
 }
 
-export function normaliseCard(
-	record: CardTransaction
-): CanonicalTransactionSchema {
+export function normaliseCard(record: CardTransaction) {
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
@@ -132,9 +128,7 @@ export function normaliseCard(
 	};
 }
 
-export function normaliseDebitOrder(
-	record: DebitOrderTransaction
-): CanonicalTransactionSchema {
+export function normaliseDebitOrder(record: DebitOrderTransaction) {
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
@@ -160,9 +154,7 @@ export function normaliseDebitOrder(
 	};
 }
 
-export function normaliseEft(
-	record: EftTransaction
-): CanonicalTransactionSchema {
+export function normaliseEft(record: EftTransaction) {
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
@@ -188,9 +180,7 @@ export function normaliseEft(
 	};
 }
 
-export function normaliseInternalTransfer(
-	record: InternalTransferTransaction
-): CanonicalTransactionSchema {
+export function normaliseInternalTransfer(record: InternalTransferTransaction) {
 	// e.g looking from the Saving Account, we paid into the Loan Account
 	const otherAccountType =
 		record.transactionType === "debit"
@@ -221,9 +211,7 @@ export function normaliseInternalTransfer(
 	};
 }
 
-export function normaliseLoan(
-	record: LoanTransaction
-): CanonicalTransactionSchema {
+export function normaliseLoan(record: LoanTransaction) {
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,

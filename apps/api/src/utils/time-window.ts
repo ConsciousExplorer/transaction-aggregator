@@ -7,7 +7,7 @@ export function assertWindowWithin(
 	fromDateTime: string,
 	toDateTime: string,
 	maxDays: number
-): void {
+) {
 	const spanMs = Date.parse(toDateTime) - Date.parse(fromDateTime);
 	if (spanMs > maxDays * DAY_MS) throw windowTooLargeError(maxDays);
 }

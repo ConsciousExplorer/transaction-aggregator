@@ -4,7 +4,7 @@ import type { Queryable } from "../pool.ts";
 export async function batchInsertTransactions(
 	db: Queryable,
 	transactions: CategorisedTransactionSchema[]
-): Promise<{ attempted: number; inserted: number }> {
+) {
 	if (transactions.length === 0) return { attempted: 0, inserted: 0 };
 
 	// One array per column, each in transaction order, for UNNEST

@@ -14,7 +14,7 @@ import {
  */
 const activeVersion = sql`(select max(${ruleSets.version}) from ${ruleSets})`;
 
-export async function loadActiveRules(db: Database): Promise<Rule[]> {
+export async function loadActiveRules(db: Database) {
 	const rows = await db
 		.select({
 			priority: categorizationRules.priority,
@@ -34,7 +34,7 @@ export async function loadActiveRules(db: Database): Promise<Rule[]> {
  * Read from `rule_sets` rather than inferred from a rule row, so it is still
  * correct when the active set has no rules.
  */
-export async function loadRulesetVersion(db: Database): Promise<number> {
+export async function loadRulesetVersion(db: Database) {
 	const rows = await db
 		.select({ version: max(ruleSets.version) })
 		.from(ruleSets);
@@ -47,7 +47,7 @@ export async function loadRulesetVersion(db: Database): Promise<number> {
 	return version;
 }
 
-export async function loadUncategorisedId(db: Database): Promise<number> {
+export async function loadUncategorisedId(db: Database) {
 	const rows = await db
 		.select({ categoryId: categories.categoryId })
 		.from(categories)

@@ -5,9 +5,7 @@ export interface CommittableMessage {
 	commit(): void | Promise<void>;
 }
 
-export async function commitBatch(
-	messages: readonly CommittableMessage[]
-): Promise<void> {
+export async function commitBatch(messages: readonly CommittableMessage[]) {
 	const highest = new Map<string, CommittableMessage>();
 	for (const message of messages) {
 		const key = `${message.topic}:${message.partition}`;

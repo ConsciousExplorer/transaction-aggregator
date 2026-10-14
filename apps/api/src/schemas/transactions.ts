@@ -130,7 +130,7 @@ export function parseFundingSource(
 	transactionType: z.infer<typeof transactionTypeSchema>,
 	metadata: unknown,
 	currency: string
-): FundingSource {
+) {
 	const raw = metadata as Record<string, unknown>;
 
 	if (transactionType === "loan") {

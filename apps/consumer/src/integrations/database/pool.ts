@@ -21,11 +21,11 @@ export interface Queryable {
 export type Database = NodePgDatabase<Record<string, never>>;
 
 /** Drizzle query builder over an existing pool or transaction client. */
-export function createDatabase(client: Pool | PoolClient): Database {
+export function createDatabase(client: Pool | PoolClient) {
 	return drizzle(client);
 }
 
-export async function createPool(config: PoolConfig): Promise<Pool> {
+export async function createPool(config: PoolConfig) {
 	const pool = new Pool({
 		min: 3,
 		max: 20,
@@ -44,7 +44,7 @@ export async function createPool(config: PoolConfig): Promise<Pool> {
 export async function runInTransaction<T>(
 	pool: Pool,
 	fn: (client: PoolClient) => Promise<T>
-): Promise<T> {
+) {
 	const client = await pool.connect();
 	try {
 		await client.query("BEGIN");

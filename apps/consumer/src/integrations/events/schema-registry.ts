@@ -15,7 +15,7 @@ const REGISTRY_TIMEOUT_MS = 5_000;
 export async function fetchFromRegistry<S extends z.ZodType>(
 	url: string,
 	schema: S
-): Promise<z.infer<S>> {
+) {
 	let response: Response;
 
 	try {

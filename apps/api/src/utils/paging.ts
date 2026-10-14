@@ -76,10 +76,7 @@ export function decodeCursor<Cursor>(text: string, schema: ZodType<Cursor>) {
  * that encodes a pasted link again would turn "%3A" into "%253A" and break
  * every datetime in it.
  */
-export function buildLink(
-	requestUrl: string,
-	params: Record<string, string>
-): string {
+export function buildLink(requestUrl: string, params: Record<string, string>) {
 	const queryStart = requestUrl.indexOf("?");
 	const path = queryStart === -1 ? requestUrl : requestUrl.slice(0, queryStart);
 	const query = new URLSearchParams(
@@ -103,7 +100,7 @@ export function buildPageLinks(
 	windowParams: Record<string, string>,
 	nextParams: Record<string, string> | null,
 	prevParams: Record<string, string> | null
-): Links {
+) {
 	const links: Links = { self: buildLink(requestUrl, windowParams) };
 	if (nextParams) {
 		links.next = buildLink(requestUrl, { ...windowParams, ...nextParams });

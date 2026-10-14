@@ -21,7 +21,7 @@ const makeRule = (over: Partial<Rule> = {}): Rule => ({
 
 // Ruleset version (7) deliberately differs from rule.version (1): a verdict
 // must carry the loaded ruleset's version on every path, never the rule's own.
-const makeRuleSet = (rules: Rule[], over: Partial<RuleSet> = {}): RuleSet => ({
+const makeRuleSet = (rules: Rule[], over: Partial<RuleSet> = {}) => ({
 	version: 7,
 	rules,
 	uncategorisedId: 999,

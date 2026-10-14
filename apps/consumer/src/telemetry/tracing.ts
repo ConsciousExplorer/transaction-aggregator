@@ -20,7 +20,7 @@ import {
 export function startTracing(options: {
 	enabled: boolean;
 	serviceName: string;
-}): NodeTracerProvider | undefined {
+}) {
 	if (!options.enabled) return undefined;
 
 	const provider = new NodeTracerProvider({
@@ -32,7 +32,9 @@ export function startTracing(options: {
 	return provider;
 }
 
-export const getTracer = () => trace.getTracer("consumer");
+export function getTracer() {
+	return trace.getTracer("consumer");
+}
 
 /**
  * Runs `work` inside a new span and makes it the active span, so spans
@@ -43,7 +45,7 @@ export function runInSpan<T>(
 	name: string,
 	options: SpanOptions,
 	work: (span: Span) => T | Promise<T>
-): Promise<T> {
+) {
 	return getTracer().startActiveSpan(name, options, async (span) => {
 		try {
 			return await work(span);

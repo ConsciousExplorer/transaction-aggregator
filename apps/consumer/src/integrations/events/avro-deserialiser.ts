@@ -30,7 +30,7 @@ export interface AvroDeserialiser<T> {
 	fetchOnMiss: FetchOnMiss;
 }
 
-function isConfluentFramed(payload: Buffer): boolean {
+function isConfluentFramed(payload: Buffer) {
 	return (
 		payload.length >= WIRE_HEADER_BYTES && payload.readUInt8(0) === MAGIC_BYTE
 	);
@@ -60,10 +60,7 @@ export function createFetchOnMiss(
 	};
 }
 
-export function deserialise<T>(
-	types: Map<number, avsc.Type>,
-	data?: Buffer
-): DecodedValue<T> | undefined {
+export function deserialise<T>(types: Map<number, avsc.Type>, data?: Buffer) {
 	if (!data?.length) return undefined;
 
 	if (!isConfluentFramed(data)) {
@@ -88,7 +85,7 @@ export function deserialise<T>(
 export async function createAvroDeserialiser<T>(
 	registryUrl: string,
 	subjects: string[]
-): Promise<AvroDeserialiser<T>> {
+) {
 	const types = new Map<number, avsc.Type>();
 
 	for (const subject of subjects) {

@@ -18,7 +18,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // A cursor travels as base64url JSON. These build and read it with Buffer and
 // JSON directly, so the tests pin the wire format, not the route's own helpers.
-function encodeTestCursor(payload: unknown): string {
+function encodeTestCursor(payload: unknown) {
 	return Buffer.from(JSON.stringify(payload)).toString("base64url");
 }
 

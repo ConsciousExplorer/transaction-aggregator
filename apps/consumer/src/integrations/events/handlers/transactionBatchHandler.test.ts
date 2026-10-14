@@ -36,7 +36,7 @@ function buildValidMessage(
 }
 
 /** The histogram is a process-wide singleton, so tests compare before/after. */
-async function countIngestLagObservations(): Promise<number> {
+async function countIngestLagObservations() {
 	const metric = await ingestLagSeconds.get();
 	for (const value of metric.values) {
 		if (value.metricName === "ingest_lag_seconds_count") return value.value;

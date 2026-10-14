@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { type Logger, pino } from "pino";
+import { pino } from "pino";
 import { z } from "zod";
 
 /** The levels pino understands. config.ts reuses this for LOG_LEVEL. */
@@ -41,7 +41,7 @@ export const loggerOptionsSchema = z.object({
 
 export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
 
-function createLogger(options: LoggerOptions = {}): Logger {
+function createLogger(options: LoggerOptions = {}) {
 	const { level, redactedFields, redactDepth } =
 		loggerOptionsSchema.parse(options);
 
@@ -82,6 +82,6 @@ const baseLogger = createLogger({
 });
 
 /** Child logger tagged with the calling module's name. */
-export function createFileLogger(metaUrl: string): Logger {
+export function createFileLogger(metaUrl: string) {
 	return baseLogger.child({ module: basename(fileURLToPath(metaUrl), ".ts") });
 }

@@ -26,7 +26,7 @@ export const cursorDirectionSchema = z.enum(["next", "prev"]);
 export type CursorDirection = z.infer<typeof cursorDirectionSchema>;
 
 /** There are no future transactions to read, so a future instant means now. */
-function clampToNow(isoDateTime: string): string {
+function clampToNow(isoDateTime: string) {
 	const now = new Date();
 	if (Date.parse(isoDateTime) > now.getTime()) {
 		return now.toISOString();

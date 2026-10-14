@@ -9,7 +9,7 @@ import { buildServer } from "#src/server.ts";
 
 const READ_METHODS = ["GET", "HEAD"];
 
-function getMethods(route: RouteOptions): string[] {
+function getMethods(route: RouteOptions) {
 	return Array.isArray(route.method) ? route.method : [route.method];
 }
 

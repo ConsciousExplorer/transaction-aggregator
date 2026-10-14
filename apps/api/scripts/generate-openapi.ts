@@ -11,7 +11,7 @@ const packageInfoConfig = loadPackageInfo(packageJson)
  *  deterministic so openapi.json diffs show real contract changes only. 
  * 
 */
-function sortKeysDeep(value: unknown): unknown {
+function sortKeysDeep(value: unknown) {
 	if (Array.isArray(value)) {
 		const sortedItems: unknown[] = [];
 		for (const item of value) {
@@ -38,12 +38,12 @@ function sortKeysDeep(value: unknown): unknown {
  *  everything BELOW the root still gets the full deep sort. Deterministic
  *  either way — this trades alphabetical for conventional at one level. */
 const ROOT_ORDER = ["openapi", "info", "components", "servers", "tags", "paths", "security", "externalDocs"];
-function rankRootKey(key: string): number {
+function rankRootKey(key: string) {
 	const index = ROOT_ORDER.indexOf(key);
 	return index === -1 ? ROOT_ORDER.length : index;
 }
 
-function sortRoot(doc: Record<string, unknown>): Record<string, unknown> {
+function sortRoot(doc: Record<string, unknown>) {
 	const entries = Object.entries(doc).sort(
 		([firstKey], [secondKey]) =>
 			rankRootKey(firstKey) - rankRootKey(secondKey) ||

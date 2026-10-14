@@ -1,7 +1,6 @@
 import { basename } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { Logger } from "pino";
 import packageJson from "../package.json" with { type: "json" };
 import { loadConfig, loadPackageInfo } from "./config.ts";
 import { createLogger } from "./logger.ts";
@@ -13,6 +12,6 @@ export const secrets = loadSecrets(config.secretsSpec);
 export const baseLogger = createLogger(config.logging);
 
 /** Child logger tagged with the calling module's name. */
-export function createFileLogger(metaUrl: string): Logger {
+export function createFileLogger(metaUrl: string) {
 	return baseLogger.child({ module: basename(fileURLToPath(metaUrl), ".ts") });
 }

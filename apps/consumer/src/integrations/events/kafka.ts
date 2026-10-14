@@ -201,9 +201,7 @@ interface DeserialisationFailure {
 	payloadType: BeforeHookPayloadType;
 }
 
-function getDeserialisationFailure(
-	message: KafkaMessage
-): DeserialisationFailure | undefined {
+function getDeserialisationFailure(message: KafkaMessage) {
 	const failure = message.metadata.deserializationError;
 
 	return failure && typeof failure === "object"
@@ -261,7 +259,7 @@ type FlushTrigger = "size" | "linger" | "stream_end";
  * One link per message that carries a W3C traceparent header, pointing at the
  * trace context the producer minted for it.
  */
-function buildSpanLinks(batch: KafkaMessage[]): Link[] {
+function buildSpanLinks(batch: KafkaMessage[]) {
 	const links: Link[] = [];
 
 	for (const message of batch) {
@@ -350,7 +348,7 @@ export async function startBatchConsumer(
 		endFlushTimer();
 	}
 
-	function flushBatch(trigger: FlushTrigger): Promise<void> {
+	function flushBatch(trigger: FlushTrigger) {
 		const flushed = inFlight.then(() => drainBatch(trigger));
 		// The queue swallows the rejection so one failure does not poison every
 		// later flush; the returned promise still carries it to the caller.

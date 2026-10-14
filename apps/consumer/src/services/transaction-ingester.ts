@@ -34,7 +34,7 @@ export function createTransactionIngester(
 	normaliser: Normaliser,
 	categoriser: RuleCategoriser,
 	pool: Pool
-): TransactionIngester {
+) {
 	function categoriseAll(transactions: DomainTransactionSchema[]) {
 		const categorisedTransactions: CategorisedTransactionSchema[] = [];
 		const matcherTypes: Verdict["matcherType"][] = [];
@@ -55,9 +55,7 @@ export function createTransactionIngester(
 		return { categorisedTransactions, matcherTypes };
 	}
 
-	async function ingest(
-		transactions: DomainTransactionSchema[]
-	): Promise<BatchOutcome> {
+	async function ingest(transactions: DomainTransactionSchema[]) {
 		const { categorisedTransactions, matcherTypes } = await runInSpan(
 			"categorize",
 			{ attributes: { "transaction.count": transactions.length } },

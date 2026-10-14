@@ -20,7 +20,7 @@ interface AvroRecord {
 const header =
 	"// Generated from repository schemas — do not edit. Run npm run schema:generate\n";
 
-function buildZodExpression(type: unknown, fieldName: string): string {
+function buildZodExpression(type: unknown, fieldName: string) {
 	if (type === "string") return "z.string()";
 	if (type === "long" || type === "int") return "z.number()";
 	if (type === "float" || type === "double") return "z.number()";
@@ -38,11 +38,11 @@ function buildZodExpression(type: unknown, fieldName: string): string {
 	);
 }
 
-function lowercaseFirstLetter(name: string): string {
+function lowercaseFirstLetter(name: string) {
 	return name.charAt(0).toLowerCase() + name.slice(1);
 }
 
-function emitSchema(record: AvroRecord): string {
+function emitSchema(record: AvroRecord) {
 	const schemaName = `${lowercaseFirstLetter(record.name)}Schema`;
 	const fieldLines: string[] = [];
 

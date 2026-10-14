@@ -8,7 +8,6 @@ import {
 } from "@fastify/type-provider-zod";
 import fastify, {
 	type FastifyError,
-	type FastifyInstance,
 	type FastifyReply,
 	type FastifyServerOptions,
 	LogController
@@ -56,7 +55,7 @@ export type BuildServerOptions = {
  * dependencies explicitly; tests pass only what they exercise and register
  * routes manually with exactly the opts those routes need.
  */
-export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
+export function buildServer(options: BuildServerOptions = {}) {
 	const logger = options.logger ?? pino({ level: "silent" });
 
 	const appInfo = {

@@ -34,7 +34,7 @@ export interface AuthContext {
 	scope: string[];
 }
 
-export function parseClaims(payload: JWTPayload): VerifiedClaims {
+export function parseClaims(payload: JWTPayload) {
 	const result = verifiedClaimsSchema.safeParse(payload);
 	if (!result.success) throw new InvalidClaimsError(result.error.issues);
 	return result.data;
@@ -47,9 +47,9 @@ export interface TokenVerifier {
 export function createTokenVerifier(
 	config: AuthConfig,
 	getKey: JWTVerifyGetKey = createRemoteJWKSet(new URL(config.jwksUri))
-): TokenVerifier {
+) {
 	return {
-		async verifyToken(token: string): Promise<VerifiedClaims> {
+		async verifyToken(token: string) {
 			let payload: JWTPayload;
 			try {
 				({ payload } = await jwtVerify(token, getKey, {
@@ -65,13 +65,10 @@ export function createTokenVerifier(
 	};
 }
 
-export function getContext(claims: VerifiedClaims): AuthContext {
+export function getContext(claims: VerifiedClaims) {
 	return { clientId: claims.azp, scope: claims.scope.split(" ") };
 }
 
-export function getAuthScopes(
-	ctx: AuthContext,
-	requiredScope: string[]
-): boolean {
+export function getAuthScopes(ctx: AuthContext, requiredScope: string[]) {
 	return requiredScope.every((scope) => ctx.scope.includes(scope));
 }

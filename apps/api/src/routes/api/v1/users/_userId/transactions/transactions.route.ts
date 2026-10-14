@@ -12,7 +12,6 @@ import {
 import {
 	listResponseSchema,
 	parseFundingSource,
-	type TransactionPageCursor,
 	type TransactionSort,
 	transactionDetailSchema,
 	transactionPageCursorSchema,
@@ -31,7 +30,7 @@ import { assertWindowWithin } from "#src/utils/time-window.ts";
 function buildPageCursor(
 	boundaryRow: { cursorOccurredAt: string; transactionId: string },
 	direction: CursorDirection
-): TransactionPageCursor {
+) {
 	return {
 		direction,
 		position: {
@@ -50,7 +49,7 @@ function buildPageCursor(
 function chooseReadSort(
 	requestedSort: TransactionSort,
 	cursorDirection: CursorDirection
-): TransactionSort {
+) {
 	if (cursorDirection === "next") {
 		return requestedSort;
 	}

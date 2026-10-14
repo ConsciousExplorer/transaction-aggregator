@@ -23,7 +23,7 @@ export class QueryPlanLogger implements DrizzleLogger {
 		this.mode = mode;
 	}
 
-	logQuery(query: string, params: unknown[]): void {
+	logQuery(query: string, params: unknown[]) {
 		if (this.mode === "plan") {
 			void this.logPlan(query, params);
 			return;
@@ -32,7 +32,7 @@ export class QueryPlanLogger implements DrizzleLogger {
 		this.logger.info({ params }, `${inlineParameters(query, params)};`);
 	}
 
-	async logPlan(query: string, params: unknown[]): Promise<void> {
+	async logPlan(query: string, params: unknown[]) {
 		const statement = `${inlineParameters(query, params)};`;
 		const explainStatement = buildExplainStatement(query);
 
@@ -67,13 +67,13 @@ export class QueryPlanLogger implements DrizzleLogger {
  * The query with each $n replaced by its value as a SQL literal. One pass, so
  * a value that itself contains "$1" is left as it is.
  */
-export function inlineParameters(query: string, params: unknown[]): string {
+export function inlineParameters(query: string, params: unknown[]) {
 	return query.replace(/\$(\d+)/g, (_placeholder, position: string) =>
 		formatSqlLiteral(params[Number(position) - 1])
 	);
 }
 
-function formatSqlLiteral(value: unknown): string {
+function formatSqlLiteral(value: unknown) {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number" || typeof value === "bigint") {
 		return String(value);
@@ -83,7 +83,7 @@ function formatSqlLiteral(value: unknown): string {
 	return quote(String(value));
 }
 
-function quote(text: string): string {
+function quote(text: string) {
 	return `'${text.replaceAll("'", "''")}'`;
 }
 
@@ -93,7 +93,7 @@ function quote(text: string): string {
  * gets plain EXPLAIN, so it is never run a second time. A with-query may hide a
  * write, so it is only planned too.
  */
-export function buildExplainStatement(query: string): string | undefined {
+export function buildExplainStatement(query: string) {
 	if (/^select\b/i.test(query)) return `EXPLAIN (ANALYZE, BUFFERS) ${query}`;
 	if (/^(insert|update|delete|with)\b/i.test(query)) return `EXPLAIN ${query}`;
 	return undefined;

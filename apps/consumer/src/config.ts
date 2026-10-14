@@ -198,7 +198,7 @@ const configSchema = z
 export type Config = z.infer<typeof configSchema>;
 export type AppInfoConfig = z.infer<typeof appInfoSchema>;
 
-export function loadPackageInfo(pkg: unknown): AppInfoConfig {
+export function loadPackageInfo(pkg: unknown) {
 	const config = appInfoSchema.safeParse(pkg);
 
 	if (!config.success) {
@@ -212,7 +212,7 @@ export function loadPackageInfo(pkg: unknown): AppInfoConfig {
 	return config.data;
 }
 
-export function loadConfig(env: Record<string, string | undefined>): Config {
+export function loadConfig(env: Record<string, string | undefined>) {
 	const config = configSchema.safeParse(env);
 
 	if (!config.success) {

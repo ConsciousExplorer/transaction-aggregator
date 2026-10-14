@@ -41,13 +41,11 @@ const PG_DIAGNOSTIC_FIELDS = [
 	"severity"
 ] as const;
 
-export function isRetryablePostgresCode(code: string): boolean {
+export function isRetryablePostgresCode(code: string) {
 	return RETRYABLE_CODES.has(code) || RETRYABLE_CLASSES.has(code.slice(0, 2));
 }
 
-function extractDiagnostics(
-	error: Record<string, unknown>
-): Record<string, unknown> {
+function extractDiagnostics(error: Record<string, unknown>) {
 	const details: Record<string, unknown> = {};
 
 	for (const field of PG_DIAGNOSTIC_FIELDS) {
@@ -60,7 +58,7 @@ function extractDiagnostics(
 export function classifyPostgresError(
 	error: unknown,
 	message = "Postgres operation failed"
-): RetryableError | NonRetryableError {
+) {
 	// Already classified upstream — don't re-wrap and lose the original context.
 	if (error instanceof RetryableError || error instanceof NonRetryableError) {
 		return error;

@@ -45,7 +45,7 @@ export function isForeignKeyViolation(error: unknown) {
 export async function runInTransaction<T>(
 	pool: Pool,
 	fn: (client: PoolClient) => Promise<T>
-): Promise<T> {
+) {
 	const client = await pool.connect();
 	try {
 		await client.query("BEGIN");

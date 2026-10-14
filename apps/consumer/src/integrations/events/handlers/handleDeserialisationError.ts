@@ -1,5 +1,4 @@
 import {
-	type DeserializationErrorAction,
 	DeserializationErrorActions,
 	type DeserializationErrorContext
 } from "@platformatic/kafka";
@@ -14,7 +13,7 @@ import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
  */
 export function handleDeserialisationError(
 	context: DeserializationErrorContext
-): DeserializationErrorAction {
+) {
 	const registryUnavailable =
 		context.error instanceof SchemaRegistryError &&
 		context.error.status !== 404;

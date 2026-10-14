@@ -72,7 +72,7 @@ let fetchOnMiss: FetchOnMiss;
 export async function runStartupCheck<T>(
 	name: string,
 	action: () => Promise<T>
-): Promise<T> {
+) {
 	const start = performance.now();
 
 	try {

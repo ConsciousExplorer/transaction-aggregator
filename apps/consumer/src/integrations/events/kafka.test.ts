@@ -17,7 +17,7 @@ import {
 	startBatchConsumer
 } from "./kafka.ts";
 
-function buildMessage(offset: number): KafkaMessage {
+function buildMessage(offset: number) {
 	let committed = false;
 
 	return {
@@ -43,7 +43,7 @@ function buildMessage(offset: number): KafkaMessage {
  * an array-backed stream delivers everything in one microtask burst, so the
  * linger timer never gets to fire mid-flush and the race stays hidden.
  */
-function createFakeConsumer(count: number, gapMs = 0): KafkaConsumer {
+function createFakeConsumer(count: number, gapMs = 0) {
 	async function* generateMessages() {
 		for (let index = 1; index <= count; index += 1) {
 			if (gapMs > 0) {
@@ -59,7 +59,7 @@ function createFakeConsumer(count: number, gapMs = 0): KafkaConsumer {
 }
 
 /** A stream that stays open, like a live topic, until the test pushes into it. */
-function createOpenConsumer(stream: Readable): KafkaConsumer {
+function createOpenConsumer(stream: Readable) {
 	return { consume: async () => stream } as unknown as KafkaConsumer;
 }
 
@@ -141,7 +141,7 @@ suite("startBatchConsumer", () => {
 
 const TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
 
-function buildIncomingHeaders(): Map<string, string> {
+function buildIncomingHeaders() {
 	return new Map([
 		["traceparent", TRACEPARENT],
 		["x-producer", "producers/0.1.0"]

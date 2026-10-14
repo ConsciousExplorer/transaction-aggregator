@@ -10,9 +10,7 @@ const ZERO_PARENT_ID = "0".repeat(16);
  * The request's W3C trace id: the active span's when tracing is on, else the
  * one in the caller's traceparent, else a new one.
  */
-export function resolveTraceId(request: {
-	headers: IncomingHttpHeaders;
-}): string {
+export function resolveTraceId(request: { headers: IncomingHttpHeaders }) {
 	const spanContext = trace.getActiveSpan()?.spanContext();
 	if (spanContext && isSpanContextValid(spanContext)) {
 		return spanContext.traceId;
@@ -26,9 +24,7 @@ export function resolveTraceId(request: {
 	return randomBytes(16).toString("hex");
 }
 
-function extractTraceId(
-	header: string | string[] | undefined
-): string | undefined {
+function extractTraceId(header: string | string[] | undefined) {
 	if (typeof header !== "string") return undefined;
 
 	const match = TRACEPARENT.exec(header);

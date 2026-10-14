@@ -6,7 +6,7 @@ export type Secrets = Readonly<
 	Record<keyof Config["secretsSpec"]["secrets"], string>
 >;
 
-export function readSecretFromFile(dir: string, fileName: string): string {
+export function readSecretFromFile(dir: string, fileName: string) {
 	const path = join(dir, fileName);
 	try {
 		return readFileSync(path, "utf-8").trim();
@@ -17,7 +17,7 @@ export function readSecretFromFile(dir: string, fileName: string): string {
 	}
 }
 
-export function loadSecrets(spec: Config["secretsSpec"]): Secrets {
+export function loadSecrets(spec: Config["secretsSpec"]) {
 	const secrets = {} as Record<string, string>;
 	for (const [name, fileName] of Object.entries(spec.secrets)) {
 		secrets[name] = readSecretFromFile(spec.dir, fileName);

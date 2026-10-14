@@ -30,7 +30,7 @@ export interface RuleSet {
 	uncategorisedId: number;
 }
 /** The verdict for a transaction the given rule matched */
-function buildVerdict(rule: Rule, ruleVersion: number): Verdict {
+function buildVerdict(rule: Rule, ruleVersion: number) {
 	return {
 		categoryId: rule.categoryId,
 		ruleVersion,
@@ -44,7 +44,7 @@ export interface RuleCategoriser {
 	categorise(transaction: CanonicalTransactionSchema): Verdict;
 }
 
-export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
+export function createRuleCategoriser(ruleset: RuleSet) {
 	// Compile step: O(r log r) sort + O(r) map builds, paid once at boot —
 	// categorise() does no per-message setup.
 	const sorted = [...ruleset.rules].sort((a, b) => a.priority - b.priority);
@@ -88,7 +88,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 	};
 
 	return {
-		categorise(transaction: CanonicalTransactionSchema): Verdict {
+		categorise(transaction: CanonicalTransactionSchema) {
 			// Search order and per-transaction cost (Map.get is a hash
 			// lookup: O(1) average, not O(n)):
 			// 1. MCC             — O(1) map lookup

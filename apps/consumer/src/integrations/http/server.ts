@@ -1,11 +1,11 @@
-import http, { type Server } from "node:http";
+import http from "node:http";
 import os from "node:os";
 import { registry } from "#src/telemetry/metrics.ts";
 
 export async function createServer(options?: {
 	appName?: string;
 	description?: string;
-}): Promise<Server> {
+}) {
 	return http.createServer(async (req, res) => {
 		/**
 		 * Health endpoints to see if the service is up and running.
