@@ -38,12 +38,12 @@ function buildZodExpression(type: unknown, fieldName: string): string {
 	);
 }
 
-function lowerFirst(name: string): string {
+function lowercaseFirstLetter(name: string): string {
 	return name.charAt(0).toLowerCase() + name.slice(1);
 }
 
 function emitSchema(record: AvroRecord): string {
-	const schemaName = `${lowerFirst(record.name)}Schema`;
+	const schemaName = `${lowercaseFirstLetter(record.name)}Schema`;
 	const fieldLines: string[] = [];
 
 	for (const field of record.fields) {

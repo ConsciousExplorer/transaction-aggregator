@@ -5,7 +5,10 @@ import {
 	jwtVerify
 } from "jose";
 import z from "zod";
-import { InvalidClaimsError, mapJoseError } from "#src/errors/auth-errors.ts";
+import {
+	InvalidClaimsError,
+	translateJoseError
+} from "#src/errors/auth-errors.ts";
 
 export interface AuthConfig {
 	jwksUri: string;
@@ -55,7 +58,7 @@ export function createTokenVerifier(
 					algorithms: ["RS256"]
 				}));
 			} catch (err) {
-				throw mapJoseError(err);
+				throw translateJoseError(err);
 			}
 			return parseClaims(payload);
 		}

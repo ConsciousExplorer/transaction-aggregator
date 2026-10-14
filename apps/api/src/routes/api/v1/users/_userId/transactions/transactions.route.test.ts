@@ -63,7 +63,7 @@ const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
 // on top of the list columns — its own typed fixture keeps the drift guard
 // honest. metadata matches what apps/consumer/src/domain/normaliser/domain/
 // card.ts actually writes (camelCase keys — see schemas/transactions.ts's
-// mapFundingSource, which parses this shape).
+// parseFundingSource, which parses this shape).
 const DETAIL: Awaited<
 	ReturnType<UserTransactionRepository["getTransactionDetail"]>
 > = {

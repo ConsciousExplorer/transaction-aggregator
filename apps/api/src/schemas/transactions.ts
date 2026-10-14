@@ -126,7 +126,7 @@ export const fundingSourceSchema = z.discriminatedUnion("transactionType", [
 ]);
 
 export type FundingSource = z.infer<typeof fundingSourceSchema>;
-export function mapFundingSource(
+export function parseFundingSource(
 	transactionType: z.infer<typeof transactionTypeSchema>,
 	metadata: unknown,
 	currency: string

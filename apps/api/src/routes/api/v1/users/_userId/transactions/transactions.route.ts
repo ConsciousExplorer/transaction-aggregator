@@ -11,7 +11,7 @@ import {
 } from "#src/schemas/common.ts";
 import {
 	listResponseSchema,
-	mapFundingSource,
+	parseFundingSource,
 	type TransactionPageCursor,
 	type TransactionSort,
 	transactionDetailSchema,
@@ -251,7 +251,7 @@ export default async (
 				longDescription: row.longDescription,
 				shortDescription: row.shortDescription,
 				category: row.category,
-				fundingSource: mapFundingSource(
+				fundingSource: parseFundingSource(
 					row.transactionType,
 					row.metadata,
 					row.currency
