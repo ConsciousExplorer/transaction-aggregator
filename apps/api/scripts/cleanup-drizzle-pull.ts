@@ -120,14 +120,14 @@ function stripPartitionSuffix(block: string): string {
 function buildImportLines(source: string, code: string): string[] {
     const lines: string[] = []
 
-    const pgCoreNames = usedNames(parseNamedImports(source, 'drizzle-orm/pg-core'), code)
+    const pgCoreNames = findUsedNames(parseNamedImports(source, 'drizzle-orm/pg-core'), code)
     lines.push(`import { ${pgCoreNames.join(', ')} } from "drizzle-orm/pg-core"`)
 
     if (/\bsql\b/.test(code)) {
         lines.push('import { sql } from "drizzle-orm"')
     }
 
-    const schemaNames = usedNames(parseSchemaExports(source), code)
+    const schemaNames = findUsedNames(parseSchemaExports(source), code)
     if (schemaNames.length > 0) {
         lines.push(`import { ${schemaNames.join(', ')} } from "./${schemaFile}"`)
     }
@@ -162,7 +162,7 @@ function removePartitionedTables(source: string, tables: PartitionedTable[]): st
             rebuiltLines.push(line)
             continue
         }
-        const keptNames = usedNames(parseNamedImports(line, ''), body)
+        const keptNames = findUsedNames(parseNamedImports(line, ''), body)
         if (keptNames.length > 0) {
             rebuiltLines.push(line.replace(/\{[^}]*\}/, `{ ${keptNames.join(', ')} }`))
         }
@@ -261,7 +261,7 @@ function parseSchemaExports(source: string): string[] {
     return names
 }
 
-function usedNames(candidates: string[], code: string): string[] {
+function findUsedNames(candidates: string[], code: string): string[] {
     const used: string[] = []
     for (const name of candidates) {
         if (new RegExp(`\\b${name}\\b`).test(code)) {

@@ -20,7 +20,7 @@ interface AvroRecord {
 const header =
 	"// Generated from repository schemas — do not edit. Run npm run schema:generate\n";
 
-function zodFor(type: unknown, fieldName: string): string {
+function buildZodExpression(type: unknown, fieldName: string): string {
 	if (type === "string") return "z.string()";
 	if (type === "long" || type === "int") return "z.number()";
 	if (type === "float" || type === "double") return "z.number()";
@@ -30,7 +30,7 @@ function zodFor(type: unknown, fieldName: string): string {
 	// guarantee is the base type, so the schema mirrors it without tightening —
 	// a stricter rule here would reject messages Avro considers valid.
 	if (typeof type === "object" && type !== null && "type" in type) {
-		return zodFor((type as { type: unknown }).type, fieldName);
+		return buildZodExpression((type as { type: unknown }).type, fieldName);
 	}
 
 	throw new Error(
@@ -49,7 +49,7 @@ function emitSchema(record: AvroRecord): string {
 	for (const field of record.fields) {
 		const lines: string[] = [];
 		if (field.doc) lines.push(`\t// ${field.doc.replaceAll("\n", " ")}`);
-		lines.push(`\t${field.name}: ${zodFor(field.type, field.name)}`);
+		lines.push(`\t${field.name}: ${buildZodExpression(field.type, field.name)}`);
 		fieldLines.push(lines.join("\n"));
 	}
 

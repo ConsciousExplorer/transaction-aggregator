@@ -44,7 +44,7 @@ function buildMessage(offset: number): KafkaMessage {
  * linger timer never gets to fire mid-flush and the race stays hidden.
  */
 function createFakeConsumer(count: number, gapMs = 0): KafkaConsumer {
-	async function* messages() {
+	async function* generateMessages() {
 		for (let index = 1; index <= count; index += 1) {
 			if (gapMs > 0) {
 				await new Promise((resolve) => setTimeout(resolve, gapMs));
@@ -54,7 +54,7 @@ function createFakeConsumer(count: number, gapMs = 0): KafkaConsumer {
 	}
 
 	return {
-		consume: async () => Readable.from(messages())
+		consume: async () => Readable.from(generateMessages())
 	} as unknown as KafkaConsumer;
 }
 
