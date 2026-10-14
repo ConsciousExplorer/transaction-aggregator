@@ -2,23 +2,19 @@ import {
 	DeserializationErrorActions,
 	type DeserializationErrorContext
 } from "@platformatic/kafka";
-import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
+import { UnknownSchemaIdError } from "#src/errors/consumer-errors.ts";
 
 /**
  * FAIL destroys the stream with the error, so the process exits without
- * committing and the container restart retries the registry read on boot.
- * That is only right while the registry cannot answer. A 404 is a definite
- * answer that no retry changes, so that message continues as poison to the DLQ,
- * like every other message that cannot be decoded.
+ * committing. That is right only for a schema id this consumer did not load at
+ * startup: a producer is writing a version registered since, and the restart
+ * loads it and reads the message again. Every other message that cannot be
+ * decoded continues as poison to the DLQ.
  */
 export function handleDeserialisationError(
 	context: DeserializationErrorContext
 ) {
-	const registryUnavailable =
-		context.error instanceof SchemaRegistryError &&
-		context.error.status !== 404;
-
-	if (registryUnavailable) {
+	if (context.error instanceof UnknownSchemaIdError) {
 		return DeserializationErrorActions.FAIL;
 	}
 

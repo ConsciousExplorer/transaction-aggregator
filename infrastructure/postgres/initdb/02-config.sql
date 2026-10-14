@@ -10,8 +10,8 @@ GRANT ALL ON ALL FUNCTIONS IN SCHEMA partman TO admin;
 GRANT ALL ON ALL PROCEDURES IN SCHEMA partman TO admin;
 
 -- pg_cron lives in the database that holds the partitioned tables
--- (cron.database_name=txn_agg). The migrations schedule the maintenance job as
--- admin (database/migrations/0002_schedule_maintenance.sql).
+-- (cron.database_name=txn_agg). The migrations schedule the maintenance jobs as
+-- admin (database/migrations/0002_maintenance.sql).
 CREATE EXTENSION pg_cron;
 GRANT USAGE ON SCHEMA cron TO admin;
 

@@ -80,8 +80,11 @@ CREATE TABLE transactions (
     REFERENCES categorization_rules (ruleset_version, priority)
 ) PARTITION BY RANGE (occurred_at);
 
+-- The read index stores every column the list and summary read, account_id
+-- included, so a page or a summary, filtered by account or not, is answered
+-- from the index alone instead of reading each row from the table.
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
-  INCLUDE (transaction_type, direction, status, amount_minor, currency, category_id, short_description);
+  INCLUDE (transaction_type, direction, status, amount_minor, currency, category_id, short_description, account_id);
 
 DO $$
 BEGIN

@@ -24,8 +24,3 @@ export const AvroSchemaObject = z.object({
 	schemaType: z.literal("AVRO").default("AVRO"),
 	schema: AvroSchemaString
 });
-
-// GET /schemas/ids/{id} answers with the schema only — no subject, version or id
-export const SchemaById = z.object({
-	schema: AvroSchemaString
-});

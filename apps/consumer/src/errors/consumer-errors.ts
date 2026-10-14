@@ -24,6 +24,18 @@ export class NonRetryableError extends Error {
 }
 
 /**
+ * A message names a schema id that was not loaded at startup. Producers only
+ * write versions of the topic's subject, and startup loads every version, so
+ * the id was registered after this consumer started and a restart loads it.
+ */
+export class UnknownSchemaIdError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "UnknownSchemaIdError";
+	}
+}
+
+/**
  * The registry could not give a usable answer. `status` is the HTTP status, or
  * undefined when the registry was unreachable or timed out.
  */

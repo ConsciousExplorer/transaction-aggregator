@@ -14,10 +14,7 @@ import {
 	loadRulesetVersion,
 	loadUncategorisedId
 } from "./integrations/database/repositories/rule-repository.ts";
-import {
-	createAvroDeserialiser,
-	type FetchOnMiss
-} from "./integrations/events/avro-deserialiser.ts";
+import { createAvroDeserialiser } from "./integrations/events/avro-deserialiser.ts";
 import { handleDeserialisationError } from "./integrations/events/handlers/handleDeserialisationError.ts";
 import {
 	type BatchHandler,
@@ -67,7 +64,6 @@ let transactionNormaliser: Normaliser;
 let ruleCategoriser: RuleCategoriser;
 let sendToDeadLetterQueue: SendToDeadLetterQueue;
 let transactionBatchHandler: BatchHandler;
-let fetchOnMiss: FetchOnMiss;
 
 export async function runStartupCheck<T>(
 	name: string,
@@ -163,7 +159,6 @@ try {
 			`${config.kafka.topics.main}-value`
 		])
 	);
-	fetchOnMiss = avroDeserialiser.fetchOnMiss; //TODO: might need to remove this.
 
 	/**
 	 * Create the Kafka consumer instance.
@@ -287,8 +282,7 @@ try {
 			maxWaitTime: config.kafka.maxWaitTime,
 			batchSize: config.kafka.batchSize,
 			lingerMs: config.kafka.lingerMs
-		},
-		{ beforeDeserialization: fetchOnMiss }
+		}
 	);
 } catch (err) {
 	logger.error({ err }, "Consumer stopped on an unrecoverable error");

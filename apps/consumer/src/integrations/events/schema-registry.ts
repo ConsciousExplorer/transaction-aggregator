@@ -2,15 +2,15 @@
 
 import { z } from "zod";
 import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
-import { AvroSchemaObject, SchemaById } from "#src/schemas/avro.ts";
+import { AvroSchemaObject } from "#src/schemas/avro.ts";
 
 // A registry read is small; a registry that cannot answer within this is down.
 const REGISTRY_TIMEOUT_MS = 5_000;
 
 /**
  * Every failure becomes a SchemaRegistryError carrying the HTTP status (or
- * undefined when the registry was unreachable), so callers can tell "not found"
- * from "registry down" without parsing messages.
+ * undefined when the registry was unreachable), so the startup failure log
+ * tells "not found" from "registry down" without parsing messages.
  */
 export async function fetchFromRegistry<S extends z.ZodType>(
 	url: string,
@@ -75,8 +75,4 @@ export function getLatestSubjectVersion(registryUrl: string, subject: string) {
 		`${registryUrl}/subjects/${subject}/versions/latest`,
 		AvroSchemaObject
 	);
-}
-
-export function getSchemaById(registryUrl: string, id: number) {
-	return fetchFromRegistry(`${registryUrl}/schemas/ids/${id}`, SchemaById);
 }

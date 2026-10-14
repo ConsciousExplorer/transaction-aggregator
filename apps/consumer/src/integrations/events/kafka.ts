@@ -19,7 +19,6 @@ import {
 import {
 	type BaseOptions,
 	type BeforeHookPayloadType,
-	type ConsumeOptions,
 	Consumer,
 	type ConsumerOptions,
 	type DeserializationErrorHandler,
@@ -139,9 +138,8 @@ function buildDeadLetterRecord(
 	const { message, error } = failure;
 
 	const headers: Record<string, string> = {};
-	// A failed before-deserialisation hook leaves the header values as Buffers
 	for (const [key, value] of message.headers) {
-		headers[String(key)] = String(value);
+		headers[key] = value;
 	}
 	headers["x-dlq-reason"] = chooseDeadLetterReason(failure);
 	headers["x-dlq-error"] =
@@ -278,15 +276,13 @@ export async function startBatchConsumer(
 	consumer: KafkaConsumer,
 	onBatch: BatchHandler,
 	onDeserialisationFailure: DeserializationErrorHandler,
-	options: BatchConsumerOptions,
-	overrides?: Partial<ConsumeOptions<string, ConsumedValue, string, string>>
+	options: BatchConsumerOptions
 ) {
 	const messageStream = await consumer.consume({
 		topics: options.topics,
 		mode: options.mode,
 		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
 		maxWaitTime: options.maxWaitTime,
-		...overrides,
 		autocommit: false,
 		onDeserializationError: onDeserialisationFailure
 	});

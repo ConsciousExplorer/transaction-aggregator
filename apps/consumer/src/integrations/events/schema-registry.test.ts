@@ -1,9 +1,10 @@
 import assert from "node:assert";
 import { afterEach, mock, suite, test } from "node:test";
 import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
-import { getSchemaById } from "./schema-registry.ts";
+import { getSubjectVersion } from "./schema-registry.ts";
 
 const REGISTRY = "http://registry.test";
+const SUBJECT = "transactions.card-value";
 const SCHEMA = JSON.stringify({
 	type: "record",
 	name: "Txn",
@@ -29,18 +30,21 @@ suite("schema registry reads", () => {
 		mock.restoreAll();
 	});
 
-	test("a schema id lookup returns the schema text", async () => {
-		respondWith(200, { schema: SCHEMA });
+	test("a subject version lookup returns its id and schema text", async () => {
+		respondWith(200, { subject: SUBJECT, version: 1, id: 7, schema: SCHEMA });
 
-		const { schema } = await getSchemaById(REGISTRY, 1);
+		const { id, schema } = await getSubjectVersion(REGISTRY, SUBJECT, 1);
 
+		assert.equal(id, 7);
 		assert.equal(schema, SCHEMA);
 	});
 
-	test("404 carries its status, so the caller can dead-letter", async () => {
-		respondWith(404, { error_code: 40403, message: "Schema not found" });
+	test("404 carries its status", async () => {
+		respondWith(404, { error_code: 40401, message: "Subject not found" });
 
-		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(
+			getSubjectVersion(REGISTRY, SUBJECT, 1)
+		);
 
 		assert.equal(error.status, 404);
 	});
@@ -48,7 +52,9 @@ suite("schema registry reads", () => {
 	test("5xx carries its status", async () => {
 		respondWith(503, { message: "unavailable" });
 
-		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(
+			getSubjectVersion(REGISTRY, SUBJECT, 1)
+		);
 
 		assert.equal(error.status, 503);
 	});
@@ -58,7 +64,9 @@ suite("schema registry reads", () => {
 			throw new TypeError("fetch failed");
 		});
 
-		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(
+			getSubjectVersion(REGISTRY, SUBJECT, 1)
+		);
 
 		assert.equal(error.status, undefined);
 	});
@@ -66,7 +74,9 @@ suite("schema registry reads", () => {
 	test("a body that is not a schema is a registry error, not a crash elsewhere", async () => {
 		respondWith(200, { unexpected: true });
 
-		const error = await catchRegistryError(getSchemaById(REGISTRY, 1));
+		const error = await catchRegistryError(
+			getSubjectVersion(REGISTRY, SUBJECT, 1)
+		);
 
 		assert.equal(error.status, 200);
 	});

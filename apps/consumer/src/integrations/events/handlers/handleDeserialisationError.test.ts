@@ -2,36 +2,31 @@ import assert from "node:assert";
 import { suite, test } from "node:test";
 import {
 	DeserializationErrorActions,
-	type DeserializationErrorContext
+	type DeserializationErrorContext,
+	UserError
 } from "@platformatic/kafka";
-import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
+import { UnknownSchemaIdError } from "#src/errors/consumer-errors.ts";
 import { handleDeserialisationError } from "./handleDeserialisationError.ts";
 
 function buildErrorContext(error: unknown) {
 	return { error, payloadType: "value" } as DeserializationErrorContext;
 }
 
-function buildRegistryError(status: number | undefined) {
-	return new SchemaRegistryError("registry read failed", { status });
-}
-
 suite("deserialisation error policy", () => {
-	test("a registry that cannot answer stops the consumer", () => {
-		assert.equal(
-			handleDeserialisationError(buildErrorContext(buildRegistryError(503))),
-			DeserializationErrorActions.FAIL
-		);
+	test("a schema id registered after startup stops the consumer", () => {
 		assert.equal(
 			handleDeserialisationError(
-				buildErrorContext(buildRegistryError(undefined))
+				buildErrorContext(new UnknownSchemaIdError("Unknown schema id 9"))
 			),
 			DeserializationErrorActions.FAIL
 		);
 	});
 
-	test("a schema id the registry does not know is dead-lettered", () => {
+	test("unframed bytes are dead-lettered", () => {
 		assert.equal(
-			handleDeserialisationError(buildErrorContext(buildRegistryError(404))),
+			handleDeserialisationError(
+				buildErrorContext(new UserError("Not Confluent wire format (8 bytes)"))
+			),
 			DeserializationErrorActions.CONTINUE
 		);
 	});
