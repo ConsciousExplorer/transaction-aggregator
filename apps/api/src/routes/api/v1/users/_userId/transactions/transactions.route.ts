@@ -20,10 +20,10 @@ import {
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 import {
+	buildKeysetPage,
 	buildPageLinks,
 	decodeCursor,
-	encodeCursor,
-	toKeysetPage
+	encodeCursor
 } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
@@ -44,7 +44,7 @@ function buildPageCursor(
 /**
  * The order the repository reads a page in. next continues in the requested
  * sort order. prev reads against it from the cursor, so that LIMIT keeps the
- * rows nearest the cursor rather than the furthest; toKeysetPage flips them
+ * rows nearest the cursor rather than the furthest; buildKeysetPage flips them
  * back.
  */
 function chooseReadSort(
@@ -153,7 +153,7 @@ export default async (
 				limit: limit + 1
 			});
 
-			const page = toKeysetPage(
+			const page = buildKeysetPage(
 				rows,
 				limit,
 				cursorDirection,

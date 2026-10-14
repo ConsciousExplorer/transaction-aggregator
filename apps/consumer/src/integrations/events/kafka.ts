@@ -124,7 +124,7 @@ export async function createKafkaDlqProducer(
 	return kafkaDlqProducer;
 }
 
-function toDlqReason(failure: DlqFailure) {
+function chooseDeadLetterReason(failure: DlqFailure) {
 	return failure.message.kind === "poison" ? "deserialisation" : "processing";
 }
 
@@ -132,7 +132,7 @@ function toDlqReason(failure: DlqFailure) {
  * The record as it arrived: its raw bytes and its own headers, so a redrive
  * re-produces the original. The DLQ headers go on top and win a name clash.
  */
-function toDlqRecord(dlqTopic: string, failure: DlqFailure) {
+function buildDeadLetterRecord(dlqTopic: string, failure: DlqFailure) {
 	const { message, error } = failure;
 
 	const headers: Record<string, string> = {};
@@ -140,7 +140,7 @@ function toDlqRecord(dlqTopic: string, failure: DlqFailure) {
 	for (const [key, value] of message.headers) {
 		headers[String(key)] = String(value);
 	}
-	headers["x-dlq-reason"] = toDlqReason(failure);
+	headers["x-dlq-reason"] = chooseDeadLetterReason(failure);
 	headers["x-dlq-error"] =
 		error instanceof Error ? error.message : String(error);
 	headers["x-source-topic"] = message.topic;
@@ -159,9 +159,9 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 	return async function sendToDlq(failures: DlqFailure[]) {
 		if (failures.length === 0) return;
 
-		const records: ReturnType<typeof toDlqRecord>[] = [];
+		const records: ReturnType<typeof buildDeadLetterRecord>[] = [];
 		for (const failure of failures) {
-			records.push(toDlqRecord(dlqTopic, failure));
+			records.push(buildDeadLetterRecord(dlqTopic, failure));
 		}
 
 		// One span per send: it is one produce request, however many records
@@ -180,7 +180,7 @@ export function createDlqSender(dlqProducer: DlqProducer, dlqTopic: string) {
 		);
 
 		for (const failure of failures) {
-			dlqMessagesTotal.inc({ reason: toDlqReason(failure) });
+			dlqMessagesTotal.inc({ reason: chooseDeadLetterReason(failure) });
 		}
 	};
 }

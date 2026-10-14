@@ -34,7 +34,7 @@ export class QueryPlanLogger implements DrizzleLogger {
 
 	async logPlan(query: string, params: unknown[]): Promise<void> {
 		const statement = `${inlineParams(query, params)};`;
-		const explainStatement = toExplainStatement(query);
+		const explainStatement = buildExplainStatement(query);
 
 		if (explainStatement === undefined) {
 			this.logger.info({ params }, statement);
@@ -69,11 +69,11 @@ export class QueryPlanLogger implements DrizzleLogger {
  */
 export function inlineParams(query: string, params: unknown[]): string {
 	return query.replace(/\$(\d+)/g, (_placeholder, position: string) =>
-		toSqlLiteral(params[Number(position) - 1])
+		formatSqlLiteral(params[Number(position) - 1])
 	);
 }
 
-function toSqlLiteral(value: unknown): string {
+function formatSqlLiteral(value: unknown): string {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number" || typeof value === "bigint") {
 		return String(value);
@@ -93,7 +93,7 @@ function quote(text: string): string {
  * gets plain EXPLAIN, so it is never run a second time. A with-query may hide a
  * write, so it is only planned too.
  */
-export function toExplainStatement(query: string): string | undefined {
+export function buildExplainStatement(query: string): string | undefined {
 	if (/^select\b/i.test(query)) return `EXPLAIN (ANALYZE, BUFFERS) ${query}`;
 	if (/^(insert|update|delete|with)\b/i.test(query)) return `EXPLAIN ${query}`;
 	return undefined;

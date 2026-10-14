@@ -38,7 +38,7 @@ type UserCategoryRow = Awaited<
 	ReturnType<CategoryRepository["getUserCategories"]>
 >[number];
 
-export function toUserCategory(row: UserCategoryRow) {
+export function buildUserCategoryResponse(row: UserCategoryRow) {
 	return {
 		id: row.categoryId,
 		category: row.category,
@@ -94,7 +94,7 @@ export default async (
 
 			const overridden = rows
 				.filter((row) => row.toCategoryId !== null)
-				.map(toUserCategory);
+				.map(buildUserCategoryResponse);
 
 			return reply.send({
 				data: overridden,

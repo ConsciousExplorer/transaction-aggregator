@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
-import { inlineParams, toExplainStatement } from "./query-logger.ts";
+import { buildExplainStatement, inlineParams } from "./query-logger.ts";
 
 suite("inlineParams", () => {
 	test("fills each placeholder with its own value, $10 not read as $1", () => {
@@ -34,34 +34,37 @@ suite("inlineParams", () => {
 	});
 });
 
-suite("toExplainStatement", () => {
+suite("buildExplainStatement", () => {
 	test("a read is explained with ANALYZE, which runs it", () => {
 		assert.equal(
-			toExplainStatement("select 1"),
+			buildExplainStatement("select 1"),
 			"EXPLAIN (ANALYZE, BUFFERS) select 1"
 		);
 	});
 
 	test("a write is only planned, so it is not run a second time", () => {
 		assert.equal(
-			toExplainStatement("insert into t values (1)"),
+			buildExplainStatement("insert into t values (1)"),
 			"EXPLAIN insert into t values (1)"
 		);
 		assert.equal(
-			toExplainStatement("update t set a = 1"),
+			buildExplainStatement("update t set a = 1"),
 			"EXPLAIN update t set a = 1"
 		);
-		assert.equal(toExplainStatement("delete from t"), "EXPLAIN delete from t");
 		assert.equal(
-			toExplainStatement("with x as (delete from t returning 1) select 1"),
+			buildExplainStatement("delete from t"),
+			"EXPLAIN delete from t"
+		);
+		assert.equal(
+			buildExplainStatement("with x as (delete from t returning 1) select 1"),
 			"EXPLAIN with x as (delete from t returning 1) select 1"
 		);
 	});
 
 	test("transaction control has no plan", () => {
-		assert.equal(toExplainStatement("begin"), undefined);
-		assert.equal(toExplainStatement("commit"), undefined);
-		assert.equal(toExplainStatement("rollback"), undefined);
-		assert.equal(toExplainStatement("savepoint sp1"), undefined);
+		assert.equal(buildExplainStatement("begin"), undefined);
+		assert.equal(buildExplainStatement("commit"), undefined);
+		assert.equal(buildExplainStatement("rollback"), undefined);
+		assert.equal(buildExplainStatement("savepoint sp1"), undefined);
 	});
 });

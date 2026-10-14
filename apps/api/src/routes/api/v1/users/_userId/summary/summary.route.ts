@@ -57,7 +57,7 @@ type SummaryRow = Awaited<
 >[number];
 type SummaryTotal = z.infer<typeof summaryTotalSchema>;
 
-function toMoney(amountMinor: number, currency: string) {
+function buildAmount(amountMinor: number, currency: string) {
 	return { amountMinor, currency };
 }
 
@@ -82,9 +82,9 @@ function sumTotals(rows: SummaryRow[]): SummaryTotal {
 
 	return {
 		transactionCount,
-		netAmount: toMoney(creditTotal - debitTotal, currency),
-		debit: { count: debitCount, total: toMoney(debitTotal, currency) },
-		credit: { count: creditCount, total: toMoney(creditTotal, currency) }
+		netAmount: buildAmount(creditTotal - debitTotal, currency),
+		debit: { count: debitCount, total: buildAmount(debitTotal, currency) },
+		credit: { count: creditCount, total: buildAmount(creditTotal, currency) }
 	};
 }
 
@@ -160,14 +160,17 @@ export default async (
 							request.query.interval === "month" ? row.bucketStart : undefined
 					},
 					count: row.count,
-					netAmount: toMoney(row.creditAmount - row.debitAmount, row.currency),
+					netAmount: buildAmount(
+						row.creditAmount - row.debitAmount,
+						row.currency
+					),
 					debit: {
 						count: row.debitCount,
-						total: toMoney(row.debitAmount, row.currency)
+						total: buildAmount(row.debitAmount, row.currency)
 					},
 					credit: {
 						count: row.creditCount,
-						total: toMoney(row.creditAmount, row.currency)
+						total: buildAmount(row.creditAmount, row.currency)
 					}
 				})),
 				// The window as parsed, so a future toDateTime shows as now

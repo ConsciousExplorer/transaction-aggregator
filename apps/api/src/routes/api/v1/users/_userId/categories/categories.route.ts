@@ -7,7 +7,7 @@ import {
 	linksSchema,
 	problemSchema
 } from "#src/schemas/common.ts";
-import { toUserCategory } from "../category-overrides/category-overrides.route.ts";
+import { buildUserCategoryResponse } from "../category-overrides/category-overrides.route.ts";
 
 const userParamsSchema = z.object({ userId: z.uuid() });
 
@@ -63,7 +63,7 @@ export default async (
 				request.params.userId
 			);
 
-			const data = rows.map(toUserCategory);
+			const data = rows.map(buildUserCategoryResponse);
 
 			return reply.send({
 				data,

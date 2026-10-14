@@ -29,6 +29,16 @@ export interface RuleSet {
 	rules: Rule[];
 	uncategorisedId: number;
 }
+/** The verdict for a transaction the given rule matched */
+function buildVerdict(rule: Rule, ruleVersion: number): Verdict {
+	return {
+		categoryId: rule.categoryId,
+		ruleVersion,
+		rulePriority: rule.priority,
+		matcherType: rule.matcherType
+	};
+}
+
 // How the categoriser works. Basically like a database cross join and selecting the first priority
 export interface RuleCategoriser {
 	categorise(transaction: CanonicalTransactionSchema): Verdict;
@@ -76,12 +86,6 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 		rulePriority: null,
 		matcherType: "fallback"
 	};
-	const toVerdict = (rule: Rule): Verdict => ({
-		categoryId: rule.categoryId,
-		ruleVersion: version,
-		rulePriority: rule.priority,
-		matcherType: rule.matcherType
-	});
 
 	return {
 		categorise(transaction: CanonicalTransactionSchema): Verdict {
@@ -101,7 +105,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 			) {
 				const rule = mccMap.get(transaction.metadata.mcc);
 				if (rule) {
-					return toVerdict(rule);
+					return buildVerdict(rule, version);
 				}
 			}
 
@@ -110,7 +114,7 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 				const terms =
 					`${transaction.shortDescription ?? ""} ${transaction.longDescription ?? ""}`.toLowerCase();
 				for (const { term, rule } of keywordRules) {
-					if (terms.includes(term)) return toVerdict(rule);
+					if (terms.includes(term)) return buildVerdict(rule, version);
 				}
 			}
 
@@ -120,18 +124,18 @@ export function createRuleCategoriser(ruleset: RuleSet): RuleCategoriser {
 				const rule = sourceTransactionTypeMap.get(
 					`${transaction.transactionType}:${sourceTransactionType}`
 				);
-				if (rule) return toVerdict(rule);
+				if (rule) return buildVerdict(rule, version);
 			}
 
 			// 4. source:direction
 			const directionRule = sourceDirectionMap.get(
 				`${transaction.transactionType}:${transaction.direction}`
 			);
-			if (directionRule) return toVerdict(directionRule);
+			if (directionRule) return buildVerdict(directionRule, version);
 
 			// 5. source defaults
 			const rule = defaultMap.get(transaction.transactionType);
-			if (rule) return toVerdict(rule);
+			if (rule) return buildVerdict(rule, version);
 
 			// 6. Fallback
 			return fallback;

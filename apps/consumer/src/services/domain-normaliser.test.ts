@@ -34,14 +34,17 @@ function buildCardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
 	};
 }
 
-const toDomain = (record: CardTransaction) =>
-	record as unknown as DomainTransactionSchema;
+function castToDomainTransaction(record: CardTransaction) {
+	return record as unknown as DomainTransactionSchema;
+}
 
 const cardNormaliser = createNormaliser("card");
 
 suite("domain normaliser validation", () => {
 	test("accepts a well-formed record and returns canonical fields", () => {
-		const result = cardNormaliser.normalise(toDomain(buildCardRecord()));
+		const result = cardNormaliser.normalise(
+			castToDomainTransaction(buildCardRecord())
+		);
 
 		assert.equal(result.transactionType, "card");
 		assert.equal(result.direction, "debit");
@@ -56,7 +59,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					toDomain(buildCardRecord({ transactionType: "DEBIT" }))
+					castToDomainTransaction(buildCardRecord({ transactionType: "DEBIT" }))
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -76,7 +79,7 @@ suite("domain normaliser validation", () => {
 
 		for (const { wire, stored } of cases) {
 			const result = cardNormaliser.normalise(
-				toDomain(buildCardRecord({ status: wire }))
+				castToDomainTransaction(buildCardRecord({ status: wire }))
 			);
 			assert.equal(result.status, stored);
 		}
@@ -86,7 +89,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					toDomain(buildCardRecord({ status: "posted" }))
+					castToDomainTransaction(buildCardRecord({ status: "posted" }))
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -100,7 +103,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					toDomain(buildCardRecord({ customerId: "not-a-uuid" }))
+					castToDomainTransaction(buildCardRecord({ customerId: "not-a-uuid" }))
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -114,7 +117,9 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					toDomain(buildCardRecord({ transactionType: "purchase" }))
+					castToDomainTransaction(
+						buildCardRecord({ transactionType: "purchase" })
+					)
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -131,7 +136,7 @@ suite("domain normaliser validation", () => {
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					toDomain(buildCardRecord({ timestamp: Number.NaN }))
+					castToDomainTransaction(buildCardRecord({ timestamp: Number.NaN }))
 				),
 			NonRetryableError
 		);

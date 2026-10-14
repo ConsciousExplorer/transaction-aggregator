@@ -16,7 +16,7 @@ export interface KeysetPage<Row> {
  * The extra row only proves that another page exists in the direction read.
  * A prev page is read against the sort order, so it is flipped back.
  */
-export function toKeysetPage<Row>(
+export function buildKeysetPage<Row>(
 	fetched: Row[],
 	limit: number,
 	cursorDirection: CursorDirection,

@@ -3,19 +3,19 @@ import { suite, test } from "node:test";
 import z from "zod";
 import { invalidCursorError } from "#src/errors/http-problem.ts";
 import {
+	buildKeysetPage,
 	buildLink,
 	buildPageLinks,
 	decodeCursor,
-	encodeCursor,
-	toKeysetPage
+	encodeCursor
 } from "./paging.ts";
 
 // Rows as a keyset query returns them, named by age: a is the newest
 const NEWEST_FIRST = ["a", "b", "c"];
 
-suite("toKeysetPage", () => {
+suite("buildKeysetPage", () => {
 	test("a full first page drops the look-ahead row and continues from its last row", () => {
-		const page = toKeysetPage(NEWEST_FIRST, 2, "next", false);
+		const page = buildKeysetPage(NEWEST_FIRST, 2, "next", false);
 		assert.deepStrictEqual(page, {
 			rows: ["a", "b"],
 			nextFrom: "b",
@@ -24,7 +24,7 @@ suite("toKeysetPage", () => {
 	});
 
 	test("a short page read downwards from a cursor is the last one", () => {
-		const page = toKeysetPage(["b", "c"], 2, "next", true);
+		const page = buildKeysetPage(["b", "c"], 2, "next", true);
 		assert.deepStrictEqual(page, {
 			rows: ["b", "c"],
 			nextFrom: null,
@@ -33,7 +33,7 @@ suite("toKeysetPage", () => {
 	});
 
 	test("a full page read downwards from a cursor has both neighbours", () => {
-		const page = toKeysetPage(NEWEST_FIRST, 2, "next", true);
+		const page = buildKeysetPage(NEWEST_FIRST, 2, "next", true);
 		assert.deepStrictEqual(page, {
 			rows: ["a", "b"],
 			nextFrom: "b",
@@ -43,7 +43,7 @@ suite("toKeysetPage", () => {
 
 	test("a prev page is read oldest first, served newest first, and leaves the input alone", () => {
 		const oldestFirst = ["c", "b", "a"];
-		const page = toKeysetPage(oldestFirst, 2, "prev", true);
+		const page = buildKeysetPage(oldestFirst, 2, "prev", true);
 		assert.deepStrictEqual(page, {
 			rows: ["b", "c"],
 			nextFrom: "c",
@@ -53,7 +53,7 @@ suite("toKeysetPage", () => {
 	});
 
 	test("a short prev page is the newest one", () => {
-		const page = toKeysetPage(["b", "a"], 2, "prev", true);
+		const page = buildKeysetPage(["b", "a"], 2, "prev", true);
 		assert.deepStrictEqual(page, {
 			rows: ["a", "b"],
 			nextFrom: "b",
@@ -62,7 +62,7 @@ suite("toKeysetPage", () => {
 	});
 
 	test("an empty page has no neighbours", () => {
-		const page = toKeysetPage([], 2, "next", true);
+		const page = buildKeysetPage([], 2, "next", true);
 		assert.deepStrictEqual(page, { rows: [], nextFrom: null, prevFrom: null });
 	});
 });
