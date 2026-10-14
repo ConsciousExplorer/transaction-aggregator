@@ -160,19 +160,22 @@ export default async (
 				pageCursor !== undefined
 			);
 
-			const data = page.rows.map((row) => ({
-				transactionId: row.transactionId,
-				occurredAt: new Date(row.occurredAt).toISOString(),
-				transactionType: row.transactionType,
-				direction: row.direction,
-				status: row.status,
-				amount: {
-					amountMinor: row.amountMinor,
-					currency: row.currency
-				},
-				category: row.category,
-				shortDescription: row.shortDescription
-			}));
+			const data = [];
+			for (const row of page.rows) {
+				data.push({
+					transactionId: row.transactionId,
+					occurredAt: new Date(row.occurredAt).toISOString(),
+					transactionType: row.transactionType,
+					direction: row.direction,
+					status: row.status,
+					amount: {
+						amountMinor: row.amountMinor,
+						currency: row.currency
+					},
+					category: row.category,
+					shortDescription: row.shortDescription
+				});
+			}
 
 			const nextParams = page.nextFrom
 				? { cursor: encodeCursor(buildPageCursor(page.nextFrom, "next")) }

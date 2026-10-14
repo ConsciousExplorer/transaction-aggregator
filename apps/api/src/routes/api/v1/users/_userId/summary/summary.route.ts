@@ -148,9 +148,9 @@ export default async (
 				interval: request.query.interval
 			});
 
-			return reply.send({
-				totals: sumTotals(result),
-				data: result.map((row) => ({
+			const data = [];
+			for (const row of result) {
+				data.push({
 					group: {
 						category: row.category,
 						day: request.query.interval === "day" ? row.bucketStart : undefined,
@@ -172,7 +172,12 @@ export default async (
 						count: row.creditCount,
 						total: buildAmount(row.creditAmount, row.currency)
 					}
-				})),
+				});
+			}
+
+			return reply.send({
+				totals: sumTotals(result),
+				data,
 				// The window as parsed, so a future toDateTime shows as now
 				links: {
 					self: buildLink(request.url, {

@@ -582,8 +582,12 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			| undefined;
 		assert.strictEqual(filter?.sort, "occurredAt");
 		assert.strictEqual(body.meta.sort, "-occurredAt");
+		const transactionIds = [];
+		for (const row of body.data as { transactionId: string }[]) {
+			transactionIds.push(row.transactionId);
+		}
 		assert.deepStrictEqual(
-			body.data.map((row: { transactionId: string }) => row.transactionId),
+			transactionIds,
 			[TX_ID, "9d4b2f7c-0a3e-4c8d-b5f1-2e6a7c8d9e0f"],
 			"newest first, like every other page"
 		);

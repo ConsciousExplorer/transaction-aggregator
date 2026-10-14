@@ -45,12 +45,12 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 	const sensitiveFields = [
 		...new Set([...BASE_SENSITIVE_FIELDS, ...redactedFields])
 	];
-	const redactPaths = sensitiveFields.flatMap((field) =>
-		Array.from(
-			{ length: redactDepth },
-			(_, depth) => `${"*.".repeat(depth)}${field}`
-		)
-	);
+	const redactPaths: string[] = [];
+	for (const field of sensitiveFields) {
+		for (let depth = 0; depth < redactDepth; depth += 1) {
+			redactPaths.push(`${"*.".repeat(depth)}${field}`);
+		}
+	}
 
 	return pino({
 		level,

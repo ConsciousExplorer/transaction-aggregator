@@ -7,6 +7,40 @@ export async function batchInsertTransactions(
 ): Promise<{ attempted: number; inserted: number }> {
 	if (transactions.length === 0) return { attempted: 0, inserted: 0 };
 
+	// One array per column, each in transaction order, for UNNEST
+	const userIds = [];
+	const accountIds = [];
+	const transactionTypes = [];
+	const externalIds = [];
+	const occurredAts = [];
+	const directions = [];
+	const statuses = [];
+	const amountMinors = [];
+	const currencies = [];
+	const longDescriptions = [];
+	const shortDescriptions = [];
+	const categoryIds = [];
+	const ruleVersions = [];
+	const rulePriorities = [];
+	const metadataJson = [];
+	for (const transaction of transactions) {
+		userIds.push(transaction.userId);
+		accountIds.push(transaction.accountId);
+		transactionTypes.push(transaction.transactionType);
+		externalIds.push(transaction.externalId);
+		occurredAts.push(transaction.occurredAt);
+		directions.push(transaction.direction);
+		statuses.push(transaction.status);
+		amountMinors.push(transaction.amountMinor);
+		currencies.push(transaction.currency);
+		longDescriptions.push(transaction.longDescription);
+		shortDescriptions.push(transaction.shortDescription);
+		categoryIds.push(transaction.categoryId);
+		ruleVersions.push(transaction.ruleVersion);
+		rulePriorities.push(transaction.rulePriority);
+		metadataJson.push(JSON.stringify(transaction.metadata));
+	}
+
 	const result = await db.query(
 		`
         INSERT INTO transactions
@@ -79,21 +113,21 @@ export async function batchInsertTransactions(
         ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING
         RETURNING 1`,
 		[
-			transactions.map((t) => t.userId), // 1
-			transactions.map((t) => t.accountId), // 2
-			transactions.map((t) => t.transactionType), // 3
-			transactions.map((t) => t.externalId), // 4
-			transactions.map((t) => t.occurredAt), // 5
-			transactions.map((t) => t.direction), // 6
-			transactions.map((t) => t.status), // 7
-			transactions.map((t) => t.amountMinor), // 8
-			transactions.map((t) => t.currency), // 9
-			transactions.map((t) => t.longDescription), // 10
-			transactions.map((t) => t.shortDescription), // 11
-			transactions.map((t) => t.categoryId), // 12
-			transactions.map((t) => t.ruleVersion), // 13
-			transactions.map((t) => t.rulePriority), // 14
-			transactions.map((t) => JSON.stringify(t.metadata)) // 15 — string[] cast by $15::jsonb[]
+			userIds, // 1
+			accountIds, // 2
+			transactionTypes, // 3
+			externalIds, // 4
+			occurredAts, // 5
+			directions, // 6
+			statuses, // 7
+			amountMinors, // 8
+			currencies, // 9
+			longDescriptions, // 10
+			shortDescriptions, // 11
+			categoryIds, // 12
+			ruleVersions, // 13
+			rulePriorities, // 14
+			metadataJson // 15 — string[] cast by $15::jsonb[]
 		]
 	);
 	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };

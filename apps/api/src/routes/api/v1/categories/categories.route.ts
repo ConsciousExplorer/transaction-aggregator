@@ -45,11 +45,14 @@ export default async (
 
 			if (!result) throw notFoundError();
 
-			const data = result.map((item) => ({
-				categoryId: item.categoryId,
-				category: item.category,
-				label: item.label
-			}));
+			const data = [];
+			for (const item of result) {
+				data.push({
+					categoryId: item.categoryId,
+					category: item.category,
+					label: item.label
+				});
+			}
 
 			return reply.send({
 				data,

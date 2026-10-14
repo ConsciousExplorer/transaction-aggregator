@@ -91,21 +91,17 @@ export async function createAvroDeserialiser<T>(
 ): Promise<AvroDeserialiser<T>> {
 	const types = new Map<number, avsc.Type>();
 
-	await Promise.all(
-		subjects.map(async (subject) => {
-			const versions = await getSubjectVersions(registryUrl, subject);
-			await Promise.all(
-				versions.map(async (version) => {
-					const { id, schema } = await getSubjectVersion(
-						registryUrl,
-						subject,
-						version
-					);
-					types.set(id, avsc.Type.forSchema(JSON.parse(schema)));
-				})
+	for (const subject of subjects) {
+		const versions = await getSubjectVersions(registryUrl, subject);
+		for (const version of versions) {
+			const { id, schema } = await getSubjectVersion(
+				registryUrl,
+				subject,
+				version
 			);
-		})
-	);
+			types.set(id, avsc.Type.forSchema(JSON.parse(schema)));
+		}
+	}
 
 	logger.info(
 		{ subjects, schemaIds: [...types.keys()] },

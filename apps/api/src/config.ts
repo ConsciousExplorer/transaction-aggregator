@@ -91,10 +91,11 @@ export function loadPackageInfo(pkg: unknown): AppInfoConfig {
 	const config = appInfoSchema.safeParse(pkg);
 
 	if (!config.success) {
-		const detail = config.error.issues
-			.map((i) => `  ${i.path.join(".")}: ${i.message}`)
-			.join("\n");
-		throw new Error(`Invalid configuration:\n${detail}`);
+		const issueLines: string[] = [];
+		for (const issue of config.error.issues) {
+			issueLines.push(`  ${issue.path.join(".")}: ${issue.message}`);
+		}
+		throw new Error(`Invalid configuration:\n${issueLines.join("\n")}`);
 	}
 
 	return config.data;
@@ -104,10 +105,11 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 	const config = configSchema.safeParse(env);
 
 	if (!config.success) {
-		const detail = config.error.issues
-			.map((i) => `  ${i.path.join(".")}: ${i.message}`)
-			.join("\n");
-		throw new Error(`Invalid configuration:\n${detail}`);
+		const issueLines: string[] = [];
+		for (const issue of config.error.issues) {
+			issueLines.push(`  ${issue.path.join(".")}: ${issue.message}`);
+		}
+		throw new Error(`Invalid configuration:\n${issueLines.join("\n")}`);
 	}
 
 	return config.data;

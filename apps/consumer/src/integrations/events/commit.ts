@@ -18,5 +18,9 @@ export async function commitBatch(
 		}
 	}
 
-	await Promise.all([...highest.values()].map((message) => message.commit()));
+	const commits = [];
+	for (const message of highest.values()) {
+		commits.push(message.commit());
+	}
+	await Promise.all(commits);
 }

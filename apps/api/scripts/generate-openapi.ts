@@ -12,13 +12,23 @@ const packageInfoConfig = loadPackageInfo(packageJson)
  * 
 */
 function sortKeysDeep(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map(sortKeysDeep);
-	if (value !== null && typeof value === "object")
-		return Object.fromEntries(
-			Object.entries(value)
-				.sort(([a], [b]) => a.localeCompare(b))
-				.map(([k, v]) => [k, sortKeysDeep(v)])
+	if (Array.isArray(value)) {
+		const sortedItems: unknown[] = [];
+		for (const item of value) {
+			sortedItems.push(sortKeysDeep(item));
+		}
+		return sortedItems;
+	}
+	if (value !== null && typeof value === "object") {
+		const entries = Object.entries(value).sort(([firstKey], [secondKey]) =>
+			firstKey.localeCompare(secondKey)
 		);
+		const sorted: Record<string, unknown> = {};
+		for (const [key, entryValue] of entries) {
+			sorted[key] = sortKeysDeep(entryValue);
+		}
+		return sorted;
+	}
 	return value;
 }
 
@@ -28,16 +38,22 @@ function sortKeysDeep(value: unknown): unknown {
  *  everything BELOW the root still gets the full deep sort. Deterministic
  *  either way — this trades alphabetical for conventional at one level. */
 const ROOT_ORDER = ["openapi", "info", "components", "servers", "tags", "paths", "security", "externalDocs"];
+function rankRootKey(key: string): number {
+	const index = ROOT_ORDER.indexOf(key);
+	return index === -1 ? ROOT_ORDER.length : index;
+}
+
 function sortRoot(doc: Record<string, unknown>): Record<string, unknown> {
-	const rank = (k: string) => {
-		const i = ROOT_ORDER.indexOf(k);
-		return i === -1 ? ROOT_ORDER.length : i;
-	};
-	return Object.fromEntries(
-		Object.entries(doc)
-			.sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
-			.map(([k, v]) => [k, sortKeysDeep(v)])
+	const entries = Object.entries(doc).sort(
+		([firstKey], [secondKey]) =>
+			rankRootKey(firstKey) - rankRootKey(secondKey) ||
+			firstKey.localeCompare(secondKey)
 	);
+	const sorted: Record<string, unknown> = {};
+	for (const [key, entryValue] of entries) {
+		sorted[key] = sortKeysDeep(entryValue);
+	}
+	return sorted;
 }
 
 // Defaults only, so the contract never depends on the shell it is generated in

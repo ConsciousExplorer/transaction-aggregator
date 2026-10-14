@@ -48,12 +48,12 @@ function createLogger(options: LoggerOptions = {}): Logger {
 	const sensitiveFields = [
 		...new Set([...BASE_SENSITIVE_FIELDS, ...redactedFields])
 	];
-	const redactPaths = sensitiveFields.flatMap((field) =>
-		Array.from(
-			{ length: redactDepth },
-			(_, depth) => `${"*.".repeat(depth)}${field}`
-		)
-	);
+	const redactPaths: string[] = [];
+	for (const field of sensitiveFields) {
+		for (let depth = 0; depth < redactDepth; depth += 1) {
+			redactPaths.push(`${"*.".repeat(depth)}${field}`);
+		}
+	}
 
 	return pino({
 		level,
@@ -67,10 +67,13 @@ const level = LOG_LEVELS.find(
 	(candidate) => candidate === process.env.LOG_LEVEL
 );
 
-const redactedFields = (process.env.LOG_REDACTED_FIELDS ?? "")
-	.split(",")
-	.map((field) => field.trim())
-	.filter(Boolean);
+const redactedFields: string[] = [];
+for (const field of (process.env.LOG_REDACTED_FIELDS ?? "").split(",")) {
+	const trimmed = field.trim();
+	if (trimmed !== "") {
+		redactedFields.push(trimmed);
+	}
+}
 
 const baseLogger = createLogger({
 	level,

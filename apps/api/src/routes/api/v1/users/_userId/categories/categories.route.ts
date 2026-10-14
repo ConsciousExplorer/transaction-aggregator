@@ -63,7 +63,10 @@ export default async (
 				request.params.userId
 			);
 
-			const data = rows.map(buildUserCategoryResponse);
+			const data = [];
+			for (const row of rows) {
+				data.push(buildUserCategoryResponse(row));
+			}
 
 			return reply.send({
 				data,

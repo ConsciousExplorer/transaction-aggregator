@@ -148,9 +148,10 @@ suite("audit line", () => {
 			headers: READ_TOKEN
 		});
 		await readAuditLines();
-		assert.deepStrictEqual(
-			logLines.map((line) => line.msg),
-			["audit"]
-		);
+		const messages = [];
+		for (const line of logLines) {
+			messages.push(line.msg);
+		}
+		assert.deepStrictEqual(messages, ["audit"]);
 	});
 });

@@ -51,14 +51,16 @@ function parseCanonical(
 	const result = canonicalTransactionSchema.safeParse(transaction);
 
 	if (!result.success) {
+		const issues: string[] = [];
+		for (const issue of result.error.issues) {
+			issues.push(`${issue.path.join(".")}: ${issue.message}`);
+		}
 		throw new NonRetryableError("Normalised transaction failed validation", {
 			cause: result.error,
 			details: {
 				transactionType: transaction.transactionType,
 				externalId: transaction.externalId,
-				issues: result.error.issues.map(
-					(issue) => `${issue.path.join(".")}: ${issue.message}`
-				)
+				issues
 			}
 		});
 	}

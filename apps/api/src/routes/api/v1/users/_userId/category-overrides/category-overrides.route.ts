@@ -92,9 +92,12 @@ export default async (
 				request.params.userId
 			);
 
-			const overridden = rows
-				.filter((row) => row.toCategoryId !== null)
-				.map(buildUserCategoryResponse);
+			const overridden = [];
+			for (const row of rows) {
+				if (row.toCategoryId !== null) {
+					overridden.push(buildUserCategoryResponse(row));
+				}
+			}
 
 			return reply.send({
 				data: overridden,
