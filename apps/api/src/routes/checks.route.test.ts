@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
+import { createLocalJWKSet } from "jose";
 import type { Pool } from "pg";
-import type { TokenVerifier } from "#src/auth/verifier.ts";
 import authPlugin from "#src/plugins/auth.ts";
 import { buildServer } from "#src/server.ts";
 import checksRoute from "./checks.route.ts";
 
-// Every token is rejected, so a 200 proves the route is public
-const rejectingVerifier: TokenVerifier = {
-	async verifyToken() {
-		throw new Error("no tokens in this test");
-	}
+// An empty key set rejects every token, so a 200 proves the route is public
+const rejectingTokenVerification = {
+	getSigningKey: createLocalJWKSet({ keys: [] }),
+	issuer: "unused",
+	audience: "unused"
 };
 
 const query = mock.fn(async () => ({ rows: [{ "?column?": 1 }] }));
@@ -22,7 +22,9 @@ suite("health checks", () => {
 
 	before(async () => {
 		app = buildServer({});
-		await app.register(authPlugin, { tokenVerifier: rejectingVerifier });
+		await app.register(authPlugin, {
+			tokenVerification: rejectingTokenVerification
+		});
 		await app.register(checksRoute, { database });
 		await app.ready();
 	});
@@ -35,15 +37,15 @@ suite("health checks", () => {
 	});
 
 	test("/health answers without a token", async () => {
-		const res = await app.inject({ method: "GET", url: "/health" });
-		assert.strictEqual(res.statusCode, 200);
-		assert.deepStrictEqual(res.json(), { status: "ok" });
+		const response = await app.inject({ method: "GET", url: "/health" });
+		assert.strictEqual(response.statusCode, 200);
+		assert.deepStrictEqual(response.json(), { status: "ok" });
 	});
 
 	test("/ready answers without a token once the database responds", async () => {
-		const res = await app.inject({ method: "GET", url: "/ready" });
-		assert.strictEqual(res.statusCode, 200);
-		assert.deepStrictEqual(res.json(), { status: "ok" });
+		const response = await app.inject({ method: "GET", url: "/ready" });
+		assert.strictEqual(response.statusCode, 200);
+		assert.deepStrictEqual(response.json(), { status: "ok" });
 		assert.strictEqual(query.mock.callCount(), 1);
 	});
 
@@ -51,8 +53,8 @@ suite("health checks", () => {
 		query.mock.mockImplementationOnce(async () => {
 			throw new Error("connect ECONNREFUSED");
 		});
-		const res = await app.inject({ method: "GET", url: "/ready" });
-		assert.strictEqual(res.statusCode, 503);
-		assert.deepStrictEqual(res.json(), { status: "unavailable" });
+		const response = await app.inject({ method: "GET", url: "/ready" });
+		assert.strictEqual(response.statusCode, 503);
+		assert.deepStrictEqual(response.json(), { status: "unavailable" });
 	});
 });

@@ -1,9 +1,11 @@
 import assert from "node:assert";
 import { Readable } from "node:stream";
-import { suite, test } from "node:test";
+import { type Mock, mock, suite, test } from "node:test";
+import { setTimeout as wait } from "node:timers/promises";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import type {
+	BatchHandler,
 	ClassifiedMessage,
 	DeadLetterFailure
 } from "./handlers/transactionBatchHandler.ts";
@@ -18,8 +20,6 @@ import {
 } from "./kafka.ts";
 
 function buildMessage(offset: number) {
-	let committed = false;
-
 	return {
 		topic: "transactions",
 		partition: 0,
@@ -28,43 +28,36 @@ function buildMessage(offset: number) {
 		value: undefined,
 		headers: new Map(),
 		timestamp: 0n,
-		commit: async () => {
-			committed = true;
-		},
-		get committed() {
-			return committed;
-		},
+		async commit() {},
 		metadata: {}
 	} as unknown as KafkaMessage;
 }
 
 /**
- * A consumer that yields messages with a real gap between them. The gap matters:
- * an array-backed stream delivers everything in one microtask burst, so the
+ * Yields messages with a real gap between them. The gap matters: an
+ * array-backed stream delivers everything in one microtask burst, so the
  * linger timer never gets to fire mid-flush and the race stays hidden.
  */
-function createFakeConsumer(count: number, gapMs = 0) {
-	async function* generateMessages() {
-		for (let index = 1; index <= count; index += 1) {
-			if (gapMs > 0) {
-				await new Promise((resolve) => setTimeout(resolve, gapMs));
-			}
-			yield buildMessage(index);
-		}
+async function* generateMessages(count: number, gapMilliseconds: number) {
+	for (let index = 1; index <= count; index += 1) {
+		await wait(gapMilliseconds);
+		yield buildMessage(index);
 	}
+}
 
+/** A consumer that reads the given stream: generated, or one a test pushes into. */
+function buildConsumer(stream: Readable) {
 	return {
-		consume: async () => Readable.from(generateMessages())
+		async consume() {
+			return stream;
+		}
 	} as unknown as KafkaConsumer;
 }
 
-/** A stream that stays open, like a live topic, until the test pushes into it. */
-function createOpenConsumer(stream: Readable) {
-	return { consume: async () => stream } as unknown as KafkaConsumer;
-}
-
-const buildOptions = (over: Partial<BatchConsumerOptions> = {}) =>
-	({
+function buildOptions(
+	over: Partial<BatchConsumerOptions> = {}
+): BatchConsumerOptions {
+	return {
 		topics: ["transactions"],
 		mode: "latest",
 		maxWaitTime: 100,
@@ -73,51 +66,67 @@ const buildOptions = (over: Partial<BatchConsumerOptions> = {}) =>
 		// size-triggered flush is still awaiting — the race window.
 		lingerMs: 1,
 		...over
-	}) as BatchConsumerOptions;
+	};
+}
+
+// The messages here always deserialise, so the stream never calls this.
+function continueAfterDeserialisationError() {
+	return "continue" as never;
+}
+
+/** Every offset the handler was given, in the order it was given them. */
+function readHandledOffsets(onBatch: Mock<BatchHandler>) {
+	const offsets: bigint[] = [];
+	for (const call of onBatch.mock.calls) {
+		for (const message of call.arguments[0]) {
+			offsets.push(message.offset);
+		}
+	}
+	return offsets;
+}
 
 suite("startBatchConsumer", () => {
 	test("never runs two flushes concurrently", async () => {
 		let active = 0;
 		let maxActive = 0;
-		const seen: bigint[] = [];
-
-		async function onBatch(messages: ClassifiedMessage[]) {
+		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {
 			active += 1;
 			maxActive = Math.max(maxActive, active);
-			await new Promise((resolve) => setTimeout(resolve, 20));
-			for (const item of messages) seen.push(item.offset);
+			await wait(20);
 			active -= 1;
-		}
+		});
 
 		await startBatchConsumer(
-			createFakeConsumer(7, 5),
+			buildConsumer(Readable.from(generateMessages(7, 5))),
 			onBatch,
-			() => "continue" as never,
+			continueAfterDeserialisationError,
 			buildOptions()
 		);
 
 		assert.equal(maxActive, 1, "flushes must not overlap");
 		assert.deepEqual(
-			seen,
+			readHandledOffsets(onBatch),
 			[1n, 2n, 3n, 4n, 5n, 6n, 7n],
 			"every message is handled exactly once, in order"
 		);
 	});
 
 	test("flushes the trailing partial batch when the stream ends", async () => {
-		const seen: bigint[] = [];
+		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {});
 
 		// 4 messages with batchSize 3 leaves one buffered at stream end.
 		await startBatchConsumer(
-			createFakeConsumer(4, 1),
-			async (messages) => {
-				for (const item of messages) seen.push(item.offset);
-			},
-			() => "continue" as never,
+			buildConsumer(Readable.from(generateMessages(4, 1))),
+			onBatch,
+			continueAfterDeserialisationError,
 			buildOptions({ lingerMs: 10_000 })
 		);
 
-		assert.deepEqual(seen, [1n, 2n, 3n, 4n], "the 4th must not be dropped");
+		assert.deepEqual(
+			readHandledOffsets(onBatch),
+			[1n, 2n, 3n, 4n],
+			"the 4th must not be dropped"
+		);
 	});
 
 	test("a failed linger flush ends the consumer with that error", async () => {
@@ -125,11 +134,11 @@ suite("startBatchConsumer", () => {
 		const failure = new Error("database unavailable");
 
 		const consuming = startBatchConsumer(
-			createOpenConsumer(stream),
+			buildConsumer(stream),
 			async () => {
 				throw failure;
 			},
-			() => "continue" as never,
+			continueAfterDeserialisationError,
 			buildOptions({ batchSize: 10, lingerMs: 1 })
 		);
 
@@ -194,14 +203,17 @@ interface SentRecord {
 	headers: Record<string, string>;
 }
 
-function createRecordingDeadLetterProducer() {
-	const sent: SentRecord[] = [];
-	const producer = {
-		send: async (request: { messages: SentRecord[] }) => {
-			for (const record of request.messages) sent.push(record);
+/** The fake producer's send: accepts every request, recorded by `mock.fn`. */
+async function acceptRecords(_request: { messages: SentRecord[] }) {}
+
+function readSentRecords(send: Mock<typeof acceptRecords>) {
+	const records: SentRecord[] = [];
+	for (const call of send.mock.calls) {
+		for (const record of call.arguments[0].messages) {
+			records.push(record);
 		}
-	} as unknown as DeadLetterProducer;
-	return { sent, producer };
+	}
+	return records;
 }
 
 function buildValidFailure(
@@ -240,7 +252,7 @@ function buildPoisonFailure(error: unknown): DeadLetterFailure {
 
 suite("createDeadLetterSender", () => {
 	test("a record is dead-lettered as it arrived, with the DLQ headers on top", async () => {
-		const deadLetter = createRecordingDeadLetterProducer();
+		const send = mock.fn(acceptRecords);
 		const headers = buildIncomingHeaders();
 		headers.set("x-dlq-reason", "from an earlier redrive");
 		const failure = buildValidFailure(
@@ -248,12 +260,14 @@ suite("createDeadLetterSender", () => {
 			headers
 		);
 
-		await createDeadLetterSender(
-			deadLetter.producer,
+		const sendToDeadLetterQueue = createDeadLetterSender(
+			{ send } as unknown as DeadLetterProducer,
 			"transactions.card.dlq"
-		)([failure]);
+		);
 
-		const [record] = deadLetter.sent;
+		await sendToDeadLetterQueue([failure]);
+
+		const [record] = readSentRecords(send);
 		assert.equal(record?.key, "transactions.card-3-42");
 		assert.deepEqual(record?.value, Buffer.from("framed avro"));
 		assert.deepEqual(record?.headers, {
@@ -268,14 +282,18 @@ suite("createDeadLetterSender", () => {
 	});
 
 	test("a poison record keeps its raw bytes and headers, reason deserialisation", async () => {
-		const deadLetter = createRecordingDeadLetterProducer();
+		const send = mock.fn(acceptRecords);
 
-		await createDeadLetterSender(
-			deadLetter.producer,
+		const sendToDeadLetterQueue = createDeadLetterSender(
+			{ send } as unknown as DeadLetterProducer,
 			"transactions.card.dlq"
-		)([buildPoisonFailure(new Error("Not Confluent wire format"))]);
+		);
 
-		const [record] = deadLetter.sent;
+		await sendToDeadLetterQueue([
+			buildPoisonFailure(new Error("Not Confluent wire format"))
+		]);
+
+		const [record] = readSentRecords(send);
 		assert.deepEqual(record?.value, Buffer.from("not avro"));
 		assert.equal(record?.headers.traceparent, TRACEPARENT);
 		assert.equal(record?.headers["x-dlq-reason"], "deserialisation");

@@ -1,68 +1,46 @@
 import assert from "node:assert";
-import { suite, test } from "node:test";
-import type {
-	CanonicalTransactionSchema,
-	DomainTransactionSchema
-} from "#src/schemas/transaction.ts";
-import type { RuleCategoriser } from "#src/services/rule-categoriser.ts";
+import { mock, suite, test } from "node:test";
+import type { Pool } from "pg";
+import {
+	buildCardRecord,
+	castToDomainTransaction
+} from "#src/services/test-records.ts";
 import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 
-function buildCanonical(
-	over: Partial<CanonicalTransactionSchema> = {}
-): CanonicalTransactionSchema {
-	return {
-		userId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
-		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
-		transactionType: "card",
-		externalId: "ext-1",
-		occurredAt: new Date("2026-01-01T10:00:00Z").toISOString(),
-		creditDebitIndicator: "debit",
-		status: "completed",
-		currency: "ZAR",
-		amountMinor: 1999,
-		longDescription: "WOOLWORTHS STORE",
-		shortDescription: "Woolworths",
-		metadata: { mcc: "5411" },
-		...over
-	};
-}
-
-const createEmittingNormaliser = (value: unknown) => ({
-	normalise: () => value as CanonicalTransactionSchema
-});
-
-const categoriser = {
-	categorise: () => ({
-		categoryId: 10,
-		ruleVersion: 1,
-		rulePriority: 100,
-		matcherType: "mcc"
-	})
-} as unknown as RuleCategoriser;
+// No rules, so every transaction takes the fallback verdict.
+const EMPTY_RULESET = { version: 1, rules: [], uncategorisedId: 1 };
 
 suite("transaction ingestion", () => {
-	test("a valid transaction reaches the insert", async () => {
-		let inserted = 0;
+	test("a valid transaction is inserted inside one database transaction", async () => {
+		const query = mock.fn(async (_text: string, _values?: unknown[]) => ({
+			rows: [],
+			rowCount: 1
+		}));
 		const pool = {
-			connect: async () => ({
-				query: async (text: string) => {
-					if (text.includes("INSERT INTO transactions")) inserted += 1;
-					return { rows: [], rowCount: 1 };
-				},
-				release: () => {}
-			})
-		} as never;
+			async connect() {
+				return { query, release() {} };
+			}
+		} as unknown as Pool;
 
-		const ingester = createTransactionIngester(
-			createEmittingNormaliser(buildCanonical()),
-			categoriser,
+		const ingestTransactions = createTransactionIngester(
+			"card",
+			EMPTY_RULESET,
 			pool
 		);
 
-		// The faked normaliser ignores its input, so any wire value will do
-		const outcome = await ingester.ingest([{} as DomainTransactionSchema]);
+		const outcome = await ingestTransactions([
+			castToDomainTransaction(buildCardRecord())
+		]);
 
-		assert.equal(inserted, 1, "the valid row is inserted");
-		assert.equal(outcome.attempted, 1);
+		assert.deepEqual(outcome, { attempted: 1, inserted: 1 });
+
+		const statements = [];
+		for (const call of query.mock.calls) {
+			statements.push(call.arguments[0]);
+		}
+		assert.equal(statements.length, 3);
+		assert.equal(statements[0], "BEGIN");
+		assert.match(statements[1] ?? "", /INSERT INTO transactions/);
+		assert.equal(statements[2], "COMMIT");
 	});
 });

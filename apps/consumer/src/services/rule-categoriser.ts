@@ -39,47 +39,62 @@ function buildVerdict(rule: Rule, ruleVersion: number) {
 	};
 }
 
-// How the categoriser works. Basically like a database cross join and selecting the first priority
-export interface RuleCategoriser {
-	categorise(transaction: CanonicalTransactionSchema): Verdict;
+/**
+ * The ruleset indexed once at boot, so `categoriseTransaction` does no
+ * per-message setup. Works like a database cross join that keeps the first
+ * match in priority order.
+ */
+export interface CompiledRules {
+	version: number;
+	mccRules: Map<string, Rule>;
+	keywordRules: { term: string; rule: Rule }[];
+	sourceTransactionTypeRules: Map<string, Rule>;
+	sourceCreditDebitIndicatorRules: Map<string, Rule>;
+	defaultRules: Map<string, Rule>;
+	fallback: Verdict;
 }
 
-export function createRuleCategoriser(ruleset: RuleSet) {
-	// Compile step: O(r log r) sort + O(r) map builds, paid once at boot —
-	// categorise() does no per-message setup.
-	const sorted = [...ruleset.rules].sort((a, b) => a.priority - b.priority);
+/**
+ * Compile step: O(r log r) sort + O(r) map builds, paid once at boot. Within
+ * a map the lowest priority wins, because the rules are added in priority order
+ * and a pattern already present is never replaced.
+ */
+export function compileRules(ruleset: RuleSet) {
+	const sorted = [...ruleset.rules].sort(
+		(first, second) => first.priority - second.priority
+	);
 
-	const mccMap = new Map<string, Rule>();
-	const keywordRules: Array<{ term: string; rule: Rule }> = [];
-	const sourceTransactionTypeMap = new Map<string, Rule>();
-	const sourceCreditDebitIndicatorMap = new Map<string, Rule>();
-	const defaultMap = new Map<string, Rule>();
+	const mccRules = new Map<string, Rule>();
+	const keywordRules: { term: string; rule: Rule }[] = [];
+	const sourceTransactionTypeRules = new Map<string, Rule>();
+	const sourceCreditDebitIndicatorRules = new Map<string, Rule>();
+	const defaultRules = new Map<string, Rule>();
 
 	for (const rule of sorted) {
 		switch (rule.matcherType) {
 			case "mcc":
-				if (!mccMap.has(rule.pattern)) mccMap.set(rule.pattern, rule);
+				if (!mccRules.has(rule.pattern)) mccRules.set(rule.pattern, rule);
 				break;
 			case "source_transaction_type":
-				if (!sourceTransactionTypeMap.has(rule.pattern))
-					sourceTransactionTypeMap.set(rule.pattern, rule);
+				if (!sourceTransactionTypeRules.has(rule.pattern))
+					sourceTransactionTypeRules.set(rule.pattern, rule);
 				break;
 			case "keyword":
 				keywordRules.push({ term: rule.pattern.toLowerCase(), rule });
 				break;
 
 			case "source_credit_debit_indicator":
-				if (!sourceCreditDebitIndicatorMap.has(rule.pattern))
-					sourceCreditDebitIndicatorMap.set(rule.pattern, rule);
+				if (!sourceCreditDebitIndicatorRules.has(rule.pattern))
+					sourceCreditDebitIndicatorRules.set(rule.pattern, rule);
 				break;
 
 			case "source_default":
-				if (!defaultMap.has(rule.pattern)) defaultMap.set(rule.pattern, rule);
+				if (!defaultRules.has(rule.pattern))
+					defaultRules.set(rule.pattern, rule);
 				break;
 		}
 	}
 
-	const version = ruleset.version;
 	const fallback: Verdict = {
 		categoryId: ruleset.uncategorisedId,
 		ruleVersion: ruleset.version,
@@ -88,58 +103,69 @@ export function createRuleCategoriser(ruleset: RuleSet) {
 	};
 
 	return {
-		categorise(transaction: CanonicalTransactionSchema) {
-			// Search order and per-transaction cost (Map.get is a hash
-			// lookup: O(1) average, not O(n)):
-			// 1. MCC             — O(1) map lookup
-			// 2. Keywords        — O(k·m): k terms scanned in priority order
-			// 3. source:transaction_type — O(1) map lookup
-			// 4. source:credit/debit indicator — O(1) map lookup
-			// 5. source defaults — O(1) map lookup
-			// 6. Fallback        — O(1), always succeeds
-
-			// 1. MCC
-			if (
-				transaction.metadata.mcc !== null &&
-				typeof transaction.metadata.mcc === "string"
-			) {
-				const rule = mccMap.get(transaction.metadata.mcc);
-				if (rule) {
-					return buildVerdict(rule, version);
-				}
-			}
-
-			// 2. Keywords
-			if (KEYWORD_TRANSACTION_TYPES.has(transaction.transactionType)) {
-				const terms =
-					`${transaction.shortDescription ?? ""} ${transaction.longDescription ?? ""}`.toLowerCase();
-				for (const { term, rule } of keywordRules) {
-					if (terms.includes(term)) return buildVerdict(rule, version);
-				}
-			}
-
-			// 3. source:transaction_type
-			const sourceTransactionType = transaction.metadata.transaction_type;
-			if (typeof sourceTransactionType === "string") {
-				const rule = sourceTransactionTypeMap.get(
-					`${transaction.transactionType}:${sourceTransactionType}`
-				);
-				if (rule) return buildVerdict(rule, version);
-			}
-
-			// 4. source:credit/debit indicator
-			const creditDebitIndicatorRule = sourceCreditDebitIndicatorMap.get(
-				`${transaction.transactionType}:${transaction.creditDebitIndicator}`
-			);
-			if (creditDebitIndicatorRule)
-				return buildVerdict(creditDebitIndicatorRule, version);
-
-			// 5. source defaults
-			const rule = defaultMap.get(transaction.transactionType);
-			if (rule) return buildVerdict(rule, version);
-
-			// 6. Fallback
-			return fallback;
-		}
+		version: ruleset.version,
+		mccRules,
+		keywordRules,
+		sourceTransactionTypeRules,
+		sourceCreditDebitIndicatorRules,
+		defaultRules,
+		fallback
 	};
+}
+
+export function categoriseTransaction(
+	transaction: CanonicalTransactionSchema,
+	rules: CompiledRules
+) {
+	// Search order and per-transaction cost (Map.get is a hash
+	// lookup: O(1) average, not O(n)):
+	// 1. MCC             — O(1) map lookup
+	// 2. Keywords        — O(k·m): k terms scanned in priority order
+	// 3. source:transaction_type — O(1) map lookup
+	// 4. source:credit/debit indicator — O(1) map lookup
+	// 5. source defaults — O(1) map lookup
+	// 6. Fallback        — O(1), always succeeds
+
+	// 1. MCC
+	if (
+		transaction.metadata.mcc !== null &&
+		typeof transaction.metadata.mcc === "string"
+	) {
+		const rule = rules.mccRules.get(transaction.metadata.mcc);
+		if (rule) {
+			return buildVerdict(rule, rules.version);
+		}
+	}
+
+	// 2. Keywords
+	if (KEYWORD_TRANSACTION_TYPES.has(transaction.transactionType)) {
+		const terms =
+			`${transaction.shortDescription ?? ""} ${transaction.longDescription ?? ""}`.toLowerCase();
+		for (const { term, rule } of rules.keywordRules) {
+			if (terms.includes(term)) return buildVerdict(rule, rules.version);
+		}
+	}
+
+	// 3. source:transaction_type
+	const sourceTransactionType = transaction.metadata.transaction_type;
+	if (typeof sourceTransactionType === "string") {
+		const rule = rules.sourceTransactionTypeRules.get(
+			`${transaction.transactionType}:${sourceTransactionType}`
+		);
+		if (rule) return buildVerdict(rule, rules.version);
+	}
+
+	// 4. source:credit/debit indicator
+	const creditDebitIndicatorRule = rules.sourceCreditDebitIndicatorRules.get(
+		`${transaction.transactionType}:${transaction.creditDebitIndicator}`
+	);
+	if (creditDebitIndicatorRule)
+		return buildVerdict(creditDebitIndicatorRule, rules.version);
+
+	// 5. source defaults
+	const rule = rules.defaultRules.get(transaction.transactionType);
+	if (rule) return buildVerdict(rule, rules.version);
+
+	// 6. Fallback
+	return rules.fallback;
 }

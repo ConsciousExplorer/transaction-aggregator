@@ -4,7 +4,8 @@ import { runInTransaction } from "#src/integrations/database/pool.ts";
 import { batchInsertTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
 import type {
 	CategorisedTransactionSchema,
-	DomainTransactionSchema
+	DomainTransactionSchema,
+	TransactionType
 } from "#src/schemas/transaction.ts";
 import {
 	categorisationVerdictsTotal,
@@ -13,8 +14,14 @@ import {
 	rowsInsertedTotal
 } from "#src/telemetry/metrics.ts";
 import { runInSpan } from "#src/telemetry/tracing.ts";
-import type { Normaliser } from "./domain-normaliser.ts";
-import type { RuleCategoriser, Verdict } from "./rule-categoriser.ts";
+import { normaliseTransaction } from "./domain-normaliser.ts";
+import {
+	type CompiledRules,
+	categoriseTransaction,
+	compileRules,
+	type RuleSet,
+	type Verdict
+} from "./rule-categoriser.ts";
 
 export interface BatchOutcome {
 	attempted: number;
@@ -24,80 +31,90 @@ export interface BatchOutcome {
 /**
  * The write path for a batch: normalise, validate, categorise, insert. Reports
  * what it attempted against what actually landed, since the insert ignores
- * duplicates rather than failing on them.
+ * duplicates rather than failing on them. The rules are compiled once, here,
+ * so each batch only looks them up.
  */
-export interface TransactionIngester {
-	ingest(transactions: DomainTransactionSchema[]): Promise<BatchOutcome>;
-}
-
 export function createTransactionIngester(
-	normaliser: Normaliser,
-	categoriser: RuleCategoriser,
+	transactionType: TransactionType,
+	ruleset: RuleSet,
 	pool: Pool
 ) {
-	function categoriseAll(transactions: DomainTransactionSchema[]) {
-		const categorisedTransactions: CategorisedTransactionSchema[] = [];
-		const matcherTypes: Verdict["matcherType"][] = [];
+	const rules = compileRules(ruleset);
 
-		for (const transaction of transactions) {
-			// The normaliser validates its own output, so this is canonical.
-			const normalisedTransaction = normaliser.normalise(transaction);
-			const categorisedTransaction = categoriser.categorise(
-				normalisedTransaction
-			);
-			categorisedTransactions.push({
-				...normalisedTransaction,
-				...categorisedTransaction
-			});
-			matcherTypes.push(categorisedTransaction.matcherType);
-		}
-
-		return { categorisedTransactions, matcherTypes };
-	}
-
-	async function ingest(transactions: DomainTransactionSchema[]) {
+	return async function ingestTransactions(
+		transactions: DomainTransactionSchema[]
+	) {
 		const { categorisedTransactions, matcherTypes } = await runInSpan(
 			"categorize",
 			{ attributes: { "transaction.count": transactions.length } },
-			() => categoriseAll(transactions)
+			() => categoriseTransactions(transactions, transactionType, rules)
 		);
 
-		// Insert batch rows
-		const endInsertTimer = insertDurationSeconds.startTimer();
-		let outcome: BatchOutcome;
-		try {
-			outcome = await runInSpan(
-				"db.insert",
-				{
-					attributes: {
-						"db.system.name": "postgresql",
-						"db.operation.name": "INSERT",
-						"db.collection.name": "transactions",
-						"rows.attempted": categorisedTransactions.length
-					}
-				},
-				async (span) => {
-					const result = await runInTransaction(pool, async (client) => {
-						return await batchInsertTransactions(
-							client,
-							categorisedTransactions
-						);
-					});
-					span.setAttribute("rows.inserted", result.inserted);
-					return result;
-				}
-			);
-		} catch (error) {
-			throw classifyPostgresError(error, "Batch insert failed");
-		}
-		endInsertTimer();
+		const outcome = await insertTransactions(categorisedTransactions, pool);
 
 		recordCommittedBatch(matcherTypes, outcome);
 
 		return outcome;
+	};
+}
+
+function categoriseTransactions(
+	transactions: DomainTransactionSchema[],
+	transactionType: TransactionType,
+	rules: CompiledRules
+) {
+	const categorisedTransactions: CategorisedTransactionSchema[] = [];
+	const matcherTypes: Verdict["matcherType"][] = [];
+
+	for (const transaction of transactions) {
+		// The normaliser validates its own output, so this is canonical.
+		const normalisedTransaction = normaliseTransaction(
+			transaction,
+			transactionType
+		);
+		const verdict = categoriseTransaction(normalisedTransaction, rules);
+		categorisedTransactions.push({ ...normalisedTransaction, ...verdict });
+		matcherTypes.push(verdict.matcherType);
 	}
 
-	return { ingest };
+	return { categorisedTransactions, matcherTypes };
+}
+
+/**
+ * One database transaction for the whole batch. A Postgres failure is
+ * classified here, so the batch handler can tell a retryable outage from a
+ * row that will never insert.
+ */
+async function insertTransactions(
+	transactions: CategorisedTransactionSchema[],
+	pool: Pool
+) {
+	const endInsertTimer = insertDurationSeconds.startTimer();
+
+	try {
+		const outcome = await runInSpan(
+			"db.insert",
+			{
+				attributes: {
+					"db.system.name": "postgresql",
+					"db.operation.name": "INSERT",
+					"db.collection.name": "transactions",
+					"rows.attempted": transactions.length
+				}
+			},
+			async (span) => {
+				const result = await runInTransaction(pool, (client) =>
+					batchInsertTransactions(client, transactions)
+				);
+				span.setAttribute("rows.inserted", result.inserted);
+				return result;
+			}
+		);
+		endInsertTimer();
+		return outcome;
+	} catch (error) {
+		throw classifyPostgresError(error, "Batch insert failed");
+	}
 }
 
 /**

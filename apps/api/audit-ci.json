@@ -1,0 +1,8 @@
+{
+  "low": false,
+  "moderate": false,
+  "high": true,
+  "critical": true,
+  "allowlist": [
+    "GHSA-vfj7-8cjw-p6xm"  ]
+}

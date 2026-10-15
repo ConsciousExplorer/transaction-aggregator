@@ -40,35 +40,49 @@ export function parseClaims(payload: JWTPayload) {
 	return result.data;
 }
 
-export interface TokenVerifier {
-	verifyToken: (token: string) => Promise<VerifiedClaims>;
+/**
+ * What verifying a token needs: where the signing keys come from, who must have
+ * issued the token, and who it must be for. Built once at boot.
+ */
+export interface TokenVerification {
+	getSigningKey: JWTVerifyGetKey;
+	issuer: string;
+	audience: string;
 }
 
-export function createTokenVerifier(
-	config: AuthConfig,
-	getKey: JWTVerifyGetKey = createRemoteJWKSet(new URL(config.jwksUri))
-) {
+/** The remote key set is fetched lazily and cached by jose, so this is cheap. */
+export function buildTokenVerification(config: AuthConfig) {
 	return {
-		async verifyToken(token: string) {
-			let payload: JWTPayload;
-			try {
-				({ payload } = await jwtVerify(token, getKey, {
-					issuer: config.issuer,
-					audience: config.audience,
-					algorithms: ["RS256"]
-				}));
-			} catch (err) {
-				throw translateJoseError(err);
-			}
-			return parseClaims(payload);
-		}
+		getSigningKey: createRemoteJWKSet(new URL(config.jwksUri)),
+		issuer: config.issuer,
+		audience: config.audience
 	};
 }
 
-export function getContext(claims: VerifiedClaims) {
+export async function verifyToken(
+	token: string,
+	verification: TokenVerification
+) {
+	let payload: JWTPayload;
+	try {
+		({ payload } = await jwtVerify(token, verification.getSigningKey, {
+			issuer: verification.issuer,
+			audience: verification.audience,
+			algorithms: ["RS256"]
+		}));
+	} catch (error) {
+		throw translateJoseError(error);
+	}
+	return parseClaims(payload);
+}
+
+export function buildAuthContext(claims: VerifiedClaims) {
 	return { clientId: claims.azp, scope: claims.scope.split(" ") };
 }
 
-export function getAuthScopes(ctx: AuthContext, requiredScope: string[]) {
-	return requiredScope.every((scope) => ctx.scope.includes(scope));
+export function hasRequiredScopes(
+	authContext: AuthContext,
+	requiredScope: string[]
+) {
+	return requiredScope.every((scope) => authContext.scope.includes(scope));
 }

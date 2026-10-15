@@ -6,7 +6,10 @@ import type { AppInfoConfig, Config } from "#src/config.ts";
 import { createPool } from "#src/integrations/database/pool.ts";
 import { QueryPlanLogger } from "#src/integrations/database/query-logger.ts";
 import { appInfo, baseLogger, config, secrets } from "#src/runtime.ts";
-import { createTokenVerifier, type TokenVerifier } from "./auth/verifier.ts";
+import {
+	buildTokenVerification,
+	type TokenVerification
+} from "./auth/verifier.ts";
 import { CategoryRepository } from "./integrations/database/repositories/category-repository.ts";
 import { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
@@ -17,7 +20,7 @@ export type AppCradle = {
 	appInfo: AppInfoConfig;
 	config: Config;
 	logger: Logger;
-	tokenVerifier: TokenVerifier;
+	tokenVerification: TokenVerification;
 	database: Pool;
 	db: NodePgDatabase;
 	categoryRepository: CategoryRepository;
@@ -36,8 +39,8 @@ export async function buildContainer() {
 
 		logger: asValue(baseLogger),
 
-		tokenVerifier: asFunction(({ config }: AppCradle) =>
-			createTokenVerifier(config.auth)
+		tokenVerification: asFunction(({ config }: AppCradle) =>
+			buildTokenVerification(config.auth)
 		).singleton(),
 
 		database: asFunction(({ config, logger }: AppCradle) =>

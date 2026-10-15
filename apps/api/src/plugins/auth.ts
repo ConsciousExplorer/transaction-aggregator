@@ -2,9 +2,10 @@ import type { FastifyRequest } from "fastify";
 import { fastifyPlugin } from "fastify-plugin";
 import {
 	type AuthContext,
-	getAuthScopes,
-	getContext,
-	type TokenVerifier
+	buildAuthContext,
+	hasRequiredScopes,
+	type TokenVerification,
+	verifyToken
 } from "#src/auth/verifier.ts";
 import { forbiddenError, unauthorizedError } from "#src/errors/http-problem.ts";
 
@@ -25,63 +26,66 @@ declare module "fastify" {
 	}
 }
 
+async function verifyBearerToken(
+	request: FastifyRequest,
+	tokenVerification: TokenVerification
+) {
+	const header = request.headers.authorization;
+
+	if (!header?.startsWith("Bearer ")) {
+		request.log.warn(
+			{ reason: "missing-or-malformed-header" },
+			"auth rejected"
+		);
+		throw unauthorizedError();
+	}
+
+	const token = header.slice("Bearer ".length);
+
+	try {
+		const claims = await verifyToken(token, tokenVerification);
+		request.authContext = buildAuthContext(claims);
+	} catch (error) {
+		// reason stays internal in logs and not returned in the response
+		request.log.warn({ err: error }, "auth rejected");
+		throw unauthorizedError();
+	}
+}
+
+// onRequest, before validation: a caller without a valid token gets 401,
+// never a 400 that describes the route's schema
+async function authorizeRequest(request: FastifyRequest) {
+	// Routes are guarded by default, can only opt out by setting config : { authConfig: {public: true }}
+	if (request.routeOptions.config?.authConfig?.public) return;
+	// @fastify/swagger-ui registers its own routes, so they can't carry config.public
+	if (request.url.startsWith("/docs")) return;
+
+	await request.server.verifyBearerToken(request);
+
+	const requiredScope = request.routeOptions.config.authConfig?.requiredScope;
+	const authContext = request.authContext;
+	if (
+		requiredScope &&
+		(!authContext || !hasRequiredScopes(authContext, requiredScope))
+	) {
+		request.log.warn(
+			{ requiredScope, given: authContext?.scope },
+			"Caller does not have the required scopes"
+		);
+		// The caller is known but not allowed: 403, not 401
+		throw forbiddenError();
+	}
+}
+
 export default fastifyPlugin<{
-	tokenVerifier: TokenVerifier;
+	tokenVerification: TokenVerification;
 }>(
-	async (fastify, opts) => {
-		const verifier = opts.tokenVerifier;
-
-		fastify.decorate(
-			"verifyBearerToken",
-			async function verifyBearerToken(request: FastifyRequest) {
-				const header = request.headers.authorization;
-
-				if (!header?.startsWith("Bearer ")) {
-					request.log.warn(
-						{ reason: "missing-or-malformed-header" },
-						"auth rejected"
-					);
-					throw unauthorizedError();
-				}
-
-				const token = header.slice("Bearer ".length);
-
-				try {
-					const claims = await verifier.verifyToken(token);
-					request.authContext = getContext(claims);
-				} catch (err) {
-					// reason stays internal in logs and not returned in the response
-					request.log.warn({ err }, "auth rejected");
-					throw unauthorizedError();
-				}
-			}
+	async (fastify, options) => {
+		fastify.decorate("verifyBearerToken", (request: FastifyRequest) =>
+			verifyBearerToken(request, options.tokenVerification)
 		);
 
-		// onRequest, before validation: a caller without a valid token gets 401,
-		// never a 400 that describes the route's schema
-		fastify.addHook("onRequest", async (request, _reply) => {
-			// Routes are guarded by default, can only opt out by setting config : { authConfig: {public: true }}
-			if (request.routeOptions.config?.authConfig?.public) return;
-			// @fastify/swagger-ui registers its own routes, so they can't carry config.public
-			if (request.url.startsWith("/docs")) return;
-
-			await fastify.verifyBearerToken(request);
-
-			const requiredScope =
-				request.routeOptions.config.authConfig?.requiredScope;
-			const authContext = request.authContext;
-			if (
-				requiredScope &&
-				(!authContext || !getAuthScopes(authContext, requiredScope))
-			) {
-				request.log.warn(
-					{ "required: ": requiredScope, given: request.authContext?.scope },
-					"Caller does not have the required scopes"
-				);
-				// The caller is known but not allowed: 403, not 401
-				throw forbiddenError();
-			}
-		});
+		fastify.addHook("onRequest", authorizeRequest);
 	},
 	{ name: "auth" }
 );

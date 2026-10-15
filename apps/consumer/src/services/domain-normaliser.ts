@@ -13,27 +13,7 @@ import {
 	type transactionStatusSchema,
 	transactionTypeSchema
 } from "#src/schemas/transaction.ts";
-
-export interface Normaliser {
-	normalise(transaction: DomainTransactionSchema): CanonicalTransactionSchema;
-}
-
-type DomainNormaliser = (
-	transaction: DomainTransactionSchema
-) => CanonicalTransactionSchema;
-
-const NORMALISERS: Record<TransactionType, DomainNormaliser> = {
-	card: (record) => normaliseCard(record as CardTransaction),
-	eft: (record) => normaliseEft(record as EftTransaction),
-	loan: (record) => normaliseLoan(record as LoanTransaction),
-	debit_order: (record) => normaliseDebitOrder(record as DebitOrderTransaction),
-	internal_transfer: (record) =>
-		normaliseInternalTransfer(record as InternalTransferTransaction)
-};
-
-function lookupNormaliser(transactionType: TransactionType) {
-	return NORMALISERS[transactionType];
-}
+import { assertNever } from "#src/utils/assert-never.ts";
 
 /**
  * The source schemas type these fields as bare `z.string()`/`z.number()`, so
@@ -65,18 +45,23 @@ function parseCanonical(transaction: CanonicalTransactionSchema) {
 }
 
 /**
- * Wraps the mapping itself as well as the parse: a malformed source timestamp
- * makes `new Date(ts).toISOString()` throw inside the normaliser, and that is
- * the same class of defect — dead-letter the record, do not kill the batch.
+ * Maps a wire record to the canonical shape and validates the result.
+ * `transactionType` is the type this process was configured for
+ * (`config.transactionType`, validated at startup), not the record's own field:
+ * a process consumes a single topic.
+ *
+ * The mapping is wrapped as well as the parse: a malformed source timestamp
+ * makes `new Date(ts).toISOString()` throw inside the mapping, and that is the
+ * same class of defect — dead-letter the record, do not kill the batch.
  */
-function normaliseAndValidate(
-	normalise: DomainNormaliser,
-	transaction: DomainTransactionSchema
+export function normaliseTransaction(
+	transaction: DomainTransactionSchema,
+	transactionType: TransactionType
 ) {
 	let normalised: CanonicalTransactionSchema;
 
 	try {
-		normalised = normalise(transaction);
+		normalised = mapToCanonical(transaction, transactionType);
 	} catch (error) {
 		if (error instanceof NonRetryableError) throw error;
 		throw new NonRetryableError("Transaction could not be normalised", {
@@ -88,16 +73,26 @@ function normaliseAndValidate(
 	return parseCanonical(normalised);
 }
 
-/**
- * Pins one transaction type up front, for a process that consumes a single
- * topic. `config.transactionType` is validated at startup, so an unknown type
- * fails before the consumer reads anything.
- */
-export function createNormaliser(transactionType: TransactionType): Normaliser {
-	const normalise = lookupNormaliser(transactionType);
-	return {
-		normalise: (transaction) => normaliseAndValidate(normalise, transaction)
-	};
+function mapToCanonical(
+	transaction: DomainTransactionSchema,
+	transactionType: TransactionType
+) {
+	switch (transactionType) {
+		case transactionTypeSchema.enum.card:
+			return normaliseCard(transaction as CardTransaction);
+		case transactionTypeSchema.enum.eft:
+			return normaliseEft(transaction as EftTransaction);
+		case transactionTypeSchema.enum.loan:
+			return normaliseLoan(transaction as LoanTransaction);
+		case transactionTypeSchema.enum.debit_order:
+			return normaliseDebitOrder(transaction as DebitOrderTransaction);
+		case transactionTypeSchema.enum.internal_transfer:
+			return normaliseInternalTransfer(
+				transaction as InternalTransferTransaction
+			);
+		default:
+			return assertNever(transactionType);
+	}
 }
 
 export function normaliseCard(record: CardTransaction) {

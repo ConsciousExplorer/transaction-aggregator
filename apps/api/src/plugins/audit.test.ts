@@ -3,31 +3,12 @@ import { after, before, beforeEach, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { pino } from "pino";
 import z from "zod";
-import type { TokenVerifier, VerifiedClaims } from "#src/auth/verifier.ts";
+import { buildTestSigningKeys, signTestToken } from "#src/auth/test-tokens.ts";
 import { buildServer } from "#src/server.ts";
 import auditPlugin from "./audit.ts";
 import authPlugin from "./auth.ts";
 
 const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
-
-// A token string maps straight to its claims, as in auth.test.ts
-const TOKENS: Record<string, VerifiedClaims> = {
-	"read-token": {
-		sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
-		azp: "banking-service",
-		scope: "tx:read"
-	}
-};
-
-const tokenVerifier: TokenVerifier = {
-	async verifyToken(token) {
-		const claims = TOKENS[token];
-		if (!claims) throw new Error("invalid token");
-		return claims;
-	}
-};
-
-const READ_TOKEN = { authorization: "Bearer read-token" };
 
 // Every line the server logs, parsed
 const logLines: Record<string, unknown>[] = [];
@@ -45,10 +26,20 @@ async function readAuditLines() {
 
 suite("audit line", () => {
 	let app: FastifyInstance;
+	let readTokenHeaders: { authorization: string };
 
 	before(async () => {
+		// Signed with a key made for this run, and verified for real
+		const { privateKey, tokenVerification } = await buildTestSigningKeys();
+		const readToken = await signTestToken(privateKey, {
+			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
+			azp: "banking-service",
+			scope: "tx:read"
+		});
+		readTokenHeaders = { authorization: `Bearer ${readToken}` };
+
 		app = buildServer({ logger: pino({ level: "info" }, captureStream) });
-		await app.register(authPlugin, { tokenVerifier });
+		await app.register(authPlugin, { tokenVerification });
 		await app.register(auditPlugin);
 
 		app.get(
@@ -80,12 +71,12 @@ suite("audit line", () => {
 	});
 
 	test("an authenticated request logs one line naming the calling app", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/users/${USER_ID}/things?limit=5`,
-			headers: READ_TOKEN
+			headers: readTokenHeaders
 		});
-		assert.strictEqual(res.statusCode, 200);
+		assert.strictEqual(response.statusCode, 200);
 
 		const lines = await readAuditLines();
 		assert.strictEqual(lines.length, 1);
@@ -99,12 +90,12 @@ suite("audit line", () => {
 	});
 
 	test("a known caller refused by scope is audited with its 403", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: "/write-only",
-			headers: READ_TOKEN
+			headers: readTokenHeaders
 		});
-		assert.strictEqual(res.statusCode, 403);
+		assert.strictEqual(response.statusCode, 403);
 
 		const lines = await readAuditLines();
 		assert.strictEqual(lines.length, 1);
@@ -113,12 +104,12 @@ suite("audit line", () => {
 	});
 
 	test("a known caller's invalid request is audited with its 400", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/users/${USER_ID}/things?limit=many`,
-			headers: READ_TOKEN
+			headers: readTokenHeaders
 		});
-		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(response.statusCode, 400);
 
 		const lines = await readAuditLines();
 		assert.strictEqual(lines.length, 1);
@@ -126,18 +117,18 @@ suite("audit line", () => {
 	});
 
 	test("a request without a valid token gets 401 and no audit line", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/users/${USER_ID}/things?limit=many`
 		});
 		// 401, not the 400 its query would earn: auth runs before validation
-		assert.strictEqual(res.statusCode, 401);
+		assert.strictEqual(response.statusCode, 401);
 		assert.strictEqual((await readAuditLines()).length, 0);
 	});
 
 	test("a public route is not audited", async () => {
-		const res = await app.inject({ method: "GET", url: "/open" });
-		assert.strictEqual(res.statusCode, 200);
+		const response = await app.inject({ method: "GET", url: "/open" });
+		assert.strictEqual(response.statusCode, 200);
 		assert.strictEqual((await readAuditLines()).length, 0);
 	});
 
@@ -145,7 +136,7 @@ suite("audit line", () => {
 		await app.inject({
 			method: "GET",
 			url: `/users/${USER_ID}/things?limit=5`,
-			headers: READ_TOKEN
+			headers: readTokenHeaders
 		});
 		await readAuditLines();
 		const messages = [];

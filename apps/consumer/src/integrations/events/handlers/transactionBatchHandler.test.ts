@@ -1,12 +1,11 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: tests can be null */
 import assert from "node:assert";
-import { suite, test } from "node:test";
+import { mock, suite, test } from "node:test";
 import {
 	NonRetryableError,
 	RetryableError
 } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import type { BatchOutcome } from "#src/services/transaction-ingester.ts";
 import { ingestLagSeconds } from "#src/telemetry/metrics.ts";
 import {
 	type ClassifiedMessage,
@@ -35,15 +34,6 @@ function buildValidMessage(
 	};
 }
 
-/** The histogram is a process-wide singleton, so tests compare before/after. */
-async function countIngestLagObservations() {
-	const metric = await ingestLagSeconds.get();
-	for (const value of metric.values) {
-		if (value.metricName === "ingest_lag_seconds_count") return value.value;
-	}
-	return 0;
-}
-
 function buildPoisonMessage(offset: number): ClassifiedMessage {
 	return {
 		topic: "transactions",
@@ -66,134 +56,144 @@ function buildTombstoneMessage(offset: number): ClassifiedMessage {
 	};
 }
 
-/** Records every call so a test can assert on batch sizes and retry shape. */
-function createRecordingIngestion(
-	respond: (transactions: DomainTransactionSchema[]) => BatchOutcome
+function readExternalId(transaction: DomainTransactionSchema) {
+	return (transaction as unknown as { transactionId: string }).transactionId;
+}
+
+/** The histogram is a process-wide singleton, so tests compare before/after. */
+async function countIngestLagObservations() {
+	const metric = await ingestLagSeconds.get();
+	for (const value of metric.values) {
+		if (value.metricName === "ingest_lag_seconds_count") return value.value;
+	}
+	return 0;
+}
+
+// Fake ingest steps, one per database behaviour a test needs.
+
+async function ingestAll(transactions: DomainTransactionSchema[]) {
+	return { attempted: transactions.length, inserted: transactions.length };
+}
+
+/** The batch insert fails; retried one at a time, every row lands except "b". */
+async function ingestFailingBatchAndRowB(
+	transactions: DomainTransactionSchema[]
 ) {
-	const calls: DomainTransactionSchema[][] = [];
-
-	return {
-		calls,
-		ingest: async (transactions: DomainTransactionSchema[]) => {
-			calls.push(transactions);
-			return respond(transactions);
-		}
-	};
+	if (transactions.length > 1) {
+		throw new NonRetryableError("batch violates a constraint");
+	}
+	if (readExternalId(transactions[0]!) === "b") {
+		throw new NonRetryableError("row b violates a constraint");
+	}
+	return { attempted: 1, inserted: 1 };
 }
 
-function createRecordingDeadLetterQueue() {
-	const sent: DeadLetterFailure[][] = [];
-	return {
-		sent,
-		sendToDeadLetterQueue: async (failures: DeadLetterFailure[]) => {
-			sent.push(failures);
-		}
-	};
+async function ingestWithLostConnection(
+	_transactions: DomainTransactionSchema[]
+): Promise<never> {
+	throw new RetryableError("connection died");
 }
 
-const getExternalId = (transaction: DomainTransactionSchema) =>
-	(transaction as unknown as { transactionId: string }).transactionId;
+/** The batch insert fails for a row; the connection dies during isolation. */
+async function ingestFailingBatchThenLosingConnection(
+	transactions: DomainTransactionSchema[]
+): Promise<never> {
+	if (transactions.length > 1) throw new NonRetryableError("bad batch");
+	throw new RetryableError("connection died mid-isolation");
+}
+
+async function acceptDeadLetters(_failures: DeadLetterFailure[]) {}
 
 suite("transaction batch handler", () => {
 	test("ingests the whole batch in one call when nothing fails", async () => {
-		const ingestion = createRecordingIngestion((transactions) => ({
-			attempted: transactions.length,
-			inserted: transactions.length
-		}));
-		const deadLetterQueue = createRecordingDeadLetterQueue();
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			deadLetterQueue.sendToDeadLetterQueue
+		const ingest = mock.fn(ingestAll);
+		const sendToDeadLetterQueue = mock.fn(acceptDeadLetters);
+
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingest,
+			sendToDeadLetterQueue
 		);
 
-		await handle([buildValidMessage("a", 1), buildValidMessage("b", 2)]);
+		await handleTransactionBatch([
+			buildValidMessage("a", 1),
+			buildValidMessage("b", 2)
+		]);
 
 		assert.equal(
-			ingestion.calls.length,
+			ingest.mock.callCount(),
 			1,
 			"one batch insert, not per-message"
 		);
-		assert.equal(ingestion.calls[0]?.length, 2);
-		assert.deepEqual(deadLetterQueue.sent, []);
+		assert.equal(ingest.mock.calls[0]!.arguments[0].length, 2);
+		assert.equal(sendToDeadLetterQueue.mock.callCount(), 0);
 	});
 
 	test("dead-letters poison without sending it to ingestion", async () => {
-		const ingestion = createRecordingIngestion((transactions) => ({
-			attempted: transactions.length,
-			inserted: transactions.length
-		}));
-		const deadLetterQueue = createRecordingDeadLetterQueue();
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			deadLetterQueue.sendToDeadLetterQueue
+		const ingest = mock.fn(ingestAll);
+		const sendToDeadLetterQueue = mock.fn(acceptDeadLetters);
+
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingest,
+			sendToDeadLetterQueue
 		);
 
-		await handle([
+		await handleTransactionBatch([
 			buildValidMessage("a", 1),
 			buildPoisonMessage(2),
 			buildTombstoneMessage(3)
 		]);
 
-		assert.equal(ingestion.calls.length, 1);
-		assert.equal(ingestion.calls[0]?.length, 1, "only the valid message");
-		assert.equal(deadLetterQueue.sent.length, 1);
-		assert.equal(deadLetterQueue.sent[0]?.length, 1);
+		assert.equal(ingest.mock.callCount(), 1);
+		assert.equal(
+			ingest.mock.calls[0]!.arguments[0].length,
+			1,
+			"only the valid message"
+		);
+		assert.equal(sendToDeadLetterQueue.mock.callCount(), 1);
+		assert.equal(sendToDeadLetterQueue.mock.calls[0]!.arguments[0].length, 1);
 	});
 
 	test("isolates one poison row instead of losing the batch", async () => {
-		// The batch insert fails; per-message retries succeed except for "b".
-		const ingestion = createRecordingIngestion((transactions) => {
-			const isRetry = transactions.length === 1;
-			if (!isRetry) throw new NonRetryableError("batch violates a constraint");
-			if (getExternalId(transactions[0]!) === "b") {
-				throw new NonRetryableError("row b violates a constraint");
-			}
-			return { attempted: 1, inserted: 1 };
-		});
-		const deadLetterQueue = createRecordingDeadLetterQueue();
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			deadLetterQueue.sendToDeadLetterQueue
+		const ingest = mock.fn(ingestFailingBatchAndRowB);
+		const sendToDeadLetterQueue = mock.fn(acceptDeadLetters);
+
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingest,
+			sendToDeadLetterQueue
 		);
 
-		await handle([
+		await handleTransactionBatch([
 			buildValidMessage("a", 1),
 			buildValidMessage("b", 2),
 			buildValidMessage("c", 3)
 		]);
 
 		// 1 failed batch attempt + 3 single-message retries
-		assert.equal(ingestion.calls.length, 4);
+		assert.equal(ingest.mock.callCount(), 4);
 		assert.equal(
-			deadLetterQueue.sent.length,
+			sendToDeadLetterQueue.mock.callCount(),
 			1,
 			"only the offending row is dead-lettered"
 		);
-		const deadLetterMessage = deadLetterQueue.sent[0]![0]!.message;
+		const deadLetterMessage =
+			sendToDeadLetterQueue.mock.calls[0]!.arguments[0][0]!.message;
 		assert.equal(deadLetterMessage.kind, "valid");
 		assert.equal(
-			getExternalId((deadLetterMessage as ValidMessage).value),
+			readExternalId((deadLetterMessage as ValidMessage).value),
 			"b",
 			"the dead-lettered row is the one that failed, not a bystander"
 		);
 	});
 
 	test("observes ingest lag once per committed row, none for failed ones", async () => {
-		// The batch insert fails; per-message retries succeed except for "b".
-		const ingestion = createRecordingIngestion((transactions) => {
-			if (transactions.length > 1) throw new NonRetryableError("bad batch");
-			if (getExternalId(transactions[0]!) === "b") {
-				throw new NonRetryableError("row b violates a constraint");
-			}
-			return { attempted: 1, inserted: 1 };
-		});
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			createRecordingDeadLetterQueue().sendToDeadLetterQueue
-		);
 		const before = await countIngestLagObservations();
 
-		await handle([
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingestFailingBatchAndRowB,
+			acceptDeadLetters
+		);
+
+		await handleTransactionBatch([
 			buildValidMessage("a", 1),
 			buildValidMessage("b", 2),
 			buildValidMessage("c", 3)
@@ -207,66 +207,66 @@ suite("transaction batch handler", () => {
 	});
 
 	test("rethrows a retryable batch failure so offsets are not committed", async () => {
-		const ingestion = createRecordingIngestion(() => {
-			throw new RetryableError("connection died");
-		});
-		const deadLetterQueue = createRecordingDeadLetterQueue();
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			deadLetterQueue.sendToDeadLetterQueue
+		const ingest = mock.fn(ingestWithLostConnection);
+		const sendToDeadLetterQueue = mock.fn(acceptDeadLetters);
+
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingest,
+			sendToDeadLetterQueue
 		);
 
 		await assert.rejects(
-			() => handle([buildValidMessage("a", 1)]),
+			handleTransactionBatch([buildValidMessage("a", 1)]),
 			RetryableError,
 			"a broken world must replay, not dead-letter"
 		);
 
 		assert.equal(
-			ingestion.calls.length,
+			ingest.mock.callCount(),
 			1,
 			"no per-message isolation attempted"
 		);
-		assert.deepEqual(
-			deadLetterQueue.sent,
-			[],
+		assert.equal(
+			sendToDeadLetterQueue.mock.callCount(),
+			0,
 			"good data must never be dead-lettered"
 		);
 	});
 
 	test("rethrows a retryable failure raised during isolation", async () => {
-		const ingestion = createRecordingIngestion((transactions) => {
-			if (transactions.length > 1) throw new NonRetryableError("bad batch");
-			throw new RetryableError("connection died mid-isolation");
-		});
-		const deadLetterQueue = createRecordingDeadLetterQueue();
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			deadLetterQueue.sendToDeadLetterQueue
+		const sendToDeadLetterQueue = mock.fn(acceptDeadLetters);
+
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingestFailingBatchThenLosingConnection,
+			sendToDeadLetterQueue
 		);
 
 		await assert.rejects(
-			() => handle([buildValidMessage("a", 1), buildValidMessage("b", 2)]),
+			handleTransactionBatch([
+				buildValidMessage("a", 1),
+				buildValidMessage("b", 2)
+			]),
 			RetryableError
 		);
 
-		assert.deepEqual(deadLetterQueue.sent, []);
+		assert.equal(sendToDeadLetterQueue.mock.callCount(), 0);
 	});
 
 	test("still dead-letters poison when there is no valid data", async () => {
-		const ingestion = createRecordingIngestion(() => ({
-			attempted: 0,
-			inserted: 0
-		}));
-		const deadLetterQueue = createRecordingDeadLetterQueue();
-		const handle = createTransactionBatchHandler(
-			ingestion,
-			deadLetterQueue.sendToDeadLetterQueue
+		const ingest = mock.fn(ingestAll);
+		const sendToDeadLetterQueue = mock.fn(acceptDeadLetters);
+
+		const handleTransactionBatch = createTransactionBatchHandler(
+			ingest,
+			sendToDeadLetterQueue
 		);
 
-		await handle([buildPoisonMessage(1), buildTombstoneMessage(2)]);
+		await handleTransactionBatch([
+			buildPoisonMessage(1),
+			buildTombstoneMessage(2)
+		]);
 
-		assert.equal(ingestion.calls.length, 0, "nothing to ingest");
-		assert.equal(deadLetterQueue.sent.length, 1);
+		assert.equal(ingest.mock.callCount(), 0, "nothing to ingest");
+		assert.equal(sendToDeadLetterQueue.mock.callCount(), 1);
 	});
 });

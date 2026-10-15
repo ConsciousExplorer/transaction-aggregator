@@ -2,7 +2,7 @@ import { trace } from "@opentelemetry/api";
 import { RetryableError } from "#src/errors/consumer-errors.ts";
 import { createFileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import type { TransactionIngester } from "#src/services/transaction-ingester.ts";
+import type { BatchOutcome } from "#src/services/transaction-ingester.ts";
 import {
 	ingestLagSeconds,
 	tombstonesSkippedTotal
@@ -36,15 +36,23 @@ export interface DeadLetterFailure {
 }
 
 export type BatchHandler = (messages: ClassifiedMessage[]) => Promise<void>;
+export type IngestTransactions = (
+	transactions: DomainTransactionSchema[]
+) => Promise<BatchOutcome>;
 export type SendToDeadLetterQueue = (
 	failures: DeadLetterFailure[]
 ) => Promise<void>;
 
+/**
+ * Resolves every message in a batch: valid ones are ingested, poison ones are
+ * dead-lettered, tombstones are skipped. Ingesting and dead-lettering come in
+ * as functions, so the policy here is tested without Kafka or Postgres.
+ */
 export function createTransactionBatchHandler(
-	ingester: TransactionIngester,
+	ingestTransactions: IngestTransactions,
 	sendToDeadLetterQueue: SendToDeadLetterQueue
-): BatchHandler {
-	return async function transactionBatchHandler(messages) {
+) {
+	return async function handleTransactionBatch(messages: ClassifiedMessage[]) {
 		const validMessages: ValidMessage[] = [];
 		const transactions: DomainTransactionSchema[] = [];
 		const poisonFailures: DeadLetterFailure[] = [];
@@ -83,7 +91,7 @@ export function createTransactionBatchHandler(
 
 		if (validMessages.length > 0) {
 			try {
-				await ingester.ingest(transactions);
+				await ingestTransactions(transactions);
 				observeIngestLag(validMessages);
 			} catch (error) {
 				// "The world is broken": rethrow uncommitted so the whole batch
@@ -94,7 +102,11 @@ export function createTransactionBatchHandler(
 					{ err: error, size: validMessages.length },
 					"Batch ingest failed — isolating messages one by one"
 				);
-				await ingestOneByOne(validMessages, ingester, sendToDeadLetterQueue);
+				await ingestOneByOne(
+					validMessages,
+					ingestTransactions,
+					sendToDeadLetterQueue
+				);
 			}
 		}
 
@@ -118,12 +130,12 @@ export function createTransactionBatchHandler(
  */
 async function ingestOneByOne(
 	validMessages: ValidMessage[],
-	ingester: TransactionIngester,
+	ingestTransactions: IngestTransactions,
 	sendToDeadLetterQueue: SendToDeadLetterQueue
 ) {
 	for (const message of validMessages) {
 		try {
-			await ingester.ingest([message.value]);
+			await ingestTransactions([message.value]);
 			observeIngestLag([message]);
 		} catch (error) {
 			if (error instanceof RetryableError) throw error;

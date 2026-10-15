@@ -4,46 +4,17 @@ import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
 import type { EftTransaction } from "#src/schemas/eft.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import { createNormaliser } from "#src/services/domain-normaliser.ts";
-
-/**
- * A well-formed card record as the producer emits it. Note the source schema
- * types every one of these as bare `z.string()`/`z.number()`, which is exactly
- * why the normaliser has to validate what it produces.
- */
-function buildCardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
-	return {
-		transactionId: "txn-0001",
-		transactionType: "card",
-		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
-		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
-		category: "groceries",
-		merchantName: "Woolworths",
-		mccCode: "5411",
-		amount: 1999,
-		currency: "ZAR",
-		creditDebitIndicator: "debit",
-		cardLast4: "4321",
-		cardNetwork: "visa",
-		posEntryMode: "chip",
-		authCode: "A1B2C3",
-		description: "WOOLWORTHS STORE",
-		status: "COMPLETED",
-		timestamp: 1_790_000_000_000,
-		...over
-	};
-}
-
-function castToDomainTransaction(record: CardTransaction) {
-	return record as unknown as DomainTransactionSchema;
-}
-
-const cardNormaliser = createNormaliser("card");
+import { normaliseTransaction } from "#src/services/domain-normaliser.ts";
+import {
+	buildCardRecord,
+	castToDomainTransaction
+} from "#src/services/test-records.ts";
 
 suite("domain normaliser validation", () => {
 	test("accepts a well-formed record and returns canonical fields", () => {
-		const result = cardNormaliser.normalise(
-			castToDomainTransaction(buildCardRecord())
+		const result = normaliseTransaction(
+			castToDomainTransaction(buildCardRecord()),
+			"card"
 		);
 
 		assert.equal(result.transactionType, "card");
@@ -60,10 +31,11 @@ suite("domain normaliser validation", () => {
 			"DEBIT" as CardTransaction["creditDebitIndicator"];
 		assert.throws(
 			() =>
-				cardNormaliser.normalise(
+				normaliseTransaction(
 					castToDomainTransaction(
 						buildCardRecord({ creditDebitIndicator: indicatorOutsideEnum })
-					)
+					),
+					"card"
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -82,8 +54,9 @@ suite("domain normaliser validation", () => {
 		];
 
 		for (const { wire, stored } of cases) {
-			const result = cardNormaliser.normalise(
-				castToDomainTransaction(buildCardRecord({ status: wire }))
+			const result = normaliseTransaction(
+				castToDomainTransaction(buildCardRecord({ status: wire })),
+				"card"
 			);
 			assert.equal(result.status, stored);
 		}
@@ -92,8 +65,9 @@ suite("domain normaliser validation", () => {
 	test("rejects a status the canonical enum does not allow", () => {
 		assert.throws(
 			() =>
-				cardNormaliser.normalise(
-					castToDomainTransaction(buildCardRecord({ status: "posted" }))
+				normaliseTransaction(
+					castToDomainTransaction(buildCardRecord({ status: "posted" })),
+					"card"
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -106,8 +80,11 @@ suite("domain normaliser validation", () => {
 	test("rejects an id that is not a uuid", () => {
 		assert.throws(
 			() =>
-				cardNormaliser.normalise(
-					castToDomainTransaction(buildCardRecord({ customerId: "not-a-uuid" }))
+				normaliseTransaction(
+					castToDomainTransaction(
+						buildCardRecord({ customerId: "not-a-uuid" })
+					),
+					"card"
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -120,13 +97,14 @@ suite("domain normaliser validation", () => {
 	test("reports the offending record so the mapping bug is findable", () => {
 		assert.throws(
 			() =>
-				cardNormaliser.normalise(
+				normaliseTransaction(
 					castToDomainTransaction(
 						buildCardRecord({
 							creditDebitIndicator:
 								"purchase" as CardTransaction["creditDebitIndicator"]
 						})
-					)
+					),
+					"card"
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
@@ -142,8 +120,9 @@ suite("domain normaliser validation", () => {
 		// wrapper has to catch it or one bad record kills the whole batch.
 		assert.throws(
 			() =>
-				cardNormaliser.normalise(
-					castToDomainTransaction(buildCardRecord({ timestamp: Number.NaN }))
+				normaliseTransaction(
+					castToDomainTransaction(buildCardRecord({ timestamp: Number.NaN })),
+					"card"
 				),
 			NonRetryableError
 		);
@@ -175,10 +154,9 @@ function buildEftRecord(over: Partial<EftTransaction> = {}): EftTransaction {
 
 suite("EFT normaliser", () => {
 	test("keeps the clearing type in metadata", () => {
-		const eftNormaliser = createNormaliser("eft");
-
-		const result = eftNormaliser.normalise(
-			buildEftRecord() as unknown as DomainTransactionSchema
+		const result = normaliseTransaction(
+			buildEftRecord() as unknown as DomainTransactionSchema,
+			"eft"
 		);
 
 		assert.deepStrictEqual(result.metadata, {

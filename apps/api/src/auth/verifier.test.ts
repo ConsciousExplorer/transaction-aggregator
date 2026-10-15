@@ -1,62 +1,37 @@
 import assert from "node:assert/strict";
 import { before, suite, test } from "node:test";
-import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
+import { generateKeyPair } from "jose";
 import {
 	InvalidClaimsError,
 	TokenVerificationError,
 	type TokenVerificationReason
 } from "#src/errors/auth-errors.ts";
 import {
-	createTokenVerifier,
-	getAuthScopes,
-	getContext,
+	buildTestSigningKeys,
+	signTestToken,
+	TEST_AUDIENCE,
+	TEST_ISSUER
+} from "./test-tokens.ts";
+import {
+	buildAuthContext,
+	hasRequiredScopes,
 	parseClaims,
-	type TokenVerifier
+	type TokenVerification,
+	verifyToken
 } from "./verifier.ts";
 
-const ISS = "https://unit-test.com";
-const AUD = "unit-test-audience";
-const KID = "unit-test-key-id";
-
 let privateKey: CryptoKey;
-let verifier: TokenVerifier;
-
-function signToken(
-	claims: Record<string, unknown> = {},
-	{
-		issuer = ISS,
-		audience = AUD,
-		alg = "RS256",
-		kid = KID,
-		expiresIn = "5m",
-		key = privateKey
-	}: {
-		issuer?: string;
-		audience?: string;
-		alg?: string;
-		kid?: string;
-		expiresIn?: string;
-		key?: CryptoKey;
-	} = {}
-) {
-	return new SignJWT(claims)
-		.setProtectedHeader({ alg, kid })
-		.setIssuedAt()
-		.setIssuer(issuer)
-		.setAudience(audience)
-		.setExpirationTime(expiresIn)
-		.sign(key);
-}
+let tokenVerification: TokenVerification;
 
 async function assertRejectsWithReason(
 	token: Promise<string> | string,
 	reason: TokenVerificationReason
 ) {
 	await assert.rejects(
-		async () => verifier.verifyToken(await token),
-		(err: unknown) => {
-			assert.ok(err instanceof TokenVerificationError);
-			assert.equal(err.reason, reason);
+		async () => verifyToken(await token, tokenVerification),
+		(error: unknown) => {
+			assert.ok(error instanceof TokenVerificationError);
+			assert.equal(error.reason, reason);
 			return true;
 		}
 	);
@@ -64,44 +39,29 @@ async function assertRejectsWithReason(
 
 suite("Token Verifier", () => {
 	before(async () => {
-		const pair = await generateKeyPair("RS256");
-		privateKey = pair.privateKey;
-
-		const jwk = await exportJWK(pair.publicKey);
-		jwk.kid = KID;
-		jwk.alg = "RS256";
-
-		const getKey = createLocalJWKSet({ keys: [jwk] });
-		verifier = createTokenVerifier(
-			{
-				jwksUri: "http://unused",
-				issuer: ISS,
-				audience: AUD
-			},
-			getKey
-		);
+		({ privateKey, tokenVerification } = await buildTestSigningKeys());
 	});
 
 	test("should verify a valid token", async () => {
-		const token = await signToken({
+		const token = await signTestToken(privateKey, {
 			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
 			azp: "banking-service",
 			scope: "read write"
 		});
 
-		const claims = await verifier.verifyToken(token);
+		const claims = await verifyToken(token, tokenVerification);
 
 		assert.equal(claims.sub, "4fc8a801-206d-48ec-b511-d1f97e2f057b");
 		assert.equal(claims.azp, "banking-service");
 		assert.equal(claims.scope, "read write");
-		assert.equal(claims.iss, ISS);
-		assert.equal(claims.aud, AUD);
+		assert.equal(claims.iss, TEST_ISSUER);
+		assert.equal(claims.aud, TEST_AUDIENCE);
 	});
 
 	// Negative test cases
 	test("Should reject an expired token", async () => {
 		await assertRejectsWithReason(
-			signToken({}, { expiresIn: "-1s" }),
+			signTestToken(privateKey, {}, { expiresIn: "-1s" }),
 			"expired"
 		);
 	});
@@ -110,37 +70,37 @@ suite("Token Verifier", () => {
 		const otherPair = await generateKeyPair("RS256");
 
 		await assertRejectsWithReason(
-			signToken({}, { key: otherPair.privateKey }),
+			signTestToken(otherPair.privateKey),
 			"signature"
 		);
 	});
 
 	test("Should reject a token with the wrong issuer", async () => {
 		await assertRejectsWithReason(
-			signToken({}, { issuer: "https://not-the-issuer.com" }),
+			signTestToken(privateKey, {}, { issuer: "https://not-the-issuer.com" }),
 			"issuer"
 		);
 	});
 
 	test("Should reject a token with the wrong audience", async () => {
 		await assertRejectsWithReason(
-			signToken({}, { audience: "not-the-audience" }),
+			signTestToken(privateKey, {}, { audience: "not-the-audience" }),
 			"audience"
 		);
 	});
 
 	test("Should reject a token signed with a disallowed algorithm", async () => {
-		const { privateKey: hsKey } = await generateKeyPair("PS256");
+		const { privateKey: pssKey } = await generateKeyPair("PS256");
 
 		await assertRejectsWithReason(
-			signToken({}, { alg: "PS256", key: hsKey }),
+			signTestToken(pssKey, {}, { algorithm: "PS256" }),
 			"algorithm"
 		);
 	});
 
 	test("Should reject a token whose key is not in the key set", async () => {
 		await assertRejectsWithReason(
-			signToken({}, { kid: "not-in-the-jwks" }),
+			signTestToken(privateKey, {}, { keyId: "not-in-the-jwks" }),
 			"unknown-key"
 		);
 	});
@@ -166,9 +126,9 @@ suite("parseClaims", () => {
 	test("rejects a payload missing sub", () => {
 		assert.throws(
 			() => parseClaims({ azp: "banking-service", scope: "read write" }),
-			(err: unknown) => {
-				assert.ok(err instanceof TokenVerificationError);
-				assert.equal(err.reason, "missing-claims");
+			(error: unknown) => {
+				assert.ok(error instanceof TokenVerificationError);
+				assert.equal(error.reason, "missing-claims");
 				return true;
 			}
 		);
@@ -177,9 +137,9 @@ suite("parseClaims", () => {
 	test("rejects a payload missing azp, the client the token was issued to", () => {
 		assert.throws(
 			() => parseClaims({ sub: "user-123", scope: "read write" }),
-			(err: unknown) => {
-				assert.ok(err instanceof InvalidClaimsError);
-				const [issue] = err.issues as { path: unknown }[];
+			(error: unknown) => {
+				assert.ok(error instanceof InvalidClaimsError);
+				const [issue] = error.issues as { path: unknown }[];
 				assert.deepEqual(issue?.path, ["azp"]);
 				return true;
 			}
@@ -189,9 +149,9 @@ suite("parseClaims", () => {
 	test("rejects a payload missing scope", () => {
 		assert.throws(
 			() => parseClaims({ sub: "user-123", azp: "banking-service" }),
-			(err: unknown) => {
-				assert.ok(err instanceof TokenVerificationError);
-				assert.equal(err.reason, "missing-claims");
+			(error: unknown) => {
+				assert.ok(error instanceof TokenVerificationError);
+				assert.equal(error.reason, "missing-claims");
 				return true;
 			}
 		);
@@ -205,9 +165,9 @@ suite("parseClaims", () => {
 					azp: "banking-service",
 					scope: ["read", "write"]
 				}),
-			(err: unknown) => {
-				assert.ok(err instanceof TokenVerificationError);
-				assert.equal(err.reason, "missing-claims");
+			(error: unknown) => {
+				assert.ok(error instanceof TokenVerificationError);
+				assert.equal(error.reason, "missing-claims");
 				return true;
 			}
 		);
@@ -216,10 +176,10 @@ suite("parseClaims", () => {
 	test("carries the zod issues on the thrown error", () => {
 		assert.throws(
 			() => parseClaims({ azp: "banking-service", scope: "read write" }),
-			(err: unknown) => {
-				assert.ok(err instanceof InvalidClaimsError);
-				assert.equal(err.issues.length, 1);
-				const [issue] = err.issues as { path: unknown }[];
+			(error: unknown) => {
+				assert.ok(error instanceof InvalidClaimsError);
+				assert.equal(error.issues.length, 1);
+				const [issue] = error.issues as { path: unknown }[];
 				assert.deepEqual(issue?.path, ["sub"]);
 				return true;
 			}
@@ -227,29 +187,29 @@ suite("parseClaims", () => {
 	});
 });
 
-suite("getContext", () => {
+suite("buildAuthContext", () => {
 	test("the client is azp, not the service-account sub; scope becomes an array", () => {
-		const ctx = getContext({
+		const authContext = buildAuthContext({
 			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
 			azp: "banking-service",
 			scope: "read write"
 		});
 
-		assert.deepEqual(ctx, {
+		assert.deepEqual(authContext, {
 			clientId: "banking-service",
 			scope: ["read", "write"]
 		});
 	});
 });
 
-suite("getAuthScopes", () => {
-	const ctx = { clientId: "user-123", scope: ["read", "write"] };
+suite("hasRequiredScopes", () => {
+	const authContext = { clientId: "user-123", scope: ["read", "write"] };
 
 	test("returns true when every required scope is present", () => {
-		assert.equal(getAuthScopes(ctx, ["read"]), true);
+		assert.equal(hasRequiredScopes(authContext, ["read"]), true);
 	});
 
 	test("returns false when a required scope is missing", () => {
-		assert.equal(getAuthScopes(ctx, ["read", "delete"]), false);
+		assert.equal(hasRequiredScopes(authContext, ["read", "delete"]), false);
 	});
 });

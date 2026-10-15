@@ -9,7 +9,7 @@ const {
 	appInfo,
 	config,
 	logger,
-	tokenVerifier,
+	tokenVerification,
 	database,
 	categoryRepository,
 	transactionRepository,
@@ -19,7 +19,7 @@ const {
 const server: FastifyInstance = buildServer({
 	appInfo: appInfo,
 	logger: logger,
-	tokenVerifier: tokenVerifier,
+	tokenVerification: tokenVerification,
 	database: database,
 	categoryRepository: categoryRepository,
 	transactionRepository: transactionRepository,

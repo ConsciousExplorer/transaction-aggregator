@@ -4,23 +4,11 @@ import { stringDeserializer } from "@platformatic/kafka";
 import type { Pool } from "pg";
 import { createFileLogger } from "#src/logger.ts";
 import { config, secrets } from "#src/runtime.ts";
-import {
-	createDatabase,
-	createPool,
-	type Database
-} from "./integrations/database/pool.ts";
-import {
-	loadActiveRules,
-	loadRulesetVersion,
-	loadUncategorisedId
-} from "./integrations/database/repositories/rule-repository.ts";
+import { createDatabase, createPool } from "./integrations/database/pool.ts";
+import { loadRuleset } from "./integrations/database/repositories/rule-repository.ts";
 import { createAvroDeserialiser } from "./integrations/events/avro-deserialiser.ts";
 import { handleDeserialisationError } from "./integrations/events/handlers/handleDeserialisationError.ts";
-import {
-	type BatchHandler,
-	createTransactionBatchHandler,
-	type SendToDeadLetterQueue
-} from "./integrations/events/handlers/transactionBatchHandler.ts";
+import { createTransactionBatchHandler } from "./integrations/events/handlers/transactionBatchHandler.ts";
 import {
 	type ConsumedValue,
 	createDeadLetterSender,
@@ -32,16 +20,6 @@ import {
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
 import type { DomainTransactionSchema } from "./schemas/transaction.ts";
-import {
-	createNormaliser,
-	type Normaliser
-} from "./services/domain-normaliser.ts";
-import {
-	createRuleCategoriser,
-	type Rule,
-	type RuleCategoriser,
-	type RuleSet
-} from "./services/rule-categoriser.ts";
 import { createTransactionIngester } from "./services/transaction-ingester.ts";
 import { registry } from "./telemetry/metrics.ts";
 import { startTracing } from "./telemetry/tracing.ts";
@@ -51,24 +29,20 @@ const logger = createFileLogger(import.meta.url);
 // Undefined when tracing is disabled
 const tracerProvider = startTracing(config.tracing);
 
-// Dependencies
-let writerPool: Pool;
-let writerDb: Database;
-let kafkaConsumer: KafkaConsumer;
-let kafkaDeadLetterProducer: DeadLetterProducer;
-let server: Server;
-let rules: Rule[];
-let rulesetVersion: number;
-let uncategorisedId: number;
-let transactionNormaliser: Normaliser;
-let ruleCategoriser: RuleCategoriser;
-let sendToDeadLetterQueue: SendToDeadLetterQueue;
-let transactionBatchHandler: BatchHandler;
+/** Everything shutdown closes, in the order it closes them. */
+interface Resources {
+	kafkaConsumer: KafkaConsumer;
+	writerPool: Pool;
+	deadLetterProducer: DeadLetterProducer;
+	server: Server;
+}
 
-export async function runStartupCheck<T>(
-	name: string,
-	action: () => Promise<T>
-) {
+/**
+ * Logs how long a boot step took. A step that fails stops the process: before
+ * the consumer joins its group there is nothing to close, and the restart
+ * tries again.
+ */
+async function runStartupCheck<T>(name: string, action: () => Promise<T>) {
 	const start = performance.now();
 
 	try {
@@ -79,180 +53,155 @@ export async function runStartupCheck<T>(
 		);
 
 		return result;
-	} catch (err) {
-		logger.error({ err }, `✗ ${name}`);
+	} catch (error) {
+		logger.error({ err: error }, `✗ ${name}`);
 		process.exit(1);
 	}
 }
 
-export async function shutDownGracefully(code = 0): Promise<never> {
+async function shutDownGracefully(
+	resources: Resources,
+	code: number
+): Promise<never> {
 	// Consumer first. force closes the open message stream, which close()
 	// otherwise refuses to leave the group over; LeaveGroup is what stops the
 	// next start from waiting out the session timeout on a zombie member. A
 	// batch cut off here was never committed and is read again after restart.
 	try {
-		await kafkaConsumer.close(true);
-	} catch (err) {
-		logger.error({ err }, "Consumer close failed");
+		await resources.kafkaConsumer.close(true);
+	} catch (error) {
+		logger.error({ err: error }, "Consumer close failed");
 	}
 
 	try {
-		await writerPool?.end();
-	} catch (err) {
-		logger.error({ err }, "Pool close failed");
+		await resources.writerPool.end();
+	} catch (error) {
+		logger.error({ err: error }, "Pool close failed");
 	}
 
 	try {
-		await kafkaDeadLetterProducer.close();
-	} catch (err) {
-		logger.error({ err }, "Producer close failed");
+		await resources.deadLetterProducer.close();
+	} catch (error) {
+		logger.error({ err: error }, "Producer close failed");
 	}
 
 	try {
-		server.close();
-	} catch (err) {
-		logger.error({ err }, "Health server close failed");
+		resources.server.close();
+	} catch (error) {
+		logger.error({ err: error }, "Health server close failed");
 	}
 
 	try {
 		await tracerProvider?.forceFlush();
-	} catch (err) {
-		logger.error({ err }, "Trace flush failed");
+	} catch (error) {
+		logger.error({ err: error }, "Trace flush failed");
 	}
 
 	process.exit(code);
 }
 
-// #region: Kill Processes
-process.on("SIGTERM", () => void shutDownGracefully());
-process.on("SIGINT", () => void shutDownGracefully());
-// #endregion
-
-// #region: Main entrypoint
-try {
-	// Create database pool to manage connections
-	writerPool = await runStartupCheck("PostgreSQL", async () => {
-		const pool = await createPool({
-			min: config.database.min,
-			max: config.database.max,
-			database: config.database.database,
-			host: config.database.host,
-			port: config.database.port,
-			user: config.database.user,
-			password: secrets.databasePassword
-		});
-
-		/** Force a real connection and release client directly */
-		await pool.query("SELECT 1");
-
-		return pool;
+// #region: Boot
+const writerPool = await runStartupCheck("PostgreSQL", async () => {
+	const pool = await createPool({
+		min: config.database.min,
+		max: config.database.max,
+		database: config.database.database,
+		host: config.database.host,
+		port: config.database.port,
+		user: config.database.user,
+		password: secrets.databasePassword
 	});
 
-	writerDb = createDatabase(writerPool);
+	/** Force a real connection and release client directly */
+	await pool.query("SELECT 1");
 
-	rules = await loadActiveRules(writerDb);
-	rulesetVersion = await loadRulesetVersion(writerDb);
-	uncategorisedId = await loadUncategorisedId(writerDb);
+	return pool;
+});
 
-	const avroDeserialiser = await runStartupCheck("SchemaRegistry", () =>
-		createAvroDeserialiser<DomainTransactionSchema>(config.schemaRegistry.url, [
-			`${config.kafka.topics.main}-value`
-		])
-	);
+const ruleset = await runStartupCheck("Ruleset", () =>
+	loadRuleset(createDatabase(writerPool))
+);
 
-	/**
-	 * Create the Kafka consumer instance.
-	 */
-	kafkaConsumer = await createKafkaConsumer<
-		string,
-		ConsumedValue,
-		string,
-		string
-	>(
-		{
-			groupId: config.kafka.groupId,
-			clientId: `${config.kafka.clientId}_consumer`,
-			bootstrapBrokers: config.kafka.brokers,
+const avroDeserialiser = await runStartupCheck("SchemaRegistry", () =>
+	createAvroDeserialiser<DomainTransactionSchema>(config.schemaRegistry.url, [
+		`${config.kafka.topics.main}-value`
+	])
+);
 
-			// Kafka group membership
-			sessionTimeout: config.kafka.sessionTimeout,
-			heartbeatInterval: config.kafka.heartbeatInterval, // 5_000
-			rebalanceTimeout: config.kafka.rebalanceTimeout, // 30_000
-			requestTimeout: config.kafka.requestTimeout,
+const kafkaConsumer = await createKafkaConsumer<
+	string,
+	ConsumedValue,
+	string,
+	string
+>(
+	{
+		groupId: config.kafka.groupId,
+		clientId: `${config.kafka.clientId}_consumer`,
+		bootstrapBrokers: config.kafka.brokers,
 
-			sasl: {
-				mechanism: config.kafka.sasl.mechanism,
-				username: config.kafka.sasl.username,
-				password: secrets.kafkaPassword
-			},
-			deserializers: {
-				key: stringDeserializer,
-				value: avroDeserialiser.deserialise,
-				headerKey: stringDeserializer,
-				headerValue: stringDeserializer
-			}
+		// Kafka group membership
+		sessionTimeout: config.kafka.sessionTimeout,
+		heartbeatInterval: config.kafka.heartbeatInterval, // 5_000
+		rebalanceTimeout: config.kafka.rebalanceTimeout, // 30_000
+		requestTimeout: config.kafka.requestTimeout,
+
+		sasl: {
+			mechanism: config.kafka.sasl.mechanism,
+			username: config.kafka.sasl.username,
+			password: secrets.kafkaPassword
 		},
-		registry
-	);
+		deserializers: {
+			key: stringDeserializer,
+			value: avroDeserialiser.deserialise,
+			headerKey: stringDeserializer,
+			headerValue: stringDeserializer
+		}
+	},
+	registry
+);
 
-	kafkaDeadLetterProducer = await createKafkaDeadLetterProducer(
-		{
-			clientId: `${config.kafka.clientId}_producer`,
-			acks: -1,
-			bootstrapBrokers: config.kafka.brokers,
-			sasl: {
-				mechanism: config.kafka.sasl.mechanism,
-				username: config.kafka.sasl.username,
-				password: secrets.kafkaPassword
-			}
-		},
-		registry
-	);
+const deadLetterProducer = await createKafkaDeadLetterProducer(
+	{
+		clientId: `${config.kafka.clientId}_producer`,
+		acks: -1,
+		bootstrapBrokers: config.kafka.brokers,
+		sasl: {
+			mechanism: config.kafka.sasl.mechanism,
+			username: config.kafka.sasl.username,
+			password: secrets.kafkaPassword
+		}
+	},
+	registry
+);
 
-	const ruleset: RuleSet = {
-		version: rulesetVersion,
-		rules: rules,
-		uncategorisedId: uncategorisedId
-	};
-
-	transactionNormaliser = createNormaliser(config.transactionType);
-	ruleCategoriser = createRuleCategoriser(ruleset);
-
-	const transactionIngester = createTransactionIngester(
-		transactionNormaliser,
-		ruleCategoriser,
-		writerPool
-	);
-
-	sendToDeadLetterQueue = createDeadLetterSender(
-		kafkaDeadLetterProducer,
-		config.kafka.topics.deadLetter
-	);
-	transactionBatchHandler = createTransactionBatchHandler(
-		transactionIngester,
-		sendToDeadLetterQueue
-	);
-
-	/**
-	 * Connects and authenticates both clients, the broker's SELECT 1. Awaited, so
-	 * a broker failure lands in the catch below instead of an unhandled rejection.
-	 */
-	await Promise.all([
-		kafkaDeadLetterProducer.metadata({ forceUpdate: true }),
+// Connects and authenticates both clients, the broker's SELECT 1
+await runStartupCheck("Kafka", () =>
+	Promise.all([
+		deadLetterProducer.metadata({ forceUpdate: true }),
 		kafkaConsumer.metadata({ forceUpdate: true })
-	]);
+	])
+);
 
-	server = await createServer();
-	server.listen(config.app.port);
-} catch (err) {
-	logger.error({ err }, "Startup failed");
-	await shutDownGracefully(1);
-	process.exit(1);
-}
+const server = await createServer();
+server.listen(config.app.port);
 
-/**
- * The consumer closes the loop for subsequent calls. Server.listen must be called earlier
- */
+const resources: Resources = {
+	kafkaConsumer,
+	writerPool,
+	deadLetterProducer,
+	server
+};
+
+process.on("SIGTERM", () => void shutDownGracefully(resources, 0));
+process.on("SIGINT", () => void shutDownGracefully(resources, 0));
+// #endregion
+
+// #region: Consume
+const handleTransactionBatch = createTransactionBatchHandler(
+	createTransactionIngester(config.transactionType, ruleset, writerPool),
+	createDeadLetterSender(deadLetterProducer, config.kafka.topics.deadLetter)
+);
+
 try {
 	logger.info(
 		{ topic: config.kafka.topics.main, mode: config.kafka.readMode },
@@ -269,12 +218,9 @@ try {
 		config.kafka.lagMonitoringInterval
 	);
 
-	/**
-	 * Start the main consumer loop.
-	 */
 	await startBatchConsumer(
 		kafkaConsumer,
-		transactionBatchHandler,
+		handleTransactionBatch,
 		handleDeserialisationError,
 		{
 			topics: Array(config.kafka.topics.main),
@@ -284,9 +230,8 @@ try {
 			lingerMs: config.kafka.lingerMs
 		}
 	);
-} catch (err) {
-	logger.error({ err }, "Consumer stopped on an unrecoverable error");
-	await shutDownGracefully(1);
+} catch (error) {
+	logger.error({ err: error }, "Consumer stopped on an unrecoverable error");
+	await shutDownGracefully(resources, 1);
 }
-
 // #endregion

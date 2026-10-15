@@ -14,7 +14,7 @@ import fastify, {
 } from "fastify";
 import type { Pool } from "pg";
 import { type Logger, pino } from "pino";
-import type { TokenVerifier } from "./auth/verifier.ts";
+import type { TokenVerification } from "./auth/verifier.ts";
 import type { AppInfoConfig, QueryWindowConfig } from "./config.ts";
 import {
 	clientError,
@@ -37,7 +37,7 @@ export type BuildServerOptions = {
 	serverOptions?: FastifyServerOptions;
 	appInfo?: AppInfoConfig;
 	logger?: Logger;
-	tokenVerifier?: TokenVerifier;
+	tokenVerification?: TokenVerification;
 	database?: Pool;
 	categoryRepository?: CategoryRepository;
 	transactionRepository?: UserTransactionRepository;
@@ -148,7 +148,7 @@ export function buildServer(options: BuildServerOptions = {}) {
 			options: {
 				appInfo,
 				enableSwagger: pluginAutoLoadParameters.enableSwagger,
-				tokenVerifier: options.tokenVerifier
+				tokenVerification: options.tokenVerification
 			}
 		});
 	}

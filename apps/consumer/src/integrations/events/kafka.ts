@@ -272,6 +272,79 @@ function buildSpanLinks(batch: KafkaMessage[]) {
 	return links;
 }
 
+/**
+ * The batch being filled, and what a flush needs to hand it on. `startBatchConsumer`
+ * owns it; `drainBatch` and `flushBatch` take it as a parameter.
+ */
+interface BatchState {
+	messages: KafkaMessage[];
+	lingerTimer: NodeJS.Timeout | null;
+	// Orders flushes one after another. The linger timer cannot await, so
+	// without this a timer-triggered flush can run while a size-triggered one is
+	// still inserting — two concurrent transactions, two commits, and
+	// `messages` mutated in between. Every flush chains onto the previous.
+	inFlight: Promise<void>;
+	onBatch: BatchHandler;
+	topic: string;
+}
+
+async function drainBatch(state: BatchState, trigger: FlushTrigger) {
+	if (state.lingerTimer) {
+		clearTimeout(state.lingerTimer);
+		state.lingerTimer = null;
+	}
+
+	// Swapped for a new array, never emptied in place: `batch` keeps these
+	// messages while the loop fills the next batch.
+	const batch = state.messages;
+	state.messages = [];
+
+	if (batch.length === 0) return;
+
+	const endFlushTimer = batchFlushDurationSeconds.startTimer();
+	batchFlushTotal.inc({ trigger });
+	batchSize.observe(batch.length);
+
+	await runInSpan(
+		`consume.batch ${state.topic}`,
+		{
+			// Each batch is its own trace. The producers' traces are links,
+			// not parents: one span cannot have a parent per message.
+			root: true,
+			kind: SpanKind.CONSUMER,
+			links: buildSpanLinks(batch),
+			attributes: {
+				"messaging.system": "kafka",
+				"messaging.destination.name": state.topic,
+				"messaging.batch.message_count": batch.length,
+				"batch.trigger": trigger
+			}
+		},
+		async () => {
+			await state.onBatch(classifyMessages(batch));
+
+			try {
+				await commitBatch(batch);
+			} catch (error) {
+				logger.warn(
+					{ error: error, size: batch.length },
+					"Commit failed after a successful flush."
+				);
+			}
+		}
+	);
+
+	endFlushTimer();
+}
+
+function flushBatch(state: BatchState, trigger: FlushTrigger) {
+	const flushed = state.inFlight.then(() => drainBatch(state, trigger));
+	// The queue swallows the rejection so one failure does not poison every
+	// later flush; the returned promise still carries it to the caller.
+	state.inFlight = flushed.catch(() => {});
+	return flushed;
+}
+
 export async function startBatchConsumer(
 	consumer: KafkaConsumer,
 	onBatch: BatchHandler,
@@ -287,77 +360,20 @@ export async function startBatchConsumer(
 		onDeserializationError: onDeserialisationFailure
 	});
 
-	let messageBatch: KafkaMessage[] = [];
-	let timeoutId: NodeJS.Timeout | null = null;
-
-	// Orders flushes one after another. The linger timer cannot await, so
-	// without this a timer-triggered flush can run while a size-triggered one is
-	// still inserting — two concurrent transactions, two commits, and
-	// `messageBatch` mutated in between. Every flush chains onto the previous.
-	let inFlight: Promise<void> = Promise.resolve();
-
-	async function drainBatch(trigger: FlushTrigger) {
-		if (timeoutId) {
-			clearTimeout(timeoutId);
-			timeoutId = null;
-		}
-
-		const batch = messageBatch;
-		messageBatch = [];
-
-		if (batch.length === 0) return;
-
-		const endFlushTimer = batchFlushDurationSeconds.startTimer();
-		batchFlushTotal.inc({ trigger });
-		batchSize.observe(batch.length);
-
-		const topic = options.topics.join(",");
-		await runInSpan(
-			`consume.batch ${topic}`,
-			{
-				// Each batch is its own trace. The producers' traces are links,
-				// not parents: one span cannot have a parent per message.
-				root: true,
-				kind: SpanKind.CONSUMER,
-				links: buildSpanLinks(batch),
-				attributes: {
-					"messaging.system": "kafka",
-					"messaging.destination.name": topic,
-					"messaging.batch.message_count": batch.length,
-					"batch.trigger": trigger
-				}
-			},
-			async () => {
-				await onBatch(classifyMessages(batch));
-
-				try {
-					await commitBatch(batch);
-				} catch (error) {
-					logger.warn(
-						{ error: error, size: batch.length },
-						"Commit failed after a successful flush."
-					);
-				}
-			}
-		);
-
-		endFlushTimer();
-	}
-
-	function flushBatch(trigger: FlushTrigger) {
-		const flushed = inFlight.then(() => drainBatch(trigger));
-		// The queue swallows the rejection so one failure does not poison every
-		// later flush; the returned promise still carries it to the caller.
-		inFlight = flushed.catch(() => {});
-		return flushed;
-	}
+	const state: BatchState = {
+		messages: [],
+		lingerTimer: null,
+		inFlight: Promise.resolve(),
+		onBatch,
+		topic: options.topics.join(",")
+	};
 
 	for await (const message of messageStream) {
-		messageBatch.push(message);
+		state.messages.push(message);
 
-		if (messageBatch.length === 1) {
-			timeoutId = setTimeout(() => {
-				flushBatch("linger").catch((error: unknown) => {
+		if (state.messages.length === 1) {
+			state.lingerTimer = setTimeout(() => {
+				flushBatch(state, "linger").catch((error: unknown) => {
 					messageStream.destroy(
 						error instanceof Error ? error : new Error(String(error))
 					);
@@ -365,12 +381,12 @@ export async function startBatchConsumer(
 			}, options.lingerMs);
 		}
 
-		if (messageBatch.length >= options.batchSize) {
-			await flushBatch("size");
+		if (state.messages.length >= options.batchSize) {
+			await flushBatch(state, "size");
 		}
 	}
 
 	// The stream ended with a partial batch still buffered — flush it, and let
 	// a failure propagate rather than dropping the messages silently.
-	await flushBatch("stream_end");
+	await flushBatch(state, "stream_end");
 }

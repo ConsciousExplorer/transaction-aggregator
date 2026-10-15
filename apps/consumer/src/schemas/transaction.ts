@@ -5,6 +5,16 @@ import { eftTransactionSchema } from "./eft.ts";
 import { internalTransferTransactionSchema } from "./internal_transfer.ts";
 import { loanTransactionSchema } from "./loan.ts";
 
+export const CANONICAL_TRANSACTION_TYPES = [
+	"card",
+	"eft",
+	"loan",
+	"debit_order",
+	"internal_transfer"
+] as const;
+
+export const transactionTypeSchema = z.enum(CANONICAL_TRANSACTION_TYPES);
+
 // Whether money came into the account (credit) or left it (debit), as a bank
 // statement shows it. ISO 20022 calls this the credit/debit indicator.
 export const creditDebitIndicatorSchema = z.enum(["credit", "debit"]);
@@ -23,16 +33,6 @@ export const domainTransactionSchema = z.union([
 	internalTransferTransactionSchema,
 	loanTransactionSchema
 ]);
-
-export const CANONICAL_TRANSACTION_TYPES = [
-	"card",
-	"eft",
-	"loan",
-	"debit_order",
-	"internal_transfer"
-] as const;
-
-export const transactionTypeSchema = z.enum(CANONICAL_TRANSACTION_TYPES);
 
 export const canonicalTransactionSchema = z.object({
 	// Used for user transaction identification
