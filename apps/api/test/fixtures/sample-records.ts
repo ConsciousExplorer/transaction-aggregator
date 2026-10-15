@@ -3,16 +3,16 @@ import {
 	type TransactionFixture
 } from "../integration/helpers/seed.ts";
 
-// A hand-computed corpus for the summary. Every row is here for a reason, given
+// Hand-computed samples for the summary. Every row is here for a reason, given
 // in its comment. Every expected number below was worked out by hand from these
 // rows, never by code: a test that computes its expectations repeats the code's
 // mistakes. If you add a row, work out every expected group again by hand.
 
-export const CORPUS_USER_ID = "00000000-0000-4000-8000-00000000000a";
+export const SAMPLE_USER_ID = "00000000-0000-4000-8000-00000000000a";
 export const OTHER_USER_ID = "00000000-0000-4000-8000-00000000000b";
 
 /** July and August 2026; toDateTime is exclusive */
-export const CORPUS_WINDOW =
+export const SAMPLE_WINDOW =
 	"fromDateTime=2026-07-01T00:00:00Z&toDateTime=2026-09-01T00:00:00Z";
 
 function buildRow(
@@ -21,7 +21,7 @@ function buildRow(
 	creditDebitIndicator: "credit" | "debit",
 	amountMinor: number,
 	status: TransactionFixture["status"] = "completed",
-	userId = CORPUS_USER_ID
+	userId = SAMPLE_USER_ID
 ) {
 	return {
 		userId,
@@ -33,7 +33,7 @@ function buildRow(
 	};
 }
 
-export const CORPUS_ROWS: TransactionFixture[] = [
+export const SAMPLE_ROWS: TransactionFixture[] = [
 	// 0: the window's first instant, so fromDateTime is inclusive
 	buildRow("2026-07-01T00:00:00.000000Z", "groceries", "debit", 10000),
 	// 1: a second groceries debit in July

@@ -4,14 +4,14 @@ import { after, before, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { buildTestSigningKeys, signTestToken } from "#src/auth/test-tokens.ts";
 import {
-	CORPUS_ROWS,
-	CORPUS_USER_ID,
-	CORPUS_WINDOW,
 	EXPECTED_BY_CATEGORY,
 	EXPECTED_BY_CATEGORY_WITH_OVERRIDES,
 	EXPECTED_BY_MONTH,
 	EXPECTED_TOTALS,
-	type ExpectedGroup
+	type ExpectedGroup,
+	SAMPLE_ROWS,
+	SAMPLE_USER_ID,
+	SAMPLE_WINDOW
 } from "../fixtures/sample-records.ts";
 import {
 	startTestDatabase,
@@ -21,7 +21,7 @@ import {
 import { CATEGORY_IDS, insertTransactions } from "./helpers/seed.ts";
 import { buildTestServer, readAs, sendAs } from "./helpers/server.ts";
 
-const SUMMARY_URL = `/api/v1/users/${CORPUS_USER_ID}/summary?${CORPUS_WINDOW}`;
+const SUMMARY_URL = `/api/v1/users/${SAMPLE_USER_ID}/summary?${SAMPLE_WINDOW}`;
 
 function buildZar(amountMinor: number) {
 	return { amountMinor, currency: "ZAR" };
@@ -66,11 +66,11 @@ const EXPECTED_TOTALS_RESPONSE = {
 	}
 };
 
-suite("summary against the hand-computed corpus", () => {
+suite("summary against the hand-computed samples", () => {
 	let database: TestDatabase;
 	let server: FastifyInstance;
 	let writeToken: string;
-	let corpusTransactionIds: string[];
+	let sampleTransactionIds: string[];
 
 	before(
 		async () => {
@@ -83,10 +83,10 @@ suite("summary against the hand-computed corpus", () => {
 			});
 			server = await buildTestServer(database, tokenVerification);
 
-			const inserted = await insertTransactions(database.adminDb, CORPUS_ROWS);
-			corpusTransactionIds = [];
+			const inserted = await insertTransactions(database.adminDb, SAMPLE_ROWS);
+			sampleTransactionIds = [];
 			for (const row of inserted) {
-				corpusTransactionIds.push(row.transactionId);
+				sampleTransactionIds.push(row.transactionId);
 			}
 		},
 		{ timeout: 180_000 }
@@ -127,7 +127,7 @@ suite("summary against the hand-computed corpus", () => {
 			server,
 			writeToken,
 			"PUT",
-			`/api/v1/users/${CORPUS_USER_ID}/category-overrides/${CATEGORY_IDS.transport}`,
+			`/api/v1/users/${SAMPLE_USER_ID}/category-overrides/${CATEGORY_IDS.transport}`,
 			{ toCategoryId: CATEGORY_IDS.retail }
 		);
 		assert.strictEqual(remap.statusCode, 200, remap.body);
@@ -136,7 +136,7 @@ suite("summary against the hand-computed corpus", () => {
 			server,
 			writeToken,
 			"PUT",
-			`/api/v1/users/${CORPUS_USER_ID}/transaction-overrides/${corpusTransactionIds[4]}`,
+			`/api/v1/users/${SAMPLE_USER_ID}/transaction-overrides/${sampleTransactionIds[4]}`,
 			{ categoryId: CATEGORY_IDS.dining }
 		);
 		assert.strictEqual(override.statusCode, 200, override.body);
@@ -155,16 +155,16 @@ suite("summary against the hand-computed corpus", () => {
 			server,
 			writeToken,
 			"DELETE",
-			`/api/v1/users/${CORPUS_USER_ID}/category-overrides/${CATEGORY_IDS.transport}`
+			`/api/v1/users/${SAMPLE_USER_ID}/category-overrides/${CATEGORY_IDS.transport}`
 		);
 		await sendAs(
 			server,
 			writeToken,
 			"DELETE",
-			`/api/v1/users/${CORPUS_USER_ID}/transaction-overrides/${corpusTransactionIds[4]}`
+			`/api/v1/users/${SAMPLE_USER_ID}/transaction-overrides/${sampleTransactionIds[4]}`
 		);
 
-		// Every corpus row happened months before its insert, so this also
+		// Every sample row happened months before its insert, so this also
 		// checks the archive finds an override without the id's time
 		const reverted = await readAs(server, writeToken, SUMMARY_URL);
 		assert.deepStrictEqual(

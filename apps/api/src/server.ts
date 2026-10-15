@@ -33,16 +33,25 @@ import { resolveTraceId } from "./utils/trace-id.ts";
 // test file as a plugin or route and run its suite inside the server.
 const IGNORE_TEST_FILES = /\.test\.(ts|js)$/;
 
-export type BuildServerOptions = {
+/**
+ * Everything the autoloaded plugins and routes read from their options.
+ * Autoload doesn't type-check the options it hands each route, so a caller
+ * that serves real requests types its dependencies with this: leaving one out
+ * is then a compile error, not a 500 on that route's first request.
+ */
+export type ServerDependencies = {
+	tokenVerification: TokenVerification;
+	database: Pool;
+	categoryRepository: CategoryRepository;
+	transactionRepository: UserTransactionRepository;
+	summaryRepository: SummaryRepository;
+	queryWindow: QueryWindowConfig;
+};
+
+export type BuildServerOptions = Partial<ServerDependencies> & {
 	serverOptions?: FastifyServerOptions;
 	appInfo?: AppInfoConfig;
 	logger?: Logger;
-	tokenVerification?: TokenVerification;
-	database?: Pool;
-	categoryRepository?: CategoryRepository;
-	transactionRepository?: UserTransactionRepository;
-	summaryRepository?: SummaryRepository;
-	queryWindow?: QueryWindowConfig;
 	pluginAutoLoadParameters?: AutoloadPluginOptions & {
 		enableSwagger?: boolean;
 	};
@@ -51,9 +60,10 @@ export type BuildServerOptions = {
 
 /**
  * Everything is optional: buildServer({}) boots a working server with defaults
- * (pure config, silent logger, no routes). Production (app.ts) passes the real
- * dependencies explicitly; tests pass only what they exercise and register
- * routes manually with exactly the opts those routes need.
+ * (pure config, silent logger, no routes). Production (app.ts) and the
+ * integration tests pass a complete ServerDependencies; unit tests and the
+ * OpenAPI script pass only what they exercise, since they never send a request
+ * to a route that reads a repository.
  */
 export function buildServer(options: BuildServerOptions = {}) {
 	const logger = options.logger ?? pino({ level: "silent" });
@@ -126,12 +136,10 @@ export function buildServer(options: BuildServerOptions = {}) {
 	server.setNotFoundHandler((_req, reply) => send(reply, notFoundError()));
 
 	/**
-	 * RED metrics and the trace span's route for every request. Registered
-	 * before the plugin autoload so its onRequest runs before auth's: auth
-	 * throws 401/403 from onRequest, which skips every onRequest hook after it
-	 * but still runs onResponse. Registered later, the in-flight gauge would
-	 * dec without inc and go negative, and rejected requests' spans would have
-	 * no route.
+	 * RED metrics and the trace span's route for every request.
+	 * Rate
+	 * Error
+	 * Duration
 	 */
 	server.register(httpMetrics);
 

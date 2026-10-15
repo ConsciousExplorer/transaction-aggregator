@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { TokenVerification } from "#src/auth/verifier.ts";
-import { buildServer } from "#src/server.ts";
+import { buildServer, type ServerDependencies } from "#src/server.ts";
 import type { TestDatabase } from "./database.ts";
 import { buildRepositories } from "./repositories.ts";
 
@@ -18,13 +18,17 @@ export async function buildTestServer(
 ) {
 	const repositories = buildRepositories(database.apiDb);
 
-	const server = buildServer({
+	const serverDependencies: ServerDependencies = {
 		tokenVerification,
 		database: database.apiPool,
 		categoryRepository: repositories.categoryRepository,
 		transactionRepository: repositories.transactionRepository,
 		summaryRepository: repositories.summaryRepository,
-		queryWindow: { maxDays: 366 },
+		queryWindow: { maxDays: 366 }
+	};
+
+	const server = buildServer({
+		...serverDependencies,
 		pluginAutoLoadParameters: {
 			dir: join(SOURCE_DIRECTORY, "plugins"),
 			enableSwagger: false

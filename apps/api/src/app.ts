@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { buildContainer } from "#src/container.ts";
-import { buildServer } from "./server.ts";
+import { buildServer, type ServerDependencies } from "./server.ts";
 
 const container = await buildContainer();
 
@@ -16,15 +16,20 @@ const {
 	summaryRepository
 } = container.cradle;
 
-const server: FastifyInstance = buildServer({
-	appInfo: appInfo,
-	logger: logger,
+// Typed so a dependency left out here fails to compile
+const serverDependencies: ServerDependencies = {
 	tokenVerification: tokenVerification,
 	database: database,
 	categoryRepository: categoryRepository,
 	transactionRepository: transactionRepository,
 	summaryRepository: summaryRepository,
-	queryWindow: config.queryWindow,
+	queryWindow: config.queryWindow
+};
+
+const server: FastifyInstance = buildServer({
+	...serverDependencies,
+	appInfo: appInfo,
+	logger: logger,
 	pluginAutoLoadParameters: {
 		dir: join(import.meta.dirname, "plugins"),
 		enableSwagger: config.api.enableSwagger
