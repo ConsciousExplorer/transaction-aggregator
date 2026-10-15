@@ -23,7 +23,7 @@ import { buildTestServer, readAs, sendAs } from "./helpers/server.ts";
 
 const SUMMARY_URL = `/api/v1/users/${SAMPLE_USER_ID}/summary?${SAMPLE_WINDOW}`;
 
-function buildZar(amountMinor: number) {
+function buildAmount(amountMinor: number) {
 	return { amountMinor, currency: "ZAR" };
 }
 
@@ -36,11 +36,14 @@ function buildExpectedItem(expected: ExpectedGroup) {
 	return {
 		group,
 		count: expected.count,
-		netAmount: buildZar(expected.net),
-		debit: { count: expected.debitCount, total: buildZar(expected.debitTotal) },
+		netAmount: buildAmount(expected.net),
+		debit: {
+			count: expected.debitCount,
+			total: buildAmount(expected.debitTotal)
+		},
 		credit: {
 			count: expected.creditCount,
-			total: buildZar(expected.creditTotal)
+			total: buildAmount(expected.creditTotal)
 		}
 	};
 }
@@ -55,14 +58,14 @@ function buildExpectedItems(expectedGroups: ExpectedGroup[]) {
 
 const EXPECTED_TOTALS_RESPONSE = {
 	transactionCount: EXPECTED_TOTALS.transactionCount,
-	netAmount: buildZar(EXPECTED_TOTALS.net),
+	netAmount: buildAmount(EXPECTED_TOTALS.net),
 	debit: {
 		count: EXPECTED_TOTALS.debitCount,
-		total: buildZar(EXPECTED_TOTALS.debitTotal)
+		total: buildAmount(EXPECTED_TOTALS.debitTotal)
 	},
 	credit: {
 		count: EXPECTED_TOTALS.creditCount,
-		total: buildZar(EXPECTED_TOTALS.creditTotal)
+		total: buildAmount(EXPECTED_TOTALS.creditTotal)
 	}
 };
 

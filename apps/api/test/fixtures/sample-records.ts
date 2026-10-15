@@ -15,7 +15,7 @@ export const OTHER_USER_ID = "00000000-0000-4000-8000-00000000000b";
 export const SAMPLE_WINDOW =
 	"fromDateTime=2026-07-01T00:00:00Z&toDateTime=2026-09-01T00:00:00Z";
 
-function buildRow(
+function buildSampleRow(
 	occurredAt: string,
 	category: keyof typeof CATEGORY_IDS,
 	creditDebitIndicator: "credit" | "debit",
@@ -35,37 +35,43 @@ function buildRow(
 
 export const SAMPLE_ROWS: TransactionFixture[] = [
 	// 0: the window's first instant, so fromDateTime is inclusive
-	buildRow("2026-07-01T00:00:00.000000Z", "groceries", "debit", 10000),
+	buildSampleRow("2026-07-01T00:00:00.000000Z", "groceries", "debit", 10000),
 	// 1: a second groceries debit in July
-	buildRow("2026-07-15T12:00:00.000000Z", "groceries", "debit", 2500),
+	buildSampleRow("2026-07-15T12:00:00.000000Z", "groceries", "debit", 2500),
 	// 2
-	buildRow("2026-07-20T08:00:00.000000Z", "dining", "debit", 4000),
+	buildSampleRow("2026-07-20T08:00:00.000000Z", "dining", "debit", 4000),
 	// 3: money in
-	buildRow("2026-07-25T09:00:00.000000Z", "income", "credit", 500000),
+	buildSampleRow("2026-07-25T09:00:00.000000Z", "income", "credit", 500000),
 	// 4: July's last microsecond, so it lands in July's bucket
-	buildRow("2026-07-31T23:59:59.999999Z", "transport", "debit", 1500),
+	buildSampleRow("2026-07-31T23:59:59.999999Z", "transport", "debit", 1500),
 	// 5: August's first instant, so it lands in August's bucket
-	buildRow("2026-08-01T00:00:00.000000Z", "transport", "debit", 2000),
+	buildSampleRow("2026-08-01T00:00:00.000000Z", "transport", "debit", 2000),
 	// 6
-	buildRow("2026-08-05T18:30:00.000000Z", "dining", "debit", 3500),
+	buildSampleRow("2026-08-05T18:30:00.000000Z", "dining", "debit", 3500),
 	// 7: a refund, money in under a spending category
-	buildRow("2026-08-12T10:00:00.000000Z", "groceries", "credit", 1200),
+	buildSampleRow("2026-08-12T10:00:00.000000Z", "groceries", "credit", 1200),
 	// 8
-	buildRow("2026-08-25T09:00:00.000000Z", "income", "credit", 500000),
+	buildSampleRow("2026-08-25T09:00:00.000000Z", "income", "credit", 500000),
 	// 9: the last microsecond before toDateTime
-	buildRow("2026-08-31T23:59:59.999999Z", "groceries", "debit", 3000),
+	buildSampleRow("2026-08-31T23:59:59.999999Z", "groceries", "debit", 3000),
 
 	// Never counted:
 	// 10, 11, 12: listed, but only completed rows count toward the summary
-	buildRow(
+	buildSampleRow(
 		"2026-07-10T10:00:00.000000Z",
 		"groceries",
 		"debit",
 		99900,
 		"pending"
 	),
-	buildRow("2026-07-11T10:00:00.000000Z", "dining", "debit", 88800, "reversed"),
-	buildRow(
+	buildSampleRow(
+		"2026-07-11T10:00:00.000000Z",
+		"dining",
+		"debit",
+		88800,
+		"reversed"
+	),
+	buildSampleRow(
 		"2026-08-20T10:00:00.000000Z",
 		"groceries",
 		"debit",
@@ -73,11 +79,11 @@ export const SAMPLE_ROWS: TransactionFixture[] = [
 		"failed"
 	),
 	// 13: exactly toDateTime, which is exclusive
-	buildRow("2026-09-01T00:00:00.000000Z", "groceries", "debit", 77700),
+	buildSampleRow("2026-09-01T00:00:00.000000Z", "groceries", "debit", 77700),
 	// 14: a microsecond before fromDateTime
-	buildRow("2026-06-30T23:59:59.999999Z", "groceries", "debit", 66600),
+	buildSampleRow("2026-06-30T23:59:59.999999Z", "groceries", "debit", 66600),
 	// 15: another user's row inside the window
-	buildRow(
+	buildSampleRow(
 		"2026-07-15T12:00:00.000000Z",
 		"groceries",
 		"debit",
