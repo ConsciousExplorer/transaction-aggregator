@@ -120,9 +120,36 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			fromDate: FROM,
 			toDate: TO,
 			accountId: undefined,
+			transactionType: undefined,
 			category: undefined,
+			creditDebitIndicator: undefined,
+			amountMin: undefined,
+			amountMax: undefined,
 			interval: "month"
 		});
+	});
+
+	test("the list's filters reach the summary query", async () => {
+		await app.inject({
+			method: "GET",
+			url: `${BASE_URL}&transactionType=card&transactionType=eft&creditDebitIndicator=debit&amountMin=100&amountMax=5000`
+		});
+		const filter = getUserSummary.mock.calls[0]?.arguments.at(0) as
+			| Record<string, unknown>
+			| undefined;
+		assert.deepStrictEqual(filter?.transactionType, ["card", "eft"]);
+		assert.strictEqual(filter?.creditDebitIndicator, "debit");
+		assert.strictEqual(filter?.amountMin, 100);
+		assert.strictEqual(filter?.amountMax, 5000);
+	});
+
+	test('400: interval "total" is not an interval; leaving it out is the whole window', async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: `${BASE_URL}&interval=total`
+		});
+		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
 	test("accountId narrows the summary to that account", async () => {

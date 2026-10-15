@@ -9,7 +9,8 @@
 --
 -- Every value is computed from the row number n, so the data is the same on
 -- every run and the cursors written into 02 stay valid after a rebuild. Row n
--- is the n-th newest, and its transaction_id ends in n. Running the INSERT
+-- is the n-th newest, and its transaction_id is a UUIDv7 built from its
+-- occurred_at, ending in n, as the consumer's ids are. Running the INSERT
 -- again adds nothing: ON CONFLICT skips rows that exist.
 --
 -- The API serves this user like any other. The metadata copies the shape the
@@ -41,12 +42,14 @@ INSERT INTO transactions (
   credit_debit_indicator, status, amount_minor, currency, long_description, short_description,
   category_id, rule_version, rule_priority, metadata
 )
-SELECT ('10000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,   -- row 42 → …-000000000042
+SELECT -- UUIDv7: occurred_at in milliseconds as the first 48 bits, version 7, then n
+       (substr(times.milliseconds_hex, 1, 8) || '-' || substr(times.milliseconds_hex, 9, 4)
+        || '-7000-8000-' || lpad(n::text, 12, '0'))::uuid,
        '00000000-0000-4000-8000-000000000001',
        ('00000000-0000-4000-8000-0000000000a' || (1 + n % 3))::uuid,
        kinds.transaction_type,
        'test-user-' || n,
-       timestamptz '2026-10-04 00:00:00+00' - n * interval '315 seconds',
+       times.occurred_at,
        CASE WHEN n % 10 = 0 THEN 'credit' ELSE 'debit' END::credit_debit_indicator,
        CASE WHEN n % 20 = 0 THEN 'pending' ELSE 'completed' END::transaction_status,
        100 + (n * 7919) % 500000,
@@ -59,6 +62,11 @@ SELECT ('10000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,   -- row 42
        kinds.metadata
 FROM generate_series(1, 100000) AS n
 JOIN kinds ON kinds.kind = n % 5
+CROSS JOIN LATERAL (
+  SELECT occurred_at,
+         lpad(to_hex((extract(epoch FROM occurred_at) * 1000)::bigint), 12, '0') AS milliseconds_hex
+  FROM (SELECT timestamptz '2026-10-04 00:00:00+00' - n * interval '315 seconds' AS occurred_at) AS row_time
+) AS times
 ON CONFLICT DO NOTHING;
 
 -- 2. Refresh the planner's statistics, so it knows this user has 100,000 rows,

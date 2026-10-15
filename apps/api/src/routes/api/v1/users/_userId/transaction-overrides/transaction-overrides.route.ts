@@ -10,7 +10,6 @@ const bodySchema = z.object({ categoryId: z.number().int().positive() });
 const responseSchema = z.object({
 	transactionId: z.uuid(),
 	categoryId: z.number().int(),
-	isOverridden: z.boolean(),
 	updatedAt: z.iso.datetime()
 });
 
@@ -66,7 +65,6 @@ export default async (
 			return reply.send({
 				transactionId: overrideTransaction.transactionId,
 				categoryId: overrideTransaction.categoryId,
-				isOverridden: originalTransaction.categoryId !== categoryId,
 				updatedAt: new Date(overrideTransaction.updatedAt).toISOString()
 			});
 		}

@@ -33,7 +33,8 @@ export const userSummaryFilter = z.object({
 		.union([transactionTypeSchema, transactionTypeSchema.array()])
 		.optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
-	interval: z.enum(["day", "week", "month", "total"]).optional(),
+	// Left out, the whole window is one bucket
+	interval: z.enum(["day", "week", "month"]).optional(),
 	creditDebitIndicator: z
 		.union([creditDebitIndicatorSchema, creditDebitIndicatorSchema.array()])
 		.optional(),
@@ -48,12 +49,8 @@ export type UserSummaryFilter = z.infer<typeof userSummaryFilter>;
 const BUCKET_FORMAT = {
 	day: "YYYY-MM-DD",
 	week: 'IYYY-"W"IW',
-	month: "YYYY-MM",
-	total: undefined
-} satisfies Record<
-	NonNullable<UserSummaryFilter["interval"]>,
-	string | undefined
->;
+	month: "YYYY-MM"
+} satisfies Record<NonNullable<UserSummaryFilter["interval"]>, string>;
 
 export class SummaryRepository {
 	db: NodePgDatabase;
@@ -63,6 +60,25 @@ export class SummaryRepository {
 	}
 
 	async getUserSummary(filter: UserSummaryFilter) {
+		// SQL
+		const debitCount =
+			sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = 'debit')`.mapWith(
+				Number
+			);
+		const creditCount =
+			sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = 'credit')`.mapWith(
+				Number
+			);
+		// 1. Always use coalesce when counting or aggregating. The return is null and not 0
+		// 2. In drizzle, use mapWith(Number) to cast the response as Number and not string
+		const debitAmount =
+			sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.creditDebitIndicator} = 'debit'), 0)`.mapWith(
+				Number
+			);
+		const creditAmount =
+			sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.creditDebitIndicator} = 'credit'), 0)`.mapWith(
+				Number
+			);
 		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 		const categoryValues =
 			filter.category === undefined
@@ -110,33 +126,16 @@ export class SummaryRepository {
 				: undefined
 		];
 
-		// SQL gotchas
-		// 1. Always use coalesce when counting or aggregating. The return is null and not 0
-		// 2. In drizzle, use mapWith(Number) to cast the response as Number and not string
-		const debitAmount =
-			sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.creditDebitIndicator} = 'debit'), 0)`.mapWith(
-				Number
-			);
-
 		const result = await this.db
 			.select({
 				bucketStart,
 				category: categories.category,
 				currency: transactions.currency,
 				count: count(transactions.transactionId),
-				debitCount:
-					sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = 'debit')`.mapWith(
-						Number
-					),
-				creditCount:
-					sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = 'credit')`.mapWith(
-						Number
-					),
+				debitCount,
+				creditCount,
 				debitAmount,
-				creditAmount:
-					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.creditDebitIndicator} = 'credit'), 0)`.mapWith(
-						Number
-					)
+				creditAmount
 			})
 			.from(transactions)
 			.leftJoin(

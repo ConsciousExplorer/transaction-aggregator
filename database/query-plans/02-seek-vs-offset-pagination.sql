@@ -8,7 +8,7 @@
 --   fromDateTime         2025-10-04T00:00:00.000Z
 --   toDateTime           2026-10-04T00:00:00.000Z
 --   cursor occurredAt    2025-11-09T21:00:00.000000Z   (row 90,000)
---   cursor transactionId 10000000-0000-4000-8000-000000090000
+--   cursor transactionId 019a6a6b-2c80-7000-8000-000000090000
 --
 -- Compare the Buffers line under Limit (index and table pages touched) and
 -- Execution Time. Run each twice; the first run reads pages into cache.
@@ -58,7 +58,7 @@ WHERE (transactions.user_id = '00000000-0000-4000-8000-000000000001'
   AND transactions.occurred_at >= '2025-10-04T00:00:00.000Z'
   AND transactions.occurred_at < '2026-10-04T00:00:00.000Z'
   AND (transactions.occurred_at, transactions.transaction_id)
-      < ('2025-11-09T21:00:00.000000Z'::timestamptz, '10000000-0000-4000-8000-000000090000'::uuid))
+      < ('2025-11-09T21:00:00.000000Z'::timestamptz, '019a6a6b-2c80-7000-8000-000000090000'::uuid))
 ORDER BY transactions.occurred_at DESC, transactions.transaction_id DESC
 LIMIT 51;
 
@@ -105,7 +105,7 @@ WITH by_seek AS (
     AND occurred_at >= '2025-10-04T00:00:00.000Z'
     AND occurred_at < '2026-10-04T00:00:00.000Z'
     AND (occurred_at, transaction_id)
-        < ('2025-11-09T21:00:00.000000Z'::timestamptz, '10000000-0000-4000-8000-000000090000'::uuid)
+        < ('2025-11-09T21:00:00.000000Z'::timestamptz, '019a6a6b-2c80-7000-8000-000000090000'::uuid)
   ORDER BY occurred_at DESC, transaction_id DESC
   LIMIT 51
 ), by_offset AS (
@@ -157,7 +157,7 @@ INNER JOIN categories
 WHERE (transactions.user_id = '00000000-0000-4000-8000-000000000001'
   AND transactions.occurred_at <= '2025-11-09T21:00:00.000000Z'
   AND (transactions.occurred_at, transactions.transaction_id)
-      < ('2025-11-09T21:00:00.000000Z'::timestamptz, '10000000-0000-4000-8000-000000090000'::uuid)
+      < ('2025-11-09T21:00:00.000000Z'::timestamptz, '019a6a6b-2c80-7000-8000-000000090000'::uuid)
   AND transactions.occurred_at >= '2025-10-04T00:00:00.000Z'
   AND transactions.occurred_at < '2026-10-04T00:00:00.000Z')
 ORDER BY transactions.occurred_at DESC, transactions.transaction_id DESC
@@ -166,5 +166,5 @@ LIMIT 51;
 -- Other depths: the test data makes any row's cursor easy to compute. For the
 -- page after row N:
 --   cursor occurredAt    2026-10-04 00:00:00 UTC minus N × 315 seconds
---   cursor transactionId 10000000-0000-4000-8000-<N padded to 12 digits>
+--   cursor transactionId <that time in Unix milliseconds, 12 hex digits, as 8-4>-7000-8000-<N padded to 12 digits>
 --   OFFSET               N

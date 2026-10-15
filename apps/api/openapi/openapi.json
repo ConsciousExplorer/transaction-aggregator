@@ -936,6 +936,38 @@
           },
           {
             "in": "query",
+            "name": "transactionType",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "card",
+                    "eft",
+                    "loan",
+                    "debit_order",
+                    "internal_transfer"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "enum": [
+                      "card",
+                      "eft",
+                      "loan",
+                      "debit_order",
+                      "internal_transfer"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
             "name": "category",
             "required": false,
             "schema": {
@@ -953,6 +985,53 @@
             }
           },
           {
+            "in": "query",
+            "name": "creditDebitIndicator",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "credit",
+                    "debit"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "enum": [
+                      "credit",
+                      "debit"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "amountMin",
+            "required": false,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "amountMax",
+            "required": false,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Left out, the whole window is one bucket",
             "in": "query",
             "name": "interval",
             "required": false,
@@ -1151,8 +1230,7 @@
                           "enum": [
                             "day",
                             "week",
-                            "month",
-                            "total"
+                            "month"
                           ],
                           "type": "string"
                         },
@@ -1504,9 +1582,6 @@
                       "minimum": -9007199254740991,
                       "type": "integer"
                     },
-                    "isOverridden": {
-                      "type": "boolean"
-                    },
                     "transactionId": {
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -1521,7 +1596,6 @@
                   "required": [
                     "transactionId",
                     "categoryId",
-                    "isOverridden",
                     "updatedAt"
                   ],
                   "type": "object"

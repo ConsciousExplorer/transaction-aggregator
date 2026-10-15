@@ -32,8 +32,8 @@
 -- Values to call the API with: the queries below pick the user with the most
 -- rows and a 365-day window over the seeded corpus (SEED=42,
 -- ANCHOR_DATE=2026-10-04). User ids and timestamps survive
--- `make clean && make up`. Transaction ids do not: the database mints them with
--- uuidv7() on insert, so re-run the queries after a rebuild. 01 seeds a test
+-- `make clean && make up`. Transaction ids do not: the consumer's insert mints
+-- each one with uuidv7() from its occurred_at, so re-run the queries after a rebuild. 01 seeds a test
 -- user with fixed ids, so 02 needs no re-picking.
 --
 -- The data is small (about 26 rows per user), so every plan runs in a few

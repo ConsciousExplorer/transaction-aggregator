@@ -59,7 +59,7 @@ CREATE TABLE user_transaction_overrides (
 ) PARTITION BY RANGE (occurred_at);
 
 CREATE TABLE transactions (
-  transaction_id            uuid NOT NULL DEFAULT uuidv7(),   -- PG18 native; DB-layer UUIDv7 (brief)
+  transaction_id uuid        NOT NULL, -- UUIDv7 minted from occurred_at by the insert (uuidv7(occurred_at - clock_timestamp())), so the id says which partition holds the row. No default: one would mint the insert time instead.
   user_id       uuid        NOT NULL, -- no users table exists, the assumption is that users are controlled in their own database
   account_id    uuid        NOT NULL, -- the customer account the transaction occurred on; a user can hold several accounts.
   transaction_type transaction_type NOT NULL,

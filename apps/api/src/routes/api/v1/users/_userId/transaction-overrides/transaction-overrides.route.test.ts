@@ -96,7 +96,7 @@ suite("PUT/DELETE /api/v1/users/:userId/transactions/:transactionId/category", (
 		archiveTransactionCategory.mock.mockImplementation(async () => ARCHIVED);
 	});
 
-	test("PUT 200: upserts by id with the original occurredAt, reports isOverridden", async () => {
+	test("PUT 200: upserts by id with the original occurredAt, returns the saved override", async () => {
 		const res = await app.inject({
 			method: "PUT",
 			url: URL,
@@ -106,7 +106,6 @@ suite("PUT/DELETE /api/v1/users/:userId/transactions/:transactionId/category", (
 		assert.deepStrictEqual(res.json(), {
 			transactionId: TX_ID,
 			categoryId: 5,
-			isOverridden: true, // original effective categoryId was 1
 			updatedAt: "2026-09-03T08:00:00.000Z"
 		});
 		assert.deepStrictEqual(
@@ -118,20 +117,6 @@ suite("PUT/DELETE /api/v1/users/:userId/transactions/:transactionId/category", (
 				categoryId: 5
 			}
 		);
-	});
-
-	test("PUT 200: re-putting the current effective category → isOverridden false", async () => {
-		setTransactionCategory.mock.mockImplementationOnce(async () => ({
-			...OVERRIDE,
-			categoryId: 1
-		}));
-		const res = await app.inject({
-			method: "PUT",
-			url: URL,
-			payload: { categoryId: 1 }
-		});
-		assert.strictEqual(res.statusCode, 200);
-		assert.strictEqual(res.json().isOverridden, false);
 	});
 
 	test("PUT 400: unknown categoryId (FK violation → repo returns undefined)", async () => {

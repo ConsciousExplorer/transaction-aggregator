@@ -28,7 +28,7 @@ import {
 export const transactions = pgTable(
 	"transactions",
 	{
-		transactionId: uuid("transaction_id").default(sql`uuidv7()`).notNull(),
+		transactionId: uuid("transaction_id").notNull(),
 		userId: uuid("user_id").notNull(),
 		accountId: uuid("account_id").notNull(),
 		transactionType: transactionType("transaction_type").notNull(),

@@ -11,6 +11,10 @@ import {
 	signedAmountSchema,
 	windowDateTimeSchema
 } from "#src/schemas/common.ts";
+import {
+	creditDebitIndicatorSchema,
+	transactionTypeSchema
+} from "#src/schemas/transactions.ts";
 import { buildLink } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 
@@ -49,7 +53,7 @@ const metaSchema = collectionMetaSchema.extend({
 	fromDateTime: z.iso.datetime(),
 	toDateTime: z.iso.datetime(),
 	groupBy: z.string().array(),
-	interval: z.enum(["day", "week", "month", "total"]).optional()
+	interval: z.enum(["day", "week", "month"]).optional()
 });
 
 type SummaryRow = Awaited<
@@ -89,7 +93,10 @@ function sumTotals(rows: SummaryRow[]) {
 
 export default async (
 	fastify: FastifyInstance,
-	opts: { summaryRepository: SummaryRepository; queryWindow: QueryWindowConfig }
+	opts: {
+		summaryRepository: SummaryRepository;
+		queryWindow: QueryWindowConfig;
+	}
 ) => {
 	const maxWindowDays = opts.queryWindow.maxDays;
 
@@ -118,8 +125,22 @@ export default async (
 						"One or more of the user's accounts; all accounts when left out"
 					)
 					.optional(),
+				transactionType: z
+					.union([transactionTypeSchema, transactionTypeSchema.array()])
+					.optional(),
 				category: z.union([z.string(), z.string().array()]).optional(),
-				interval: z.enum(["day", "week", "month"]).optional()
+				creditDebitIndicator: z
+					.union([
+						creditDebitIndicatorSchema,
+						creditDebitIndicatorSchema.array()
+					])
+					.optional(),
+				amountMin: z.coerce.number().int().optional(),
+				amountMax: z.coerce.number().int().optional(),
+				interval: z
+					.enum(["day", "week", "month"])
+					.optional()
+					.describe("Left out, the whole window is one bucket")
 			}),
 			response: {
 				200: z.object({
@@ -143,7 +164,11 @@ export default async (
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,
 				accountId: request.query.accountId,
+				transactionType: request.query.transactionType,
 				category: request.query.category,
+				creditDebitIndicator: request.query.creditDebitIndicator,
+				amountMin: request.query.amountMin,
+				amountMax: request.query.amountMax,
 				interval: request.query.interval
 			});
 
