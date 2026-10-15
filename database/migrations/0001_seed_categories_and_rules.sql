@@ -1,6 +1,6 @@
 -- Custom SQL migration file, put your code below! --
 
-INSERT INTO categories (category_id, category, label) OVERRIDING SYSTEM VALUE VALUES
+INSERT INTO txn_agg.categories (category_id, category, label) OVERRIDING SYSTEM VALUE VALUES
   ( 1, 'uncategorised',      'Uncategorised'),
   ( 2, 'groceries',          'Groceries'),
   ( 3, 'dining',             'Dining'),
@@ -26,20 +26,20 @@ ON CONFLICT (category_id) DO UPDATE
 
 -- Keep the identity sequence ahead of the pinned ids so an organically
 SELECT setval(
-  pg_get_serial_sequence('categories', 'category_id'),
-  GREATEST((SELECT max(category_id) FROM categories), 16)
+  pg_get_serial_sequence('txn_agg.categories', 'category_id'),
+  GREATEST((SELECT max(category_id) FROM txn_agg.categories), 16)
 );
 
 -- 2. Ruleset — VERSIONED reference data: the opposite convergence rule from
 -- categories. Rows under an existing version are immutable; DO NOTHING here is
 -- an idempotency guard, not drift. A changed rule ships as a NEW version.
-INSERT INTO rule_sets (version, notes) VALUES
+INSERT INTO txn_agg.rule_sets (version, notes) VALUES
   (1, 'Initial ruleset: 100% coverage of generator-emitted MCCs and debit-order creditors; every source has a default.')
 ON CONFLICT (version) DO NOTHING;
 
 -- 3. Rules — immutable under their version (see above). The join resolves the
 -- category by slug; slugs are stable because the seed above converges them.
-INSERT INTO categorization_rules (ruleset_version, priority, matcher_type, pattern, category_id)
+INSERT INTO txn_agg.categorization_rules (ruleset_version, priority, matcher_type, pattern, category_id)
 SELECT 1, v.priority, v.matcher_type, v.pattern, c.category_id
 FROM (VALUES
   -- mcc: exact match on the canonical transaction's mcc field, checked pre-insert
@@ -108,5 +108,5 @@ FROM (VALUES
   (903, 'source_default', 'eft',               'transfers'),
   (904, 'source_default', 'internal_transfer', 'transfers')
 ) AS v(priority, matcher_type, pattern, category_name)
-JOIN categories c ON c.category = v.category_name
+JOIN txn_agg.categories c ON c.category = v.category_name
 ON CONFLICT (ruleset_version, priority) DO NOTHING;

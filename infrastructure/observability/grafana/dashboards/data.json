@@ -105,7 +105,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT avg((c.category = 'uncategorised')::int) AS uncategorised_share FROM transactions t JOIN categories c USING (category_id) WHERE $__timeFilter(t.occurred_at)",
+          "rawSql": "SELECT avg((c.category = 'uncategorised')::int) AS uncategorised_share FROM txn_agg.transactions t JOIN txn_agg.categories c USING (category_id) WHERE $__timeFilter(t.occurred_at)",
           "refId": "A"
         }
       ],
@@ -170,7 +170,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT count(*) AS rows_in_table FROM transactions",
+          "rawSql": "SELECT count(*) AS rows_in_table FROM txn_agg.transactions",
           "refId": "A"
         }
       ],
@@ -468,7 +468,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(occurred_at, $__interval), transaction_type::text AS metric, count(*) AS value FROM transactions WHERE $__timeFilter(occurred_at) GROUP BY 1, 2 ORDER BY 1",
+          "rawSql": "SELECT $__timeGroupAlias(occurred_at, $__interval), transaction_type::text AS metric, count(*) AS value FROM txn_agg.transactions WHERE $__timeFilter(occurred_at) GROUP BY 1, 2 ORDER BY 1",
           "refId": "A"
         }
       ],
@@ -533,7 +533,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT c.label AS category, count(*) AS transactions FROM transactions t JOIN categories c USING (category_id) WHERE $__timeFilter(t.occurred_at) GROUP BY 1 ORDER BY 2 DESC",
+          "rawSql": "SELECT c.label AS category, count(*) AS transactions FROM txn_agg.transactions t JOIN txn_agg.categories c USING (category_id) WHERE $__timeFilter(t.occurred_at) GROUP BY 1 ORDER BY 2 DESC",
           "refId": "A"
         }
       ],
@@ -657,7 +657,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT status::text AS status, count(*) AS transactions FROM transactions WHERE $__timeFilter(occurred_at) GROUP BY 1 ORDER BY 2 DESC",
+          "rawSql": "SELECT status::text AS status, count(*) AS transactions FROM txn_agg.transactions WHERE $__timeFilter(occurred_at) GROUP BY 1 ORDER BY 2 DESC",
           "refId": "A"
         }
       ],
@@ -752,7 +752,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT rule_version, count(*) AS transactions, avg((rule_priority IS NULL)::int) AS fallback_share FROM transactions WHERE $__timeFilter(occurred_at) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT rule_version, count(*) AS transactions, avg((rule_priority IS NULL)::int) AS fallback_share FROM txn_agg.transactions WHERE $__timeFilter(occurred_at) GROUP BY 1 ORDER BY 1",
           "refId": "A"
         }
       ],

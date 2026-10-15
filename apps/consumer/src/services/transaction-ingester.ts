@@ -98,7 +98,7 @@ async function insertTransactions(
 				attributes: {
 					"db.system.name": "postgresql",
 					"db.operation.name": "INSERT",
-					"db.collection.name": "transactions",
+					"db.collection.name": "txn_agg.transactions",
 					"rows.attempted": transactions.length
 				}
 			},

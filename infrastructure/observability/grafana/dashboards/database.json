@@ -3374,7 +3374,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, sum by (relname) (rate(pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"public\"}[5m])))",
+          "expr": "topk(10, sum by (relname) (rate(pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}[5m])))",
           "legendFormat": "{{relname}}",
           "range": true,
           "instant": false,
@@ -3451,7 +3451,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"public\"}))",
+          "expr": "topk(10, sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"txn_agg\"}))",
           "legendFormat": "{{relname}}",
           "range": true,
           "instant": false,
@@ -3469,7 +3469,7 @@
     {
       "type": "table",
       "title": "Tables",
-      "description": "Every table in public, largest first; the transactions partitions are transactions_pYYYYMMDD. Scans count the selected range. Seq scans on a large partition from the API mean a query is not using an index. Dead % above 20% that does not come down means autovacuum is falling behind. An empty Since autovacuum means it has never needed to run.",
+      "description": "Every table in txn_agg, largest first; the transactions partitions are transactions_pYYYYMMDD. Table usage, at the bottom, sums them per table. Scans count the selected range. Seq scans on a large partition from the API mean a query is not using an index. Dead % above 20% that does not come down means autovacuum is falling behind. An empty Since autovacuum means it has never needed to run.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -3645,7 +3645,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (relname) (pg_stat_user_tables_n_live_tup{datname=\"txn_agg\", schemaname=\"public\"})",
+          "expr": "sum by (relname) (pg_stat_user_tables_n_live_tup{datname=\"txn_agg\", schemaname=\"txn_agg\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3658,7 +3658,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"public\"})",
+          "expr": "sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"txn_agg\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3671,7 +3671,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"public\"}) / ((sum by (relname) (pg_stat_user_tables_n_live_tup{datname=\"txn_agg\", schemaname=\"public\"}) + sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"public\"})) > 0)",
+          "expr": "sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"txn_agg\"}) / ((sum by (relname) (pg_stat_user_tables_n_live_tup{datname=\"txn_agg\", schemaname=\"txn_agg\"}) + sum by (relname) (pg_stat_user_tables_n_dead_tup{datname=\"txn_agg\", schemaname=\"txn_agg\"})) > 0)",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3684,7 +3684,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (relname) (pg_stat_user_tables_table_size_bytes{datname=\"txn_agg\", schemaname=\"public\"})",
+          "expr": "sum by (relname) (pg_stat_user_tables_table_size_bytes{datname=\"txn_agg\", schemaname=\"txn_agg\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3697,7 +3697,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (relname) (pg_stat_user_tables_index_size_bytes{datname=\"txn_agg\", schemaname=\"public\"})",
+          "expr": "sum by (relname) (pg_stat_user_tables_index_size_bytes{datname=\"txn_agg\", schemaname=\"txn_agg\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3710,7 +3710,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "((sum by (relname) (pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"public\"}) - sum by (relname) (pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"public\"} offset $__range)) >= 0 or (sum by (relname) (pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"public\"}) - sum by (relname) (min_over_time(pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"public\"}[$__range]))))",
+          "expr": "((sum by (relname) (pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}) - sum by (relname) (pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"} offset $__range)) >= 0 or (sum by (relname) (pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}) - sum by (relname) (min_over_time(pg_stat_user_tables_seq_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}[$__range]))))",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3723,7 +3723,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "((sum by (relname) (pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"public\"}) - sum by (relname) (pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"public\"} offset $__range)) >= 0 or (sum by (relname) (pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"public\"}) - sum by (relname) (min_over_time(pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"public\"}[$__range]))))",
+          "expr": "((sum by (relname) (pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}) - sum by (relname) (pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"} offset $__range)) >= 0 or (sum by (relname) (pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}) - sum by (relname) (min_over_time(pg_stat_user_tables_idx_scan{datname=\"txn_agg\", schemaname=\"txn_agg\"}[$__range]))))",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -3736,7 +3736,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "time() - (max by (relname) (pg_stat_user_tables_last_autovacuum{datname=\"txn_agg\", schemaname=\"public\"}) > 0)",
+          "expr": "time() - (max by (relname) (pg_stat_user_tables_last_autovacuum{datname=\"txn_agg\", schemaname=\"txn_agg\"}) > 0)",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -4154,7 +4154,7 @@
     },
     {
       "type": "row",
-      "title": "Partition maintenance (pg_cron)",
+      "title": "Maintenance (monitoring views)",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -4167,8 +4167,302 @@
     },
     {
       "type": "table",
-      "title": "Maintenance job: last 10 runs",
-      "description": "partman-maintenance runs hourly: it premakes monthly partitions and drops those past 18 months. Read through last_maintenance_runs(), because pg_cron shows each role only its own jobs.",
+      "title": "Maintenance jobs",
+      "description": "One row per pg_cron job (0002_maintenance.sql), from monitoring.maintenance_status. Both run hourly, so Since last success over an hour means maintenance has stopped: partman makes no new partitions and drops none past retention, and the planner's statistics go stale. A job with no Last run has not run yet: the first runs at the next :00 or :30.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Since last success"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 3900
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Failed (24 h)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT job_name AS \"Job\", schedule AS \"Schedule\", last_started_at AS \"Last run\", last_succeeded_at AS \"Last success\", extract(epoch FROM now() - last_succeeded_at) AS \"Since last success\", failed_runs_last_day AS \"Failed (24 h)\" FROM monitoring.maintenance_status ORDER BY job_name",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 93
+      },
+      "id": 47
+    },
+    {
+      "type": "table",
+      "title": "Partition coverage",
+      "description": "One row per partitioned table, from monitoring.partition_coverage. Premade should equal Premake: the months after this one that already have a partition. Past retention should be 0: maintenance drops a partition once it ended longer ago than Retention. Default rows should be 0: a row lands there only when no monthly partition covers its occurred_at. Since analyze over an hour means the hourly ANALYZE has stopped.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Past retention"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Default rows"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Since analyze"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 3900
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Never analyzed"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT table_name AS \"Table\", premake AS \"Premake\", premade_partitions AS \"Premade\", retention AS \"Retention\", partitions_past_retention AS \"Past retention\", monthly_partitions AS \"Partitions\", oldest_partition_from AS \"Oldest from\", newest_partition_to AS \"Newest to\", default_partition_rows AS \"Default rows\", extract(epoch FROM now() - last_analyzed_at) AS \"Since analyze\", partitions_never_analyzed AS \"Never analyzed\" FROM monitoring.partition_coverage ORDER BY table_name",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 98
+      },
+      "id": 48
+    },
+    {
+      "type": "table",
+      "title": "Maintenance runs: last 20",
+      "description": "Every run of both pg_cron jobs, newest first, from monitoring.maintenance_runs. Read through a SECURITY DEFINER function, because pg_cron shows each role only its own jobs.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "postgres"
@@ -4254,7 +4548,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT started_at AS \"Started\", extract(epoch FROM finished_at - started_at) AS \"Duration\", status AS \"Status\", message AS \"Message\" FROM last_maintenance_runs()",
+          "rawSql": "SELECT started_at AS \"Started\", job_name AS \"Job\", duration_seconds AS \"Duration\", status AS \"Status\", message AS \"Message\" FROM monitoring.maintenance_runs ORDER BY started_at DESC LIMIT 20",
           "refId": "A"
         }
       ],
@@ -4262,9 +4556,417 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 93
+        "y": 103
       },
       "id": 46
+    },
+    {
+      "type": "row",
+      "title": "Tables, indexes and statements (monitoring views)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 112
+      },
+      "id": 49,
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Table usage",
+      "description": "One row per table in txn_agg, a partitioned table summed over its partitions, from monitoring.table_usage. Scan counts are totals since the statistics were last reset, not for the selected range. Seq scans on transactions from the API mean a query is not using an index.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Table size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Index size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Live rows"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Dead rows"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Seq scans"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Index scans"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT table_name AS \"Table\", table_bytes AS \"Table size\", index_bytes AS \"Index size\", live_rows AS \"Live rows\", dead_rows AS \"Dead rows\", sequential_scans AS \"Seq scans\", index_scans AS \"Index scans\" FROM monitoring.table_usage ORDER BY table_bytes + index_bytes DESC",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 113
+      },
+      "id": 50
+    },
+    {
+      "type": "table",
+      "title": "Index usage",
+      "description": "One row per index in txn_agg, an index on a partitioned table summed over its partitions, from monitoring.index_usage. idx_tx_user_read serves the API's list and summary, transactions_pkey its detail lookup. An index with no scans costs every insert and serves no read. Totals since the statistics were last reset.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scans"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Tuples read"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT table_name AS \"Table\", index_name AS \"Index\", scans AS \"Scans\", tuples_read AS \"Tuples read\", index_bytes AS \"Size\" FROM monitoring.index_usage ORDER BY index_bytes DESC",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 113
+      },
+      "id": 51
+    },
+    {
+      "type": "table",
+      "title": "Statements by role, with query text",
+      "description": "The 25 statement shapes with the most total time in txn_agg, from monitoring.statement_stats: one row per role and statement, parameters as $1, $2, \u2026. Slowest statements above has the same numbers for the selected range, by queryid; this one has the query text. Mean plan is planning time per call. Totals since pg_stat_statements was last reset.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Calls"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Max"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean plan"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rows/call"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Blocks hit"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Blocks read"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT role_name AS \"Role\", calls AS \"Calls\", total_milliseconds AS \"Total\", mean_milliseconds AS \"Mean\", max_milliseconds AS \"Max\", mean_plan_milliseconds AS \"Mean plan\", rows_per_call AS \"Rows/call\", shared_blocks_hit AS \"Blocks hit\", shared_blocks_read AS \"Blocks read\", query AS \"Query\" FROM monitoring.statement_stats ORDER BY total_milliseconds DESC LIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 121
+      },
+      "id": 52
     }
   ],
   "preload": false,

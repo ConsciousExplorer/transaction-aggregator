@@ -41,16 +41,16 @@ SELECT transactions.transaction_id,
        categories.category,
        transactions.short_description,
        to_char(transactions.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-FROM transactions
-LEFT JOIN user_transaction_overrides
+FROM txn_agg.transactions
+LEFT JOIN txn_agg.user_transaction_overrides
   ON (user_transaction_overrides.transaction_id = transactions.transaction_id
   AND user_transaction_overrides.occurred_at = transactions.occurred_at
   AND user_transaction_overrides.archived_at IS NULL)
-LEFT JOIN user_category_overrides
+LEFT JOIN txn_agg.user_category_overrides
   ON (user_category_overrides.user_id = transactions.user_id
   AND user_category_overrides.from_category_id = transactions.category_id
   AND user_category_overrides.archived_at IS NULL)
-INNER JOIN categories
+INNER JOIN txn_agg.categories
   ON categories.category_id = coalesce(user_transaction_overrides.category_id,
                                        user_category_overrides.to_category_id,
                                        transactions.category_id)
@@ -77,16 +77,16 @@ SELECT transactions.transaction_id,
        categories.category,
        transactions.short_description,
        to_char(transactions.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-FROM transactions
-LEFT JOIN user_transaction_overrides
+FROM txn_agg.transactions
+LEFT JOIN txn_agg.user_transaction_overrides
   ON (user_transaction_overrides.transaction_id = transactions.transaction_id
   AND user_transaction_overrides.occurred_at = transactions.occurred_at
   AND user_transaction_overrides.archived_at IS NULL)
-LEFT JOIN user_category_overrides
+LEFT JOIN txn_agg.user_category_overrides
   ON (user_category_overrides.user_id = transactions.user_id
   AND user_category_overrides.from_category_id = transactions.category_id
   AND user_category_overrides.archived_at IS NULL)
-INNER JOIN categories
+INNER JOIN txn_agg.categories
   ON categories.category_id = coalesce(user_transaction_overrides.category_id,
                                        user_category_overrides.to_category_id,
                                        transactions.category_id)
@@ -100,7 +100,7 @@ LIMIT 51;
 -- 3. 1 and 2 return the same page. Expect: page_rows 51, rows_that_differ 0.
 WITH by_seek AS (
   SELECT transaction_id
-  FROM transactions
+  FROM txn_agg.transactions
   WHERE user_id = '00000000-0000-4000-8000-000000000001'
     AND occurred_at >= '2025-10-04T00:00:00.000Z'
     AND occurred_at < '2026-10-04T00:00:00.000Z'
@@ -110,7 +110,7 @@ WITH by_seek AS (
   LIMIT 51
 ), by_offset AS (
   SELECT transaction_id
-  FROM transactions
+  FROM txn_agg.transactions
   WHERE user_id = '00000000-0000-4000-8000-000000000001'
     AND occurred_at >= '2025-10-04T00:00:00.000Z'
     AND occurred_at < '2026-10-04T00:00:00.000Z'
@@ -141,16 +141,16 @@ SELECT transactions.transaction_id,
        categories.category,
        transactions.short_description,
        to_char(transactions.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-FROM transactions
-LEFT JOIN user_transaction_overrides
+FROM txn_agg.transactions
+LEFT JOIN txn_agg.user_transaction_overrides
   ON (user_transaction_overrides.transaction_id = transactions.transaction_id
   AND user_transaction_overrides.occurred_at = transactions.occurred_at
   AND user_transaction_overrides.archived_at IS NULL)
-LEFT JOIN user_category_overrides
+LEFT JOIN txn_agg.user_category_overrides
   ON (user_category_overrides.user_id = transactions.user_id
   AND user_category_overrides.from_category_id = transactions.category_id
   AND user_category_overrides.archived_at IS NULL)
-INNER JOIN categories
+INNER JOIN txn_agg.categories
   ON categories.category_id = coalesce(user_transaction_overrides.category_id,
                                        user_category_overrides.to_category_id,
                                        transactions.category_id)

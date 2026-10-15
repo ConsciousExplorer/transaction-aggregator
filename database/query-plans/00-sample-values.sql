@@ -44,7 +44,7 @@
 
 -- The users with the most rows
 SELECT user_id, count(*) AS rows
-FROM transactions
+FROM txn_agg.transactions
 GROUP BY user_id
 ORDER BY count(*) DESC, user_id
 LIMIT 5;
@@ -63,7 +63,7 @@ SELECT row_number() OVER (ORDER BY occurred_at DESC, transaction_id DESC) AS row
        credit_debit_indicator,
        amount_minor,
        category_id
-FROM transactions
+FROM txn_agg.transactions
 WHERE user_id = '46acaa64-caf9-4577-b4a0-c25f09a8bb66'
   AND occurred_at >= '2025-10-04T00:00:00.000Z'
   AND occurred_at < '2026-10-04T00:00:00.000Z'
@@ -71,14 +71,14 @@ ORDER BY occurred_at DESC, transaction_id DESC;
 
 -- That user's accounts and categories, for the list's filters
 SELECT account_id, count(*) AS rows
-FROM transactions
+FROM txn_agg.transactions
 WHERE user_id = '46acaa64-caf9-4577-b4a0-c25f09a8bb66'
 GROUP BY account_id
 ORDER BY count(*) DESC;
 
 SELECT categories.category_id, categories.category, count(*) AS rows
-FROM transactions
-JOIN categories ON categories.category_id = transactions.category_id
+FROM txn_agg.transactions
+JOIN txn_agg.categories ON categories.category_id = transactions.category_id
 WHERE transactions.user_id = '46acaa64-caf9-4577-b4a0-c25f09a8bb66'
 GROUP BY categories.category_id, categories.category
 ORDER BY count(*) DESC;

@@ -43,7 +43,7 @@ export async function batchInsertTransactions(
 
 	const result = await db.query(
 		`
-        INSERT INTO transactions
+        INSERT INTO txn_agg.transactions
         (
 			user_id,
 			account_id,
@@ -80,11 +80,11 @@ export async function batchInsertTransactions(
 		FROM unnest(
         	$1::uuid[],
 			$2::uuid[],
-			$3::transaction_type[],
+			$3::txn_agg.transaction_type[],
 			$4::text[],
 			$5::timestamptz[],
-        	$6::credit_debit_indicator[],
-			$7::transaction_status[],
+        	$6::txn_agg.credit_debit_indicator[],
+			$7::txn_agg.transaction_status[],
 			$8::bigint[],
 			$9::text[],
 			$10::text[],

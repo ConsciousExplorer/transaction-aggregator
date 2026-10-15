@@ -9,7 +9,6 @@ import {
 	index,
 	integer,
 	jsonb,
-	pgTable,
 	smallint,
 	text,
 	timestamp,
@@ -21,10 +20,11 @@ import {
 	creditDebitIndicator,
 	ruleSets,
 	transactionStatus,
-	transactionType
+	transactionType,
+	txnAgg
 } from "./schema.ts";
 
-export const transactions = pgTable(
+export const transactions = txnAgg.table(
 	"transactions",
 	{
 		transactionId: uuid("transaction_id").default(sql`uuidv7()`).notNull(),
@@ -88,7 +88,7 @@ export const transactions = pgTable(
 	]
 );
 
-export const userTransactionOverrides = pgTable(
+export const userTransactionOverrides = txnAgg.table(
 	"user_transaction_overrides",
 	{
 		userId: uuid("user_id").notNull(),

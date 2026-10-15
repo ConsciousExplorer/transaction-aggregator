@@ -192,9 +192,10 @@ services:
     networks: [txn-network]
 
   # drizzle-kit migrations (database/migrations), applied once each in journal
-  # order: 0000 tables + grants, 0001 the category/rule seed, 0002 the pg_cron
-  # partman-maintenance schedule (premake monthly partitions / drop >18 months),
-  # 0003 makes that schedule hourly.
+  # order: 0000 the txn_agg schema, its tables + grants, 0001 the category/rule
+  # seed, 0002 the hourly pg_cron jobs (partman maintenance: premake monthly
+  # partitions / drop >18 months; ANALYZE of the partitioned tables), 0003 the
+  # monitoring schema's views for the Grafana Database dashboard.
   migrate:
     build:
       context: ../database

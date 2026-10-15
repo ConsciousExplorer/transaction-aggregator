@@ -22,7 +22,7 @@ export default defineConfig({
             database: DB_NAME,
             ssl: false
             },
-    schemaFilter: ['public'],
+    schemaFilter: ['txn_agg'],
     tablesFilter: ["*", "!transactions_p*", "!user_transaction_overrides_p*"],
 
 });

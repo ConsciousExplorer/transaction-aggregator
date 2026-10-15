@@ -26,18 +26,18 @@
 -- 1. Insert (a few seconds)
 WITH kinds (kind, transaction_type, short_description, metadata) AS (
   VALUES
-    (0, 'card'::transaction_type, 'Test merchant',
+    (0, 'card'::txn_agg.transaction_type, 'Test merchant',
      '{"mcc": "5311", "authCode": "241817", "cardLast4": "6444", "cardNetwork": "amex", "merchantName": "Test merchant", "posEntryMode": "chip"}'::jsonb),
-    (1, 'eft'::transaction_type, 'Test payee',
+    (1, 'eft'::txn_agg.transaction_type, 'Test payee',
      '{"reference": "Test reference", "branchCode": "527490", "beneficiaryBank": "TymeBank", "beneficiaryName": "Test payee", "beneficiaryAccountLast4": "7922"}'::jsonb),
-    (2, 'debit_order'::transaction_type, 'Test creditor',
+    (2, 'debit_order'::txn_agg.transaction_type, 'Test creditor',
      '{"category": "LOAN_REPAYMENT", "frequency": "monthly", "mandateId": "55a6a3f1-50c2-4d5d-bdee-d28f38996a54", "creditorName": "Test creditor", "collectionType": "tracking", "creditorAbbrevName": "TEST"}'::jsonb),
-    (3, 'internal_transfer'::transaction_type, NULL,
+    (3, 'internal_transfer'::txn_agg.transaction_type, NULL,
      '{"toAccountId": "00000000-0000-4000-8000-0000000000a2", "fromAccountId": "00000000-0000-4000-8000-0000000000a1", "toAccountType": "savings", "fromAccountType": "current"}'::jsonb),
-    (4, 'loan'::transaction_type, NULL,
+    (4, 'loan'::txn_agg.transaction_type, NULL,
      '{"loanType": "personal", "operation": "repayment", "loanAccountId": "00000000-0000-4000-8000-0000000000a3", "interestAmount": 12000, "principalAmount": 88000}'::jsonb)
 )
-INSERT INTO transactions (
+INSERT INTO txn_agg.transactions (
   transaction_id, user_id, account_id, transaction_type, external_id, occurred_at,
   credit_debit_indicator, status, amount_minor, currency, long_description, short_description,
   category_id, rule_version, rule_priority, metadata
@@ -50,8 +50,8 @@ SELECT -- UUIDv7: occurred_at in milliseconds as the first 48 bits, version 7, t
        kinds.transaction_type,
        'test-user-' || n,
        times.occurred_at,
-       CASE WHEN n % 10 = 0 THEN 'credit' ELSE 'debit' END::credit_debit_indicator,
-       CASE WHEN n % 20 = 0 THEN 'pending' ELSE 'completed' END::transaction_status,
+       CASE WHEN n % 10 = 0 THEN 'credit' ELSE 'debit' END::txn_agg.credit_debit_indicator,
+       CASE WHEN n % 20 = 0 THEN 'pending' ELSE 'completed' END::txn_agg.transaction_status,
        100 + (n * 7919) % 500000,
        'ZAR',
        'Test transaction ' || n,
@@ -72,17 +72,17 @@ ON CONFLICT DO NOTHING;
 -- 2. Refresh the planner's statistics, so it knows this user has 100,000 rows,
 -- and mark the new pages all-visible, so Index Only Scans skip the table
 -- (Heap Fetches: 0) as they do once autovacuum has run
-VACUUM (ANALYZE) transactions;
+VACUUM (ANALYZE) txn_agg.transactions;
 
 -- 3. Check: expect 100000, 2025-10-04 10:00:00+00, 2026-10-03 23:54:45+00
 SELECT count(*), min(occurred_at), max(occurred_at)
-FROM transactions
+FROM txn_agg.transactions
 WHERE user_id = '00000000-0000-4000-8000-000000000001';
 
 
 -- Cleanup: remove the test user, then rebuild the indexes and statistics.
 -- A delete leaves dead entries in every index; REINDEX drops them, so the
 -- next plans aren't measured on a bloated index.
--- DELETE FROM transactions WHERE user_id = '00000000-0000-4000-8000-000000000001';
--- REINDEX TABLE transactions;
--- VACUUM (ANALYZE) transactions;
+-- DELETE FROM txn_agg.transactions WHERE user_id = '00000000-0000-4000-8000-000000000001';
+-- REINDEX TABLE txn_agg.transactions;
+-- VACUUM (ANALYZE) txn_agg.transactions;

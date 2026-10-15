@@ -40,7 +40,7 @@ suite("transaction ingestion", () => {
 		}
 		assert.equal(statements.length, 3);
 		assert.equal(statements[0], "BEGIN");
-		assert.match(statements[1] ?? "", /INSERT INTO transactions/);
+		assert.match(statements[1] ?? "", /INSERT INTO txn_agg\.transactions/);
 		assert.equal(statements[2], "COMMIT");
 	});
 });

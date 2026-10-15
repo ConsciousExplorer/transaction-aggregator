@@ -8,6 +8,12 @@ const relationsFile = 'relations.ts'
 const partitionedFile = 'partitioned.ts'
 const partitionTableSuffix = '_default'
 const partitionConstSuffix = 'Default'
+// The tables live in the txn_agg schema. drizzle-kit declares each one on the
+// schema object it exports (txnAgg.table, txnAgg.enum) and names every table
+// and enum outside public <name>In<Schema>: transactionsDefaultInTxnAgg. The
+// suffix is dropped, so the repositories import transactions and categories
+const schemaConstName = 'txnAgg'
+const schemaNameSuffix = 'InTxnAgg'
 const filesToKeep = new Set([
     'schema.ts', 'relations.ts', 'partitioned.ts'
 ])
@@ -15,7 +21,7 @@ const filesToKeep = new Set([
 type PartitionedTable = {
     constName: string        // transactionsDefault
     renamedConstName: string // transactions
-    block: string            // full pgTable declaration as pulled
+    block: string            // full table declaration as pulled
 }
 
 // Determine is we are in the correct directory and if it exists
@@ -34,6 +40,11 @@ for (const entry of readdirSync(schemaDirectory)) {
         force: true
     })
 }
+
+// Drop the schema suffix first: everything below matches the plain names
+removeSchemaNameSuffix(path.join(schemaDirectory, schemaFile))
+removeSchemaNameSuffix(path.join(schemaDirectory, relationsFile))
+console.log(`Removed the ${schemaNameSuffix} suffix from ${schemaFile} and ${relationsFile}`)
 
 // drizzle-kit pull only introspects the _default partitions, not the partitioned
 // parent tables the application actually reads/writes, so move the parents out
@@ -72,16 +83,24 @@ rewriteRelationsFile(path.join(schemaDirectory, relationsFile), partitionedTable
 console.log(`Pointed ${relationsFile} at the renamed tables in ${partitionedFile}`)
 
 
+// transactionsDefaultInTxnAgg becomes transactionsDefault, in names and in the
+// relationName strings drizzle-kit builds from them
+function removeSchemaNameSuffix(filePath: string) {
+    const source = readFileSync(filePath, 'utf8')
+    writeFileSync(filePath, source.replaceAll(schemaNameSuffix, ''))
+}
+
 // Collect every table declaration whose table name ends with the partition
 // suffix, from its `export const` line down to the closing `});` / `]);`
 function extractPartitionedTables(source: string): PartitionedTable[] {
     const tables: PartitionedTable[] = []
     let currentTable: PartitionedTable | null = null
     let currentLines: string[] = []
+    const tableStartPattern = new RegExp(`^export const (\\w+) = ${schemaConstName}\\.table\\("(\\w+)", \\{`)
 
     for (const line of source.split('\n')) {
         if (currentTable === null) {
-            const tableStart = line.match(/^export const (\w+) = pgTable\("(\w+)", \{/)
+            const tableStart = line.match(tableStartPattern)
             const constName = tableStart?.[1]
             const tableName = tableStart?.[2]
             if (constName !== undefined && tableName !== undefined && tableName.endsWith(partitionTableSuffix)) {
@@ -109,9 +128,9 @@ function extractPartitionedTables(source: string): PartitionedTable[] {
 // transactionsDefault / "transactions_default" become transactions / "transactions".
 // Index and constraint names embed the table name, so drop the suffix everywhere
 function stripPartitionSuffix(block: string): string {
-    const constRename = new RegExp(`^export const (\\w+)${partitionConstSuffix} = pgTable`)
+    const constRename = new RegExp(`^export const (\\w+)${partitionConstSuffix} = ${schemaConstName}\\.table`)
     return block
-        .replace(constRename, 'export const $1 = pgTable')
+        .replace(constRename, `export const $1 = ${schemaConstName}.table`)
         .replaceAll(partitionTableSuffix, '')
 }
 

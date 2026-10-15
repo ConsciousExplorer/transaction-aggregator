@@ -13,29 +13,11 @@ SELECT cron.schedule(
 -- has never changed (an empty override partition, a partition partman just
 -- created). Without statistics the planner guesses their size. ANALYZE on a
 -- parent refreshes the parent's statistics and every partition's. Hourly at
--- :30, after partman-maintenance at :00 has created any new partitions.
+-- :30, after partman-maintenance at :00 has created any new partitions. The
+-- names are qualified because pg_cron runs the command on the default
+-- search_path, which does not include txn_agg.
 SELECT cron.schedule(
     'analyze-partitioned-tables',
     '30 * * * *',
-    $$ANALYZE transactions, user_transaction_overrides$$
+    $$ANALYZE txn_agg.transactions, txn_agg.user_transaction_overrides$$
 );
-
--- The last ten partman-maintenance runs, for the Grafana database dashboard.
--- SECURITY DEFINER because grafana_read can't read the cron schema itself.
-CREATE FUNCTION public.last_maintenance_runs()
-RETURNS TABLE (started_at timestamptz, finished_at timestamptz, status text, message text)
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = pg_catalog
-AS $$
-    SELECT d.start_time, d.end_time, d.status, d.return_message
-    FROM cron.job_run_details d
-    JOIN cron.job j ON j.jobid = d.jobid
-    WHERE j.jobname = 'partman-maintenance'
-    ORDER BY d.start_time DESC
-    LIMIT 10
-$$;
-
-REVOKE ALL ON FUNCTION public.last_maintenance_runs() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.last_maintenance_runs() TO grafana_read;

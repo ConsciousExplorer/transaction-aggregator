@@ -1,25 +1,25 @@
 import {
 	foreignKey,
 	integer,
-	pgEnum,
-	pgTable,
+	pgSchema,
 	smallint,
 	text,
 	timestamp,
 	uuid
 } from "drizzle-orm/pg-core";
 
-export const creditDebitIndicator = pgEnum("credit_debit_indicator", [
+export const txnAgg = pgSchema("txn_agg");
+export const creditDebitIndicator = txnAgg.enum("credit_debit_indicator", [
 	"credit",
 	"debit"
 ]);
-export const transactionStatus = pgEnum("transaction_status", [
+export const transactionStatus = txnAgg.enum("transaction_status", [
 	"completed",
 	"pending",
 	"reversed",
 	"failed"
 ]);
-export const transactionType = pgEnum("transaction_type", [
+export const transactionType = txnAgg.enum("transaction_type", [
 	"card",
 	"loan",
 	"debit_order",
@@ -27,7 +27,7 @@ export const transactionType = pgEnum("transaction_type", [
 	"internal_transfer"
 ]);
 
-export const ruleSets = pgTable("rule_sets", {
+export const ruleSets = txnAgg.table("rule_sets", {
 	version: integer().notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
 		.defaultNow()
@@ -35,7 +35,7 @@ export const ruleSets = pgTable("rule_sets", {
 	notes: text().notNull()
 });
 
-export const categorizationRules = pgTable(
+export const categorizationRules = txnAgg.table(
 	"categorization_rules",
 	{
 		categorizationRuleId: integer(
@@ -74,7 +74,7 @@ export const categorizationRules = pgTable(
 	]
 );
 
-export const categories = pgTable("categories", {
+export const categories = txnAgg.table("categories", {
 	categoryId: smallint("category_id").generatedAlwaysAsIdentity({
 		name: "categories_category_id_seq",
 		startWith: 1,
@@ -93,7 +93,7 @@ export const categories = pgTable("categories", {
 		.notNull()
 });
 
-export const userCategoryOverrides = pgTable(
+export const userCategoryOverrides = txnAgg.table(
 	"user_category_overrides",
 	{
 		userId: uuid("user_id").notNull(),
