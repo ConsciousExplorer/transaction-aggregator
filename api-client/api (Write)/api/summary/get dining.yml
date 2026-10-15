@@ -67,7 +67,7 @@ examples:
             "id": "",
             "occurredAt": "",
             "source": "",
-            "direction": "",
+            "creditDebitIndicator": "",
             "amountMinor": 0,
             "currency": "",
             "categoryId": 0,

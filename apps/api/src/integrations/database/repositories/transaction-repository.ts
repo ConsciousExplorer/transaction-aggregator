@@ -15,6 +15,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
 import {
+	creditDebitIndicatorSchema,
 	transactionCursorSchema,
 	transactionSortSchema,
 	transactionTypeSchema
@@ -36,8 +37,8 @@ export const listTransactionsFilterSchema = z.object({
 		.union([transactionTypeSchema, transactionTypeSchema.array()])
 		.optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
-	direction: z
-		.union([z.enum(["debit", "credit"]), z.enum(["debit", "credit"]).array()])
+	creditDebitIndicator: z
+		.union([creditDebitIndicatorSchema, creditDebitIndicatorSchema.array()])
 		.optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
@@ -125,10 +126,13 @@ export class UserTransactionRepository {
 					? inArray(transactions.transactionType, filter.transactionType)
 					: eq(transactions.transactionType, filter.transactionType)
 				: undefined,
-			filter.direction !== undefined
-				? Array.isArray(filter.direction)
-					? inArray(transactions.direction, filter.direction)
-					: eq(transactions.direction, filter.direction)
+			filter.creditDebitIndicator !== undefined
+				? Array.isArray(filter.creditDebitIndicator)
+					? inArray(
+							transactions.creditDebitIndicator,
+							filter.creditDebitIndicator
+						)
+					: eq(transactions.creditDebitIndicator, filter.creditDebitIndicator)
 				: undefined,
 			filter.amountMin !== undefined
 				? gte(transactions.amountMinor, filter.amountMin)
@@ -150,7 +154,7 @@ export class UserTransactionRepository {
 				transactionId: transactions.transactionId,
 				occurredAt: transactions.occurredAt,
 				transactionType: transactions.transactionType,
-				direction: transactions.direction,
+				creditDebitIndicator: transactions.creditDebitIndicator,
 				status: transactions.status,
 				amountMinor: transactions.amountMinor,
 				currency: transactions.currency,
@@ -198,7 +202,7 @@ export class UserTransactionRepository {
 				accountId: transactions.accountId,
 				externalId: transactions.externalId,
 				occurredAt: transactions.occurredAt,
-				direction: transactions.direction,
+				creditDebitIndicator: transactions.creditDebitIndicator,
 				status: transactions.status,
 				longDescription: transactions.longDescription,
 				amountMinor: transactions.amountMinor,

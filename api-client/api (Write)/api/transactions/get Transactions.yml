@@ -43,11 +43,11 @@ http:
       value: loan_repayment
       type: query
       disabled: true
-    - name: direction
+    - name: creditDebitIndicator
       value: debit
       type: query
       disabled: true
-    - name: direction
+    - name: creditDebitIndicator
       value: credit
       type: query
       disabled: true
@@ -115,11 +115,11 @@ examples:
           value: "-9007199254740991"
           type: query
           disabled: true
-        - name: direction
+        - name: creditDebitIndicator
           value: debit
           type: query
           disabled: true
-        - name: direction
+        - name: creditDebitIndicator
           value: credit
           type: query
           disabled: true
@@ -156,7 +156,7 @@ examples:
                 "id": "",
                 "occurredAt": "",
                 "source": "",
-                "direction": "",
+                "creditDebitIndicator": "",
                 "amountMinor": 0,
                 "currency": "",
                 "categoryId": 0,

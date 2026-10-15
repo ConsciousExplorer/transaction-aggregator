@@ -10,8 +10,9 @@
       "type": { "type": "string", "logicalType": "uuid" }
     },
     {
-      "name": "sourceType",
-      "type": "string",
+      "name": "transactionType",
+      "type": { "type": "enum", "name": "TransactionType", "symbols": ["card", "eft", "loan", "debit_order", "internal_transfer"] },
+      "doc": "What kind of transaction this is, with the same values as the database's transaction_type.",
       "arg.properties": { "options": ["card"] }
     },
     {
@@ -190,8 +191,9 @@
       "arg.properties": { "options": ["ZAR"] }
     },
     {
-      "name": "transactionType",
-      "type": "string",
+      "name": "creditDebitIndicator",
+      "type": { "type": "enum", "name": "CreditDebitIndicator", "symbols": ["credit", "debit"] },
+      "doc": "Whether the money came into the customer's account (credit) or left it (debit), as a bank statement shows it. The amount is always positive.",
       "arg.properties": {
         "options": ["debit", "debit", "debit", "debit", "debit"]
       }
@@ -233,11 +235,11 @@
       "arg.properties": {
         "rules": [
           {
-            "when": { "field": "transactionType", "equals": "credit" },
+            "when": { "field": "creditDebitIndicator", "equals": "credit" },
             "then": { "template": "Refund from {merchantName}" }
           },
           {
-            "when": { "field": "transactionType", "equals": "debit" },
+            "when": { "field": "creditDebitIndicator", "equals": "debit" },
             "then": { "template": "Purchase at {merchantName}" }
           }
         ]

@@ -5,7 +5,9 @@ import { eftTransactionSchema } from "./eft.ts";
 import { internalTransferTransactionSchema } from "./internal_transfer.ts";
 import { loanTransactionSchema } from "./loan.ts";
 
-export const directionSchema = z.enum(["debit", "credit"]);
+// Whether money came into the account (credit) or left it (debit), as a bank
+// statement shows it. ISO 20022 calls this the credit/debit indicator.
+export const creditDebitIndicatorSchema = z.enum(["credit", "debit"]);
 
 export const transactionStatusSchema = z.enum([
 	"completed",
@@ -48,7 +50,7 @@ export const canonicalTransactionSchema = z.object({
 	occurredAt: z.iso.datetime(),
 
 	// Top level financial information
-	direction: directionSchema,
+	creditDebitIndicator: creditDebitIndicatorSchema,
 	// Stored for every status; the API excludes non-completed rows from aggregates
 	status: transactionStatusSchema,
 	currency: z.string(),

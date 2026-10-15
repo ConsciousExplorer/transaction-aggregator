@@ -11,10 +11,10 @@ import { createNormaliser } from "#src/services/domain-normaliser.ts";
  * types every one of these as bare `z.string()`/`z.number()`, which is exactly
  * why the normaliser has to validate what it produces.
  */
-function buildCardRecord(over: Partial<CardTransaction> = {}) {
+function buildCardRecord(over: Partial<CardTransaction> = {}): CardTransaction {
 	return {
 		transactionId: "txn-0001",
-		sourceType: "card",
+		transactionType: "card",
 		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
 		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
 		category: "groceries",
@@ -22,7 +22,7 @@ function buildCardRecord(over: Partial<CardTransaction> = {}) {
 		mccCode: "5411",
 		amount: 1999,
 		currency: "ZAR",
-		transactionType: "debit",
+		creditDebitIndicator: "debit",
 		cardLast4: "4321",
 		cardNetwork: "visa",
 		posEntryMode: "chip",
@@ -47,23 +47,27 @@ suite("domain normaliser validation", () => {
 		);
 
 		assert.equal(result.transactionType, "card");
-		assert.equal(result.direction, "debit");
+		assert.equal(result.creditDebitIndicator, "debit");
 		assert.equal(result.externalId, "txn-0001");
 		assert.equal(result.amountMinor, 1999);
 		assert.equal(result.occurredAt, new Date(1_790_000_000_000).toISOString());
 	});
 
-	test("rejects a direction the canonical enum does not allow", () => {
-		// The normaliser casts source `transactionType` straight to direction,
-		// so only a runtime parse catches a producer sending different casing.
+	test("rejects a credit/debit indicator the canonical enum does not allow", () => {
+		// Avro decoding already refuses a symbol outside the enum. The canonical
+		// parse is the second check, for a record that didn't come through Avro.
+		const indicatorOutsideEnum =
+			"DEBIT" as CardTransaction["creditDebitIndicator"];
 		assert.throws(
 			() =>
 				cardNormaliser.normalise(
-					castToDomainTransaction(buildCardRecord({ transactionType: "DEBIT" }))
+					castToDomainTransaction(
+						buildCardRecord({ creditDebitIndicator: indicatorOutsideEnum })
+					)
 				),
 			(error: unknown) => {
 				assert.ok(error instanceof NonRetryableError);
-				assert.match(String(error.details.issues), /direction/);
+				assert.match(String(error.details.issues), /creditDebitIndicator/);
 				return true;
 			}
 		);
@@ -118,7 +122,10 @@ suite("domain normaliser validation", () => {
 			() =>
 				cardNormaliser.normalise(
 					castToDomainTransaction(
-						buildCardRecord({ transactionType: "purchase" })
+						buildCardRecord({
+							creditDebitIndicator:
+								"purchase" as CardTransaction["creditDebitIndicator"]
+						})
 					)
 				),
 			(error: unknown) => {
@@ -144,10 +151,10 @@ suite("domain normaliser validation", () => {
 });
 
 /** A well-formed EFT record as the producer emits it, every field set. */
-function buildEftRecord(over: Partial<EftTransaction> = {}) {
+function buildEftRecord(over: Partial<EftTransaction> = {}): EftTransaction {
 	return {
 		transactionId: "txn-0002",
-		sourceType: "eft",
+		transactionType: "eft",
 		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
 		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
 		beneficiaryName: "Thandi Mokoena",
@@ -157,7 +164,7 @@ function buildEftRecord(over: Partial<EftTransaction> = {}) {
 		reference: "Rent October",
 		amount: 850000,
 		currency: "ZAR",
-		transactionType: "debit",
+		creditDebitIndicator: "debit",
 		clearingType: "same-day",
 		description: "EFT TO THANDI MOKOENA",
 		status: "COMPLETED",

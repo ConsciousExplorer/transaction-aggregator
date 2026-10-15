@@ -10,11 +10,25 @@ interface AvroField {
 	doc?: string;
 }
 
+interface AvroEnum {
+	type: "enum";
+	name: string;
+	symbols: string[];
+}
+
 interface AvroRecord {
 	type: "record";
 	name: string;
 	doc?: string;
 	fields: AvroField[];
+}
+
+function isAvroEnum(type: unknown): type is AvroEnum {
+	return (
+		typeof type === "object" &&
+		type !== null &&
+		(type as { type?: unknown }).type === "enum"
+	);
 }
 
 const header =
@@ -25,6 +39,15 @@ function buildZodExpression(type: unknown, fieldName: string) {
 	if (type === "long" || type === "int") return "z.number()";
 	if (type === "float" || type === "double") return "z.number()";
 	if (type === "boolean") return "z.boolean()";
+
+	// An enum is a closed set, so the schema accepts its symbols and nothing else
+	if (isAvroEnum(type)) {
+		const quotedSymbols: string[] = [];
+		for (const symbol of type.symbols) {
+			quotedSymbols.push(`"${symbol}"`);
+		}
+		return `z.enum([${quotedSymbols.join(", ")}])`;
+	}
 
 	// Logical types (uuid, timestamp-millis) annotate a base type. The wire
 	// guarantee is the base type, so the schema mirrors it without tightening —

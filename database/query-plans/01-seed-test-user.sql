@@ -38,7 +38,7 @@ WITH kinds (kind, transaction_type, short_description, metadata) AS (
 )
 INSERT INTO transactions (
   transaction_id, user_id, account_id, transaction_type, external_id, occurred_at,
-  direction, status, amount_minor, currency, long_description, short_description,
+  credit_debit_indicator, status, amount_minor, currency, long_description, short_description,
   category_id, rule_version, rule_priority, metadata
 )
 SELECT ('10000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,   -- row 42 → …-000000000042
@@ -47,7 +47,7 @@ SELECT ('10000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,   -- row 42
        kinds.transaction_type,
        'test-user-' || n,
        timestamptz '2026-10-04 00:00:00+00' - n * interval '315 seconds',
-       CASE WHEN n % 10 = 0 THEN 'credit' ELSE 'debit' END::direction_type,
+       CASE WHEN n % 10 = 0 THEN 'credit' ELSE 'debit' END::credit_debit_indicator,
        CASE WHEN n % 20 = 0 THEN 'pending' ELSE 'completed' END::transaction_status,
        100 + (n * 7919) % 500000,
        'ZAR',

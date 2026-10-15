@@ -1751,22 +1751,22 @@
           },
           {
             "in": "query",
-            "name": "direction",
+            "name": "creditDebitIndicator",
             "required": false,
             "schema": {
               "anyOf": [
                 {
                   "enum": [
-                    "debit",
-                    "credit"
+                    "credit",
+                    "debit"
                   ],
                   "type": "string"
                 },
                 {
                   "items": {
                     "enum": [
-                      "debit",
-                      "credit"
+                      "credit",
+                      "debit"
                     ],
                     "type": "string"
                   },
@@ -1853,7 +1853,7 @@
                         "properties": {
                           "amount": {
                             "additionalProperties": false,
-                            "description": "direction says whether this money went out (debit) or came in (credit)",
+                            "description": "creditDebitIndicator says whether this money went out (debit) or came in (credit)",
                             "properties": {
                               "amountMinor": {
                                 "description": "Always positive, in minor units",
@@ -1876,15 +1876,15 @@
                           "category": {
                             "type": "string"
                           },
-                          "direction": {
+                          "creditDebitIndicator": {
                             "anyOf": [
                               {
                                 "type": "string"
                               },
                               {
                                 "enum": [
-                                  "debit",
-                                  "credit"
+                                  "credit",
+                                  "debit"
                                 ],
                                 "type": "string"
                               }
@@ -1934,7 +1934,7 @@
                         "required": [
                           "transactionId",
                           "occurredAt",
-                          "direction",
+                          "creditDebitIndicator",
                           "status",
                           "amount",
                           "category",
@@ -2159,10 +2159,10 @@
                     "category": {
                       "type": "string"
                     },
-                    "direction": {
+                    "creditDebitIndicator": {
                       "enum": [
-                        "debit",
-                        "credit"
+                        "credit",
+                        "debit"
                       ],
                       "type": "string"
                     },
@@ -2444,7 +2444,7 @@
                     "accountId",
                     "externalId",
                     "occurredAt",
-                    "direction",
+                    "creditDebitIndicator",
                     "amount",
                     "status",
                     "longDescription",

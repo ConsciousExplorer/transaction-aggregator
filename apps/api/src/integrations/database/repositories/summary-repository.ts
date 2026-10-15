@@ -14,7 +14,10 @@ import {
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import { transactionTypeSchema } from "#src/schemas/transactions.ts";
+import {
+	creditDebitIndicatorSchema,
+	transactionTypeSchema
+} from "#src/schemas/transactions.ts";
 import {
 	transactions,
 	userTransactionOverrides
@@ -31,8 +34,8 @@ export const userSummaryFilter = z.object({
 		.optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
 	interval: z.enum(["day", "week", "month", "total"]).optional(),
-	direction: z
-		.union([z.enum(["debit", "credit"]), z.enum(["debit", "credit"]).array()])
+	creditDebitIndicator: z
+		.union([creditDebitIndicatorSchema, creditDebitIndicatorSchema.array()])
 		.optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional()
@@ -88,10 +91,13 @@ export class SummaryRepository {
 					? inArray(transactions.transactionType, filter.transactionType)
 					: eq(transactions.transactionType, filter.transactionType)
 				: undefined,
-			filter.direction !== undefined
-				? Array.isArray(filter.direction)
-					? inArray(transactions.direction, filter.direction)
-					: eq(transactions.direction, filter.direction)
+			filter.creditDebitIndicator !== undefined
+				? Array.isArray(filter.creditDebitIndicator)
+					? inArray(
+							transactions.creditDebitIndicator,
+							filter.creditDebitIndicator
+						)
+					: eq(transactions.creditDebitIndicator, filter.creditDebitIndicator)
 				: undefined,
 			filter.amountMin !== undefined
 				? gte(transactions.amountMinor, filter.amountMin)
@@ -108,7 +114,7 @@ export class SummaryRepository {
 		// 1. Always use coalesce when counting or aggregating. The return is null and not 0
 		// 2. In drizzle, use mapWith(Number) to cast the response as Number and not string
 		const debitAmount =
-			sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'debit'), 0)`.mapWith(
+			sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.creditDebitIndicator} = 'debit'), 0)`.mapWith(
 				Number
 			);
 
@@ -119,16 +125,16 @@ export class SummaryRepository {
 				currency: transactions.currency,
 				count: count(transactions.transactionId),
 				debitCount:
-					sql<number>`count(*) filter (where ${transactions.direction} = 'debit')`.mapWith(
+					sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = 'debit')`.mapWith(
 						Number
 					),
 				creditCount:
-					sql<number>`count(*) filter (where ${transactions.direction} = 'credit')`.mapWith(
+					sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = 'credit')`.mapWith(
 						Number
 					),
 				debitAmount,
 				creditAmount:
-					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.direction} = 'credit'), 0)`.mapWith(
+					sql<number>`coalesce(sum(${transactions.amountMinor}) filter (where ${transactions.creditDebitIndicator} = 'credit'), 0)`.mapWith(
 						Number
 					)
 			})

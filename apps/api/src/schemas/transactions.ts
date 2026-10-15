@@ -14,6 +14,10 @@ export const transactionTypeSchema = z.enum([
 	"internal_transfer"
 ]);
 
+// Whether money came into the account (credit) or left it (debit), as a bank
+// statement shows it. ISO 20022 calls this the credit/debit indicator.
+export const creditDebitIndicatorSchema = z.enum(["credit", "debit"]);
+
 // Every status is listed; only completed counts toward summary aggregates
 export const transactionStatusSchema = z.enum([
 	"completed",
@@ -47,10 +51,10 @@ export const transactionItemSchema = z.object({
 	transactionId: z.uuid(),
 	occurredAt: z.iso.datetime(),
 	transactionType: z.union([z.string(), transactionTypeSchema.optional()]),
-	direction: z.union([z.string(), z.enum(["debit", "credit"])]),
+	creditDebitIndicator: z.union([z.string(), creditDebitIndicatorSchema]),
 	status: transactionStatusSchema,
 	amount: amountSchema.describe(
-		"direction says whether this money went out (debit) or came in (credit)"
+		"creditDebitIndicator says whether this money went out (debit) or came in (credit)"
 	),
 	category: z.string(),
 	shortDescription: z.string().nullable()
@@ -157,7 +161,7 @@ export const transactionDetailSchema = z.object({
 	accountId: z.uuid(),
 	externalId: z.string(),
 	occurredAt: z.iso.datetime(),
-	direction: z.enum(["debit", "credit"]),
+	creditDebitIndicator: creditDebitIndicatorSchema,
 	amount: amountSchema,
 	status: transactionStatusSchema,
 	longDescription: z.string().nullable(),

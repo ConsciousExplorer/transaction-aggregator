@@ -9,7 +9,10 @@ import {
 	uuid
 } from "drizzle-orm/pg-core";
 
-export const directionType = pgEnum("direction_type", ["debit", "credit"]);
+export const creditDebitIndicator = pgEnum("credit_debit_indicator", [
+	"credit",
+	"debit"
+]);
 export const transactionStatus = pgEnum("transaction_status", [
 	"completed",
 	"pending",

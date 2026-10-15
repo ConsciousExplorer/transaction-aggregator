@@ -11,7 +11,10 @@ import {
 	uuid
 } from "drizzle-orm/pg-core";
 
-export const directionType = pgEnum("direction_type", ["debit", "credit"]);
+export const creditDebitIndicator = pgEnum("credit_debit_indicator", [
+	"credit",
+	"debit"
+]);
 export const transactionStatus = pgEnum("transaction_status", [
 	"completed",
 	"pending",
@@ -72,7 +75,7 @@ export const categorizationRules = pgTable(
 		}),
 		check(
 			"categorization_rules_matcher_type_check",
-			sql`matcher_type = ANY (ARRAY['mcc'::text, 'keyword'::text, 'source_transaction_type'::text, 'source_direction'::text, 'source_default'::text])`
+			sql`matcher_type = ANY (ARRAY['mcc'::text, 'keyword'::text, 'source_transaction_type'::text, 'source_credit_debit_indicator'::text, 'source_default'::text])`
 		)
 	]
 );

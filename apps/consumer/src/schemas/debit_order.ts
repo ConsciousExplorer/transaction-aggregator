@@ -5,7 +5,14 @@ import { z } from "zod";
 /** Recurring collection initiated by a creditor against an authorised mandate. */
 export const debitOrderTransactionSchema = z.object({
 	transactionId: z.string(),
-	sourceType: z.string(),
+	// What kind of transaction this is, with the same values as the database's transaction_type.
+	transactionType: z.enum([
+		"card",
+		"eft",
+		"loan",
+		"debit_order",
+		"internal_transfer"
+	]),
 	customerId: z.string(),
 	// Customer account the transaction occurred on.
 	accountId: z.string(),
@@ -19,7 +26,8 @@ export const debitOrderTransactionSchema = z.object({
 	// Amount in ZAC (South African cents). Divide by 100 for display in ZAR.
 	amount: z.number(),
 	currency: z.string(),
-	transactionType: z.string(),
+	// Whether the money came into the customer's account (credit) or left it (debit), as a bank statement shows it. The amount is always positive.
+	creditDebitIndicator: z.enum(["credit", "debit"]),
 	description: z.string(),
 	// Higher REVERSED ratio — failed debit order collections are common.
 	status: z.string(),

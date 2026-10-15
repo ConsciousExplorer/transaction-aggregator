@@ -43,11 +43,11 @@ http:
       value: loan_repayment
       type: query
       disabled: true
-    - name: direction
+    - name: creditDebitIndicator
       value: debit
       type: query
       disabled: true
-    - name: direction
+    - name: creditDebitIndicator
       value: credit
       type: query
       disabled: true

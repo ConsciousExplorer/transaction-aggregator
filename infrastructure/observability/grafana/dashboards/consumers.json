@@ -3472,7 +3472,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "source_direction"
+              "options": "source_credit_debit_indicator"
             },
             "properties": [
               {

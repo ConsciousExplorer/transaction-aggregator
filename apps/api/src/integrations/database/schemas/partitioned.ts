@@ -18,7 +18,7 @@ import {
 import {
 	categories,
 	categorizationRules,
-	directionType,
+	creditDebitIndicator,
 	ruleSets,
 	transactionStatus,
 	transactionType
@@ -36,7 +36,9 @@ export const transactions = pgTable(
 			withTimezone: true,
 			mode: "string"
 		}).notNull(),
-		direction: directionType().notNull(),
+		creditDebitIndicator: creditDebitIndicator(
+			"credit_debit_indicator"
+		).notNull(),
 		status: transactionStatus().notNull(),
 		// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
@@ -58,7 +60,7 @@ export const transactions = pgTable(
 			table.occurredAt.desc().nullsFirst().op("timestamptz_ops"),
 			table.transactionId.desc().nullsFirst().op("timestamptz_ops"),
 			table.transactionType.asc().nullsLast().op("timestamptz_ops"),
-			table.direction.asc().nullsLast().op("timestamptz_ops"),
+			table.creditDebitIndicator.asc().nullsLast().op("timestamptz_ops"),
 			table.status.asc().nullsLast().op("timestamptz_ops"),
 			table.amountMinor.asc().nullsLast().op("timestamptz_ops"),
 			table.currency.asc().nullsLast().op("timestamptz_ops"),

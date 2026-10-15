@@ -9,7 +9,6 @@ import {
 	type CanonicalTransactionSchema,
 	canonicalTransactionSchema,
 	type DomainTransactionSchema,
-	type directionSchema,
 	type TransactionType,
 	type transactionStatusSchema,
 	transactionTypeSchema
@@ -38,10 +37,9 @@ function lookupNormaliser(transactionType: TransactionType) {
 
 /**
  * The source schemas type these fields as bare `z.string()`/`z.number()`, so
- * the casts below (`transactionType as directionSchema`, the lowercased
- * `status`, ids straight into `z.uuid()`) are assertions, not guarantees. This
- * is where the claim gets proved: a producer sending "DEBIT", a status outside
- * the enum or a non-UUID id is a mapping defect, so
+ * the casts below (the lowercased `status`, ids straight into `z.uuid()`) are
+ * assertions, not guarantees. This is where the claim gets proved: a status
+ * outside the enum or a non-UUID id is a mapping defect, so
  * it raises NonRetryableError and the batch handler dead-letters that record
  * instead of replaying it forever against the same bad mapping.
  */
@@ -83,7 +81,7 @@ function normaliseAndValidate(
 		if (error instanceof NonRetryableError) throw error;
 		throw new NonRetryableError("Transaction could not be normalised", {
 			cause: error,
-			details: { sourceType: transaction.sourceType }
+			details: { transactionType: transaction.transactionType }
 		});
 	}
 
@@ -113,7 +111,7 @@ export function normaliseCard(record: CardTransaction) {
 		shortDescription: record.merchantName,
 		currency: record.currency,
 		amountMinor: record.amount,
-		direction: record.transactionType as z.infer<typeof directionSchema>,
+		creditDebitIndicator: record.creditDebitIndicator,
 		status: record.status.toLowerCase() as z.infer<
 			typeof transactionStatusSchema
 		>,
@@ -139,7 +137,7 @@ export function normaliseDebitOrder(record: DebitOrderTransaction) {
 		shortDescription: record.creditorName,
 		currency: record.currency,
 		amountMinor: record.amount,
-		direction: record.transactionType as z.infer<typeof directionSchema>,
+		creditDebitIndicator: record.creditDebitIndicator,
 		status: record.status.toLowerCase() as z.infer<
 			typeof transactionStatusSchema
 		>,
@@ -165,7 +163,7 @@ export function normaliseEft(record: EftTransaction) {
 		shortDescription: record.beneficiaryName,
 		currency: record.currency,
 		amountMinor: record.amount,
-		direction: record.transactionType as z.infer<typeof directionSchema>,
+		creditDebitIndicator: record.creditDebitIndicator,
 		status: record.status.toLowerCase() as z.infer<
 			typeof transactionStatusSchema
 		>,
@@ -183,7 +181,7 @@ export function normaliseEft(record: EftTransaction) {
 export function normaliseInternalTransfer(record: InternalTransferTransaction) {
 	// e.g looking from the Saving Account, we paid into the Loan Account
 	const otherAccountType =
-		record.transactionType === "debit"
+		record.creditDebitIndicator === "debit"
 			? record.toAccountType
 			: record.fromAccountType;
 
@@ -198,7 +196,7 @@ export function normaliseInternalTransfer(record: InternalTransferTransaction) {
 		shortDescription: `${otherAccountType.charAt(0).toUpperCase()}${otherAccountType.slice(1)} Account`,
 		currency: record.currency,
 		amountMinor: record.amount,
-		direction: record.transactionType as z.infer<typeof directionSchema>,
+		creditDebitIndicator: record.creditDebitIndicator,
 		status: record.status.toLowerCase() as z.infer<
 			typeof transactionStatusSchema
 		>,
@@ -222,7 +220,7 @@ export function normaliseLoan(record: LoanTransaction) {
 		shortDescription: `${record.loanType.charAt(0).toUpperCase()}${record.loanType.slice(1)} Loan`,
 		currency: record.currency,
 		amountMinor: record.amount,
-		direction: record.transactionType as z.infer<typeof directionSchema>,
+		creditDebitIndicator: record.creditDebitIndicator,
 		status: record.status.toLowerCase() as z.infer<
 			typeof transactionStatusSchema
 		>,

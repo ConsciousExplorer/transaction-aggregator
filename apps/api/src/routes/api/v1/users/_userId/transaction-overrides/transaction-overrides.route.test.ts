@@ -22,7 +22,7 @@ const ORIGINAL: Awaited<
 	externalId: "ext-card-001",
 	occurredAt: "2026-08-15T09:30:00.000Z",
 	transactionType: "card",
-	direction: "debit",
+	creditDebitIndicator: "debit",
 	status: "completed",
 	longDescription: null,
 	amountMinor: 1234,

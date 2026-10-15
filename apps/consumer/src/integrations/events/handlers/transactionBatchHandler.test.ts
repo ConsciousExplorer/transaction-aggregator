@@ -25,9 +25,9 @@ function buildValidMessage(
 		offset: BigInt(offset),
 		headers: new Map(),
 		kind: "valid",
-		// Only `sourceType` and identity matter here — ingestion is faked.
+		// Only `transactionType` and identity matter here — ingestion is faked.
 		value: {
-			sourceType: "card",
+			transactionType: "card",
 			transactionId: externalId
 		} as unknown as DomainTransactionSchema,
 		raw: Buffer.from(`avro bytes ${externalId}`),

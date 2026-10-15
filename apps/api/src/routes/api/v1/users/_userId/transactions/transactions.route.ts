@@ -10,6 +10,7 @@ import {
 	windowDateTimeSchema
 } from "#src/schemas/common.ts";
 import {
+	creditDebitIndicatorSchema,
 	listResponseSchema,
 	parseFundingSource,
 	type TransactionSort,
@@ -99,10 +100,10 @@ export default async (
 				category: z
 					.union([z.coerce.string(), z.coerce.string().array()])
 					.optional(),
-				direction: z
+				creditDebitIndicator: z
 					.union([
-						z.enum(["debit", "credit"]),
-						z.enum(["debit", "credit"]).array()
+						creditDebitIndicatorSchema,
+						creditDebitIndicatorSchema.array()
 					])
 					.optional(),
 				amountMin: z.coerce.number().int().optional(),
@@ -144,7 +145,7 @@ export default async (
 				accountId: request.query.accountId,
 				transactionType: request.query.transactionType,
 				category: request.query.category,
-				direction: request.query.direction,
+				creditDebitIndicator: request.query.creditDebitIndicator,
 				amountMin: request.query.amountMin,
 				amountMax: request.query.amountMax,
 				sort: chooseReadSort(request.query.sort, cursorDirection),
@@ -165,7 +166,7 @@ export default async (
 					transactionId: row.transactionId,
 					occurredAt: new Date(row.occurredAt).toISOString(),
 					transactionType: row.transactionType,
-					direction: row.direction,
+					creditDebitIndicator: row.creditDebitIndicator,
 					status: row.status,
 					amount: {
 						amountMinor: row.amountMinor,
@@ -244,7 +245,7 @@ export default async (
 				accountId: row.accountId,
 				externalId: row.externalId,
 				occurredAt: new Date(row.occurredAt).toISOString(),
-				direction: row.direction,
+				creditDebitIndicator: row.creditDebitIndicator,
 				status: row.status,
 				amount: {
 					amountMinor: row.amountMinor,

@@ -6,9 +6,9 @@ Enum "transaction_type" {
   "internal_transfer"
 }
 
-Enum "direction_type" {
-  "debit"
+Enum "credit_debit_indicator" {
   "credit"
+  "debit"
 }
 
 Enum "transaction_status" {
@@ -36,7 +36,7 @@ Table "categorization_rules" {
   "categorization_rule_id" int [pk, increment]
   "ruleset_version" int [not null]
   "priority" int [not null]
-  "matcher_type" text [not null, check: `matcher_type IN ('mcc','keyword','source_transaction_type','source_direction','source_default')`]
+  "matcher_type" text [not null, check: `matcher_type IN ('mcc','keyword','source_transaction_type','source_credit_debit_indicator','source_default')`]
   "pattern" text [not null]
   "category_id" smallint [not null]
   "created_at" timestamptz [not null, default: `now()`]
@@ -85,7 +85,7 @@ Table "transactions" {
   "transaction_type" transaction_type [not null]
   "external_id" text [not null]
   "occurred_at" timestamptz [not null]
-  "direction" direction_type [not null]
+  "credit_debit_indicator" credit_debit_indicator [not null]
   "status" transaction_status [not null]
   "amount_minor" bigint [not null, check: `amount_minor > 0`]
   "currency" char(3) [not null]

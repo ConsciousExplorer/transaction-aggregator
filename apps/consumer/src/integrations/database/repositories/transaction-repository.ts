@@ -13,7 +13,7 @@ export async function batchInsertTransactions(
 	const transactionTypes = [];
 	const externalIds = [];
 	const occurredAts = [];
-	const directions = [];
+	const creditDebitIndicators = [];
 	const statuses = [];
 	const amountMinors = [];
 	const currencies = [];
@@ -29,7 +29,7 @@ export async function batchInsertTransactions(
 		transactionTypes.push(transaction.transactionType);
 		externalIds.push(transaction.externalId);
 		occurredAts.push(transaction.occurredAt);
-		directions.push(transaction.direction);
+		creditDebitIndicators.push(transaction.creditDebitIndicator);
 		statuses.push(transaction.status);
 		amountMinors.push(transaction.amountMinor);
 		currencies.push(transaction.currency);
@@ -50,7 +50,7 @@ export async function batchInsertTransactions(
 			transaction_type,
 			external_id,
 			occurred_at,
-			direction,
+			credit_debit_indicator,
 			status,
 			amount_minor,
 			currency,
@@ -67,7 +67,7 @@ export async function batchInsertTransactions(
 			t.transaction_type,
 			t.external_id,
 			t.occurred_at,
-			t.direction,
+			t.credit_debit_indicator,
 			t.status,
 			t.amount_minor,
 			t.currency,
@@ -83,7 +83,7 @@ export async function batchInsertTransactions(
 			$3::transaction_type[],
 			$4::text[],
 			$5::timestamptz[],
-        	$6::direction_type[],
+        	$6::credit_debit_indicator[],
 			$7::transaction_status[],
 			$8::bigint[],
 			$9::text[],
@@ -99,7 +99,7 @@ export async function batchInsertTransactions(
 			transaction_type,
 			external_id,
 			occurred_at,
-			direction,
+			credit_debit_indicator,
 			status,
 			amount_minor,
 			currency,
@@ -118,7 +118,7 @@ export async function batchInsertTransactions(
 			transactionTypes, // 3
 			externalIds, // 4
 			occurredAts, // 5
-			directions, // 6
+			creditDebitIndicators, // 6
 			statuses, // 7
 			amountMinors, // 8
 			currencies, // 9

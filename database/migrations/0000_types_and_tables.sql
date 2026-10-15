@@ -1,7 +1,9 @@
 -- Custom SQL migration file, put your code below! --
 
 CREATE TYPE transaction_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
-CREATE TYPE direction_type AS ENUM ('debit','credit');
+-- Whether money came into the account (credit) or left it (debit), as a bank
+-- statement shows it; the amount is always positive. ISO 20022's CdtDbtInd.
+CREATE TYPE credit_debit_indicator AS ENUM ('credit', 'debit');
 CREATE TYPE transaction_status AS ENUM ('completed', 'pending', 'reversed', 'failed');
 
 CREATE TABLE categories (
@@ -22,7 +24,7 @@ CREATE TABLE categorization_rules (
   categorization_rule_id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   ruleset_version int  NOT NULL REFERENCES rule_sets(version),
   priority        int  NOT NULL,
-  matcher_type    text NOT NULL CHECK (matcher_type IN ('mcc','keyword','source_transaction_type','source_direction','source_default')),
+  matcher_type    text NOT NULL CHECK (matcher_type IN ('mcc','keyword','source_transaction_type','source_credit_debit_indicator','source_default')),
   pattern         text NOT NULL,
   category_id     smallint NOT NULL REFERENCES categories(category_id),
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -63,7 +65,7 @@ CREATE TABLE transactions (
   transaction_type transaction_type NOT NULL,
   external_id   text        NOT NULL,
   occurred_at   timestamptz NOT NULL, -- partition key; transaction time
-  direction     direction_type NOT NULL,
+  credit_debit_indicator credit_debit_indicator NOT NULL,
   status        transaction_status NOT NULL, -- every status is stored; only completed counts toward aggregates
   amount_minor  bigint      NOT NULL CHECK (amount_minor > 0),
   currency      char(3)     NOT NULL,
@@ -84,7 +86,7 @@ CREATE TABLE transactions (
 -- included, so a page or a summary, filtered by account or not, is answered
 -- from the index alone instead of reading each row from the table.
 CREATE INDEX idx_tx_user_read ON transactions (user_id, occurred_at DESC, transaction_id DESC)
-  INCLUDE (transaction_type, direction, status, amount_minor, currency, category_id, short_description, account_id);
+  INCLUDE (transaction_type, credit_debit_indicator, status, amount_minor, currency, category_id, short_description, account_id);
 
 DO $$
 BEGIN

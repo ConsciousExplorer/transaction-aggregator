@@ -51,7 +51,7 @@ LIMIT 5;
 
 -- That user's rows in the window, newest first, numbered. Each cursor value is
 -- written exactly as the API puts it inside the base64url cursor in
--- links.next/links.prev ({occurredAt, transactionId, direction}):
+-- links.next/links.prev ({direction, position: {occurredAt, transactionId}}):
 --   row 10 → a next page from page 1 at limit=10
 --   row 11 → a prev page back from page 2
 --   row 1  → a transaction to fetch, override or archive
@@ -60,7 +60,7 @@ SELECT row_number() OVER (ORDER BY occurred_at DESC, transaction_id DESC) AS row
        transaction_id AS cursor_transaction_id,
        account_id,
        transaction_type,
-       direction,
+       credit_debit_indicator,
        amount_minor,
        category_id
 FROM transactions

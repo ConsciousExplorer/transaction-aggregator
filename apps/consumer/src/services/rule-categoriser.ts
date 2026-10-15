@@ -5,7 +5,7 @@ export const MATCHER_TYPES = [
 	"mcc",
 	"keyword",
 	"source_transaction_type",
-	"source_direction",
+	"source_credit_debit_indicator",
 	"source_default"
 ] as const;
 export type MatcherType = (typeof MATCHER_TYPES)[number];
@@ -52,7 +52,7 @@ export function createRuleCategoriser(ruleset: RuleSet) {
 	const mccMap = new Map<string, Rule>();
 	const keywordRules: Array<{ term: string; rule: Rule }> = [];
 	const sourceTransactionTypeMap = new Map<string, Rule>();
-	const sourceDirectionMap = new Map<string, Rule>();
+	const sourceCreditDebitIndicatorMap = new Map<string, Rule>();
 	const defaultMap = new Map<string, Rule>();
 
 	for (const rule of sorted) {
@@ -68,9 +68,9 @@ export function createRuleCategoriser(ruleset: RuleSet) {
 				keywordRules.push({ term: rule.pattern.toLowerCase(), rule });
 				break;
 
-			case "source_direction":
-				if (!sourceDirectionMap.has(rule.pattern))
-					sourceDirectionMap.set(rule.pattern, rule);
+			case "source_credit_debit_indicator":
+				if (!sourceCreditDebitIndicatorMap.has(rule.pattern))
+					sourceCreditDebitIndicatorMap.set(rule.pattern, rule);
 				break;
 
 			case "source_default":
@@ -94,7 +94,7 @@ export function createRuleCategoriser(ruleset: RuleSet) {
 			// 1. MCC             — O(1) map lookup
 			// 2. Keywords        — O(k·m): k terms scanned in priority order
 			// 3. source:transaction_type — O(1) map lookup
-			// 4. source:direction — O(1) map lookup
+			// 4. source:credit/debit indicator — O(1) map lookup
 			// 5. source defaults — O(1) map lookup
 			// 6. Fallback        — O(1), always succeeds
 
@@ -127,11 +127,12 @@ export function createRuleCategoriser(ruleset: RuleSet) {
 				if (rule) return buildVerdict(rule, version);
 			}
 
-			// 4. source:direction
-			const directionRule = sourceDirectionMap.get(
-				`${transaction.transactionType}:${transaction.direction}`
+			// 4. source:credit/debit indicator
+			const creditDebitIndicatorRule = sourceCreditDebitIndicatorMap.get(
+				`${transaction.transactionType}:${transaction.creditDebitIndicator}`
 			);
-			if (directionRule) return buildVerdict(directionRule, version);
+			if (creditDebitIndicatorRule)
+				return buildVerdict(creditDebitIndicatorRule, version);
 
 			// 5. source defaults
 			const rule = defaultMap.get(transaction.transactionType);
