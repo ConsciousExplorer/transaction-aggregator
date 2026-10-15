@@ -44,17 +44,17 @@
 			"runtimeArgs": ["--env-file=.env"],
 			"env": { "SOURCE": "internal-transfer", "PORT": "3005" },
 			"cwd": "${workspaceFolder}"
-		},
+		}
 	],
 	"compounds": [
 		{
 			"name": "card + loan consumers + eft + internal-transfer + debit-order",
 			"configurations": [
-				"consumer: card", 
+				"consumer: card",
 				"consumer: loan",
 				"consumer: eft",
 				"consumer: internal-transfer",
-				"consumer: debit-order",
+				"consumer: debit-order"
 			]
 		}
 	]

@@ -1,31 +1,27 @@
 {
-  "version": "0.2",
-  "language": "en",
-  "words": [
-    "autoloading",
-    "Autoloads",
-    "awilix",
-    "backend",
-    "cspell",
-    "fkey",
-    "frontend",
-    "IYYY",
-    "Millis",
-    "Miswiring",
-    "neighbouring",
-    "neighbours",
-    "normaliser",
-    "savepoint",
-    "stringbool",
-    "timestamptz",
-    "Tyme",
-    "upserts",
-    "uuidv",
-    "uuidv4"
-  ],
-  "ignorePaths": [
-    "node_modules/**",
-    "dist/**",
-    "package-lock.json"
-  ]
+	"version": "0.2",
+	"language": "en",
+	"words": [
+		"autoloading",
+		"Autoloads",
+		"awilix",
+		"backend",
+		"cspell",
+		"fkey",
+		"frontend",
+		"IYYY",
+		"Millis",
+		"Miswiring",
+		"neighbouring",
+		"neighbours",
+		"normaliser",
+		"savepoint",
+		"stringbool",
+		"timestamptz",
+		"Tyme",
+		"upserts",
+		"uuidv",
+		"uuidv4"
+	],
+	"ignorePaths": ["node_modules/**", "dist/**", "package-lock.json"]
 }
