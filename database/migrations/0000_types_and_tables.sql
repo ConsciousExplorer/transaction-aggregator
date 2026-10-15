@@ -107,7 +107,7 @@ END $$;
 UPDATE partman.part_config
 SET
   infinite_time_partitions = true,
-  retention = '18 month',  -- the brief's number (SPEC §2.3); v1 shipped 24 by drift
+  retention = '18 month', 
   retention_keep_table = false
 WHERE parent_table = 'public.transactions';
 

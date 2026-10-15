@@ -1,7 +1,6 @@
 import {
 	and,
 	asc,
-	between,
 	desc,
 	eq,
 	gte,
@@ -195,8 +194,6 @@ export class UserTransactionRepository {
 	}
 
 	async getTransactionDetail(filter: TransactionDetailFilter) {
-		// The id is a UUIDv7 minted from occurred_at, so its time finds the partition
-		const idTime = sql`uuid_extract_timestamp(${filter.transactionId}::uuid)`;
 		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
 		const [result] = await this.db
@@ -237,15 +234,14 @@ export class UserTransactionRepository {
 				)
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
+			// No occurred_at bound: the id's time is when the row was inserted, not
+			// when the transaction happened, so it can't name the partition. Every
+			// partition's primary key index starts with transaction_id, so this is
+			// one index lookup per partition.
 			.where(
 				and(
 					eq(transactions.userId, filter.userId),
-					eq(transactions.transactionId, filter.transactionId),
-					between(
-						transactions.occurredAt,
-						sql`${idTime} - interval '7 days'`,
-						sql`${idTime} + interval '7 days'`
-					)
+					eq(transactions.transactionId, filter.transactionId)
 				)
 			);
 
@@ -283,8 +279,8 @@ export class UserTransactionRepository {
 	}
 
 	async archiveTransactionCategory(userId: string, transactionId: string) {
-		// The id is a UUIDv7 minted from occurred_at, so its time finds the partition
-		const idTime = sql`uuid_extract_timestamp(${transactionId}::uuid)`;
+		// No occurred_at bound, as in getTransactionDetail: one primary key index
+		// lookup per partition
 		const [result] = await this.db
 			.update(userTransactionOverrides)
 			.set({ archivedAt: sql`now()` })
@@ -292,11 +288,6 @@ export class UserTransactionRepository {
 				and(
 					eq(userTransactionOverrides.userId, userId),
 					eq(userTransactionOverrides.transactionId, transactionId),
-					between(
-						userTransactionOverrides.occurredAt,
-						sql`${idTime} - interval '7 days'`,
-						sql`${idTime} + interval '7 days'`
-					),
 					isNull(userTransactionOverrides.archivedAt)
 				)
 			)
