@@ -6,7 +6,7 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"includes": ["src/**", "*.json", ".vscode/*.json"]
+		"includes": ["src/**", "*.json", "test/**", ".vscode/*.json"]
 	},
 	"formatter": {
 		"enabled": true,

@@ -17,7 +17,7 @@
 		"start": "node --env-file=.env --watch src/app.ts | pino-pretty --colorize",
 		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
 		"test:unit": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
-		"test:integration": "node --env-file=.env --test 'test/integration/**/*.test.ts'",
+		"test:integration": "node --env-file=test.env --test 'test/integration/**/*.test.ts'",
 		"biome:migrate": "npx @biomejs/biome migrate --write",
 		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle.config.ts && node scripts/cleanup-drizzle-pull.ts",
 		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle.config.ts",
@@ -55,6 +55,7 @@
 		"cspell": "10.4.0",
 		"drizzle-kit": "0.31.11",
 		"pino-pretty": "^13.2.0",
+		"testcontainers": "12.2.1",
 		"tsx": "^4.23.15",
 		"typescript": "^7.0.2"
 	},
