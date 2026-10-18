@@ -7,7 +7,6 @@ import {
 	ingestLagSeconds,
 	tombstonesSkippedTotal
 } from "#src/telemetry/metrics.ts";
-import { assertNever } from "#src/utils/assert-never.ts";
 
 const logger = createFileLogger(import.meta.url);
 
@@ -73,7 +72,7 @@ export function createTransactionBatchHandler(
 					tombstones += 1;
 					break;
 				default:
-					assertNever(message); // new kind ⇒ compile error, not a silent commit
+					message satisfies never; // a new kind fails to compile here instead of being committed unhandled
 			}
 		}
 

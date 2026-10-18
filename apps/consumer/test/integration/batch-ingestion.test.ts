@@ -1,0 +1,104 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { after, before, suite, test } from "node:test";
+import type { Pool } from "pg";
+import { NonRetryableError } from "#src/errors/consumer-errors.ts";
+import { createDatabase } from "#src/integrations/database/pool.ts";
+import { loadRuleset } from "#src/integrations/database/repositories/rule-repository.ts";
+import {
+	createTransactionBatchHandler,
+	type DeadLetterFailure
+} from "#src/integrations/events/handlers/transactionBatchHandler.ts";
+import type { RuleSet } from "#src/services/rule-categoriser.ts";
+import { buildCardRecord } from "#src/services/test-records.ts";
+import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
+import {
+	startTestDatabase,
+	stopTestDatabase,
+	type TestDatabase
+} from "./helpers/database.ts";
+import { createRecordingDeadLetterSender } from "./helpers/dead-letters.ts";
+import { buildValidMessage } from "./helpers/messages.ts";
+import {
+	CHECK_VIOLATION,
+	readPostgresErrorCode
+} from "./helpers/postgres-errors.ts";
+
+// The batch handler as app.ts builds it: the real ingester on kafka_consumer's
+// pool and a ruleset loaded from the seeded database. Only the DLQ is a fake,
+// one that records what it is given.
+
+async function readStoredExternalIds(adminPool: Pool, userId: string) {
+	const result = await adminPool.query(
+		"SELECT external_id FROM txn_agg.transactions WHERE user_id = $1 ORDER BY external_id",
+		[userId]
+	);
+	const externalIds = [];
+	for (const row of result.rows) {
+		externalIds.push(row.external_id);
+	}
+	return externalIds;
+}
+
+suite("batch ingestion into Postgres", () => {
+	let database: TestDatabase;
+	let ruleset: RuleSet;
+
+	before(
+		async () => {
+			database = await startTestDatabase();
+			ruleset = await loadRuleset(createDatabase(database.consumerPool));
+		},
+		{ timeout: 180_000 }
+	);
+	after(async () => {
+		await stopTestDatabase(database);
+	});
+
+	test("a row Postgres rejects is dead-lettered alone, and the rest of the batch lands", async () => {
+		const userId = randomUUID();
+		const deadLetters: DeadLetterFailure[] = [];
+		const handleTransactionBatch = createTransactionBatchHandler(
+			createTransactionIngester("card", ruleset, database.consumerPool),
+			createRecordingDeadLetterSender(deadLetters)
+		);
+		// amount_minor > 0 is a CHECK in the DDL that the canonical schema does
+		// not repeat, so the row passes normalisation and only Postgres says no
+		const messages = [
+			buildValidMessage(
+				buildCardRecord({ transactionId: "kept-1", customerId: userId }),
+				10n
+			),
+			buildValidMessage(
+				buildCardRecord({
+					transactionId: "rejected",
+					customerId: userId,
+					amount: 0
+				}),
+				11n
+			),
+			buildValidMessage(
+				buildCardRecord({ transactionId: "kept-2", customerId: userId }),
+				12n
+			)
+		];
+
+		// Returning, rather than throwing, is what lets the adapter commit
+		await handleTransactionBatch(messages);
+
+		assert.deepStrictEqual(
+			await readStoredExternalIds(database.adminPool, userId),
+			["kept-1", "kept-2"]
+		);
+		assert.strictEqual(deadLetters.length, 1);
+		const deadLetter = deadLetters[0];
+		assert.ok(deadLetter);
+		assert.strictEqual(deadLetter.message.offset, 11n);
+		assert.deepStrictEqual(deadLetter.message.raw, messages[1]?.raw);
+		assert.ok(deadLetter.error instanceof NonRetryableError);
+		assert.strictEqual(
+			readPostgresErrorCode(deadLetter.error),
+			CHECK_VIOLATION
+		);
+	});
+});

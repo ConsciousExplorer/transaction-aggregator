@@ -5,7 +5,7 @@ import { registry } from "#src/telemetry/metrics.ts";
  * /metrics route for Prometheus to scrape.
  * The route is public and does not require authentication.
  */
-export default async (fastify: FastifyInstance) => {
+export default async function registerMetricsRoute(fastify: FastifyInstance) {
 	fastify.route({
 		method: "GET",
 		config: { authConfig: { public: true } },
@@ -16,4 +16,4 @@ export default async (fastify: FastifyInstance) => {
 			return reply.send(await registry.metrics());
 		}
 	});
-};
+}

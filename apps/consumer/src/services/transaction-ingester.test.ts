@@ -18,7 +18,7 @@ suite("transaction ingestion", () => {
 		}));
 		const pool = {
 			async connect() {
-				return { query, release() {} };
+				return { query, on() {}, removeListener() {}, release() {} };
 			}
 		} as unknown as Pool;
 

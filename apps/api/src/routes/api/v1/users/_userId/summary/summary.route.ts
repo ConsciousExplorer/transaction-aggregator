@@ -3,102 +3,24 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
-import {
-	amountSchema,
-	collectionMetaSchema,
-	linksSchema,
-	problemSchema,
-	signedAmountSchema,
-	windowDateTimeSchema
-} from "#src/schemas/common.ts";
+import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
 import {
 	creditDebitIndicatorSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
 import { buildLink } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
+import { buildSummaryItem, sumTotals } from "./summary.mappers.ts";
+import { summaryResponseSchema } from "./summary.schemas.ts";
 
-// Every amount is a money object. debit and credit totals are positive;
-// netAmount is the one signed figure.
-const directionTotalSchema = z.object({
-	count: z.number(),
-	total: amountSchema
-});
-
-const netAmountSchema = signedAmountSchema.describe(
-	"credit − debit: negative when more went out than came in"
-);
-
-const summaryTotalSchema = z.object({
-	transactionCount: z.number(),
-	netAmount: netAmountSchema,
-	debit: directionTotalSchema,
-	credit: directionTotalSchema
-});
-
-const summaryItemSchema = z.object({
-	group: z.object({
-		category: z.string().optional(),
-		month: z.string().optional(),
-		week: z.string().optional(),
-		day: z.string().optional()
-	}),
-	count: z.number(),
-	netAmount: netAmountSchema,
-	debit: directionTotalSchema,
-	credit: directionTotalSchema
-});
-
-const metaSchema = collectionMetaSchema.extend({
-	fromDateTime: z.iso.datetime(),
-	toDateTime: z.iso.datetime(),
-	groupBy: z.string().array(),
-	interval: z.enum(["day", "week", "month"]).optional()
-});
-
-type SummaryRow = Awaited<
-	ReturnType<SummaryRepository["getUserSummary"]>
->[number];
-
-function buildAmount(amountMinor: number, currency: string) {
-	return { amountMinor, currency };
-}
-
-/** Grand totals over all rows. */
-function sumTotals(rows: SummaryRow[]) {
-	// The database holds one currency; an empty window has no row to read it from
-	const currency = rows[0]?.currency ?? "ZAR";
-
-	let transactionCount = 0;
-	let debitCount = 0;
-	let debitTotal = 0;
-	let creditCount = 0;
-	let creditTotal = 0;
-
-	for (const row of rows) {
-		transactionCount += row.count;
-		debitCount += row.debitCount;
-		debitTotal += row.debitAmount;
-		creditCount += row.creditCount;
-		creditTotal += row.creditAmount;
-	}
-
-	return {
-		transactionCount,
-		netAmount: buildAmount(creditTotal - debitTotal, currency),
-		debit: { count: debitCount, total: buildAmount(debitTotal, currency) },
-		credit: { count: creditCount, total: buildAmount(creditTotal, currency) }
-	};
-}
-
-export default async (
+export default async function registerSummaryRoute(
 	fastify: FastifyInstance,
-	opts: {
+	options: {
 		summaryRepository: SummaryRepository;
 		queryWindow: QueryWindowConfig;
 	}
-) => {
-	const maxWindowDays = opts.queryWindow.maxDays;
+) {
+	const maxWindowDays = options.queryWindow.maxDays;
 
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",
@@ -143,13 +65,9 @@ export default async (
 					.describe("Left out, the whole window is one bucket")
 			}),
 			response: {
-				200: z.object({
-					totals: summaryTotalSchema,
-					data: summaryItemSchema.array(),
-					links: linksSchema,
-					meta: metaSchema
-				}),
-				400: problemSchema
+				200: summaryResponseSchema,
+				400: problemSchema,
+				500: problemSchema
 			}
 		},
 		handler: async (request, reply) => {
@@ -159,7 +77,7 @@ export default async (
 				maxWindowDays
 			);
 
-			const result = await opts.summaryRepository.getUserSummary({
+			const rows = await options.summaryRepository.getUserSummary({
 				userId: request.params.userId,
 				fromDate: request.query.fromDateTime,
 				toDate: request.query.toDateTime,
@@ -173,34 +91,12 @@ export default async (
 			});
 
 			const data = [];
-			for (const row of result) {
-				data.push({
-					group: {
-						category: row.category,
-						day: request.query.interval === "day" ? row.bucketStart : undefined,
-						week:
-							request.query.interval === "week" ? row.bucketStart : undefined,
-						month:
-							request.query.interval === "month" ? row.bucketStart : undefined
-					},
-					count: row.count,
-					netAmount: buildAmount(
-						row.creditAmount - row.debitAmount,
-						row.currency
-					),
-					debit: {
-						count: row.debitCount,
-						total: buildAmount(row.debitAmount, row.currency)
-					},
-					credit: {
-						count: row.creditCount,
-						total: buildAmount(row.creditAmount, row.currency)
-					}
-				});
+			for (const row of rows) {
+				data.push(buildSummaryItem(row, request.query.interval));
 			}
 
 			return reply.send({
-				totals: sumTotals(result),
+				totals: sumTotals(rows),
 				data,
 				// The window as parsed, so a future toDateTime shows as now
 				links: {
@@ -210,7 +106,7 @@ export default async (
 					})
 				},
 				meta: {
-					count: result.length,
+					count: rows.length,
 					fromDateTime: request.query.fromDateTime,
 					toDateTime: request.query.toDateTime,
 					groupBy: ["Category"],
@@ -219,4 +115,4 @@ export default async (
 			});
 		}
 	});
-};
+}

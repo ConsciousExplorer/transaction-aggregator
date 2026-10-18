@@ -1,21 +1,18 @@
-// src/routes/api/v1/users/_userId/summary/summary.route.test.ts
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, RouteOptions } from "fastify";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
 import { buildServer } from "#src/server.ts";
-import summaryRoute from "./summary.route.ts";
+import registerSummaryRoute from "./summary.route.ts";
 
 const FROM = "2026-08-01T00:00:00.000Z";
 const TO = "2026-09-01T00:00:00.000Z";
 const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
 const BASE_URL = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
-// links.self is the request with the window as read; ":" stays unencoded
-const BASE_SELF = `/api/v1/users/${USER_ID}/summary?fromDateTime=${FROM}&toDateTime=${TO}`;
-const DAY_MS = 24 * 60 * 60 * 1000;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function buildZarAmount(amountMinor: number) {
+function buildAmount(amountMinor: number) {
 	return { amountMinor, currency: "ZAR" };
 }
 
@@ -46,21 +43,24 @@ const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
 // `satisfies` is the drift guard: if the real class gains a member or changes
 // a signature, this fake stops compiling. `db` is here only to satisfy
 // the class shape — the route never touches it (it goes through the methods).
-const getUserSummary = mock.fn(async () => ROWS);
+const getUserSummary = mock.fn<SummaryRepository["getUserSummary"]>(
+	async () => ROWS
+);
 const summaryRepository = {
 	db: {} as NodePgDatabase,
 	getUserSummary
 } satisfies SummaryRepository;
 
-// ── Suite ────────────────────────────────────────────────────────────────────
 suite("GET /api/v1/users/:userId/summary", () => {
 	let app: FastifyInstance;
+	const routes: RouteOptions[] = [];
 
 	before(async () => {
-		// buildServer({}) = defaults only, NO autoload — we register the one
-		// route under test ourselves, with exactly the opts it declares.
 		app = buildServer({});
-		await app.register(summaryRoute, {
+		app.addHook("onRoute", (route) => {
+			routes.push(route);
+		});
+		await app.register(registerSummaryRoute, {
 			prefix: "/api/v1/users/:userId/summary",
 			summaryRepository,
 			queryWindow: { maxDays: 366 }
@@ -76,33 +76,33 @@ suite("GET /api/v1/users/:userId/summary", () => {
 	});
 
 	test("200: totals aggregate the rows and data carries the per-group breakdown", async () => {
-		const res = await app.inject({ method: "GET", url: BASE_URL });
-		assert.strictEqual(res.statusCode, 200);
-		assert.deepStrictEqual(res.json(), {
+		const response = await app.inject({ method: "GET", url: BASE_URL });
+		assert.strictEqual(response.statusCode, 200);
+		assert.deepStrictEqual(response.json(), {
 			totals: {
 				transactionCount: 4,
 				// credit − debit: (500−1500) + (0−700); the currency comes from the rows
-				netAmount: buildZarAmount(-1700),
-				debit: { count: 3, total: buildZarAmount(2200) },
-				credit: { count: 1, total: buildZarAmount(500) }
+				netAmount: buildAmount(-1700),
+				debit: { count: 3, total: buildAmount(2200) },
+				credit: { count: 1, total: buildAmount(500) }
 			},
 			data: [
 				{
 					group: { category: "groceries" },
 					count: 3,
-					netAmount: buildZarAmount(-1000),
-					debit: { count: 2, total: buildZarAmount(1500) },
-					credit: { count: 1, total: buildZarAmount(500) }
+					netAmount: buildAmount(-1000),
+					debit: { count: 2, total: buildAmount(1500) },
+					credit: { count: 1, total: buildAmount(500) }
 				},
 				{
 					group: { category: "dining" },
 					count: 1,
-					netAmount: buildZarAmount(-700),
-					debit: { count: 1, total: buildZarAmount(700) },
-					credit: { count: 0, total: buildZarAmount(0) }
+					netAmount: buildAmount(-700),
+					debit: { count: 1, total: buildAmount(700) },
+					credit: { count: 0, total: buildAmount(0) }
 				}
 			],
-			links: { self: BASE_SELF },
+			links: { self: BASE_URL },
 			meta: {
 				count: 2,
 				fromDateTime: FROM,
@@ -134,9 +134,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			method: "GET",
 			url: `${BASE_URL}&transactionType=card&transactionType=eft&creditDebitIndicator=debit&amountMin=100&amountMax=5000`
 		});
-		const filter = getUserSummary.mock.calls[0]?.arguments.at(0) as
-			| Record<string, unknown>
-			| undefined;
+		const filter = getUserSummary.mock.calls[0]?.arguments.at(0);
 		assert.deepStrictEqual(filter?.transactionType, ["card", "eft"]);
 		assert.strictEqual(filter?.creditDebitIndicator, "debit");
 		assert.strictEqual(filter?.amountMin, 100);
@@ -144,11 +142,11 @@ suite("GET /api/v1/users/:userId/summary", () => {
 	});
 
 	test('400: interval "total" is not an interval; leaving it out is the whole window', async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `${BASE_URL}&interval=total`
 		});
-		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(response.statusCode, 400);
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
@@ -157,9 +155,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			method: "GET",
 			url: `${BASE_URL}&accountId=5e2f8a10-4b3c-4d1e-9f6a-7b8c9d0e1f2a`
 		});
-		const filter = getUserSummary.mock.calls[0]?.arguments.at(0) as
-			| { accountId?: unknown }
-			| undefined;
+		const filter = getUserSummary.mock.calls[0]?.arguments.at(0);
 		assert.strictEqual(
 			filter?.accountId,
 			"5e2f8a10-4b3c-4d1e-9f6a-7b8c9d0e1f2a"
@@ -167,45 +163,47 @@ suite("GET /api/v1/users/:userId/summary", () => {
 	});
 
 	test("400: an accountId that isn't a UUID → validation problem, repository untouched", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `${BASE_URL}&accountId=not-a-uuid`
 		});
-		assert.strictEqual(res.statusCode, 400);
-		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(response.statusCode, 400);
+		assert.strictEqual(response.json().type, "validation-error");
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
 	test("400: missing required query → validation problem, repository untouched", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/${USER_ID}/summary`
 		});
-		assert.strictEqual(res.statusCode, 400);
+		assert.strictEqual(response.statusCode, 400);
 		assert.ok(
-			String(res.headers["content-type"]).startsWith("application/problem+json")
+			String(response.headers["content-type"]).startsWith(
+				"application/problem+json"
+			)
 		);
-		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(response.json().type, "validation-error");
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
 	test("400: a userId that isn't a UUID → validation problem, repository untouched", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/not-a-uuid/summary?fromDateTime=${FROM}&toDateTime=${TO}`
 		});
-		assert.strictEqual(res.statusCode, 400);
-		assert.strictEqual(res.json().type, "validation-error");
+		assert.strictEqual(response.statusCode, 400);
+		assert.strictEqual(response.json().type, "validation-error");
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
 	test("400: a window wider than 366 days is rejected before the query runs", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:01.000Z`
 		});
-		assert.strictEqual(res.statusCode, 400);
-		assert.deepStrictEqual(res.json(), {
+		assert.strictEqual(response.statusCode, 400);
+		assert.deepStrictEqual(response.json(), {
 			type: "window-too-large",
 			title: "Time window too large",
 			status: 400,
@@ -216,44 +214,52 @@ suite("GET /api/v1/users/:userId/summary", () => {
 
 	test("a future toDateTime is read as now, and the window is measured from there", async () => {
 		// 300 days back to 2099 is far over the cap; 300 days back to now is not
-		const fromDateTime = new Date(Date.now() - 300 * DAY_MS).toISOString();
-		const before = Date.now();
-		const res = await app.inject({
+		const fromDateTime = new Date(
+			Date.now() - 300 * MILLISECONDS_PER_DAY
+		).toISOString();
+		const startedAt = Date.now();
+		const response = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=${fromDateTime}&toDateTime=2099-01-01T00:00:00.000Z`
 		});
-		const after = Date.now();
+		const finishedAt = Date.now();
 
-		assert.strictEqual(res.statusCode, 200);
-		const filter = getUserSummary.mock.calls[0]?.arguments.at(0) as
-			| { fromDate: string; toDate: string }
-			| undefined;
+		assert.strictEqual(response.statusCode, 200);
+		const filter = getUserSummary.mock.calls[0]?.arguments.at(0);
 		assert.strictEqual(filter?.fromDate, fromDateTime);
 		const toDate = Date.parse(filter?.toDate ?? "");
-		assert.ok(toDate >= before && toDate <= after);
-		assert.strictEqual(res.json().meta.toDateTime, filter?.toDate);
-		const self = new URL(res.json().links.self, "http://client.example");
+		assert.ok(toDate >= startedAt && toDate <= finishedAt);
+		assert.strictEqual(response.json().meta.toDateTime, filter?.toDate);
+		const self = new URL(response.json().links.self, "http://client.example");
 		assert.strictEqual(self.searchParams.get("toDateTime"), filter?.toDate);
 	});
 
 	test("200: twelve calendar months across a leap day (366 days) are allowed", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:00.000Z`
 		});
-		assert.strictEqual(res.statusCode, 200);
+		assert.strictEqual(response.statusCode, 200);
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
 		getUserSummary.mock.mockImplementationOnce(async () => {
 			throw new Error("pg password=hunter2");
 		});
-		const res = await app.inject({ method: "GET", url: BASE_URL });
-		assert.strictEqual(res.statusCode, 500);
+		const response = await app.inject({ method: "GET", url: BASE_URL });
+		assert.strictEqual(response.statusCode, 500);
 		assert.ok(
-			String(res.headers["content-type"]).startsWith("application/problem+json")
+			String(response.headers["content-type"]).startsWith(
+				"application/problem+json"
+			)
 		);
-		assert.strictEqual(res.json().type, "internal");
-		assert.ok(!res.body.includes("hunter2"));
+		assert.strictEqual(response.json().type, "internal");
+		assert.ok(!response.body.includes("hunter2"));
+	});
+
+	test("the contract documents the 500 it can answer", () => {
+		const route = routes.find((candidate) => candidate.method === "GET");
+		const documented = Object.keys(route?.schema?.response ?? {});
+		assert.ok(documented.includes("500"), `documents ${documented.join(", ")}`);
 	});
 });

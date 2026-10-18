@@ -41,11 +41,21 @@ export async function createPool(config: PoolConfig) {
 	return pool;
 }
 
+/**
+ * The pool listens for a client's errors only while the client is idle. A
+ * connection that drops mid-statement rejects the query and also emits 'error'
+ * on the client, and an 'error' nobody listens to ends the process before the
+ * rejection reaches the batch handler. The rejection carries the same error,
+ * so the event itself can be ignored.
+ */
+function ignoreCheckedOutClientError() {}
+
 export async function runInTransaction<T>(
 	pool: Pool,
 	fn: (client: PoolClient) => Promise<T>
 ) {
 	const client = await pool.connect();
+	client.on("error", ignoreCheckedOutClientError);
 	try {
 		await client.query("BEGIN");
 		const result = await fn(client);
@@ -55,6 +65,7 @@ export async function runInTransaction<T>(
 		await client.query("ROLLBACK");
 		throw error;
 	} finally {
+		client.removeListener("error", ignoreCheckedOutClientError);
 		client.release();
 	}
 }

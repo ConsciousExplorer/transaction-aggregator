@@ -1,57 +1,37 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
-import z from "zod";
-import { notFoundError } from "#src/errors/http-problem.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
-import {
-	collectionMetaSchema,
-	linksSchema,
-	problemSchema
-} from "#src/schemas/common.ts";
+import { problemSchema } from "#src/schemas/common.ts";
+import { buildCategory } from "./categories.mappers.ts";
+import { categoryListResponseSchema } from "./categories.schemas.ts";
 
-const categorySchema = z.object({
-	categoryId: z.number().int(),
-	category: z.string().describe("Category names"),
-	label: z.string()
-});
-
-export default async (
+export default async function registerCategoriesRoute(
 	fastify: FastifyInstance,
-	opts: { categoryRepository: CategoryRepository }
-) => {
+	options: { categoryRepository: CategoryRepository }
+) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
+		method: "GET",
+		url: "",
 		config: {
 			authConfig: {
 				requiredScope: ["tx:read"]
 			}
 		},
-		method: "GET",
-		url: "",
 		schema: {
 			tags: ["categories"],
 			hide: false,
 			response: {
-				200: z.object({
-					data: categorySchema.array(),
-					links: linksSchema,
-					meta: collectionMetaSchema
-				}),
+				200: categoryListResponseSchema,
 				400: problemSchema,
 				500: problemSchema
 			}
 		},
 		handler: async (request, reply) => {
-			const result = await opts.categoryRepository.getCategories();
-
-			if (!result) throw notFoundError();
+			const rows = await options.categoryRepository.getCategories();
 
 			const data = [];
-			for (const item of result) {
-				data.push({
-					categoryId: item.categoryId,
-					category: item.category,
-					label: item.label
-				});
+			for (const row of rows) {
+				data.push(buildCategory(row));
 			}
 
 			return reply.send({
@@ -61,4 +41,4 @@ export default async (
 			});
 		}
 	});
-};
+}

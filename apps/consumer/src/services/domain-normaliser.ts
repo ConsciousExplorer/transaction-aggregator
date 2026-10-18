@@ -13,7 +13,6 @@ import {
 	type transactionStatusSchema,
 	transactionTypeSchema
 } from "#src/schemas/transaction.ts";
-import { assertNever } from "#src/utils/assert-never.ts";
 
 /**
  * The source schemas type these fields as bare `z.string()`/`z.number()`, so
@@ -77,6 +76,8 @@ function mapToCanonical(
 	transaction: DomainTransactionSchema,
 	transactionType: TransactionType
 ) {
+	// No default: every case returns, so a new transaction type without a case
+	// makes this return undefined, and the caller fails to compile.
 	switch (transactionType) {
 		case transactionTypeSchema.enum.card:
 			return normaliseCard(transaction as CardTransaction);
@@ -90,8 +91,6 @@ function mapToCanonical(
 			return normaliseInternalTransfer(
 				transaction as InternalTransferTransaction
 			);
-		default:
-			return assertNever(transactionType);
 	}
 }
 

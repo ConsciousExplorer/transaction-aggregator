@@ -1402,6 +1402,43 @@
               }
             },
             "description": "Default Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "items": {},
+                      "type": "array"
+                    },
+                    "status": {
+                      "type": "number"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "security": [
@@ -1951,18 +1988,11 @@
                             "type": "string"
                           },
                           "creditDebitIndicator": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "enum": [
-                                  "credit",
-                                  "debit"
-                                ],
-                                "type": "string"
-                              }
-                            ]
+                            "enum": [
+                              "credit",
+                              "debit"
+                            ],
+                            "type": "string"
                           },
                           "occurredAt": {
                             "format": "date-time",
@@ -1988,26 +2018,20 @@
                             "type": "string"
                           },
                           "transactionType": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "enum": [
-                                  "card",
-                                  "eft",
-                                  "loan",
-                                  "debit_order",
-                                  "internal_transfer"
-                                ],
-                                "type": "string"
-                              }
-                            ]
+                            "enum": [
+                              "card",
+                              "eft",
+                              "loan",
+                              "debit_order",
+                              "internal_transfer"
+                            ],
+                            "type": "string"
                           }
                         },
                         "required": [
                           "transactionId",
                           "occurredAt",
+                          "transactionType",
                           "creditDebitIndicator",
                           "status",
                           "amount",
@@ -2533,6 +2557,43 @@
             "description": "Default Response"
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "items": {},
+                      "type": "array"
+                    },
+                    "status": {
+                      "type": "number"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "trace_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
