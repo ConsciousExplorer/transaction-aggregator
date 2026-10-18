@@ -1,6 +1,60 @@
 import assert from "node:assert/strict";
-import { suite, test } from "node:test";
-import { buildExplainStatement, inlineParameters } from "./query-logger.ts";
+import { mock, suite, test } from "node:test";
+import { setImmediate } from "node:timers/promises";
+import type { Pool } from "pg";
+import type { Logger } from "pino";
+import {
+	buildExplainStatement,
+	inlineParameters,
+	QueryPlanLogger
+} from "./query-logger.ts";
+
+const QUERY = "select * from t where id = $1";
+const PARAMS = ["a1"];
+
+function buildQueryLogger(options: { sql: boolean; plan: boolean }) {
+	const info = mock.fn();
+	const query = mock.fn(async () => ({
+		rows: [{ "QUERY PLAN": "Seq Scan on t" }]
+	}));
+	const queryLogger = new QueryPlanLogger(
+		{ query } as unknown as Pool,
+		{ info, warn: mock.fn() } as unknown as Logger,
+		options
+	);
+	return { queryLogger, info };
+}
+
+suite("QueryPlanLogger", () => {
+	test("sql fills the values in, ready to paste", () => {
+		const { queryLogger, info } = buildQueryLogger({ sql: true, plan: false });
+
+		queryLogger.logQuery(QUERY, PARAMS);
+
+		assert.deepStrictEqual(info.mock.calls[0]?.arguments, [
+			{ params: PARAMS },
+			"select * from t where id = 'a1';"
+		]);
+	});
+
+	test("plan adds the statement's plan, with or without sql", async () => {
+		const asSent = buildQueryLogger({ sql: false, plan: true });
+		const filledIn = buildQueryLogger({ sql: true, plan: true });
+
+		asSent.queryLogger.logQuery(QUERY, PARAMS);
+		filledIn.queryLogger.logQuery(QUERY, PARAMS);
+		await setImmediate();
+
+		assert.deepStrictEqual(asSent.info.mock.calls[0]?.arguments, [
+			{ params: PARAMS },
+			`${QUERY}\n\nSeq Scan on t`
+		]);
+		assert.deepStrictEqual(filledIn.info.mock.calls[0]?.arguments, [
+			{ params: PARAMS },
+			"select * from t where id = 'a1';\n\nSeq Scan on t"
+		]);
+	});
+});
 
 suite("inlineParameters", () => {
 	test("fills each placeholder with its own value, $10 not read as $1", () => {

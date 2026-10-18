@@ -12,7 +12,9 @@ suite("logging", () => {
 	});
 
 	test("LOG_REDACTED_FIELDS is a comma-separated list of field names", () => {
-		const config = loadConfig({ LOG_REDACTED_FIELDS: " iban, accountNumber,," });
+		const config = loadConfig({
+			LOG_REDACTED_FIELDS: " iban, accountNumber,,"
+		});
 
 		assert.deepStrictEqual(config.logging.redactedFields, [
 			"iban",
@@ -22,18 +24,27 @@ suite("logging", () => {
 
 	test("LOG_REDACT_DEPTH must be a positive whole number", () => {
 		assert.equal(loadConfig({ LOG_REDACT_DEPTH: "5" }).logging.redactDepth, 5);
-		assert.throws(() => loadConfig({ LOG_REDACT_DEPTH: "0" }), /LOG_REDACT_DEPTH/);
+		assert.throws(
+			() => loadConfig({ LOG_REDACT_DEPTH: "0" }),
+			/LOG_REDACT_DEPTH/
+		);
 	});
 });
 
-suite("DATABASE_QUERY_LOG", () => {
-	test("is off unless set", () => {
-		assert.equal(loadConfig({}).database.queryLog, "off");
+suite("query logging", () => {
+	test("logs nothing unless set", () => {
+		assert.deepStrictEqual(loadConfig({}).database.queryLog, {
+			sql: false,
+			plan: false
+		});
 	});
 
-	test("can log plans", () => {
-		const config = loadConfig({ DATABASE_QUERY_LOG: "plan" });
+	test("sql and plan each turn on by themselves", () => {
+		const config = loadConfig({ DATABASE_QUERY_LOG_PLAN: "true" });
 
-		assert.equal(config.database.queryLog, "plan");
+		assert.deepStrictEqual(config.database.queryLog, {
+			sql: false,
+			plan: true
+		});
 	});
 });

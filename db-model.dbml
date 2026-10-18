@@ -1,4 +1,4 @@
-Enum "transaction_type" {
+Enum "txn_agg"."transaction_type" {
   "card"
   "loan"
   "debit_order"
@@ -6,19 +6,19 @@ Enum "transaction_type" {
   "internal_transfer"
 }
 
-Enum "credit_debit_indicator" {
+Enum "txn_agg"."credit_debit_indicator" {
   "credit"
   "debit"
 }
 
-Enum "transaction_status" {
+Enum "txn_agg"."transaction_status" {
   "completed"
   "pending"
   "reversed"
   "failed"
 }
 
-Table "categories" {
+Table "txn_agg"."categories" {
   "category_id" SMALLINT [pk, increment]
   "category" TEXT [unique, not null]
   "label" TEXT [not null]
@@ -26,13 +26,13 @@ Table "categories" {
   "updated_at" timestamptz [not null, default: `now()`]
 }
 
-Table "rule_sets" {
+Table "txn_agg"."rule_sets" {
   "version" int [pk]
   "created_at" timestamptz [not null, default: `now()`]
   "notes" text [not null]
 }
 
-Table "categorization_rules" {
+Table "txn_agg"."categorization_rules" {
   "categorization_rule_id" int [pk, increment]
   "ruleset_version" int [not null]
   "priority" int [not null]
@@ -47,7 +47,7 @@ Table "categorization_rules" {
   }
 }
 
-Table "user_category_overrides" {
+Table "txn_agg"."user_category_overrides" {
   "user_id" uuid [not null]
   "from_category_id" smallint [not null]
   "to_category_id" smallint [not null]
@@ -64,7 +64,7 @@ Table "user_category_overrides" {
   }
 }
 
-Table "user_transaction_overrides" {
+Table "txn_agg"."user_transaction_overrides" {
   "user_id" uuid [not null]
   "transaction_id" uuid [not null]
   "occurred_at" timestamptz [not null]
@@ -78,15 +78,15 @@ Table "user_transaction_overrides" {
   }
 }
 
-Table "transactions" {
+Table "txn_agg"."transactions" {
   "transaction_id" uuid [not null, default: `uuidv7()`]
   "user_id" uuid [not null]
   "account_id" uuid [not null]
-  "transaction_type" transaction_type [not null]
+  "transaction_type" txn_agg.transaction_type [not null]
   "external_id" text [not null]
   "occurred_at" timestamptz [not null]
-  "credit_debit_indicator" credit_debit_indicator [not null]
-  "status" transaction_status [not null]
+  "credit_debit_indicator" txn_agg.credit_debit_indicator [not null]
+  "status" txn_agg.transaction_status [not null]
   "amount_minor" bigint [not null, check: `amount_minor > 0`]
   "currency" char(3) [not null]
   "long_description" text
@@ -104,22 +104,22 @@ Table "transactions" {
   }
 }
 
-Ref:"rule_sets"."version" <? "categorization_rules"."ruleset_version"
+Ref:"txn_agg"."rule_sets"."version" <? "txn_agg"."categorization_rules"."ruleset_version"
 
-Ref:"categories"."category_id" <? "categorization_rules"."category_id"
+Ref:"txn_agg"."categories"."category_id" <? "txn_agg"."categorization_rules"."category_id"
 
-Ref:"categories"."category_id" <? "user_category_overrides"."from_category_id"
+Ref:"txn_agg"."categories"."category_id" <? "txn_agg"."user_category_overrides"."from_category_id"
 
-Ref:"categories"."category_id" <? "user_category_overrides"."to_category_id"
+Ref:"txn_agg"."categories"."category_id" <? "txn_agg"."user_category_overrides"."to_category_id"
 
-Ref:"categories"."category_id" <? "user_transaction_overrides"."category_id"
+Ref:"txn_agg"."categories"."category_id" <? "txn_agg"."user_transaction_overrides"."category_id"
 
-Ref:"categories"."category_id" <? "transactions"."category_id"
+Ref:"txn_agg"."categories"."category_id" <? "txn_agg"."transactions"."category_id"
 
-Ref:"rule_sets"."version" <? "transactions"."rule_version"
+Ref:"txn_agg"."rule_sets"."version" <? "txn_agg"."transactions"."rule_version"
 
-Ref:"categorization_rules".("ruleset_version", "priority") ?<? "transactions".("rule_version", "rule_priority")
+Ref:"txn_agg"."categorization_rules".("ruleset_version", "priority") ?<? "txn_agg"."transactions".("rule_version", "rule_priority")
 // Documentation-only relationship — the database deliberately has NO FK here:
 // an FK to a partitioned parent blocks partition drops. This Ref makes the diagram
 // show the logical join the read path performs.
-Ref: "transactions".("transaction_id", "occurred_at") - "user_transaction_overrides".("transaction_id", "occurred_at")
+Ref: "txn_agg"."transactions".("transaction_id", "occurred_at") - "txn_agg"."user_transaction_overrides".("transaction_id", "occurred_at")

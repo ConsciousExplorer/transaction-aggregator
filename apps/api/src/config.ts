@@ -42,9 +42,10 @@ const configSchema = z
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
-		// sql logs each statement with its values filled in; plan also logs its
-		// plan (EXPLAIN ANALYZE re-runs every read)
-		DATABASE_QUERY_LOG: z.enum(["off", "sql", "plan"]).default("off"),
+		// Either one logs every statement drizzle sends. _SQL fills its values in;
+		// _PLAN adds its plan (EXPLAIN ANALYZE re-runs every read).
+		DATABASE_QUERY_LOG_SQL: z.stringbool().default(false),
+		DATABASE_QUERY_LOG_PLAN: z.stringbool().default(false),
 
 		AUTH_JWKS_URI: z
 			.url()
@@ -83,7 +84,10 @@ const configSchema = z
 				user: e.DATABASE_USER,
 				min: e.DATABASE_POOL_MIN,
 				max: e.DATABASE_POOL_MAX,
-				queryLog: e.DATABASE_QUERY_LOG
+				queryLog: Object.freeze({
+					sql: e.DATABASE_QUERY_LOG_SQL,
+					plan: e.DATABASE_QUERY_LOG_PLAN
+				})
 			}),
 			auth: Object.freeze({
 				jwksUri: e.AUTH_JWKS_URI,

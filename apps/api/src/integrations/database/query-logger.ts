@@ -2,38 +2,45 @@ import type { Logger as DrizzleLogger } from "drizzle-orm";
 import type { Pool } from "pg";
 import type { Logger } from "pino";
 
-export type QueryLogMode = "sql" | "plan";
+export interface QueryLogOptions {
+	sql: boolean;
+	plan: boolean;
+}
 
 // TODO: review this logger
 
 /**
- * Logs every statement drizzle sends, with its values filled in so it can be
- * pasted into psql or DBeaver as it stands. In plan mode the entry also holds
- * the statement's plan: EXPLAIN (ANALYZE, BUFFERS) for a read, which runs the
- * read a second time, and plain EXPLAIN for a write, which does not run it.
+ * Logs every statement drizzle sends, with the values beside it. sql fills the
+ * values in, so the statement can be pasted into psql or DBeaver as it stands;
+ * otherwise it keeps its $n placeholders. plan adds the statement's plan:
+ * EXPLAIN (ANALYZE, BUFFERS) for a read, which runs the read a second time, and
+ * plain EXPLAIN for a write, which does not run it.
  */
 export class QueryPlanLogger implements DrizzleLogger {
 	pool: Pool;
 	logger: Logger;
-	mode: QueryLogMode;
+	options: QueryLogOptions;
 
-	constructor(pool: Pool, logger: Logger, mode: QueryLogMode) {
+	constructor(pool: Pool, logger: Logger, options: QueryLogOptions) {
 		this.pool = pool;
 		this.logger = logger;
-		this.mode = mode;
+		this.options = options;
 	}
 
 	logQuery(query: string, params: unknown[]) {
-		if (this.mode === "plan") {
-			void this.logPlan(query, params);
+		const statement = this.options.sql
+			? `${inlineParameters(query, params)};`
+			: query;
+
+		if (this.options.plan) {
+			void this.logPlan(statement, query, params);
 			return;
 		}
 
-		this.logger.info({ params }, `${inlineParameters(query, params)};`);
+		this.logger.info({ params }, statement);
 	}
 
-	async logPlan(query: string, params: unknown[]) {
-		const statement = `${inlineParameters(query, params)};`;
+	async logPlan(statement: string, query: string, params: unknown[]) {
 		const explainStatement = buildExplainStatement(query);
 
 		if (explainStatement === undefined) {

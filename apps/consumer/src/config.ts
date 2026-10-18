@@ -41,6 +41,8 @@ const configSchema = z
 		// every module creates its logger at import, before config loads, so
 		// logger.ts reads these from the environment itself.
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
+		// Comma-separated field names redacted on top of the card number fields
+		LOG_REDACTED_FIELDS: z.string().default(""),
 		LOG_REDACT_DEPTH: z.coerce.number().int().positive().default(3),
 
 		DATABASE_HOST: z.string().default("localhost"),

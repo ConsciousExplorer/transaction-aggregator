@@ -62,11 +62,11 @@ export async function buildContainer() {
 				pool.end();
 			}),
 
-		// One drizzle instance for every repository. DATABASE_QUERY_LOG logs each
-		// statement it sends, and in plan mode its plan.
+		// One drizzle instance for every repository. DATABASE_QUERY_LOG_SQL or
+		// DATABASE_QUERY_LOG_PLAN logs each statement it sends.
 		db: asFunction(({ config, database, logger }: AppCradle) => {
 			const queryLog = config.database.queryLog;
-			if (queryLog === "off") {
+			if (!queryLog.sql && !queryLog.plan) {
 				return drizzle(database);
 			}
 			const queryLogger = new QueryPlanLogger(

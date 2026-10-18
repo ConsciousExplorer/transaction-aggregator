@@ -13,6 +13,7 @@
 ![Prometheus](https://img.shields.io/badge/Prometheus-metrics-E6522C?logo=prometheus&logoColor=white)
 ![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-tracing-425CC7?logo=opentelemetry&logoColor=white)
 ![node:test](https://img.shields.io/badge/tests-node%3Atest-5FA04E?logo=nodedotjs&logoColor=white)
+![Testcontainers](https://img.shields.io/badge/integration-Testcontainers-291A3F)
 ![Biome](https://img.shields.io/badge/Biome-2.5-60A5FA?logo=biome&logoColor=white)
 ![cspell](https://img.shields.io/badge/spelling-cspell-4B32C3)
 ![madge](https://img.shields.io/badge/cycles-madge-6C757D)
@@ -35,7 +36,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 
 ![Consumer batch flow: kafka.ts buffers and classifies messages; transactionBatchHandler inserts valid ones, dead-letters poison ones and skips tombstones; a retryable error exits without committing; offsets are committed only after a normal return](docs/batch-flow.svg)
 
-`kafka.ts` owns the consume loop, the batching and the commits. Before handing a batch over, it turns it into `ClassifiedMessage[]` (`valid`, `tombstone` or `poison`). The handler and the services never see a Kafka message, so their tests run without Kafka or Postgres.
+`kafka.ts` owns the consume loop, the batching and the commits. Before handing a batch over, it turns it into `ClassifiedMessage[]` (`valid`, `tombstone` or `poison`). The handler and the services never see a Kafka message. Their unit tests need neither Kafka nor Postgres, and the [integration tests](#testing) run them against a real Postgres.
 
 ### What happens to each message
 
@@ -90,12 +91,19 @@ apps/consumer
 ├── biome.json                     lint and format
 ├── cspell.json                    spelling
 ├── drizzle.config.ts              drizzle-kit pull from the live database
-├── sample.env                     example environment
+├── sample.env                     environment for npm start against the make up stack
+├── test.env                       Docker socket for Testcontainers
 ├── docs/
 │   └── batch-flow.svg             the diagram above
 ├── scripts/
 │   ├── generate-avro-types.ts     schemas/*.avsc (repo root) → src/schemas/*.ts
 │   └── cleanup-drizzle-pull.ts    tidies drizzle-kit pull output
+├── test/
+│   └── integration/
+│       ├── transaction-insert.test.ts     the batch insert, column by column
+│       ├── batch-ingestion.test.ts        a rejected row dead-lettered alone
+│       ├── database-outage.test.ts        an outage is retryable, never dead-lettered
+│       └── helpers/                       test database, message and row builders, recording DLQ
 └── src/
     ├── app.ts                     startup checks, wiring, consume loop, shutdown
     ├── runtime.ts                 config, secrets and package info, loaded once
@@ -131,7 +139,7 @@ apps/consumer
         └── secrets.ts                     reads each secret from a file in SECRET_DIR
 ```
 
-Each `*.test.ts` sits next to the file it tests; the tree leaves them out.
+Each unit test (`src/**/*.test.ts`) sits next to the file it tests; the tree leaves them out.
 
 ## Observability
 
@@ -196,10 +204,10 @@ make up     # Kafka, Schema Registry, Postgres, producers and consumers
 make logs
 ```
 
-To run one consumer outside Docker:
+To run one consumer from the host against that stack:
 
 ```sh
-cp sample.env .env    # then edit; secrets go in ./secrets
+cp sample.env .env    # already points at the make up stack; secrets go in ./secrets
 npm install
 npm start
 ```
@@ -210,12 +218,34 @@ Node 24 strips the TypeScript types itself, so nothing is built and the Docker i
 | --- | --- |
 | `npm start` | Runs the consumer with `.env`, pretty-printing the logs |
 | `npm run test:unit` | Unit tests (`node:test`) |
+| `npm run test:integration` | Integration tests against Postgres in a container (needs Docker) |
 | `npm run fms` | Biome lint and format, spelling, import-cycle check (madge), type check |
 | `npm run check` | Import-cycle check, then `tsc` |
 | `npm run schema:generate` | Regenerates `src/schemas/*.ts` from the repo's Avro schemas |
 | `npm run drizzle:pull-schema` | Regenerates the Drizzle tables from the live database |
 | `npm run lib:audit` | Dependency audit (`audit-ci`) |
 | `npm run lib:update` | Interactive dependency upgrades |
+
+## Testing
+
+**Unit tests** (`npm run test:unit`) sit next to the code they test. Postgres and the dead-letter sender are replaced by fakes, so nothing needs to be running.
+
+**Integration tests** (`npm run test:integration`) run the consumer's write path against a real PostgreSQL 18, started by Testcontainers. Each test file gets a fresh database, built the way compose builds it:
+- the repo's Postgres image (`infrastructure/postgres`), started with compose's `postgres` command
+- the `initdb` scripts, which create the logins
+- every migration in `database/migrations`, applied as `admin`
+
+The code under test connects as `kafka_consumer`, the consumer's own login, so a missing grant fails the test just as it would in production. The tests read results back as `admin`. Kafka isn't started: the dead-letter sender is replaced by one that records what it's given.
+
+| Test file | What it checks |
+| --- | --- |
+| `transaction-insert.test.ts` | Every field lands in its own column, including a bigint past the 32-bit range, escaped JSON and nulls. A re-sent batch inserts only the new rows and reports how many it inserted. A transaction older than every monthly partition is stored in the default partition. |
+| `batch-ingestion.test.ts` | A row Postgres rejects (the `amount_minor > 0` check) is dead-lettered alone with its original bytes, and the rest of the batch is stored. |
+| `database-outage.test.ts` | If the database dies during an insert, or is already down when a batch arrives, the flush fails with `RetryableError` and nothing is dead-lettered. |
+
+The integration tests need Docker. The first run builds the Postgres image, which takes a while; after that, Docker's build cache makes a run take a few seconds. The API's integration tests build the same image under the same name, so either suite fills the cache. The tests use the dev secrets in the repo's root `secrets/` folder.
+
+`test.env` points Testcontainers at Rancher Desktop's Docker socket. With any other Docker setup, edit or empty it, but keep the file: `node --env-file` fails if it's missing.
 
 ## Rules
 
@@ -231,6 +261,6 @@ Node 24 strips the TypeScript types itself, so nothing is built and the Docker i
 10. Keep retries easy to manage.
 11. Make writes idempotent.
 12. Handle errors efficiently and document them.
-13. Keep tests next to the code they test.
+13. Keep unit tests next to the code they test.
 14. Validate data at every boundary.
 15. Never create infrastructure: no topics, no tables.
