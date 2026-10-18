@@ -37,11 +37,10 @@ const configSchema = z
 		PORT: z.coerce.number().int().positive().default(6000),
 		SECRET_DIR: z.string().default("/secrets"),
 
+		// Validated here so a bad value fails startup, but not read from config:
+		// every module creates its logger at import, before config loads, so
+		// logger.ts reads these from the environment itself.
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
-		LOG_REDACTED_FIELDS: z
-			.string()
-			.default("")
-			.transform((value) => separateByDelimiter(value, ",")),
 		LOG_REDACT_DEPTH: z.coerce.number().int().positive().default(3),
 
 		DATABASE_HOST: z.string().default("localhost"),
@@ -140,11 +139,6 @@ const configSchema = z
 				name: e.APP_NAME,
 				host: e.HOST,
 				port: e.PORT
-			}),
-			logging: Object.freeze({
-				level: e.LOG_LEVEL,
-				redactedFields: e.LOG_REDACTED_FIELDS,
-				redactDepth: e.LOG_REDACT_DEPTH
 			}),
 			database: Object.freeze({
 				host: e.DATABASE_HOST,

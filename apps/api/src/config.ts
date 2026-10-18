@@ -8,6 +8,17 @@ const appInfoSchema = z.object({
 	author: z.string()
 });
 
+function separateByDelimiter(value: string, delimiter: string) {
+	const entries: string[] = [];
+	for (const entry of value.split(delimiter)) {
+		const trimmed = entry.trim();
+		if (trimmed !== "") {
+			entries.push(trimmed);
+		}
+	}
+	return entries;
+}
+
 const configSchema = z
 	.object({
 		HOST: z.string().default("0.0.0.0"),
@@ -17,6 +28,12 @@ const configSchema = z
 		ENABLE_SWAGGER: z.stringbool().default(false),
 
 		LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
+		// Comma-separated field names redacted on top of the card number fields
+		LOG_REDACTED_FIELDS: z
+			.string()
+			.default("")
+			.transform((value) => separateByDelimiter(value, ",")),
+		LOG_REDACT_DEPTH: z.coerce.number().int().positive().default(3),
 
 		DATABASE_HOST: z.string().default("localhost"),
 		DATABASE_PORT: z.coerce.number().int().positive().default(5432),
@@ -55,7 +72,9 @@ const configSchema = z
 				enableSwagger: e.ENABLE_SWAGGER
 			}),
 			logging: Object.freeze({
-				level: e.LOG_LEVEL
+				level: e.LOG_LEVEL,
+				redactedFields: e.LOG_REDACTED_FIELDS,
+				redactDepth: e.LOG_REDACT_DEPTH
 			}),
 			database: Object.freeze({
 				host: e.DATABASE_HOST,

@@ -30,17 +30,18 @@ const BASE_SENSITIVE_FIELDS = [
  * Logger signature
  */
 export const loggerOptionsSchema = z.object({
-	level: z.enum(LOG_LEVELS).default("warn"),
+	level: z.enum(LOG_LEVELS).default("info"),
 	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
 	redactedFields: z.array(z.string()).default([]),
-	/**
-	 * How deep into a json record should look to redact values
-	 */
+	/** How deep into a json record should look to redact values. */
 	redactDepth: z.number().int().positive().default(3)
 });
 
 export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
 
+/**
+ * Factory for a pino logger with sensible defaults and redaction of sensitive fields.
+ */
 function createLogger(options: LoggerOptions = {}) {
 	const { level, redactedFields, redactDepth } =
 		loggerOptionsSchema.parse(options);
@@ -75,6 +76,7 @@ for (const field of (process.env.LOG_REDACTED_FIELDS ?? "").split(",")) {
 	}
 }
 
+/** Base logger, used for all logging in this service. */
 const baseLogger = createLogger({
 	level,
 	redactedFields,

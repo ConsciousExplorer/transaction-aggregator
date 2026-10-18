@@ -106,30 +106,15 @@ suite("loadConfig", () => {
 		});
 	});
 
-	test("redaction settings fall back to defaults when unset", () => {
-		const config = loadConfig(sampleEnv);
-		assert.deepStrictEqual(config.logging.redactedFields, []);
-		assert.strictEqual(config.logging.redactDepth, 3);
-	});
-
-	test("LOG_REDACTED_FIELDS splits on commas and drops blanks", () => {
-		const config = loadConfig({
-			...sampleEnv,
-			LOG_REDACTED_FIELDS: " cardNumber, iban ,, ssn "
-		});
-		assert.deepStrictEqual(config.logging.redactedFields, [
-			"cardNumber",
-			"iban",
-			"ssn"
-		]);
-	});
-
 	test("LOG_REDACT_DEPTH must be a positive integer", () => {
-		assert.strictEqual(
-			loadConfig({ ...sampleEnv, LOG_REDACT_DEPTH: "5" }).logging.redactDepth,
-			5
+		assert.doesNotThrow(() =>
+			loadConfig({ ...sampleEnv, LOG_REDACT_DEPTH: "5" })
 		);
 		assert.throws(() => loadConfig({ ...sampleEnv, LOG_REDACT_DEPTH: "0" }));
+	});
+
+	test("rejects an unknown LOG_LEVEL", () => {
+		assert.throws(() => loadConfig({ ...sampleEnv, LOG_LEVEL: "verbose" }));
 	});
 
 	test("reads each secret from the file named by its env var", () => {

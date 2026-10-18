@@ -2,7 +2,7 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { problemSchema } from "#src/schemas/common.ts";
-import { buildCategory } from "./categories.mappers.ts";
+import { buildCategoryResponse } from "./categories.mappers.ts";
 import { categoryListResponseSchema } from "./categories.schemas.ts";
 
 export default async function registerCategoriesRoute(
@@ -31,11 +31,11 @@ export default async function registerCategoriesRoute(
 
 			const data = [];
 			for (const row of rows) {
-				data.push(buildCategory(row));
+				data.push(buildCategoryResponse(row));
 			}
 
 			return reply.send({
-				data,
+				data: data,
 				links: { self: request.url },
 				meta: { count: data.length }
 			});

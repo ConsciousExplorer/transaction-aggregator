@@ -7,7 +7,7 @@ export class HttpProblem extends Error {
 		status: number;
 		detail?: string;
 		errors?: unknown[];
-		traceId?: string;
+		trace_id?: string;
 	};
 	constructor(payload: HttpProblem["payload"]) {
 		super(payload.title);
@@ -70,7 +70,7 @@ export function internalError(traceId: string) {
 		type: "internal",
 		title: "Internal server error",
 		status: 500,
-		traceId: traceId
+		trace_id: traceId
 	});
 }
 

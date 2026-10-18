@@ -4,7 +4,7 @@ type CategoryRow = Awaited<
 	ReturnType<CategoryRepository["getCategories"]>
 >[number];
 
-export function buildCategory(row: CategoryRow) {
+export function buildCategoryResponse(row: CategoryRow) {
 	return {
 		categoryId: row.categoryId,
 		category: row.category,

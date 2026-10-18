@@ -219,20 +219,18 @@ Node 24 strips the TypeScript types itself, so nothing is built and the Docker i
 
 ## Rules
 
-1. There should be no circular dependencies
-2. The application should fail fast on startup if config is not aligned
-3. There should always be one config object and it should not be mutable
-4. Dependencies should be passed. Never created in the modules
-5. Database connections should be managed by a singular Pool. We only have a write instance.
-6. Business and application logic should be separated.
-7. There should be metrics and structured logging
-8. Graceful shutdown is required, flush consumers and database connections
-9. Timeouts should be set
-10. Retries should be easily managed
-11. Sinks should be idempotent
-12. There should be efficient and well documented error handling
-13. Singleton instances should be passed and used
-14. Tests should be next to the respective file
-15. Data boundaries should be validated.
-16. Clear architectural layers should exist between services and logic.
-17. App should not create external dependencies and infrastructure. Don't create kafka topics or database tables
+1. No circular dependencies.
+2. Fail fast on invalid config.
+3. One config object, frozen.
+4. Create shared instances once and pass them in; modules never create their own.
+5. One database pool, for the write instance.
+6. Keep business logic in its own layer, apart from the wiring.
+7. Emit metrics and structured logs.
+8. Shut down gracefully: close the Kafka clients and the pool.
+9. Put a timeout on every external call.
+10. Keep retries easy to manage.
+11. Make writes idempotent.
+12. Handle errors efficiently and document them.
+13. Keep tests next to the code they test.
+14. Validate data at every boundary.
+15. Never create infrastructure: no topics, no tables.

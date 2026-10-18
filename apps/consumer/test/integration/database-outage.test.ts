@@ -63,14 +63,14 @@ suite("a database outage", () => {
 	before(
 		async () => {
 			database = await startTestDatabase();
-			const ruleset = await loadRuleset(createDatabase(database.consumerPool));
+			// Read as admin, so the consumer's pool opens its first connection
+			// inside the first test. node:test reports an error from a connection
+			// against whichever test or hook opened it.
+			const ruleset = await loadRuleset(createDatabase(database.adminPool));
 			handleTransactionBatch = createTransactionBatchHandler(
 				createTransactionIngester("card", ruleset, database.consumerPool),
 				createRecordingDeadLetterSender(deadLetters)
 			);
-			// One flush first, so the pool holds an open connection when the
-			// database goes away, as a running consumer's does
-			await handleTransactionBatch([buildAnyValidMessage()]);
 		},
 		{ timeout: 180_000 }
 	);
