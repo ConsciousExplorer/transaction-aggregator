@@ -5,5 +5,6 @@ import { foreignOriginError } from "./problems.ts";
 // write as well means a write only ever comes from the portal's own pages
 export function rejectForeignOrigin(request: Request, config: BffConfig) {
 	const origin = request.headers.get("origin");
-	if (origin !== new URL(config.publicBaseUrl).origin) throw foreignOriginError();
+	if (origin !== new URL(config.publicBaseUrl).origin)
+		throw foreignOriginError();
 }

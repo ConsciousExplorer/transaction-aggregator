@@ -7,6 +7,12 @@ import { saveLoginAttempt } from "@/bff/session.ts";
 export async function GET() {
 	const config = loadConfig();
 	const attempt = createLoginAttempt();
-	await saveLoginAttempt(config, { state: attempt.state, codeVerifier: attempt.codeVerifier });
-	return NextResponse.redirect(buildAuthorizeUrl(config, attempt.state, attempt.codeChallenge), 302);
+	await saveLoginAttempt(config, {
+		state: attempt.state,
+		codeVerifier: attempt.codeVerifier
+	});
+	return NextResponse.redirect(
+		buildAuthorizeUrl(config, attempt.state, attempt.codeChallenge),
+		302
+	);
 }

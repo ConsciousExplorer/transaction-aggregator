@@ -1,11 +1,21 @@
-import { getIronSession, type SessionOptions, sealData, type UnsealErrorReason, unsealData } from "iron-session";
+import {
+	getIronSession,
+	type SessionOptions,
+	sealData,
+	type UnsealErrorReason,
+	unsealData
+} from "iron-session";
 import { cookies } from "next/headers";
 import type { BffConfig } from "./config.ts";
 import { notSignedInError } from "./problems.ts";
 
 // The session is a sealed cookie (encrypted and signed), with no server-side store: the BFF stays
 // stateless. The browser can't read it (httpOnly), and it holds no token the API would accept.
-export type PortalSession = { customerId: string; displayName: string; idToken: string };
+export type PortalSession = {
+	customerId: string;
+	displayName: string;
+	idToken: string;
+};
 
 type LoginAttempt = { state: string; codeVerifier: string };
 
@@ -21,7 +31,8 @@ function isHttps(config: BffConfig) {
 
 // An expired cookie is how sessions end; anything else may be tampering, so it gets a log line
 function logUnsealError(reason: UnsealErrorReason) {
-	if (reason !== "expired") console.warn(JSON.stringify({ event: "session-cookie-rejected", reason }));
+	if (reason !== "expired")
+		console.warn(JSON.stringify({ event: "session-cookie-rejected", reason }));
 }
 
 function buildSessionOptions(config: BffConfig): SessionOptions {
@@ -29,19 +40,30 @@ function buildSessionOptions(config: BffConfig): SessionOptions {
 		cookieName: SESSION_COOKIE,
 		password: config.sessionSecret,
 		ttl: SESSION_SECONDS,
-		cookieOptions: { httpOnly: true, sameSite: "lax", secure: isHttps(config), path: "/" },
+		cookieOptions: {
+			httpOnly: true,
+			sameSite: "lax",
+			secure: isHttps(config),
+			path: "/"
+		},
 		onUnsealError: logUnsealError
 	};
 }
 
 export async function openSession(config: BffConfig) {
-	return getIronSession<PortalSession>(await cookies(), buildSessionOptions(config));
+	return getIronSession<PortalSession>(
+		await cookies(),
+		buildSessionOptions(config)
+	);
 }
 
 export async function readCustomer(config: BffConfig) {
 	const session = await openSession(config);
 	if (!session.customerId) return undefined;
-	return { customerId: session.customerId, displayName: session.displayName ?? "Customer" };
+	return {
+		customerId: session.customerId,
+		displayName: session.displayName ?? "Customer"
+	};
 }
 
 export async function requireCustomer(config: BffConfig) {
@@ -52,8 +74,14 @@ export async function requireCustomer(config: BffConfig) {
 
 // The login attempt lives in its own short cookie, scoped to /bff/auth, from the redirect to
 // Keycloak until the callback. SameSite=Lax still sends it on Keycloak's top-level redirect back.
-export async function saveLoginAttempt(config: BffConfig, attempt: LoginAttempt) {
-	const seal = await sealData(attempt, { password: config.sessionSecret, ttl: LOGIN_SECONDS });
+export async function saveLoginAttempt(
+	config: BffConfig,
+	attempt: LoginAttempt
+) {
+	const seal = await sealData(attempt, {
+		password: config.sessionSecret,
+		ttl: LOGIN_SECONDS
+	});
 	const cookieStore = await cookies();
 	cookieStore.set(LOGIN_COOKIE, seal, {
 		httpOnly: true,

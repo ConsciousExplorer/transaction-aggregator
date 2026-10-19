@@ -6,7 +6,10 @@ import { openSession, takeLoginAttempt } from "@/bff/session.ts";
 // Redirects are built from the public base URL, never from request.url: inside Docker the
 // request's host is the container's (0.0.0.0:8084), not what the browser sees
 function redirectToSignIn(config: BffConfig, error: string) {
-	return NextResponse.redirect(new URL(`/?error=${error}`, config.publicBaseUrl), 302);
+	return NextResponse.redirect(
+		new URL(`/?error=${error}`, config.publicBaseUrl),
+		302
+	);
 }
 
 export async function GET(request: Request) {
@@ -27,17 +30,26 @@ export async function GET(request: Request) {
 		// A realm user with no customer behind them (kafka-admin, say) gets no session, and is
 		// signed out of Keycloak so the next sign-in can pick another account
 		if (claims.customer_id === undefined) {
-			return NextResponse.redirect(buildLogoutUrl(config, idToken, "/?error=not-a-customer"), 302);
+			return NextResponse.redirect(
+				buildLogoutUrl(config, idToken, "/?error=not-a-customer"),
+				302
+			);
 		}
 
 		const session = await openSession(config);
 		session.customerId = claims.customer_id;
-		session.displayName = claims.name ?? claims.preferred_username ?? "Customer";
+		session.displayName =
+			claims.name ?? claims.preferred_username ?? "Customer";
 		session.idToken = idToken;
 		await session.save();
-		return NextResponse.redirect(new URL("/overview", config.publicBaseUrl), 302);
+		return NextResponse.redirect(
+			new URL("/overview", config.publicBaseUrl),
+			302
+		);
 	} catch (error) {
-		console.error(JSON.stringify({ event: "login-failed", error: String(error) }));
+		console.error(
+			JSON.stringify({ event: "login-failed", error: String(error) })
+		);
 		return redirectToSignIn(config, "login-failed");
 	}
 }

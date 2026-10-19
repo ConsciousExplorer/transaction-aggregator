@@ -11,10 +11,12 @@ export function createServiceTokenProvider<Config>(
 ) {
 	const cached = { accessToken: "", expiresAt: 0 };
 	return async function getServiceToken(config: Config) {
-		if (cached.accessToken !== "" && now() < cached.expiresAt) return cached.accessToken;
+		if (cached.accessToken !== "" && now() < cached.expiresAt)
+			return cached.accessToken;
 		const token = await fetchToken(config);
 		cached.accessToken = token.accessToken;
-		cached.expiresAt = now() + (token.expiresInSeconds - EXPIRY_MARGIN_SECONDS) * 1000;
+		cached.expiresAt =
+			now() + (token.expiresInSeconds - EXPIRY_MARGIN_SECONDS) * 1000;
 		return token.accessToken;
 	};
 }

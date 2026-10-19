@@ -1,6 +1,6 @@
 import { buildCustomerPath, callApi } from "@/bff/api-client.ts";
 import { loadConfig } from "@/bff/config.ts";
-import { problemResponse } from "@/bff/problems.ts";
+import { respondWithProblem } from "@/bff/problems.ts";
 import { requireCustomer } from "@/bff/session.ts";
 import type { ApiCategoryList } from "@/lib/types.ts";
 
@@ -15,6 +15,6 @@ export async function GET() {
 		})) as ApiCategoryList;
 		return Response.json({ categories: list.data });
 	} catch (error) {
-		return problemResponse(error);
+		return respondWithProblem(error);
 	}
 }

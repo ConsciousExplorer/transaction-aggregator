@@ -22,6 +22,8 @@
 ![confluent-kafka](https://img.shields.io/badge/confluent--kafka-2.15-231F20?logo=apachekafka&logoColor=white)
 ![avro-datagen](https://img.shields.io/badge/avro--datagen-0.6-3775A9?logo=pypi&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-2-E92063?logo=pydantic&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 
 <!-- Observability -->
 ![Prometheus](https://img.shields.io/badge/Prometheus-3.1-E6522C?logo=prometheus&logoColor=white)
@@ -40,12 +42,12 @@
 
 Transactions from five banking source systems (card, EFT, loan, debit order and internal transfer) arrive on Kafka as Avro records. One consumer per source categorises each transaction and stores it in PostgreSQL. A REST API, secured with Keycloak, serves each user's transactions, categories and spending summary, and lets them re-categorise a transaction or a whole category.
 
-Synthetic data generators stand in for the source systems, so the whole system runs locally on Docker Compose.
+Synthetic data generators stand in for the source systems, so the whole system runs locally on Docker Compose. A small demo banking portal shows the API at work.
 
 ## How it fits together
 
 <p align="center">
-  <img src="docs/pipeline.svg" width="100%" alt="Write path: five Python producers publish Avro records to Kafka; five Node consumers categorise them and insert them into PostgreSQL, sending records they can't store to dead-letter topics; both look their schemas up in Schema Registry. Read path: a client gets a token from Keycloak and calls the API, which verifies it against Keycloak's JWKS and queries PostgreSQL.">
+  <img src="docs/pipeline.svg" width="100%" alt="Write path: five Python producers publish Avro records to Kafka; five Node consumers categorise them and insert them into PostgreSQL, sending records they can't store to dead-letter topics; both look their schemas up in Schema Registry. Read path: a client, such as the demo portal, gets a token from Keycloak and calls the API, which verifies it against Keycloak's JWKS and queries PostgreSQL.">
 </p>
 
 ## Components
@@ -58,9 +60,10 @@ Synthetic data generators stand in for the source systems, so the whole system r
 | Consumers | [apps/consumer](apps/consumer) | Node and TypeScript. One image runs as five containers, one per topic. Each batches records, normalises and categorises them, inserts the batch in one statement, and dead-letters records it can't store. See its [README](apps/consumer/README.md). |
 | PostgreSQL | [database](database), [infrastructure/postgres](infrastructure/postgres) | Postgres 18 with pg_partman and pg_cron. The `migrate` one-shot applies the drizzle-kit migrations: the `txn_agg` schema with monthly partitions, the category and rule seed, the maintenance jobs and the Grafana views. |
 | API | [apps/api](apps/api) | Node and TypeScript on Fastify. Lists a user's transactions, categories and spending summary, and stores their category overrides. Every `/api/v1` route needs a Keycloak bearer token. |
-| Keycloak | [infrastructure/keycloak](infrastructure/keycloak) | Identity provider. The `txn-api` realm issues client-credentials tokens for the API and signs people in to kafbat-ui. |
+| Portal (demo) | [apps/portal](apps/portal) | A demo banking portal in Next.js, built to showcase the backend. A customer signs in through Keycloak; its server side is a BFF that calls the API as `banking-portal`, so the browser never holds a token the API accepts. Shows categories, spending by category and month, a cursor-paged transaction list, and re-categorising. See its [README](apps/portal/README.md). |
+| Keycloak | [infrastructure/keycloak](infrastructure/keycloak) | Identity provider. The `txn-api` realm issues client-credentials tokens for the API and signs people in to kafbat-ui and the portal. |
 | Observability | [infrastructure/observability](infrastructure/observability) | The `obs` profile (`make up-all`). Prometheus scrapes the API, the consumers and postgres-exporter; Grafana has four dashboards; the OpenTelemetry collector sends traces to Tempo. |
-| Dev UIs | [infrastructure/kafbat](infrastructure/kafbat), [infrastructure/avro-datagen-ui](infrastructure/avro-datagen-ui) | The `ui` profile, on by default. kafbat-ui browses topics and messages; avro-datagen-ui previews sample records for a schema. |
+| Dev UIs | [infrastructure/kafbat](infrastructure/kafbat), [infrastructure/avro-datagen-ui](infrastructure/avro-datagen-ui) | The `ui` profile, on by default, with the portal. kafbat-ui browses topics and messages; avro-datagen-ui previews sample records for a schema. |
 | API client | [api-client](api-client) | A Bruno collection: token requests, every API route and Schema Registry lookups. |
 
 ## Service targets
@@ -94,7 +97,7 @@ make up
 
 1. Kafka and Postgres start. `kafka-init` creates the Kafka users, ACLs and topics, and `migrate` builds the database.
 2. Schema Registry starts, and `schemas-register` registers the Avro schemas.
-3. Keycloak, the API and the five consumers start.
+3. Keycloak, the API and the five consumers start, then the portal once the API is ready.
 4. Once the topics and schemas exist, the five producers send 130,000 transactions and exit. The seed is fixed, so it's the same data on every run. The consumers work through them.
 
 `make ps` shows where it's up to: the producers end as `exited (0)` and the consumers keep running.
@@ -103,6 +106,7 @@ make up
 
 | What | Where | Login |
 | --- | --- | --- |
+| Portal (demo) | http://localhost:8084 | `thandi`, `sipho` or `lerato` / `portal-password` |
 | API docs (Swagger) | http://localhost:8083/docs | Open; use **Authorize** with a token from below |
 | kafbat-ui | http://localhost:8080 | `kafka-admin` / `kafka-password` (through Keycloak) |
 | avro-datagen-ui | http://localhost:8501 | None |

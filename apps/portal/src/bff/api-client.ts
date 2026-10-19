@@ -19,14 +19,35 @@ async function sendToApi(url: URL, init: RequestInit, traceId: string) {
 	try {
 		return await fetch(url, init);
 	} catch (error) {
-		console.error(JSON.stringify({ event: "api-unreachable", url: url.toString(), traceId, error: String(error) }));
+		console.error(
+			JSON.stringify({
+				event: "api-unreachable",
+				url: url.toString(),
+				traceId,
+				error: String(error)
+			})
+		);
 		throw apiUnavailableError(traceId);
 	}
 }
 
-function logApiCall(request: ApiRequest, status: number, traceId: string, startedAt: number) {
-	const durationMs = Math.round(performance.now() - startedAt);
-	console.info(JSON.stringify({ event: "api-call", method: request.method, path: request.path, status, traceId, durationMs }));
+function logApiCall(
+	request: ApiRequest,
+	status: number,
+	traceId: string,
+	startedAt: number
+) {
+	const durationMilliseconds = Math.round(performance.now() - startedAt);
+	console.info(
+		JSON.stringify({
+			event: "api-call",
+			method: request.method,
+			path: request.path,
+			status,
+			traceId,
+			durationMilliseconds
+		})
+	);
 }
 
 // Every API call goes through here. It adds the three headers the API expects from a caller:
@@ -37,8 +58,13 @@ export async function callApi(config: BffConfig, request: ApiRequest) {
 	if (request.query !== undefined) url.search = request.query.toString();
 	const accessToken = await getServiceToken(config);
 	const { traceparent, traceId } = buildTraceparent();
-	const headers = new Headers({ authorization: `Bearer ${accessToken}`, accept: "application/json", traceparent });
-	if (request.body !== undefined) headers.set("content-type", "application/json");
+	const headers = new Headers({
+		authorization: `Bearer ${accessToken}`,
+		accept: "application/json",
+		traceparent
+	});
+	if (request.body !== undefined)
+		headers.set("content-type", "application/json");
 
 	const startedAt = performance.now();
 	const response = await sendToApi(
@@ -46,7 +72,8 @@ export async function callApi(config: BffConfig, request: ApiRequest) {
 		{
 			method: request.method,
 			headers,
-			body: request.body === undefined ? undefined : JSON.stringify(request.body),
+			body:
+				request.body === undefined ? undefined : JSON.stringify(request.body),
 			cache: "no-store"
 		},
 		traceId

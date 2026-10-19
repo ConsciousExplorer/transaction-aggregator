@@ -4,7 +4,7 @@
 # `make down`, `make clean`); paths below are relative to this infrastructure/
 # folder. Core services have NO profile: `make up` brings the whole system up.
 #
-# Optional profiles: ui (kafbat-ui, avro-datagen-ui — on by default in
+# Optional profiles: ui (kafbat-ui, avro-datagen-ui, portal — on by default in
 # `make up`, `make up UI=` leaves them out), obs, cache. The Makefile passes
 # them as --profile flags; compose does not read the repo-root .env from here.
 #
@@ -28,7 +28,8 @@
 #                                                replicas on k8s/ECS. Prometheus scrapes in-network
 #   kafbat-ui         ui       8080   8080
 #   avro-datagen-ui   ui       8501   8501       Streamlit default
-#   grafana           obs      3000   3000
+#   portal            ui       8084   8084       demo banking portal + BFF (Next.js)
+#   grafana          obs      3000   3000
 #   prometheus        obs      9090   9090
 #   tempo             obs      -      3200       HTTP query API (Grafana); OTLP gRPC in on 4317
 #   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
@@ -885,6 +886,36 @@ services:
       - "8501:8501"
     volumes:
       - ../schemas/:/schemas:ro
+    networks: [txn-network]
+
+  # Demo banking portal (apps/portal): a Next.js app whose server side is a BFF. A customer
+  # signs in through Keycloak; the BFF calls the API as banking-portal, so the browser never
+  # holds a token the API accepts. Starts with `make up` (ui profile)  →  http://localhost:8084
+  portal:
+    profiles: ["ui"]
+    build: { context: ../apps/portal }
+    pull_policy: build
+    container_name: portal
+    depends_on:
+      api: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    ports:
+      - "8084:8084"
+    environment:
+      # Where the browser reaches the portal; redirects and the Origin check use it
+      PUBLIC_BASE_URL: http://localhost:8084
+      API_BASE_URL: http://api:8083
+      # The browser is sent to Keycloak's public address, which is also the token issuer
+      # (KC_HOSTNAME); the BFF's own calls go over the compose network, as the API's do
+      KEYCLOAK_PUBLIC_URL: http://localhost:8086
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KEYCLOAK_REALM: txn-api
+      # Dev-only values, like kafbat's oauth2.yml; a secret store in real use
+      PORTAL_CLIENT_ID: banking-portal-web
+      PORTAL_CLIENT_SECRET: banking-portal-web-secret
+      SERVICE_CLIENT_ID: banking-portal
+      SERVICE_CLIENT_SECRET: banking-portal-secret
+      SESSION_SECRET: portal-dev-session-secret-change-me-0123456789
     networks: [txn-network]
 
   # Core, not ui: the API verifies every bearer token against this realm's JWKS.

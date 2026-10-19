@@ -1,5 +1,5 @@
 import { loadConfig } from "@/bff/config.ts";
-import { problemResponse } from "@/bff/problems.ts";
+import { respondWithProblem } from "@/bff/problems.ts";
 import { requireCustomer } from "@/bff/session.ts";
 
 export async function GET() {
@@ -8,6 +8,6 @@ export async function GET() {
 		const customer = await requireCustomer(config);
 		return Response.json(customer);
 	} catch (error) {
-		return problemResponse(error);
+		return respondWithProblem(error);
 	}
 }

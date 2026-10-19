@@ -1,7 +1,7 @@
 import { buildCustomerPath, callApi } from "@/bff/api-client.ts";
 import { loadConfig } from "@/bff/config.ts";
 import { readCursor } from "@/bff/paging.ts";
-import { problemResponse } from "@/bff/problems.ts";
+import { respondWithProblem } from "@/bff/problems.ts";
 import { buildApiQuery } from "@/bff/query.ts";
 import { requireCustomer } from "@/bff/session.ts";
 import type { ApiTransactionPage, TransactionPage } from "@/lib/types.ts";
@@ -23,7 +23,10 @@ export async function GET(request: Request) {
 	try {
 		const config = loadConfig();
 		const customer = await requireCustomer(config);
-		const query = buildApiQuery(new URL(request.url).searchParams, LIST_PARAMETERS);
+		const query = buildApiQuery(
+			new URL(request.url).searchParams,
+			LIST_PARAMETERS
+		);
 		const page = (await callApi(config, {
 			method: "GET",
 			path: buildCustomerPath(customer.customerId, "/transactions"),
@@ -37,6 +40,6 @@ export async function GET(request: Request) {
 		};
 		return Response.json(body);
 	} catch (error) {
-		return problemResponse(error);
+		return respondWithProblem(error);
 	}
 }

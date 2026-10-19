@@ -18,15 +18,28 @@ export class BffProblem extends Error {
 }
 
 export function notSignedInError() {
-	return new BffProblem({ type: "not-signed-in", title: "Sign in to continue", status: 401 });
+	return new BffProblem({
+		type: "not-signed-in",
+		title: "Sign in to continue",
+		status: 401
+	});
 }
 
 export function foreignOriginError() {
-	return new BffProblem({ type: "foreign-origin", title: "Request from another site refused", status: 403 });
+	return new BffProblem({
+		type: "foreign-origin",
+		title: "Request from another site refused",
+		status: 403
+	});
 }
 
 export function invalidRequestError(detail: string) {
-	return new BffProblem({ type: "invalid-request", title: "The request is not valid", status: 400, detail });
+	return new BffProblem({
+		type: "invalid-request",
+		title: "The request is not valid",
+		status: 400,
+		detail
+	});
 }
 
 export function apiUnavailableError(traceId: string) {
@@ -58,7 +71,12 @@ export function upstreamError(status: number, body: unknown, traceId: string) {
 	}
 	const problem = apiProblemSchema.safeParse(body);
 	if (!problem.success) {
-		return new BffProblem({ type: "api-error", title: "The API request failed", status, trace_id: traceId });
+		return new BffProblem({
+			type: "api-error",
+			title: "The API request failed",
+			status,
+			trace_id: traceId
+		});
 	}
 	return new BffProblem({
 		type: problem.data.type,
@@ -76,8 +94,18 @@ function buildProblemResponse(payload: ProblemPayload) {
 	});
 }
 
-export function problemResponse(error: unknown) {
+export function respondWithProblem(error: unknown) {
 	if (error instanceof BffProblem) return buildProblemResponse(error.payload);
-	console.error(JSON.stringify({ event: "bff-error", error: String(error), stack: (error as Error)?.stack }));
-	return buildProblemResponse({ type: "internal-error", title: "Something went wrong in the portal", status: 500 });
+	console.error(
+		JSON.stringify({
+			event: "bff-error",
+			error: String(error),
+			stack: (error as Error)?.stack
+		})
+	);
+	return buildProblemResponse({
+		type: "internal-error",
+		title: "Something went wrong in the portal",
+		status: 500
+	});
 }

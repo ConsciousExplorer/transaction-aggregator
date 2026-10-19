@@ -97,8 +97,8 @@
 	<text class="lane-subtitle" x="40" y="452">Keycloak token, then the API</text>
 
 	<rect class="box" x="40" y="480" width="220" height="70" rx="8"/>
-	<text class="box-title" x="150" y="508" text-anchor="middle">API client</text>
-	<text class="box-detail" x="150" y="530" text-anchor="middle">Bruno · curl · Swagger</text>
+	<text class="box-title" x="150" y="508" text-anchor="middle">API clients</text>
+	<text class="box-detail" x="150" y="530" text-anchor="middle">portal · Bruno · curl</text>
 
 	<rect class="box" x="640" y="480" width="220" height="70" rx="8"/>
 	<text class="box-title" x="750" y="508" text-anchor="middle">API :8083</text>

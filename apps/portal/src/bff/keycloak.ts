@@ -18,12 +18,20 @@ function buildCallbackUrl(config: BffConfig) {
 export function createLoginAttempt() {
 	const state = randomBytes(16).toString("base64url");
 	const codeVerifier = randomBytes(32).toString("base64url");
-	const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+	const codeChallenge = createHash("sha256")
+		.update(codeVerifier)
+		.digest("base64url");
 	return { state, codeVerifier, codeChallenge };
 }
 
-export function buildAuthorizeUrl(config: BffConfig, state: string, codeChallenge: string) {
-	const url = new URL(`${buildRealmUrl(config.keycloakPublicUrl, config.realm)}/protocol/openid-connect/auth`);
+export function buildAuthorizeUrl(
+	config: BffConfig,
+	state: string,
+	codeChallenge: string
+) {
+	const url = new URL(
+		`${buildRealmUrl(config.keycloakPublicUrl, config.realm)}/protocol/openid-connect/auth`
+	);
 	url.search = new URLSearchParams({
 		client_id: config.portalClient.id,
 		response_type: "code",
@@ -38,19 +46,29 @@ export function buildAuthorizeUrl(config: BffConfig, state: string, codeChalleng
 
 const codeExchangeSchema = z.object({ id_token: z.string() });
 
-export async function exchangeCode(config: BffConfig, code: string, codeVerifier: string) {
-	const response = await fetch(`${buildRealmUrl(config.keycloakInternalUrl, config.realm)}/protocol/openid-connect/token`, {
-		method: "POST",
-		body: new URLSearchParams({
-			grant_type: "authorization_code",
-			code,
-			redirect_uri: buildCallbackUrl(config),
-			client_id: config.portalClient.id,
-			client_secret: config.portalClient.secret,
-			code_verifier: codeVerifier
-		})
-	});
-	if (!response.ok) throw new Error(`Keycloak code exchange answered ${response.status}: ${await response.text()}`);
+export async function exchangeCode(
+	config: BffConfig,
+	code: string,
+	codeVerifier: string
+) {
+	const response = await fetch(
+		`${buildRealmUrl(config.keycloakInternalUrl, config.realm)}/protocol/openid-connect/token`,
+		{
+			method: "POST",
+			body: new URLSearchParams({
+				grant_type: "authorization_code",
+				code,
+				redirect_uri: buildCallbackUrl(config),
+				client_id: config.portalClient.id,
+				client_secret: config.portalClient.secret,
+				code_verifier: codeVerifier
+			})
+		}
+	);
+	if (!response.ok)
+		throw new Error(
+			`Keycloak code exchange answered ${response.status}: ${await response.text()}`
+		);
 	return codeExchangeSchema.parse(await response.json()).id_token;
 }
 
@@ -65,7 +83,9 @@ const idTokenClaimsSchema = z.object({
 // a cache; sign-ins are rare.
 export async function verifyIdToken(config: BffConfig, idToken: string) {
 	const keySet = createRemoteJWKSet(
-		new URL(`${buildRealmUrl(config.keycloakInternalUrl, config.realm)}/protocol/openid-connect/certs`)
+		new URL(
+			`${buildRealmUrl(config.keycloakInternalUrl, config.realm)}/protocol/openid-connect/certs`
+		)
 	);
 	const { payload } = await jwtVerify(idToken, keySet, {
 		issuer: buildRealmUrl(config.keycloakPublicUrl, config.realm),
@@ -75,8 +95,14 @@ export async function verifyIdToken(config: BffConfig, idToken: string) {
 }
 
 // Ends the Keycloak session too, so the next sign-in asks for a password again
-export function buildLogoutUrl(config: BffConfig, idToken: string, returnPath: string) {
-	const url = new URL(`${buildRealmUrl(config.keycloakPublicUrl, config.realm)}/protocol/openid-connect/logout`);
+export function buildLogoutUrl(
+	config: BffConfig,
+	idToken: string,
+	returnPath: string
+) {
+	const url = new URL(
+		`${buildRealmUrl(config.keycloakPublicUrl, config.realm)}/protocol/openid-connect/logout`
+	);
 	url.search = new URLSearchParams({
 		client_id: config.portalClient.id,
 		id_token_hint: idToken,
@@ -85,19 +111,29 @@ export function buildLogoutUrl(config: BffConfig, idToken: string, returnPath: s
 	return url;
 }
 
-const clientCredentialsSchema = z.object({ access_token: z.string(), expires_in: z.number() });
+const clientCredentialsSchema = z.object({
+	access_token: z.string(),
+	expires_in: z.number()
+});
 
 // The BFF's own identity towards the API: banking-portal, scopes tx:read tx:write
 export async function requestServiceToken(config: BffConfig) {
-	const response = await fetch(`${buildRealmUrl(config.keycloakInternalUrl, config.realm)}/protocol/openid-connect/token`, {
-		method: "POST",
-		body: new URLSearchParams({
-			grant_type: "client_credentials",
-			client_id: config.serviceClient.id,
-			client_secret: config.serviceClient.secret
-		})
-	});
-	if (!response.ok) throw new Error(`Keycloak client credentials answered ${response.status}`);
+	const response = await fetch(
+		`${buildRealmUrl(config.keycloakInternalUrl, config.realm)}/protocol/openid-connect/token`,
+		{
+			method: "POST",
+			body: new URLSearchParams({
+				grant_type: "client_credentials",
+				client_id: config.serviceClient.id,
+				client_secret: config.serviceClient.secret
+			})
+		}
+	);
+	if (!response.ok)
+		throw new Error(`Keycloak client credentials answered ${response.status}`);
 	const token = clientCredentialsSchema.parse(await response.json());
-	return { accessToken: token.access_token, expiresInSeconds: token.expires_in };
+	return {
+		accessToken: token.access_token,
+		expiresInSeconds: token.expires_in
+	};
 }

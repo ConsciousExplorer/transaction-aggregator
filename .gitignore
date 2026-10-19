@@ -164,6 +164,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# Python's lib/ above would also swallow the portal's TypeScript source
+!apps/portal/src/lib/
 lib64/
 parts/
 sdist/
