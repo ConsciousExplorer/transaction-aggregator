@@ -19,7 +19,7 @@ export const loanTransactionSchema = z.object({
 	loanAccountId: z.string(),
 	loanType: z.string(),
 	operation: z.string(),
-	// Amount in ZAR (South African cents). Divide by 100 for display in ZAR.
+	// Amount in cents, the minor unit of ZAR. Divide by 100 for rands.
 	amount: z.number(),
 	// Principal in ZAR (South African cents).
 	principalAmount: z.number(),

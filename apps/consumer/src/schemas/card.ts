@@ -20,7 +20,7 @@ export const cardTransactionSchema = z.object({
 	category: z.string(),
 	merchantName: z.string(),
 	mccCode: z.string(),
-	// Amount in ZAC (South African cents). Divide by 100 for display in ZAR.
+	// Amount in cents, the minor unit of ZAR. Divide by 100 for rands.
 	amount: z.number(),
 	currency: z.string(),
 	// Whether the money came into the customer's account (credit) or left it (debit), as a bank statement shows it. The amount is always positive.

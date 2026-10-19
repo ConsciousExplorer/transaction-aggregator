@@ -51,7 +51,7 @@
     {
       "name": "amount",
       "type": "long",
-      "doc": "Amount in ZAC (South African cents). Divide by 100 for display in ZAR.",
+      "doc": "Amount in cents, the minor unit of ZAR. Divide by 100 for rands.",
       "arg.properties": { "range": { "min": 5000, "max": 2500000 } }
     },
     {
