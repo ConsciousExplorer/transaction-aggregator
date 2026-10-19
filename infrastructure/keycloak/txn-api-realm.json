@@ -32,32 +32,32 @@
                 "realmRoles": ["viewers"]
             },
             {
-                "username": "thandi",
+                "username": "john.doe",
                 "enabled": true,
                 "emailVerified": true,
-                "email": "thandi@portal.demo",
-                "firstName": "Thandi",
-                "lastName": "Nkosi",
+                "email": "john.doe@portal.demo",
+                "firstName": "John",
+                "lastName": "Doe",
                 "attributes": { "customer_id": ["46acaa64-caf9-4577-b4a0-c25f09a8bb66"] },
                 "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
             },
             {
-                "username": "sipho",
+                "username": "jane.doe",
                 "enabled": true,
                 "emailVerified": true,
-                "email": "sipho@portal.demo",
-                "firstName": "Sipho",
-                "lastName": "Dlamini",
+                "email": "jane.doe@portal.demo",
+                "firstName": "Jane",
+                "lastName": "Doe",
                 "attributes": { "customer_id": ["12fdd94b-dc11-42fe-8c95-128011e02e77"] },
                 "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
             },
             {
-                "username": "lerato",
+                "username": "richard.roe",
                 "enabled": true,
                 "emailVerified": true,
-                "email": "lerato@portal.demo",
-                "firstName": "Lerato",
-                "lastName": "Mokoena",
+                "email": "richard.roe@portal.demo",
+                "firstName": "Richard",
+                "lastName": "Roe",
                 "attributes": { "customer_id": ["212e1295-0e18-4f7a-8c3e-36d106b12844"] },
                 "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
             }

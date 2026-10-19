@@ -106,7 +106,7 @@ make up
 
 | What | Where | Login |
 | --- | --- | --- |
-| Portal (demo) | http://localhost:8084 | `thandi`, `sipho` or `lerato` / `portal-password` |
+| Portal (demo) | http://localhost:8084 | `john.doe`, `jane.doe` or `richard.roe` / `portal-password` |
 | API docs (Swagger) | http://localhost:8083/docs | Open; use **Authorize** with a token from below |
 | kafbat-ui | http://localhost:8080 | `kafka-admin` / `kafka-password` (through Keycloak) |
 | avro-datagen-ui | http://localhost:8501 | None |
@@ -117,6 +117,20 @@ make up
 | Prometheus (`make up-all`) | http://localhost:9090 | None |
 
 All of these are local development credentials.
+
+### Try the demo portal
+
+<p align="center">
+  <img src="docs/portal-overview.png" width="100%" alt="The portal's overview for John Doe: money in against money out for the last 12 months, spending by category, and money in and out by month.">
+</p>
+
+The quickest way to see the system at work. Open http://localhost:8084 and sign in as `john.doe`, `jane.doe` or `richard.roe`, all with the password `portal-password`. Each is one of the generated customers.
+
+- **Overview**: money in and out for 1, 3 or 12 months, spending by category, and money in and out by month. A category or a month opens its transactions.
+- **Transactions**: filter, sort and page through the list with the API's cursors, and re-categorise any transaction.
+- **Categories**: remap a whole category to another one.
+
+It is a demo, not a product. Its server side is a BFF: the browser only talks to the portal, which calls the API with its own token. The [portal's README](apps/portal/README.md) explains how.
 
 ### Call the API
 

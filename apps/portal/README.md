@@ -52,9 +52,9 @@ Each is one of the seeded customers the producers generate. The customer pool is
 
 | Customer | Username | Password |
 | --- | --- | --- |
-| Thandi Nkosi | `thandi` | `portal-password` |
-| Sipho Dlamini | `sipho` | `portal-password` |
-| Lerato Mokoena | `lerato` | `portal-password` |
+| John Doe | `john.doe` | `portal-password` |
+| Jane Doe | `jane.doe` | `portal-password` |
+| Richard Roe | `richard.roe` | `portal-password` |
 
 Signing in as a realm user with no customer behind them, such as `kafka-admin`, signs you straight back out with a message.
 

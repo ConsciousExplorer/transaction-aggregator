@@ -15,9 +15,9 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
 };
 
 const DEMO_CUSTOMERS = [
-	{ username: "thandi", name: "Thandi Nkosi" },
-	{ username: "sipho", name: "Sipho Dlamini" },
-	{ username: "lerato", name: "Lerato Mokoena" }
+	{ username: "john.doe", name: "John Doe" },
+	{ username: "jane.doe", name: "Jane Doe" },
+	{ username: "richard.roe", name: "Richard Roe" }
 ];
 
 type SignInPageProps = { searchParams: Promise<{ error?: string }> };

@@ -24,9 +24,9 @@ type ReadContext = { firstPage: TransactionPage; categories: Category[] };
 
 const DEFAULT_PORTAL = "http://localhost:8084";
 
-const THANDI_CUSTOMER_ID = "46acaa64-caf9-4577-b4a0-c25f09a8bb66";
+const JOHN_DOE_CUSTOMER_ID = "46acaa64-caf9-4577-b4a0-c25f09a8bb66";
 
-const SIPHO_CUSTOMER_ID = "12fdd94b-dc11-42fe-8c95-128011e02e77";
+const JANE_DOE_CUSTOMER_ID = "12fdd94b-dc11-42fe-8c95-128011e02e77";
 
 function recordCheck(
 	results: CheckResult[],
@@ -167,10 +167,10 @@ async function checkReads(
 	const me = await readJson<Customer>(jar, `${portal}/bff/me`);
 	recordCheck(
 		results,
-		"/bff/me is thandi",
+		"/bff/me is John Doe",
 		me.status === 200 &&
-			me.body.customerId === THANDI_CUSTOMER_ID &&
-			me.body.displayName === "Thandi Nkosi"
+			me.body.customerId === JOHN_DOE_CUSTOMER_ID &&
+			me.body.displayName === "John Doe"
 	);
 
 	const categoryList = await readJson<{ categories: Category[] }>(
@@ -249,11 +249,11 @@ async function checkReads(
 	// The BFF takes the user from the session; a userId the browser adds is dropped
 	const injected = await readJson<TransactionPage>(
 		jar,
-		`${portal}/bff/transactions?${windowQuery}&limit=10&userId=${SIPHO_CUSTOMER_ID}`
+		`${portal}/bff/transactions?${windowQuery}&limit=10&userId=${JANE_DOE_CUSTOMER_ID}`
 	);
 	recordCheck(
 		results,
-		"a userId parameter is ignored: still thandi's rows",
+		"a userId parameter is ignored: still John Doe's rows",
 		injected.status === 200 &&
 			injected.body.transactions[0]?.transactionId === firstTransactionId
 	);
@@ -271,7 +271,7 @@ async function checkWrites(
 	const writeHeaders = { origin: portal, "content-type": "application/json" };
 	const target = context.firstPage.transactions[0];
 	if (target === undefined)
-		throw new Error("thandi has no transactions in the last 12 months");
+		throw new Error("John Doe has no transactions in the last 12 months");
 
 	const otherCategory = findOtherCategory(context.categories, target.category);
 	if (otherCategory === undefined)
@@ -512,35 +512,35 @@ async function checkSignOut(
 
 async function runChecks(portal: string) {
 	const results: CheckResult[] = [];
-	const thandi = await signIn(portal, "thandi", "portal-password");
+	const johnDoe = await signIn(portal, "john.doe", "portal-password");
 	recordCheck(
 		results,
 		"login redirects to Keycloak",
-		thandi.loginStatus === 302
+		johnDoe.loginStatus === 302
 	);
 	recordCheck(
 		results,
 		"the callback signs in and lands on /overview",
-		thandi.callbackStatus === 302 &&
-			thandi.finalLocation === `${portal}/overview`,
-		thandi.finalLocation
+		johnDoe.callbackStatus === 302 &&
+			johnDoe.finalLocation === `${portal}/overview`,
+		johnDoe.finalLocation
 	);
 	recordCheck(
 		results,
 		"the session cookie is set",
-		thandi.jar.has("portal_session")
+		johnDoe.jar.has("portal_session")
 	);
 	recordCheck(
 		results,
 		"the login-attempt cookie is used up",
-		!thandi.jar.has("portal_login")
+		!johnDoe.jar.has("portal_login")
 	);
 
-	const context = await checkReads(portal, results, thandi.jar);
-	await checkWrites(portal, results, thandi.jar, context);
-	await checkRefusals(portal, results, thandi.jar, context);
+	const context = await checkReads(portal, results, johnDoe.jar);
+	await checkWrites(portal, results, johnDoe.jar, context);
+	await checkRefusals(portal, results, johnDoe.jar, context);
 	await checkNonCustomer(portal, results);
-	await checkSignOut(portal, results, thandi.jar);
+	await checkSignOut(portal, results, johnDoe.jar);
 	return results;
 }
 
