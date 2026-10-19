@@ -1,4 +1,4 @@
-.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-loan produce-internal-transfer produce-debit-order produce-stream db-diagram migrate
+.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-loan produce-internal-transfer produce-debit-order produce-card-v2 produce-stream db-diagram migrate
 
 # Every compose call goes through here: the compose file lives in infrastructure/
 COMPOSE := docker compose -f infrastructure/docker-compose.yaml
@@ -58,6 +58,17 @@ produce-internal-transfer:
 
 produce-debit-order:
 	$(COMPOSE) up --no-deps producer-debit-order
+
+# Rolls out card schema version 2 (schemas/v2/card.avsc, which adds
+# merchantCountry) producer-first, on a stack that is already up: it registers
+# version 2, then sends CARD_V2_COUNT records written with it. consumer-card
+# only loaded version 1 when it started, so it stops on the first new schema id,
+# restarts, loads both versions and stores the records. make clean wipes the
+# registry, so the next make up is back on version 1.
+CARD_V2_COUNT ?= 100
+produce-card-v2:
+	$(COMPOSE) run --rm --no-deps -e SCHEMAS_DIR=/schemas/v2 schemas-register
+	$(COMPOSE) run --rm --no-deps -e GENERATOR_SCHEMA_PATH=/schemas/v2/card.avsc -e GENERATOR_COUNT=$(CARD_V2_COUNT) producer-card
 
 # Live transactions until Ctrl-C, stamped with the time they are sent, at a retail
 # bank's mix per second: card 25, eft 8, debit-order 4, internal-transfer 2, loan 1

@@ -1,0 +1,19 @@
+{
+  "transactionId": "2265b1f5-91b7-4d8f-b358-1027c386bbc4",
+  "transactionType": "card",
+  "customerId": "0bbc679a-9580-4ec3-9172-6e342bd7800a",
+  "accountId": "a1c5c8f1-9466-4355-9858-cf7c6b35e1d6",
+  "category": "RETAIL",
+  "merchantName": "Ackermans",
+  "mccCode": "5651",
+  "amount": 400055,
+  "currency": "ZAR",
+  "creditDebitIndicator": "debit",
+  "cardLast4": "2914",
+  "cardNetwork": "mastercard",
+  "posEntryMode": "chip",
+  "authCode": "177763",
+  "description": "Purchase at Ackermans",
+  "status": "FAILED",
+  "timestamp": "2026-07-20T23:58:57.528Z"
+}
