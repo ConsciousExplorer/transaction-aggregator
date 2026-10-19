@@ -30,6 +30,36 @@
                 "lastName": "Viewer",
                 "credentials": [{ "type": "password", "value": "kafka-password", "temporary": false }],
                 "realmRoles": ["viewers"]
+            },
+            {
+                "username": "thandi",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "thandi@portal.demo",
+                "firstName": "Thandi",
+                "lastName": "Nkosi",
+                "attributes": { "customer_id": ["46acaa64-caf9-4577-b4a0-c25f09a8bb66"] },
+                "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
+            },
+            {
+                "username": "sipho",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "sipho@portal.demo",
+                "firstName": "Sipho",
+                "lastName": "Dlamini",
+                "attributes": { "customer_id": ["12fdd94b-dc11-42fe-8c95-128011e02e77"] },
+                "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
+            },
+            {
+                "username": "lerato",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "lerato@portal.demo",
+                "firstName": "Lerato",
+                "lastName": "Mokoena",
+                "attributes": { "customer_id": ["212e1295-0e18-4f7a-8c3e-36d106b12844"] },
+                "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
             }
     ],
 
@@ -207,7 +237,61 @@
             "secret": "kafbat-ui-secret",
             "redirectUris": ["http://localhost:8080/login/oauth2/code/keycloak"],
             "defaultClientScopes": ["profile", "email", "roles", "groups"]
+        },
+        {
+            "clientId": "banking-portal-web",
+            "name": "banking-portal-web",
+            "protocol": "openid-connect",
+            "publicClient": false,
+            "secret": "banking-portal-web-secret",
+            "standardFlowEnabled": true,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "redirectUris": ["http://localhost:8084/bff/auth/callback"],
+            "webOrigins": ["http://localhost:8084"],
+            "attributes": {
+                "pkce.code.challenge.method": "S256",
+                "post.logout.redirect.uris": "http://localhost:8084/*"
+            },
+            "defaultClientScopes": ["profile"],
+            "protocolMappers": [
+                {
+                    "name": "customer id",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "config": {
+                        "user.attribute": "customer_id",
+                        "claim.name": "customer_id",
+                        "jsonType.label": "String",
+                        "id.token.claim": "true",
+                        "access.token.claim": "false",
+                        "userinfo.token.claim": "true"
+                    }
+                },
+                {
+                    "name": "full name",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-full-name-mapper",
+                    "config": {
+                        "id.token.claim": "true",
+                        "access.token.claim": "false",
+                        "userinfo.token.claim": "true"
+                    }
+                }
+            ]
         }
 
-	]
+	],
+
+	"components": {
+		"org.keycloak.userprofile.UserProfileProvider": [
+			{
+				"providerId": "declarative-user-profile",
+				"subComponents": {},
+				"config": {
+					"kc.user.profile.config": ["{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"customer_id\",\"displayName\":\"Customer id\",\"validations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"]
+				}
+			}
+		]
+	}
 }
