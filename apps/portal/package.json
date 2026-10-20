@@ -12,6 +12,7 @@
 		"check": "tsc --noEmit",
 		"test:unit": "node --test 'src/**/*.test.ts'",
 		"test:e2e": "node scripts/e2e.ts",
+		"lib:audit": "npx audit-ci --config ./audit-ci.json",
 		"format": "npx @biomejs/biome format --write .",
 		"lint": "npx @biomejs/biome check --write ."
 	},
@@ -29,6 +30,7 @@
 		"@types/node": "24.19.2",
 		"@types/react": "19.3.0",
 		"@types/react-dom": "19.3.0",
+		"audit-ci": "7.1.0",
 		"typescript": "7.0.2"
 	}
 }

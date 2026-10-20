@@ -243,7 +243,7 @@ services:
       PRODUCER_NAME: producer-card
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
-      GENERATOR_COUNT: "60000"
+      GENERATOR_COUNT: "120000"
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -279,7 +279,7 @@ services:
       PRODUCER_NAME: producer-eft
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
-      GENERATOR_COUNT: "20000"
+      GENERATOR_COUNT: "40000"
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -315,7 +315,7 @@ services:
       PRODUCER_NAME: producer-loan
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
-      GENERATOR_COUNT: "20000"
+      GENERATOR_COUNT: "40000"
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -351,7 +351,7 @@ services:
       PRODUCER_NAME: producer-internal-transfer
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
-      GENERATOR_COUNT: "10000"
+      GENERATOR_COUNT: "40000"
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -387,7 +387,7 @@ services:
       PRODUCER_NAME: producer-debit-order
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
-      GENERATOR_COUNT: "20000"
+      GENERATOR_COUNT: "40000"
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}

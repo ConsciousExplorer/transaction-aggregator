@@ -17,6 +17,7 @@
 		"lint": "npx @biomejs/biome check --write . && npm run spell",
 		"spell": "cspell \"**/*.{ts,js}\"",
 		"schema:generate": "node scripts/generate-avro-types.ts",
+		"schema:check": "node scripts/check-schema-compatibility.ts",
 		"test:unit": "LOG_LEVEL=silent node --test 'src/**/*.test.ts' --test-skip-pattern integration",
 		"test:integration": "LOG_LEVEL=silent node --env-file=test.env --test 'test/integration/**/*.test.ts'",
 		"biome:migrate": "npx @biomejs/biome migrate --write",

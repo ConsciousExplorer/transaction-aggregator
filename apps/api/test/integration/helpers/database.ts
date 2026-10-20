@@ -11,7 +11,7 @@ import { createPool } from "#src/integrations/database/pool.ts";
 import { readSecretFromFile } from "#src/utils/secrets.ts";
 
 /**
- * Create the exact same database that will be 
+ * Create the exact same database that will be
  * used in this project to simulate the "production" environment.
  */
 const REPOSITORY_ROOT = join(import.meta.dirname, "../../../../..");
@@ -42,7 +42,7 @@ const POSTGRES_COMMAND = [
 ];
 
 /**
- * Log when the database is ready to accept connections. 
+ * Log when the database is ready to accept connections.
  */
 const READY_LOG_LINE = /database system is ready to accept connections/;
 

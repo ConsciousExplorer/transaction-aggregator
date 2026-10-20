@@ -1,0 +1,92 @@
+# Audit, type-check, build, lint and unit-test the portal, only when it changed.
+# Its e2e script needs the whole stack, so it stays a local check. See api.yml
+# for why the changes job always runs.
+name: portal
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: portal changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.app.outputs.app }}
+      versioned: ${{ steps.versioned.outputs.versioned }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: app
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            app:
+              - 'apps/portal/**'
+              - '.github/workflows/portal.yml'
+      - id: versioned
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          base: ${{ github.ref_name }}
+          predicate-quantifier: every
+          filters: |
+            versioned:
+              - 'apps/portal/**'
+              - '!apps/portal/**/*.md'
+
+  verify:
+    name: portal verify
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/portal
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24.20.0
+          cache: npm
+          cache-dependency-path: apps/portal/package-lock.json
+      - run: npm ci
+      - name: Audit dependencies
+        run: npm run lib:audit
+      - name: Type-check
+        run: npm run check
+      # The BFF reads its settings per request, so the build needs no environment
+      - name: Build
+        run: npm run build
+      - name: Lint and format
+        run: npx @biomejs/biome ci .
+      - name: Unit tests
+        run: npm run test:unit
+
+  version:
+    name: portal version
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.versioned == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24.20.0
+      - name: Version is higher than the target branch's
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node scripts/check-version-bump.ts apps/portal/package.json "$BASE_REF"

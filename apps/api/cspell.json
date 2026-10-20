@@ -10,6 +10,7 @@
 		"cspell",
 		"fkey",
 		"frontend",
+		"iban",
 		"IYYY",
 		"Millis",
 		"Miswiring",
@@ -17,6 +18,7 @@
 		"neighbours",
 		"normaliser",
 		"savepoint",
+		"SQLSTATE",
 		"stringbool",
 		"timestamptz",
 		"Tyme",
@@ -24,9 +26,5 @@
 		"uuidv",
 		"uuidv4"
 	],
-	"ignorePaths": [
-		"node_modules/**",
-		"dist/**",
-		"package-lock.json"
-	]
+	"ignorePaths": ["node_modules/**", "dist/**", "package-lock.json"]
 }
