@@ -717,7 +717,8 @@ services:
       NODE_ENV: 'production'
       HTTP_PORT: 8083
       ENABLE_SWAGGER: true
-      LOG_LEVEL: 'debug'
+      # make load runs it at info: debug logs every pool acquire and release
+      LOG_LEVEL: ${API_LOG_LEVEL:-debug}
 
       SECRET_DIR: "/secrets"
 

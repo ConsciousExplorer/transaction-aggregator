@@ -304,3 +304,7 @@ cython_debug/
 # Secrets should never be comitted. However, this is a demo file so we are keeping them
 # /secrets
 *best-practices/
+
+# k6 load test: customer ids exported by make load, and its saved reports
+loadtests/users.txt
+loadtests/results/

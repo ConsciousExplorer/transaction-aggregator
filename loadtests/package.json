@@ -1,0 +1,15 @@
+{
+	"name": "loadtests",
+	"version": "1.0.0",
+	"private": true,
+	"description": "k6 load test: randomised portal user sessions against the transaction API",
+	"license": "ISC",
+	"type": "module",
+	"scripts": {
+		"check": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/k6": "2.3.0",
+		"typescript": "7.0.2"
+	}
+}

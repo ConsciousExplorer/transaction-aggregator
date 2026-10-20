@@ -1,0 +1,15 @@
+{
+	// k6 runs user-sessions.ts itself; this is only for the editor and `npm run check`
+	"compilerOptions": {
+		"noEmit": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"target": "esnext",
+		"types": ["k6"],
+		"strict": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"moduleDetection": "force",
+		"skipLibCheck": true
+	}
+}

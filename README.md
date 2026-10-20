@@ -153,6 +153,22 @@ The routes under `/api/v1/users/{userId}` are listed in Swagger. To find a user 
 docker exec postgres psql -U postgres -d txn_agg -c "SELECT user_id, account_id FROM txn_agg.transactions LIMIT 1"
 ```
 
+### Load test the API
+
+Needs [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) on the host. With the stack up and the producers finished:
+
+```sh
+make load                            # S1: about 50 req/s for 10 minutes, p95 must stay under 200 ms
+make load LOAD_PROFILE=smoke         # five sessions, to check the script
+make load LOAD_PROFILE=breakpoint    # steps the rate up for 12 minutes to find where the API slows down
+```
+
+[loadtests/user-sessions.ts](loadtests/user-sessions.ts) plays randomised customer sessions that make the calls the portal makes for each page. Every session opens the overview. Most go on to the transactions page, where some filter, page, open a transaction or re-categorise one. A few remap a category. Users pause one to five seconds between pages, and new sessions arrive at a fixed rate whether or not the API keeps up. Every response is checked, and every request is tagged with its route, so the summary has a p95 per endpoint.
+
+`make load` exports the customer ids from Postgres and recreates the API at log level `info` with tracing off. The API stays like that until the next `make up`. While it runs, k6's dashboard is at http://127.0.0.1:5665, and the report is saved to `loadtests/results/`. With `make up-all`, Grafana's API dashboard shows the same run from the server's side.
+
+On macOS with Rancher Desktop, the breakpoint profile can stop early because of the Mac, not the API. Rancher Desktop forwards every published port, and the Docker socket, through one `ssh` process. macOS limits that process to 256 open files (`launchctl limit maxfiles`). Each k6 session keeps its connection open while the user pauses, so at about 300 concurrent sessions (around 270 req/s) the forwarder dies. k6 then reports `connection refused`, and `docker` can no longer reach the daemon, while every container keeps running inside the VM. Restart Rancher Desktop to recover. Read the result from Grafana or Prometheus, which run inside the VM and record the API's side up to that point.
+
 ## Make targets
 
 Everything runs through `make` from the repo root; the compose file is [infrastructure/docker-compose.yaml](infrastructure/docker-compose.yaml).
@@ -167,6 +183,7 @@ Everything runs through `make` from the repo root; the compose file is [infrastr
 | `make produce-card` | One producer; also `produce-eft`, `produce-loan`, `produce-debit-order` and `produce-internal-transfer` |
 | `make produce-stream` | Live transactions until Ctrl-C. Change a rate with `make produce-stream CARD_RATE=100`. |
 | `make migrate` | Re-run the database migrations; applied ones are skipped |
+| `make load` | k6 load test against the API; `LOAD_PROFILE=smoke` or `breakpoint` for the others (needs k6 on the host) |
 | `make down` | Stop and remove the containers; Kafka and Postgres data are kept |
 | `make clean` | Stop and delete the volumes too: the next `make up` starts empty |
 | `make db-diagram` | Regenerate `db-model.dbml` (first run `npm install -g @dbml/cli`) |

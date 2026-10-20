@@ -1,4 +1,4 @@
-.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-loan produce-internal-transfer produce-debit-order produce-card-v2 produce-stream db-diagram migrate
+.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-loan produce-internal-transfer produce-debit-order produce-card-v2 produce-stream db-diagram migrate load
 
 # Every compose call goes through here: the compose file lives in infrastructure/
 COMPOSE := docker compose -f infrastructure/docker-compose.yaml
@@ -84,3 +84,18 @@ db-diagram:
 # argument: one would replace the image's CMD (npx drizzle-kit migrate).
 migrate:
 	$(COMPOSE) run --rm migrate
+
+# k6 load test (k6 on the host): randomised portal user sessions against the
+# API, arriving at a fixed rate. LOAD_PROFILE=smoke checks the script, load
+# holds S1 (50 req/s for 10 min), breakpoint steps the rate up until the API is
+# clearly past its limit. The API is recreated at LOG_LEVEL info with tracing
+# off, so neither costs throughput (make load OTEL_SDK_DISABLED=false keeps
+# traces); it stays that way until the next make up. The customer ids come
+# from Postgres. Live charts on http://127.0.0.1:5665 during the run; the same
+# report is saved in loadtests/results/.
+LOAD_PROFILE ?= load
+load:
+	API_LOG_LEVEL=info $(COMPOSE) up -d --no-deps --wait api
+	$(COMPOSE) exec -T postgres psql -U postgres -d txn_agg -At -c "SELECT DISTINCT user_id FROM txn_agg.transactions" > loadtests/users.txt
+	@mkdir -p loadtests/results
+	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=loadtests/results/$(LOAD_PROFILE)-$$(date +%Y%m%d-%H%M%S).html k6 run -e LOAD_PROFILE=$(LOAD_PROFILE) loadtests/user-sessions.ts
