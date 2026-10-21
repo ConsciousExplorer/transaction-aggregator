@@ -305,6 +305,6 @@ cython_debug/
 # /secrets
 *best-practices/
 
-# k6 load test: customer ids exported by make load, and its saved reports
+# k6 load test: the customer ids make load exports before each run. The
+# reports in loadtests/results/ are committed.
 loadtests/users.txt
-loadtests/results/

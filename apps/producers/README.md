@@ -64,7 +64,7 @@ make produce-load-data    # about 5M more transactions, for the load test
 To run one producer from the host against that stack:
 
 ```sh
-cp sample.env .env        # then point GENERATOR_SCHEMA_PATH at ../../schemas/card.avsc
+cp sample.env .env        # already points at the make up stack and the card schema
 uv sync
 uv run start
 ```

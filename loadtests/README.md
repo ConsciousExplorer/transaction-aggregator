@@ -40,7 +40,7 @@ make load LOAD_PROFILE=breakpoint   # find where the API slows down
 2. Writes the customer ids from Postgres to `users.txt`.
 3. Runs k6.
 
-While k6 runs, a live dashboard is at http://127.0.0.1:5665. The same report is saved to `results/` as HTML.
+While k6 runs, a live dashboard is at http://127.0.0.1:5665. The same report is saved to `results/` as HTML. Commit the runs worth keeping.
 
 To run k6 yourself, `users.txt` must already exist. Settings are passed with `-e`:
 
