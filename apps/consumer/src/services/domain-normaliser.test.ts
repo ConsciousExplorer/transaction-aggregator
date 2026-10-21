@@ -13,6 +13,18 @@ import {
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** The record fails normalisation as a bad record, and the issue names the field. */
+function assertRejectedOn(record: CardTransaction, field: string) {
+	assert.throws(
+		() => normaliseTransaction(castToDomainTransaction(record), "card"),
+		(error: unknown) => {
+			assert.ok(error instanceof NonRetryableError);
+			assert.match(String(error.details.issues), new RegExp(field));
+			return true;
+		}
+	);
+}
+
 suite("domain normaliser validation", () => {
 	test("accepts a well-formed record and returns canonical fields", () => {
 		const result = normaliseTransaction(
@@ -146,6 +158,52 @@ suite("domain normaliser validation", () => {
 		);
 
 		assert.equal(result.occurredAt, new Date(fiveMinutesAhead).toISOString());
+	});
+
+	// Past these limits a value doesn't fit the database's indexes, and the
+	// insert fails with an error the consumer retries rather than dead-letters
+	test("a field too long for the database's indexes is dead-lettered", () => {
+		const cases = [
+			{
+				field: "externalId",
+				record: buildCardRecord({ transactionId: "x".repeat(256) })
+			},
+			{
+				field: "shortDescription",
+				record: buildCardRecord({ merchantName: "m".repeat(256) })
+			},
+			{
+				field: "longDescription",
+				record: buildCardRecord({ description: "d".repeat(1001) })
+			}
+		];
+
+		for (const { field, record } of cases) {
+			assertRejectedOn(record, field);
+		}
+	});
+
+	test("values at the length limits pass", () => {
+		const result = normaliseTransaction(
+			castToDomainTransaction(
+				buildCardRecord({
+					transactionId: "x".repeat(255),
+					merchantName: "m".repeat(255),
+					description: "d".repeat(1000)
+				})
+			),
+			"card"
+		);
+
+		assert.equal(result.externalId.length, 255);
+		assert.equal(result.shortDescription?.length, 255);
+		assert.equal(result.longDescription?.length, 1000);
+	});
+
+	test("a currency that is not three capital letters is dead-lettered", () => {
+		for (const currency of ["zar", "ZA", "RAND"]) {
+			assertRejectedOn(buildCardRecord({ currency }), "currency");
+		}
 	});
 
 	test("a malformed timestamp is dead-lettered, not thrown raw", () => {

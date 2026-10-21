@@ -26,22 +26,6 @@ export const transactionStatusSchema = z.enum([
 	"failed"
 ]);
 
-// How far ahead of this clock a transaction may be dated: a producer's clock
-// that runs a little fast is not a bad record.
-const MAX_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
-
-/**
- * A transaction has happened, so a later time is a bad record. Stored, it
- * would land in the default partition, beyond the monthly partitions made so
- * far. Once maintenance comes to its month, that month's partition can't be
- * attached while the row sits in the default, and maintenance then skips the
- * whole table: no later partition is made and nothing past retention is
- * dropped.
- */
-function isAtMostADayAhead(isoDateTime: string) {
-	return Date.parse(isoDateTime) <= Date.now() + MAX_CLOCK_SKEW_MS;
-}
-
 export const domainTransactionSchema = z.union([
 	cardTransactionSchema,
 	debitOrderTransactionSchema,
@@ -51,32 +35,30 @@ export const domainTransactionSchema = z.union([
 ]);
 
 export const canonicalTransactionSchema = z.object({
-	// Used for user transaction identification
 	userId: z.uuid(),
-	// The customer account the transaction occurred on — a user can hold
-	// several accounts.
+	// A user can hold several accounts
 	accountId: z.uuid(),
 
-	// Which of the 5 origins this transaction came from - used for idempotency
 	transactionType: transactionTypeSchema,
-	externalId: z.string(),
-	// Full ISO datetime: normalisers emit `new Date(ts).toISOString()`, and
-	// date-only would collapse the deduplicate key (transactionType, externalId, occurredAt)
-	// to day granularity.
+	externalId: z.string().max(255),
+	// Full ISO datetime: date-only would collapse the deduplicate key
+	// (transactionType, externalId, occurredAt) to day granularity
 	occurredAt: z.iso
 		.datetime()
-		.refine(isAtMostADayAhead, "must not be more than a day in the future"),
+		.refine(
+			(value) => Date.parse(value) <= Date.now() + 24 * 60 * 60 * 1000,
+			"must not be more than a day in the future"
+		),
 
-	// Top level financial information
 	creditDebitIndicator: creditDebitIndicatorSchema,
 	// Stored for every status; the API excludes non-completed rows from aggregates
 	status: transactionStatusSchema,
-	currency: z.string(),
+	currency: z.string().regex(/^[A-Z]{3}$/),
 	amountMinor: z.number(),
 
-	longDescription: z.string().nullable(),
+	longDescription: z.string().max(1000).nullable(),
 	// Who we paid / who paid us
-	shortDescription: z.string().nullable(),
+	shortDescription: z.string().max(255).nullable(),
 
 	metadata: z.record(z.string(), z.unknown())
 });
