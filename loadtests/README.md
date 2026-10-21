@@ -28,7 +28,7 @@ You need k6 installed on the host (`brew install k6`). Start the stack from the 
 
 ```sh
 make up-all                         # or make up; up-all adds Grafana
-make produce-load-data              # about 5M more rows, for S1's 5M-row database
+make produce-load-data              # about 5M more rows; the latency target assumes a 5M-row database
 make load LOAD_PROFILE=smoke        # check the script first
 make load                           # the 10-minute run
 make load LOAD_PROFILE=breakpoint   # find where the API slows down

@@ -185,6 +185,7 @@ All configuration comes from environment variables, validated at startup by [`sr
 | `KAFKA_BATCH_SIZE` | `100` | Flush once this many messages are buffered |
 | `KAFKA_BATCH_LINGER_MS` | `2000` | …or this long after the first one arrives |
 | `KAFKA_MAX_WAIT_TIME_MS` | `1000` | Longest a fetch waits at the broker |
+| `KAFKA_FETCH_MAX_BYTES` | `1048576` | The most one fetch returns. The client holds a whole fetch in memory, so this bounds memory when the consumer is far behind |
 | `KAFKA_READ_MODE` | `committed` | Resume from the group's committed offsets, or from `earliest` if it has none |
 | `KAFKA_SESSION_TIMEOUT_MS` | `15000` | Group membership; the four timeouts are checked against each other |
 | `KAFKA_HEARTBEAT_INTERVAL_MS` | `5000` | At most a third of the session timeout |

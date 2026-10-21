@@ -166,6 +166,17 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		]);
 	});
 
+	test("category narrows the list to those categories, one or many", async () => {
+		await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&category=dining&category=groceries`
+		});
+		assert.deepStrictEqual(readRepositoryFilter()?.category, [
+			"dining",
+			"groceries"
+		]);
+	});
+
 	test("400: an accountId that isn't a UUID → validation problem, repository untouched", async () => {
 		const response = await app.inject({
 			method: "GET",

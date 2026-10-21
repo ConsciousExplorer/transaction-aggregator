@@ -61,9 +61,7 @@ export default async function registerListTransactionsRoute(
 				transactionType: z
 					.union([transactionTypeSchema, transactionTypeSchema.array()])
 					.optional(),
-				category: z
-					.union([z.coerce.string(), z.coerce.string().array()])
-					.optional(),
+				category: z.union([z.string(), z.string().array()]).optional(),
 				creditDebitIndicator: z
 					.union([
 						creditDebitIndicatorSchema,

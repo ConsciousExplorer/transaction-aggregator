@@ -155,11 +155,11 @@ docker exec postgres psql -U postgres -d txn_agg -c "SELECT user_id, account_id 
 
 ### Load test the API
 
-Needs [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) on the host. S1 is set against a database of 5M rows or more, so with the stack up and the producers finished, first send about 5M more transactions through the pipeline. Wait until the consumers have stored them before you run `make load`.
+Needs [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) on the host. The API's latency target (p95 under 200 ms at 50 req/s) assumes a database of 5M rows or more, so with the stack up and the producers finished, first send about 5M more transactions through the pipeline. Wait until the consumers have stored them before you run `make load`.
 
 ```sh
 make produce-load-data               # about 5M more transactions, through Kafka and the consumers
-make load                            # S1: about 50 req/s for 10 minutes, p95 must stay under 200 ms
+make load                            # about 50 req/s for 10 minutes; p95 must stay under 200 ms
 make load LOAD_PROFILE=smoke         # five sessions, to check the script
 make load LOAD_PROFILE=breakpoint    # steps the rate up for 12 minutes to find where the API slows down
 ```
