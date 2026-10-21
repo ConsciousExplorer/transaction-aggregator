@@ -98,7 +98,7 @@ make up
 1. Kafka and Postgres start. `kafka-init` creates the Kafka users, ACLs and topics, and `migrate` builds the database.
 2. Schema Registry starts, and `schemas-register` registers the Avro schemas.
 3. Keycloak, the API and the five consumers start, then the portal once the API is ready.
-4. Once the topics and schemas exist, the five producers send 130,000 transactions and exit. The seed is fixed, so it's the same data on every run. The consumers work through them.
+4. Once the topics and schemas exist, the five producers send 280,000 transactions (120,000 card and 40,000 from each of the other four) and exit. The seed is fixed, so it's the same data on every run. The consumers work through them.
 
 `make ps` shows where it's up to: the producers end as `exited (0)` and the consumers keep running.
 
@@ -155,9 +155,10 @@ docker exec postgres psql -U postgres -d txn_agg -c "SELECT user_id, account_id 
 
 ### Load test the API
 
-Needs [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) on the host. With the stack up and the producers finished:
+Needs [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) on the host. S1 is set against a database of 5M rows or more, so with the stack up and the producers finished, first send about 5M more transactions through the pipeline. Wait until the consumers have stored them before you run `make load`.
 
 ```sh
+make produce-load-data               # about 5M more transactions, through Kafka and the consumers
 make load                            # S1: about 50 req/s for 10 minutes, p95 must stay under 200 ms
 make load LOAD_PROFILE=smoke         # five sessions, to check the script
 make load LOAD_PROFILE=breakpoint    # steps the rate up for 12 minutes to find where the API slows down
@@ -182,6 +183,7 @@ Everything runs through `make` from the repo root; the compose file is [infrastr
 | `make produce` | Run all five producers again with a random seed (`GENERATOR_SEED=42 make produce` for a fixed one) |
 | `make produce-card` | One producer; also `produce-eft`, `produce-loan`, `produce-debit-order` and `produce-internal-transfer` |
 | `make produce-stream` | Live transactions until Ctrl-C. Change a rate with `make produce-stream CARD_RATE=100`. |
+| `make produce-load-data` | About 5M more transactions for the load test, on top of `make up`'s 280,000. The consumers take a while to store them. |
 | `make migrate` | Re-run the database migrations; applied ones are skipped |
 | `make load` | k6 load test against the API; `LOAD_PROFILE=smoke` or `breakpoint` for the others (needs k6 on the host) |
 | `make down` | Stop and remove the containers; Kafka and Postgres data are kept |

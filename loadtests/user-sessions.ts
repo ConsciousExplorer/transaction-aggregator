@@ -17,10 +17,12 @@ const TOKEN_URL =
 // The client the portal's BFF calls the API with: tx:read and tx:write
 const CLIENT_ID = __ENV.CLIENT_ID ?? "banking-portal";
 const CLIENT_SECRET = __ENV.CLIENT_SECRET ?? "banking-portal-secret";
-// make up's data stops on its anchor day, so every window ends there
-const ANCHOR_DATE = __ENV.ANCHOR_DATE ?? "2026-10-04";
+// make up's data stops on its anchor day, so every window ends there. make load
+// passes the Makefile's ANCHOR_DATE; the default is for running k6 yourself.
+const ANCHOR_DATE = __ENV.ANCHOR_DATE ?? "2026-10-21";
 const LOAD_PROFILE = __ENV.LOAD_PROFILE ?? "load";
-// A session averages about 5.2 requests (measured), so 10 sessions/s is S1's 50 req/s
+// A session averages about 5.2 requests (measured), so 10 sessions/s is the
+// 50 req/s the 200 ms latency target is set at
 const SESSION_RATE = Number(__ENV.SESSION_RATE ?? "10");
 
 // The breakpoint climbs 12 steps of 6 sessions/s (about 30 req/s each, up to
@@ -155,10 +157,10 @@ function buildBreakpointStages() {
 	return stages;
 }
 
-// smoke and load hold S1: p95 under 200 ms, under 1% failures. The breakpoint
-// expects to cross that line, so it only stops once the API is clearly past
-// it; where it crossed is read from the dashboard's time series, because a
-// p95 over the whole run lags far behind the rate that broke it.
+// smoke and load hold the latency target: p95 under 200 ms, under 1% failures.
+// The breakpoint expects to cross that line, so it only stops once the API is
+// clearly past it; where it crossed is read from the dashboard's time series,
+// because a p95 over the whole run lags far behind the rate that broke it.
 function buildThresholds(loadProfile: string) {
 	const thresholds: Record<string, Threshold[]> = {};
 	if (loadProfile === "breakpoint") {

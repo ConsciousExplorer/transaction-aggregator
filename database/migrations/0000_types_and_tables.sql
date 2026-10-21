@@ -1,9 +1,6 @@
 -- Custom SQL migration file, put your code below! --
 
--- Everything the apps read and write lives in the txn_agg schema, named after
--- the database and the txn_agg_* roles. public keeps only what extensions
--- install there. Every name below is schema-qualified, because an unqualified
--- CREATE lands in the first schema on the search_path, which is public.
+-- Isolating the application's tables in a schema to manage privileges.
 CREATE SCHEMA txn_agg;
 
 -- Readers can use the schema and read every table in it. The migrations run as
@@ -12,8 +9,6 @@ GRANT USAGE ON SCHEMA txn_agg TO txn_agg_read;
 ALTER DEFAULT PRIVILEGES IN SCHEMA txn_agg GRANT SELECT ON TABLES TO txn_agg_read;
 
 CREATE TYPE txn_agg.transaction_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
--- Whether money came into the account (credit) or left it (debit), as a bank
--- statement shows it; the amount is always positive. ISO 20022's CdtDbtInd.
 CREATE TYPE txn_agg.credit_debit_indicator AS ENUM ('credit', 'debit');
 CREATE TYPE txn_agg.transaction_status AS ENUM ('completed', 'pending', 'reversed', 'failed');
 
@@ -50,20 +45,20 @@ CREATE TABLE txn_agg.user_category_overrides (
   to_category_id   smallint    NOT NULL REFERENCES txn_agg.categories(category_id),
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
-  archived_at      timestamptz,                          -- soft delete (D33): NULL = active; DELETE endpoints archive, never remove
+  archived_at      timestamptz,                          -- soft delete: NULL = active; DELETE endpoints archive, never remove
   PRIMARY KEY (user_id, from_category_id),               -- one remap per source category per user
   CHECK (from_category_id <> to_category_id)             -- self-remap is meaningless
 );
 
--- Single-transaction override: the precise correction; beats the remap at read time (SPEC §2.5).
+-- Single-transaction override.
 CREATE TABLE txn_agg.user_transaction_overrides (
   user_id        uuid        NOT NULL,
   transaction_id uuid        NOT NULL,
-  occurred_at    timestamptz NOT NULL,   -- copied from the transaction at write time; enables cheap retention pruning (D28)
+  occurred_at    timestamptz NOT NULL,   -- copied from the transaction at write time; enables cheap retention pruning
   category_id    smallint    NOT NULL REFERENCES txn_agg.categories(category_id),
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
-  archived_at    timestamptz,             -- soft delete (D33): NULL = active; DELETE endpoints archive, never remove
+  archived_at    timestamptz,             -- soft delete: NULL = active; DELETE endpoints archive, never remove
   PRIMARY KEY (transaction_id, occurred_at)
   -- Deliberately not adding a FK constraint.
   -- The tables partition can be dropped independently
@@ -122,7 +117,7 @@ SET
   retention_keep_table = false
 WHERE parent_table = 'txn_agg.transactions';
 
--- overrides partitioned on the same calendar; no FK → drops need no cross-table ordering
+
 DO $$
 BEGIN
 IF NOT EXISTS (SELECT 1 FROM partman.part_config WHERE parent_table = 'txn_agg.user_transaction_overrides')
@@ -151,5 +146,5 @@ WHERE parent_table = 'txn_agg.user_transaction_overrides';
 -- Consumers insert transaction facts; facts are never updated or deleted.
 GRANT INSERT ON txn_agg.transactions TO txn_agg_write;
 
--- The API writes user preferences only. No DELETE: removing an override sets archived_at.
+-- The API writes user preferences only
 GRANT SELECT, INSERT, UPDATE ON txn_agg.user_transaction_overrides, txn_agg.user_category_overrides TO txn_agg_prefs_write;

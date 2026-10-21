@@ -6,9 +6,9 @@ import {
 	httpRequestsInFlight
 } from "#src/telemetry/metrics.ts";
 
-// RED metrics for every route (SPEC §7). The route label is the pattern
-// (/v1/users/:userId/transactions), never the raw URL: one series per user id
-// would blow up Prometheus's storage.
+// RED metrics (rate, errors, duration) for every route. The route label is the
+// pattern (/v1/users/:userId/transactions), never the raw URL: one series per
+// user id would blow up Prometheus's storage.
 export default fastifyPlugin(
 	async (fastify) => {
 		fastify.addHook("onRequest", async (request) => {

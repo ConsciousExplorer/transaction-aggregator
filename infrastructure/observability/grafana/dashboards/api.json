@@ -197,8 +197,8 @@
     },
     {
       "type": "stat",
-      "title": "Latency p95 (S1)",
-      "description": "Duration. 95th percentile over the last 5 minutes. S1: under 200 ms.",
+      "title": "Latency p95",
+      "description": "Duration. 95th percentile over the last 5 minutes. Target: under 200 ms.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -728,7 +728,7 @@
     {
       "type": "timeseries",
       "title": "Duration: latency p50 / p95 / p99",
-      "description": "Every /api/v1 route. S1 is the p95 under 200 ms (red line).",
+      "description": "Every /api/v1 route. The red line is the 200 ms p95 target.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1023,7 +1023,7 @@
     {
       "type": "stat",
       "title": "Max req/s within SLO",
-      "description": "The highest request rate (over a minute) at which p95 stayed under 200 ms (S1) and 5xx under 0.1%: the most the API serves before it breaks. Below max requests/s means load past this point broke an SLO. A dash means no minute of the range met both, or there was no traffic. The highest value observed in the selected time range, so it stays after the traffic stops.",
+      "description": "The highest request rate (over a minute) at which p95 stayed under 200 ms and 5xx under 0.1%: the most the API serves before it breaks. Below max requests/s means load past this point broke an SLO. A dash means no minute of the range met both, or there was no traffic. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1090,7 +1090,7 @@
     {
       "type": "stat",
       "title": "Max p95 (1 min)",
-      "description": "The highest p95 latency over any minute of the range. Red from 200 ms (S1). The highest value observed in the selected time range, so it stays after the traffic stops.",
+      "description": "The highest p95 latency over any minute of the range. Red from 200 ms, the p95 target. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1433,7 +1433,7 @@
     {
       "type": "xychart",
       "title": "Latency vs throughput",
-      "description": "Each point is one moment of the range: requests/s over the minute before it (x) against p95 latency over the same minute (y). As traffic rises the points run flat, then bend upward: the bend is the throughput where the API stops keeping up. Points above 0.2 s are outside S1.",
+      "description": "Each point is one moment of the range: requests/s over the minute before it (x) against p95 latency over the same minute (y). As traffic rises the points run flat, then bend upward: the bend is the throughput where the API stops keeping up. Points above 0.2 s miss the 200 ms p95 target.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2312,8 +2312,8 @@
     },
     {
       "type": "timeseries",
-      "title": "p95 latency by route (S1)",
-      "description": "95th percentile per route pattern. S1: under 200 ms (red line).",
+      "title": "p95 latency by route",
+      "description": "95th percentile per route pattern. Target: under 200 ms (red line).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2774,7 +2774,7 @@
     {
       "type": "table",
       "title": "Slow requests",
-      "description": "Traces over 200 ms for the picked routes: the trace behind a point above the S1 line. Needs OTEL_SDK_DISABLED=false (make up-all).",
+      "description": "Traces over 200 ms for the picked routes: the trace behind a point above the 200 ms line. Needs OTEL_SDK_DISABLED=false (make up-all).",
       "datasource": {
         "type": "tempo",
         "uid": "tempo"

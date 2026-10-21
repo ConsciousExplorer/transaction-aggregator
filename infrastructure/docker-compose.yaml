@@ -243,7 +243,7 @@ services:
       PRODUCER_NAME: producer-card
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/card.avsc
-      GENERATOR_COUNT: "120000"
+      GENERATOR_COUNT: ${CARD_COUNT:-120000}
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -279,7 +279,7 @@ services:
       PRODUCER_NAME: producer-eft
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
-      GENERATOR_COUNT: "40000"
+      GENERATOR_COUNT: ${EFT_COUNT:-40000}
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -315,7 +315,7 @@ services:
       PRODUCER_NAME: producer-loan
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
-      GENERATOR_COUNT: "40000"
+      GENERATOR_COUNT: ${LOAN_COUNT:-40000}
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -351,7 +351,7 @@ services:
       PRODUCER_NAME: producer-internal-transfer
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
-      GENERATOR_COUNT: "40000"
+      GENERATOR_COUNT: ${INTERNAL_TRANSFER_COUNT:-40000}
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -387,7 +387,7 @@ services:
       PRODUCER_NAME: producer-debit-order
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
-      GENERATOR_COUNT: "40000"
+      GENERATOR_COUNT: ${DEBIT_ORDER_COUNT:-40000}
       # Empty = a random seed per run (make produce). make up passes a pinned one
       # (SEED in the Makefile), so it sends the same records every time.
       GENERATOR_SEED: ${GENERATOR_SEED:-}
@@ -447,6 +447,7 @@ services:
       KAFKA_REQUEST_TIMEOUT_MS: 40000
       # Fetch and batching
       KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_FETCH_MAX_BYTES: 1048576
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: committed
@@ -507,6 +508,7 @@ services:
       KAFKA_REQUEST_TIMEOUT_MS: 40000
       # Fetch and batching
       KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_FETCH_MAX_BYTES: 1048576
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: committed
@@ -567,6 +569,7 @@ services:
       KAFKA_REQUEST_TIMEOUT_MS: 40000
       # Fetch and batching
       KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_FETCH_MAX_BYTES: 1048576
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: committed
@@ -627,6 +630,7 @@ services:
       KAFKA_REQUEST_TIMEOUT_MS: 40000
       # Fetch and batching
       KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_FETCH_MAX_BYTES: 1048576
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: committed
@@ -687,6 +691,7 @@ services:
       KAFKA_REQUEST_TIMEOUT_MS: 40000
       # Fetch and batching
       KAFKA_MAX_WAIT_TIME_MS: 1000
+      KAFKA_FETCH_MAX_BYTES: 1048576
       KAFKA_BATCH_SIZE: 100
       KAFKA_BATCH_LINGER_MS: 2000
       KAFKA_READ_MODE: committed

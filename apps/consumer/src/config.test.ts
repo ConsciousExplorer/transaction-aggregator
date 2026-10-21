@@ -88,6 +88,10 @@ suite("loadConfig", () => {
 		assert.strictEqual(loadConfig(sampleEnv).kafka.readMode, "committed");
 	});
 
+	test("bounds each fetch to 1 MiB by default, so a backlog can't fill memory", () => {
+		assert.strictEqual(loadConfig(sampleEnv).kafka.fetchMaxBytes, 1_048_576);
+	});
+
 	test("missing KAFKA_TOPIC fails validation", () => {
 		const { KAFKA_TOPIC, ...rest } = sampleEnv;
 		assert.throws(() => loadConfig(rest));

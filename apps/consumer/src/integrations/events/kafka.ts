@@ -247,6 +247,7 @@ export interface BatchConsumerOptions {
 	topics: string[];
 	mode: MessagesStreamModeValue;
 	maxWaitTime: number;
+	fetchMaxBytes: number;
 	batchSize: number;
 	lingerMs: number;
 }
@@ -356,6 +357,9 @@ export async function startBatchConsumer(
 		mode: options.mode,
 		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
 		maxWaitTime: options.maxWaitTime,
+		// The stream takes in a whole fetch before it applies backpressure, so
+		// the fetch size is the bound on the records held in memory
+		maxBytes: options.fetchMaxBytes,
 		autocommit: false,
 		onDeserializationError: onDeserialisationFailure
 	});

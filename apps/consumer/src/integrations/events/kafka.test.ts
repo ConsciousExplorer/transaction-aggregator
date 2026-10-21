@@ -54,6 +54,19 @@ function buildConsumer(stream: Readable) {
 	} as unknown as KafkaConsumer;
 }
 
+/** A consumer that keeps the options each consume() call was given. */
+function buildRecordingConsumer(
+	stream: Readable,
+	consumeCalls: Array<{ maxBytes?: number }>
+) {
+	return {
+		async consume(options: { maxBytes?: number }) {
+			consumeCalls.push(options);
+			return stream;
+		}
+	} as unknown as KafkaConsumer;
+}
+
 function buildOptions(
 	over: Partial<BatchConsumerOptions> = {}
 ): BatchConsumerOptions {
@@ -61,6 +74,7 @@ function buildOptions(
 		topics: ["transactions"],
 		mode: "latest",
 		maxWaitTime: 100,
+		fetchMaxBytes: 1_048_576,
 		batchSize: 3,
 		// Shorter than the handler's work, so the linger timer fires while a
 		// size-triggered flush is still awaiting — the race window.
@@ -109,6 +123,26 @@ suite("startBatchConsumer", () => {
 			[1n, 2n, 3n, 4n, 5n, 6n, 7n],
 			"every message is handled exactly once, in order"
 		);
+	});
+
+	// The client pushes a whole fetch into its buffer before backpressure
+	// applies, so the fetch size is what bounds the consumer's memory under a
+	// backlog. Left to the client's 50 MB default, one fetch held about 144,000
+	// card records and the consumer was OOM-killed.
+	test("asks for at most fetchMaxBytes in each fetch", async () => {
+		const consumeCalls: Array<{ maxBytes?: number }> = [];
+
+		await startBatchConsumer(
+			buildRecordingConsumer(
+				Readable.from(generateMessages(1, 1)),
+				consumeCalls
+			),
+			mock.fn(async (_messages: ClassifiedMessage[]) => {}),
+			continueAfterDeserialisationError,
+			buildOptions({ fetchMaxBytes: 262_144 })
+		);
+
+		assert.strictEqual(consumeCalls[0]?.maxBytes, 262_144);
 	});
 
 	test("flushes the trailing partial batch when the stream ends", async () => {

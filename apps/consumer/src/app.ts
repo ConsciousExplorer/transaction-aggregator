@@ -226,6 +226,7 @@ try {
 			topics: Array(config.kafka.topics.main),
 			mode: config.kafka.readMode,
 			maxWaitTime: config.kafka.maxWaitTime,
+			fetchMaxBytes: config.kafka.fetchMaxBytes,
 			batchSize: config.kafka.batchSize,
 			lingerMs: config.kafka.lingerMs
 		}

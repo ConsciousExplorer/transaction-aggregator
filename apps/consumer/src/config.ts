@@ -94,6 +94,16 @@ const configSchema = z
 
 		// Fetch and batching.
 		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(1_000),
+		// The most one fetch returns (Kafka's fetch.max.bytes). The client pushes
+		// a whole fetch into its buffer before backpressure applies, so this is
+		// what bounds memory under a backlog. At the client's 50 MB default, one
+		// fetch held about 144,000 card records and the consumer was OOM-killed;
+		// 1 MiB holds a few thousand and reads just as fast.
+		KAFKA_FETCH_MAX_BYTES: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(1_048_576),
 		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(100),
 		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
 		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("committed"),
@@ -169,6 +179,7 @@ const configSchema = z
 				rebalanceTimeout: e.KAFKA_REBALANCE_TIMEOUT_MS,
 				requestTimeout: e.KAFKA_REQUEST_TIMEOUT_MS,
 				maxWaitTime: e.KAFKA_MAX_WAIT_TIME_MS,
+				fetchMaxBytes: e.KAFKA_FETCH_MAX_BYTES,
 				batchSize: e.KAFKA_BATCH_SIZE,
 				lingerMs: e.KAFKA_BATCH_LINGER_MS,
 				readMode: e.KAFKA_READ_MODE,
