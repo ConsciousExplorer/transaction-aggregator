@@ -63,9 +63,7 @@ jobs:
       - name: Install, failing if uv.lock is out of date
         run: uv sync --locked
       - name: Audit dependencies
-        run: |
-          uv export --locked --no-dev --no-emit-project --no-hashes -o "$RUNNER_TEMP/requirements.txt"
-          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt"
+        run: bash scripts/audit.sh
       - name: Type-check
         run: uv run pyright src
       - name: Lint

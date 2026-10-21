@@ -89,10 +89,11 @@ async function insertTransactions(
 	transactions: CategorisedTransactionSchema[],
 	pool: Pool
 ) {
+	// Timed whether it succeeds or not, so a slow failure shows up too
 	const endInsertTimer = insertDurationSeconds.startTimer();
 
 	try {
-		const outcome = await runInSpan(
+		return await runInSpan(
 			"db.insert",
 			{
 				attributes: {
@@ -110,10 +111,10 @@ async function insertTransactions(
 				return result;
 			}
 		);
-		endInsertTimer();
-		return outcome;
 	} catch (error) {
 		throw classifyPostgresError(error, "Batch insert failed");
+	} finally {
+		endInsertTimer();
 	}
 }
 

@@ -221,6 +221,21 @@ suite("transactions, read through the API", () => {
 		assert.deepStrictEqual(ids, [inserted[1]?.transactionId]);
 	});
 
+	// Checked against the categories table: a typo would otherwise match
+	// nothing and read as no spending
+	test("a category slug no category has is a 400 that names it", async () => {
+		const response = await readAs(
+			server,
+			readToken,
+			`/api/v1/users/${randomUUID()}/transactions?${AUGUST}&category=groceries&category=grocery`
+		);
+
+		assert.strictEqual(response.statusCode, 400, response.body);
+		assert.deepStrictEqual(response.json().errors, [
+			{ path: ["category"], message: "unknown category grocery" }
+		]);
+	});
+
 	test("each filter narrows the list to the rows it names", async () => {
 		const userId = randomUUID();
 		const accountId = randomUUID();

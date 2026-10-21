@@ -128,7 +128,7 @@ IF NOT EXISTS (SELECT 1 FROM partman.part_config WHERE parent_table = 'txn_agg.u
           p_control := 'occurred_at',
           p_type := 'range',
           p_interval := '1 month',
-          p_premake := 2,
+          p_premake := 3,
           p_start_partition := (now() - interval '19 months')::text
       );
     END IF;

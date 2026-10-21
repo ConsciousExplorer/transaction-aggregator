@@ -8,9 +8,10 @@ import {
 } from "../schemas/schema.ts";
 
 /**
- * The active ruleset version, as a correlated subquery so the version and its
- * rules come from one snapshot. Prepared: this runs once per boot, but naming
- * the statement keeps the plan cached if a reload is ever added.
+ * The newest ruleset version, as a subquery inside the rules query. It runs
+ * once, at boot. `loadRuleset` reads the version the verdicts carry in a
+ * statement of its own, so the two agree unless a ruleset is added while the
+ * consumer is starting.
  */
 const activeVersion = sql`(select max(${ruleSets.version}) from ${ruleSets})`;
 

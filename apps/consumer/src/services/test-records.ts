@@ -1,4 +1,5 @@
 import type { CardTransaction } from "#src/schemas/card.ts";
+import type { LoanTransaction } from "#src/schemas/loan.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 
 // Wire records for tests. Not a .test.ts file, so the test runner does not run
@@ -28,6 +29,30 @@ export function buildCardRecord(
 		posEntryMode: "chip",
 		authCode: "A1B2C3",
 		description: "WOOLWORTHS STORE",
+		status: "COMPLETED",
+		timestamp: 1_790_000_000_000,
+		...over
+	};
+}
+
+/** A well-formed loan repayment as the producer emits it. */
+export function buildLoanRecord(
+	over: Partial<LoanTransaction> = {}
+): LoanTransaction {
+	return {
+		transactionId: "txn-0003",
+		transactionType: "loan",
+		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
+		loanAccountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3303",
+		loanType: "personal",
+		operation: "repayment",
+		amount: 250_000,
+		principalAmount: 200_000,
+		interestAmount: 50_000,
+		currency: "ZAR",
+		creditDebitIndicator: "debit",
+		description: "personal loan repayment",
 		status: "COMPLETED",
 		timestamp: 1_790_000_000_000,
 		...over

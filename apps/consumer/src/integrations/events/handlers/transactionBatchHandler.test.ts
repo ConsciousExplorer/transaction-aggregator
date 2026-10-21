@@ -14,6 +14,9 @@ import {
 	type ValidMessage
 } from "./transactionBatchHandler.ts";
 
+// The producer's partition key
+const CUSTOMER_ID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
 function buildValidMessage(
 	externalId: string,
 	offset: number
@@ -22,6 +25,8 @@ function buildValidMessage(
 		topic: "transactions",
 		partition: 0,
 		offset: BigInt(offset),
+		key: CUSTOMER_ID,
+		recordTimestamp: Date.now(),
 		headers: new Map(),
 		kind: "valid",
 		// Only `transactionType` and identity matter here — ingestion is faked.
@@ -29,8 +34,7 @@ function buildValidMessage(
 			transactionType: "card",
 			transactionId: externalId
 		} as unknown as DomainTransactionSchema,
-		raw: Buffer.from(`avro bytes ${externalId}`),
-		recordTimestamp: Date.now()
+		raw: Buffer.from(`avro bytes ${externalId}`)
 	};
 }
 
@@ -39,6 +43,8 @@ function buildPoisonMessage(offset: number): ClassifiedMessage {
 		topic: "transactions",
 		partition: 0,
 		offset: BigInt(offset),
+		key: CUSTOMER_ID,
+		recordTimestamp: Date.now(),
 		headers: new Map(),
 		kind: "poison",
 		raw: Buffer.from("not avro"),
@@ -51,6 +57,8 @@ function buildTombstoneMessage(offset: number): ClassifiedMessage {
 		topic: "transactions",
 		partition: 0,
 		offset: BigInt(offset),
+		key: CUSTOMER_ID,
+		recordTimestamp: Date.now(),
 		headers: new Map(),
 		kind: "tombstone"
 	};

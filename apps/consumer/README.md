@@ -48,15 +48,15 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 | Bytes that don't decode as Avro | `handleDeserialisationError` → `CONTINUE` → `poison` | Dead-lettered with `x-dlq-reason: deserialisation` |
 | Schema id not loaded at startup | `handleDeserialisationError` → `FAIL` | Exits without committing; the restart loads the new schema and reads the message again |
 | Record that doesn't map to a valid row | `normaliseTransaction` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
-| Row Postgres rejects (constraint, bad value) | `classifyPostgresError` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
-| Postgres down, deadlock, serialization failure | `classifyPostgresError` → `RetryableError` | Exits without committing; the restart replays the batch |
+| Row Postgres rejects (SQLSTATE class 22 or 23: a bad value or a constraint) | `classifyPostgresError` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
+| Any other Postgres failure (down, timed out, deadlock, read-only standby, bad password, missing grant) | `classifyPostgresError` → `RetryableError` | Exits without committing; the restart replays the batch |
 | Dead-letter publish fails | `sendToDeadLetterQueue` throws | Exits without committing; the restart replays the batch |
 | Offset commit fails after a good flush | `drainBatch` | Logged as a warning. The next commit on that partition covers these offsets. |
 
-A dead-letter record carries the message exactly as it arrived: the original bytes and the original headers, so it can be produced to the source topic again unchanged. Its key is `<topic>-<partition>-<offset>`. The consumer adds these headers:
+A dead-letter record carries the message exactly as it arrived: the original key, bytes and headers, so it can be produced to the source topic again unchanged, onto the same partition. The consumer adds these headers:
 - `x-dlq-reason`: `deserialisation` or `processing`
 - `x-dlq-error`
-- `x-source-topic`, `x-source-partition` and `x-source-offset`
+- `x-source-topic`, `x-source-partition`, `x-source-offset` and `x-source-timestamp` (when the original was produced, in epoch milliseconds)
 
 The dead-letter producer waits for `acks=all`, so a record counts as sent only once every in-sync replica has it.
 
@@ -101,7 +101,7 @@ apps/consumer
 ├── test/
 │   └── integration/
 │       ├── transaction-insert.test.ts     the batch insert, column by column
-│       ├── batch-ingestion.test.ts        a rejected row dead-lettered alone
+│       ├── batch-ingestion.test.ts        a rejected row dead-lettered alone; the seeded loan rules
 │       ├── database-outage.test.ts        an outage is retryable, never dead-lettered
 │       └── helpers/                       test database, message and row builders, recording DLQ
 └── src/
@@ -192,9 +192,10 @@ All configuration comes from environment variables, validated at startup by [`sr
 | `KAFKA_REBALANCE_TIMEOUT_MS` | `30000` | At least the session timeout |
 | `KAFKA_REQUEST_TIMEOUT_MS` | `40000` | Must exceed the rebalance timeout |
 | `DATABASE_POOL_MIN` / `DATABASE_POOL_MAX` | `3` / `20` | Postgres pool size |
+| `DATABASE_SSL` | `false` | Connect to Postgres over TLS |
 | `SCHEMA_REGISTRY_URL` | `http://localhost:8081` | Read once at startup |
 | `OTEL_SDK_DISABLED` | `true` | Set to `false` to export traces over OTLP |
-| `PORT` | `6000` | HTTP server port |
+| `HOST` / `PORT` | `0.0.0.0` / `6000` | Address and port the HTTP server listens on |
 
 ## Running it
 

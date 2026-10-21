@@ -68,7 +68,10 @@ export async function verifyToken(
 		({ payload } = await jwtVerify(token, verification.getSigningKey, {
 			issuer: verification.issuer,
 			audience: verification.audience,
-			algorithms: ["RS256"]
+			algorithms: ["RS256"],
+			// jose checks exp only when a token has one, and a token without it
+			// never expires. RFC 9068 §2.2 makes it required.
+			requiredClaims: ["exp"]
 		}));
 	} catch (error) {
 		throw translateJoseError(error);

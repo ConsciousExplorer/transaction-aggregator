@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance, RouteOptions } from "fastify";
+import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
 import { buildServer } from "#src/server.ts";
 import registerSummaryRoute from "./summary.route.ts";
@@ -51,6 +52,19 @@ const summaryRepository = {
 	getUserSummary
 } satisfies SummaryRepository;
 
+// Every slug names a category unless a test says otherwise
+const findUnknownCategories = mock.fn<
+	CategoryRepository["findUnknownCategories"]
+>(async () => []);
+const categoryRepository = {
+	db: {} as NodePgDatabase,
+	getCategories: mock.fn(async () => []),
+	getUserCategories: mock.fn(async () => []),
+	findUnknownCategories,
+	updateUserCategory: mock.fn(async () => undefined),
+	archiveUserCategory: mock.fn(async () => undefined)
+} satisfies CategoryRepository;
+
 suite("GET /api/v1/users/:userId/summary", () => {
 	let app: FastifyInstance;
 	const routes: RouteOptions[] = [];
@@ -63,6 +77,7 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		await app.register(registerSummaryRoute, {
 			prefix: "/api/v1/users/:userId/summary",
 			summaryRepository,
+			categoryRepository,
 			queryWindow: { maxDays: 366 }
 		});
 		await app.ready();
@@ -73,6 +88,23 @@ suite("GET /api/v1/users/:userId/summary", () => {
 	beforeEach(() => {
 		getUserSummary.mock.resetCalls();
 		getUserSummary.mock.mockImplementation(async () => ROWS);
+		findUnknownCategories.mock.resetCalls();
+		findUnknownCategories.mock.mockImplementation(async () => []);
+	});
+
+	// The read would match nothing: zero totals that read as no spending
+	test("400: an unknown category slug → validation problem, nothing read", async () => {
+		findUnknownCategories.mock.mockImplementationOnce(async () => ["grocery"]);
+		const response = await app.inject({
+			method: "GET",
+			url: `${BASE_URL}&category=grocery`
+		});
+		assert.strictEqual(response.statusCode, 400);
+		assert.strictEqual(response.json().type, "validation-error");
+		assert.deepStrictEqual(findUnknownCategories.mock.calls[0]?.arguments, [
+			["grocery"]
+		]);
+		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
 	test("200: totals aggregate the rows and data carries the per-group breakdown", async () => {

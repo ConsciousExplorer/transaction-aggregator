@@ -2,6 +2,7 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
+import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
 import {
@@ -10,6 +11,7 @@ import {
 	transactionSortSchema,
 	transactionTypeSchema
 } from "#src/schemas/transactions.ts";
+import { assertKnownCategories } from "#src/utils/category-filter.ts";
 import {
 	buildKeysetPage,
 	buildPageLinks,
@@ -28,6 +30,7 @@ export default async function registerListTransactionsRoute(
 	fastify: FastifyInstance,
 	options: {
 		transactionRepository: UserTransactionRepository;
+		categoryRepository: CategoryRepository;
 		queryWindow: QueryWindowConfig;
 	}
 ) {
@@ -90,6 +93,10 @@ export default async function registerListTransactionsRoute(
 				request.query.fromDateTime,
 				request.query.toDateTime,
 				maxWindowDays
+			);
+			await assertKnownCategories(
+				options.categoryRepository,
+				request.query.category
 			);
 
 			const limit = request.query.limit;

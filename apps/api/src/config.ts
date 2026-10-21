@@ -63,44 +63,44 @@ const configSchema = z
 		// twelve calendar months fit in 366 days.
 		WINDOW_MAX_DAYS: z.coerce.number().int().positive().default(366)
 	})
-	.transform((e) =>
+	.transform((environment) =>
 		Object.freeze({
 			app: Object.freeze({
-				host: e.HOST,
-				port: e.HTTP_PORT
+				host: environment.HOST,
+				port: environment.HTTP_PORT
 			}),
 			api: Object.freeze({
-				enableSwagger: e.ENABLE_SWAGGER
+				enableSwagger: environment.ENABLE_SWAGGER
 			}),
 			logging: Object.freeze({
-				level: e.LOG_LEVEL,
-				redactedFields: e.LOG_REDACTED_FIELDS,
-				redactDepth: e.LOG_REDACT_DEPTH
+				level: environment.LOG_LEVEL,
+				redactedFields: environment.LOG_REDACTED_FIELDS,
+				redactDepth: environment.LOG_REDACT_DEPTH
 			}),
 			database: Object.freeze({
-				host: e.DATABASE_HOST,
-				port: e.DATABASE_PORT,
-				database: e.DATABASE_NAME,
-				user: e.DATABASE_USER,
-				min: e.DATABASE_POOL_MIN,
-				max: e.DATABASE_POOL_MAX,
+				host: environment.DATABASE_HOST,
+				port: environment.DATABASE_PORT,
+				database: environment.DATABASE_NAME,
+				user: environment.DATABASE_USER,
+				min: environment.DATABASE_POOL_MIN,
+				max: environment.DATABASE_POOL_MAX,
 				queryLog: Object.freeze({
-					sql: e.DATABASE_QUERY_LOG_SQL,
-					plan: e.DATABASE_QUERY_LOG_PLAN
+					sql: environment.DATABASE_QUERY_LOG_SQL,
+					plan: environment.DATABASE_QUERY_LOG_PLAN
 				})
 			}),
 			auth: Object.freeze({
-				jwksUri: e.AUTH_JWKS_URI,
-				issuer: e.AUTH_ISSUER,
-				audience: e.AUTH_AUDIENCE
+				jwksUri: environment.AUTH_JWKS_URI,
+				issuer: environment.AUTH_ISSUER,
+				audience: environment.AUTH_AUDIENCE
 			}),
 			queryWindow: Object.freeze({
-				maxDays: e.WINDOW_MAX_DAYS
+				maxDays: environment.WINDOW_MAX_DAYS
 			}),
 			secretsSpec: Object.freeze({
-				dir: e.SECRET_DIR,
+				dir: environment.SECRET_DIR,
 				secrets: Object.freeze({
-					databasePassword: e.DATABASE_PASSWORD_SECRET_NAME
+					databasePassword: environment.DATABASE_PASSWORD_SECRET_NAME
 				})
 			})
 		})
@@ -110,8 +110,8 @@ export type Config = z.infer<typeof configSchema>;
 export type AppInfoConfig = z.infer<typeof appInfoSchema>;
 export type QueryWindowConfig = Config["queryWindow"];
 
-export function loadPackageInfo(pkg: unknown) {
-	const config = appInfoSchema.safeParse(pkg);
+export function loadPackageInfo(packageJson: unknown) {
+	const config = appInfoSchema.safeParse(packageJson);
 
 	if (!config.success) {
 		const issueLines: string[] = [];

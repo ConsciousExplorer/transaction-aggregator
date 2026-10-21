@@ -10,7 +10,10 @@ import {
 	type DeadLetterFailure
 } from "#src/integrations/events/handlers/transactionBatchHandler.ts";
 import type { RuleSet } from "#src/services/rule-categoriser.ts";
-import { buildCardRecord } from "#src/services/test-records.ts";
+import {
+	buildCardRecord,
+	buildLoanRecord
+} from "#src/services/test-records.ts";
 import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 import {
 	startTestDatabase,
@@ -23,10 +26,20 @@ import {
 	CHECK_VIOLATION,
 	readPostgresErrorCode
 } from "./helpers/postgres-errors.ts";
+import { CATEGORY_IDS } from "./helpers/rows.ts";
 
 // The batch handler as app.ts builds it: the real ingester on kafka_consumer's
 // pool and a ruleset loaded from the seeded database. Only the DLQ is a fake,
 // one that records what it is given.
+
+/** The category each of the user's rows was stored with, and the rule that chose it */
+async function readStoredCategories(adminPool: Pool, userId: string) {
+	const result = await adminPool.query(
+		"SELECT external_id, category_id, rule_priority FROM txn_agg.transactions WHERE user_id = $1 ORDER BY external_id",
+		[userId]
+	);
+	return result.rows;
+}
 
 async function readStoredExternalIds(adminPool: Pool, userId: string) {
 	const result = await adminPool.query(
@@ -99,6 +112,48 @@ suite("batch ingestion into Postgres", () => {
 		assert.strictEqual(
 			readPostgresErrorCode(deadLetter.error),
 			CHECK_VIOLATION
+		);
+	});
+
+	// The seeded loan rules match on what the loan normaliser writes, so a
+	// disbursement is income rather than the loan default, loan_repayment
+	test("the seeded rules categorise a loan disbursement as income and a repayment by its own rule", async () => {
+		const userId = randomUUID();
+		const ingestTransactions = createTransactionIngester(
+			"loan",
+			ruleset,
+			database.consumerPool
+		);
+
+		await ingestTransactions([
+			buildLoanRecord({
+				transactionId: "disbursement",
+				customerId: userId,
+				operation: "disbursement",
+				creditDebitIndicator: "credit"
+			}),
+			buildLoanRecord({
+				transactionId: "repayment",
+				customerId: userId,
+				operation: "repayment",
+				creditDebitIndicator: "debit"
+			})
+		]);
+
+		assert.deepStrictEqual(
+			await readStoredCategories(database.adminPool, userId),
+			[
+				{
+					external_id: "disbursement",
+					category_id: CATEGORY_IDS.income,
+					rule_priority: 501
+				},
+				{
+					external_id: "repayment",
+					category_id: CATEGORY_IDS.loan_repayment,
+					rule_priority: 500
+				}
+			]
 		);
 	});
 });

@@ -5,10 +5,12 @@ npm-debug.log
 .env
 *.env
 !sample.env
+secrets/
 
 # Test scaffolding does not ship
 **/*.test.ts
 **/test-runtime.ts
+src/services/test-records.ts
 test/
 
 .git

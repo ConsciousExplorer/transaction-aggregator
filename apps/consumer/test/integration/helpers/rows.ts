@@ -5,6 +5,7 @@ import type { CategorisedTransactionSchema } from "#src/schemas/transaction.ts";
 export const CATEGORY_IDS = {
 	uncategorised: 1,
 	groceries: 2,
+	loan_repayment: 10,
 	income: 11
 };
 

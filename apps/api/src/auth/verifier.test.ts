@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
-import { before, suite, test } from "node:test";
-import { generateKeyPair } from "jose";
+import { once } from "node:events";
+import {
+	createServer,
+	type IncomingMessage,
+	type ServerResponse
+} from "node:http";
+import type { AddressInfo } from "node:net";
+import { suite, test } from "node:test";
+import { createRemoteJWKSet, generateKeyPair } from "jose";
 import {
 	InvalidClaimsError,
 	TokenVerificationError,
@@ -20,15 +27,16 @@ import {
 	verifyToken
 } from "./verifier.ts";
 
-let privateKey: CryptoKey;
-let tokenVerification: TokenVerification;
+// Made once for the file, and verified for real
+const { privateKey, tokenVerification } = await buildTestSigningKeys();
 
 async function assertRejectsWithReason(
 	token: Promise<string> | string,
+	verification: TokenVerification,
 	reason: TokenVerificationReason
 ) {
 	await assert.rejects(
-		async () => verifyToken(await token, tokenVerification),
+		async () => verifyToken(await token, verification),
 		(error: unknown) => {
 			assert.ok(error instanceof TokenVerificationError);
 			assert.equal(error.reason, reason);
@@ -37,11 +45,25 @@ async function assertRejectsWithReason(
 	);
 }
 
-suite("Token Verifier", () => {
-	before(async () => {
-		({ privateKey, tokenVerification } = await buildTestSigningKeys());
-	});
+/** Verification that fetches its key set from the identity provider at this URL */
+function buildRemoteVerification(jwksUri: string) {
+	return {
+		getSigningKey: createRemoteJWKSet(new URL(jwksUri)),
+		issuer: TEST_ISSUER,
+		audience: TEST_AUDIENCE
+	};
+}
 
+// An identity provider that is up but cannot serve its keys
+function answerUnavailable(
+	_request: IncomingMessage,
+	response: ServerResponse
+) {
+	response.statusCode = 503;
+	response.end();
+}
+
+suite("Token Verifier", () => {
 	test("should verify a valid token", async () => {
 		const token = await signTestToken(privateKey, {
 			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
@@ -62,6 +84,7 @@ suite("Token Verifier", () => {
 	test("Should reject an expired token", async () => {
 		await assertRejectsWithReason(
 			signTestToken(privateKey, {}, { expiresIn: "-1s" }),
+			tokenVerification,
 			"expired"
 		);
 	});
@@ -71,6 +94,7 @@ suite("Token Verifier", () => {
 
 		await assertRejectsWithReason(
 			signTestToken(otherPair.privateKey),
+			tokenVerification,
 			"signature"
 		);
 	});
@@ -78,6 +102,7 @@ suite("Token Verifier", () => {
 	test("Should reject a token with the wrong issuer", async () => {
 		await assertRejectsWithReason(
 			signTestToken(privateKey, {}, { issuer: "https://not-the-issuer.com" }),
+			tokenVerification,
 			"issuer"
 		);
 	});
@@ -85,6 +110,7 @@ suite("Token Verifier", () => {
 	test("Should reject a token with the wrong audience", async () => {
 		await assertRejectsWithReason(
 			signTestToken(privateKey, {}, { audience: "not-the-audience" }),
+			tokenVerification,
 			"audience"
 		);
 	});
@@ -94,6 +120,7 @@ suite("Token Verifier", () => {
 
 		await assertRejectsWithReason(
 			signTestToken(pssKey, {}, { algorithm: "PS256" }),
+			tokenVerification,
 			"algorithm"
 		);
 	});
@@ -101,12 +128,69 @@ suite("Token Verifier", () => {
 	test("Should reject a token whose key is not in the key set", async () => {
 		await assertRejectsWithReason(
 			signTestToken(privateKey, {}, { keyId: "not-in-the-jwks" }),
+			tokenVerification,
 			"unknown-key"
 		);
 	});
 
 	test("Should reject a malformed token", async () => {
-		await assertRejectsWithReason("not-a-jwt", "malformed");
+		await assertRejectsWithReason("not-a-jwt", tokenVerification, "malformed");
+	});
+
+	// jose checks exp only when a token has one, so without it a token never
+	// expires. Every other claim is present, so exp is the one missing.
+	test("Should reject a token without an expiry", async () => {
+		await assertRejectsWithReason(
+			signTestToken(
+				privateKey,
+				{
+					sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
+					azp: "banking-service",
+					scope: "read write"
+				},
+				{ expiresIn: null }
+			),
+			tokenVerification,
+			"missing-claims"
+		);
+	});
+
+	test("Should reject a token that is not valid yet", async () => {
+		await assertRejectsWithReason(
+			signTestToken(privateKey, {}, { notBefore: "10m" }),
+			tokenVerification,
+			"not-yet-valid"
+		);
+	});
+});
+
+// A key set that cannot be fetched is the identity provider's failure, not the
+// caller's token: its own reason, so the auth hook can answer 503, not 401.
+suite("Token Verifier with a key set it cannot fetch", () => {
+	test("an identity provider that refuses the connection", async () => {
+		// Nothing listens on port 1, so the connection is refused at once
+		await assertRejectsWithReason(
+			signTestToken(privateKey),
+			buildRemoteVerification("http://127.0.0.1:1/certs"),
+			"key-set-unavailable"
+		);
+	});
+
+	test("an identity provider that answers other than 200", async () => {
+		const identityProvider = createServer(answerUnavailable);
+		identityProvider.listen(0, "127.0.0.1");
+		await once(identityProvider, "listening");
+		const { port } = identityProvider.address() as AddressInfo;
+
+		try {
+			await assertRejectsWithReason(
+				signTestToken(privateKey),
+				buildRemoteVerification(`http://127.0.0.1:${port}/certs`),
+				"key-set-unavailable"
+			);
+		} finally {
+			identityProvider.close();
+		}
 	});
 });
 

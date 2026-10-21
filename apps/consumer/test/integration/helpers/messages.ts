@@ -14,9 +14,10 @@ export function buildValidMessage(record: CardTransaction, offset: bigint) {
 		topic: "transactions.card",
 		partition: 0,
 		offset,
+		key: record.customerId,
+		recordTimestamp: Date.now(),
 		headers: new Map([["traceparent", TRACEPARENT]]),
 		value: castToDomainTransaction(record),
-		raw: Buffer.from(`raw bytes of ${record.transactionId}`),
-		recordTimestamp: Date.now()
+		raw: Buffer.from(`raw bytes of ${record.transactionId}`)
 	} satisfies ValidMessage;
 }

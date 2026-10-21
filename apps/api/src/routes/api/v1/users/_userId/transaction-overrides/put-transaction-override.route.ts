@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import z from "zod";
 import { notFoundError, validationError } from "#src/errors/http-problem.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { problemSchema } from "#src/schemas/common.ts";
+import { categoryIdSchema, problemSchema } from "#src/schemas/common.ts";
 import { buildTransactionOverride } from "./transaction-overrides.mappers.ts";
 import { transactionOverrideSchema } from "./transaction-overrides.schemas.ts";
 
@@ -23,7 +23,7 @@ export default async function registerPutTransactionOverrideRoute(
 			tags: ["transactions"],
 			hide: false,
 			params: z.object({ userId: z.uuid(), transactionId: z.uuid() }),
-			body: z.object({ categoryId: z.number().int().positive() }),
+			body: z.object({ categoryId: categoryIdSchema }),
 			response: {
 				200: transactionOverrideSchema,
 				400: problemSchema,

@@ -49,6 +49,17 @@ export function unauthorizedError() {
 	});
 }
 
+// The identity provider's signing keys could not be fetched, so no token can be
+// checked. A 401 would tell the caller its credentials are bad, and send it
+// after new tokens from the same provider that is down.
+export function authUnavailableError() {
+	return new HttpProblem({
+		type: "auth-unavailable",
+		title: "Authentication unavailable",
+		status: 503
+	});
+}
+
 export function forbiddenError() {
 	return new HttpProblem({
 		type: "forbidden",

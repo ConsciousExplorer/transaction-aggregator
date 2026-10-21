@@ -72,7 +72,7 @@ export async function createAvroDeserialiser<T>(
 		`Loaded ${types.size} Avro schema(s)`
 	);
 
-	return {
-		deserialise: (data?: Buffer) => deserialise<T>(types, data)
+	return function deserialiseValue(data?: Buffer) {
+		return deserialise<T>(types, data);
 	};
 }

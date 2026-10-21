@@ -2,9 +2,9 @@ import { z } from "zod";
 
 // Validates that the field is a valid JSON string and an AVRO record
 const AvroSchemaString = z.string().refine(
-	(val) => {
+	(value) => {
 		try {
-			const parsed = JSON.parse(val);
+			const parsed = JSON.parse(value);
 			// Basic check to ensure it looks like a valid AVRO record schema
 			return parsed && parsed.type === "record" && Array.isArray(parsed.fields);
 		} catch {

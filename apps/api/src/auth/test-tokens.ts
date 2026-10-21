@@ -31,7 +31,9 @@ export interface TestTokenOptions {
 	audience?: string;
 	algorithm?: string;
 	keyId?: string;
-	expiresIn?: string;
+	// null leaves the exp claim out
+	expiresIn?: string | null;
+	notBefore?: string;
 }
 
 /** By default a token the keys above accept; each option breaks one check. */
@@ -43,14 +45,18 @@ export function signTestToken(
 		audience = TEST_AUDIENCE,
 		algorithm = "RS256",
 		keyId = TEST_KEY_ID,
-		expiresIn = "5m"
+		expiresIn = "5m",
+		notBefore
 	}: TestTokenOptions = {}
 ) {
-	return new SignJWT(claims)
+	const token = new SignJWT(claims)
 		.setProtectedHeader({ alg: algorithm, kid: keyId })
 		.setIssuedAt()
 		.setIssuer(issuer)
-		.setAudience(audience)
-		.setExpirationTime(expiresIn)
-		.sign(privateKey);
+		.setAudience(audience);
+
+	if (expiresIn !== null) token.setExpirationTime(expiresIn);
+	if (notBefore !== undefined) token.setNotBefore(notBefore);
+
+	return token.sign(privateKey);
 }

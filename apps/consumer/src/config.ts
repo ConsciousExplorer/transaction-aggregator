@@ -120,83 +120,92 @@ const configSchema = z
 		OTEL_SDK_DISABLED: z.stringbool().default(true),
 		OTEL_SERVICE_NAME: z.string().default("consumer")
 	})
-	.superRefine((e, ctx) => {
-		if (e.KAFKA_HEARTBEAT_INTERVAL_MS > e.KAFKA_SESSION_TIMEOUT_MS / 3) {
-			ctx.addIssue({
+	.superRefine((environment, context) => {
+		if (
+			environment.KAFKA_HEARTBEAT_INTERVAL_MS >
+			environment.KAFKA_SESSION_TIMEOUT_MS / 3
+		) {
+			context.addIssue({
 				code: "custom",
 				path: ["KAFKA_HEARTBEAT_INTERVAL_MS"],
-				message: `must be at most a third of KAFKA_SESSION_TIMEOUT_MS (${e.KAFKA_SESSION_TIMEOUT_MS})`
+				message: `must be at most a third of KAFKA_SESSION_TIMEOUT_MS (${environment.KAFKA_SESSION_TIMEOUT_MS})`
 			});
 		}
 
-		if (e.KAFKA_REBALANCE_TIMEOUT_MS < e.KAFKA_SESSION_TIMEOUT_MS) {
-			ctx.addIssue({
+		if (
+			environment.KAFKA_REBALANCE_TIMEOUT_MS <
+			environment.KAFKA_SESSION_TIMEOUT_MS
+		) {
+			context.addIssue({
 				code: "custom",
 				path: ["KAFKA_REBALANCE_TIMEOUT_MS"],
-				message: `must be at least KAFKA_SESSION_TIMEOUT_MS (${e.KAFKA_SESSION_TIMEOUT_MS})`
+				message: `must be at least KAFKA_SESSION_TIMEOUT_MS (${environment.KAFKA_SESSION_TIMEOUT_MS})`
 			});
 		}
 
-		if (e.KAFKA_REQUEST_TIMEOUT_MS <= e.KAFKA_REBALANCE_TIMEOUT_MS) {
-			ctx.addIssue({
+		if (
+			environment.KAFKA_REQUEST_TIMEOUT_MS <=
+			environment.KAFKA_REBALANCE_TIMEOUT_MS
+		) {
+			context.addIssue({
 				code: "custom",
 				path: ["KAFKA_REQUEST_TIMEOUT_MS"],
-				message: `must exceed KAFKA_REBALANCE_TIMEOUT_MS (${e.KAFKA_REBALANCE_TIMEOUT_MS}) or JoinGroup times out mid-rebalance`
+				message: `must exceed KAFKA_REBALANCE_TIMEOUT_MS (${environment.KAFKA_REBALANCE_TIMEOUT_MS}) or JoinGroup times out mid-rebalance`
 			});
 		}
 	})
-	.transform((e) =>
+	.transform((environment) =>
 		Object.freeze({
 			app: Object.freeze({
-				name: e.APP_NAME,
-				host: e.HOST,
-				port: e.PORT
+				name: environment.APP_NAME,
+				host: environment.HOST,
+				port: environment.PORT
 			}),
 			database: Object.freeze({
-				host: e.DATABASE_HOST,
-				port: e.DATABASE_PORT,
-				database: e.DATABASE_NAME,
-				user: e.DATABASE_USER,
-				ssl: e.DATABASE_SSL,
-				min: e.DATABASE_POOL_MIN,
-				max: e.DATABASE_POOL_MAX
+				host: environment.DATABASE_HOST,
+				port: environment.DATABASE_PORT,
+				database: environment.DATABASE_NAME,
+				user: environment.DATABASE_USER,
+				ssl: environment.DATABASE_SSL,
+				min: environment.DATABASE_POOL_MIN,
+				max: environment.DATABASE_POOL_MAX
 			}),
-			transactionType: e.TRANSACTION_TYPE,
+			transactionType: environment.TRANSACTION_TYPE,
 			kafka: Object.freeze({
-				brokers: e.KAFKA_BROKERS, // string[] now
-				groupId: `transaction-consumer-${e.TRANSACTION_TYPE}`,
-				clientId: e.APP_NAME,
+				brokers: environment.KAFKA_BROKERS, // string[] now
+				groupId: `transaction-consumer-${environment.TRANSACTION_TYPE}`,
+				clientId: environment.APP_NAME,
 				sasl: Object.freeze({
-					mechanism: e.KAFKA_SASL_MECHANISM,
-					username: e.KAFKA_USERNAME
+					mechanism: environment.KAFKA_SASL_MECHANISM,
+					username: environment.KAFKA_USERNAME
 				}),
 				topics: Object.freeze({
-					main: e.KAFKA_TOPIC,
-					deadLetter: `${e.KAFKA_TOPIC}.dlq`
+					main: environment.KAFKA_TOPIC,
+					deadLetter: `${environment.KAFKA_TOPIC}.dlq`
 				}),
-				sessionTimeout: e.KAFKA_SESSION_TIMEOUT_MS,
-				heartbeatInterval: e.KAFKA_HEARTBEAT_INTERVAL_MS,
-				rebalanceTimeout: e.KAFKA_REBALANCE_TIMEOUT_MS,
-				requestTimeout: e.KAFKA_REQUEST_TIMEOUT_MS,
-				maxWaitTime: e.KAFKA_MAX_WAIT_TIME_MS,
-				fetchMaxBytes: e.KAFKA_FETCH_MAX_BYTES,
-				batchSize: e.KAFKA_BATCH_SIZE,
-				lingerMs: e.KAFKA_BATCH_LINGER_MS,
-				readMode: e.KAFKA_READ_MODE,
-				lagMonitoringInterval: e.KAFKA_LAG_MONITORING_INTERVAL_MS
+				sessionTimeout: environment.KAFKA_SESSION_TIMEOUT_MS,
+				heartbeatInterval: environment.KAFKA_HEARTBEAT_INTERVAL_MS,
+				rebalanceTimeout: environment.KAFKA_REBALANCE_TIMEOUT_MS,
+				requestTimeout: environment.KAFKA_REQUEST_TIMEOUT_MS,
+				maxWaitTime: environment.KAFKA_MAX_WAIT_TIME_MS,
+				fetchMaxBytes: environment.KAFKA_FETCH_MAX_BYTES,
+				batchSize: environment.KAFKA_BATCH_SIZE,
+				lingerMs: environment.KAFKA_BATCH_LINGER_MS,
+				readMode: environment.KAFKA_READ_MODE,
+				lagMonitoringInterval: environment.KAFKA_LAG_MONITORING_INTERVAL_MS
 			}),
-			schemaRegistry: { url: e.SCHEMA_REGISTRY_URL },
+			schemaRegistry: { url: environment.SCHEMA_REGISTRY_URL },
 			tracing: Object.freeze({
-				enabled: !e.OTEL_SDK_DISABLED,
-				serviceName: e.OTEL_SERVICE_NAME
+				enabled: !environment.OTEL_SDK_DISABLED,
+				serviceName: environment.OTEL_SERVICE_NAME
 			}),
 
 			// Keeping secrets separate to ensure they are not logged out by mistake
 			secretsSpec: Object.freeze({
-				dir: e.SECRET_DIR,
+				dir: environment.SECRET_DIR,
 				secrets: Object.freeze({
-					databasePassword: e.DATABASE_PASSWORD_SECRET_NAME,
-					kafkaPassword: e.KAFKA_PASSWORD_SECRET_NAME
+					databasePassword: environment.DATABASE_PASSWORD_SECRET_NAME,
+					kafkaPassword: environment.KAFKA_PASSWORD_SECRET_NAME
 				})
 			})
 		})
@@ -205,8 +214,8 @@ const configSchema = z
 export type Config = z.infer<typeof configSchema>;
 export type AppInfoConfig = z.infer<typeof appInfoSchema>;
 
-export function loadPackageInfo(pkg: unknown) {
-	const config = appInfoSchema.safeParse(pkg);
+export function loadPackageInfo(packageJson: unknown) {
+	const config = appInfoSchema.safeParse(packageJson);
 
 	if (!config.success) {
 		const issueLines: string[] = [];

@@ -1,32 +1,17 @@
 import { NonRetryableError, RetryableError } from "./consumer-errors.ts";
 
-const RETRYABLE_CLASSES = new Set([
-	"08", // connection exception
-	"53", // insufficient resources
-	"58" // system error external to Postgres
-]);
-
-const RETRYABLE_CODES = new Set([
-	"40001", // serialization_failure
-	"40P01", // deadlock_detected
-	"40000", // transaction_rollback
-	"55006", // object_in_use
-	"55P03", // lock_not_available
-	"57014", // query_canceled
-	"57P01", // admin_shutdown
-	"57P02", // crash_shutdown
-	"57P03" // cannot_connect_now
-]);
-
-/** Socket-level failures, which arrive without a SQLSTATE. */
-const RETRYABLE_SYSCALLS = new Set([
-	"ECONNREFUSED",
-	"ECONNRESET",
-	"EPIPE",
-	"ETIMEDOUT",
-	"EHOSTUNREACH",
-	"ENETUNREACH",
-	"ENOTFOUND"
+/**
+ * The SQLSTATE classes that describe the row itself: a value Postgres cannot
+ * store (22, data exception) or one a constraint refuses (23, integrity
+ * constraint violation). The same row fails the same way on every retry, so it
+ * is dead-lettered. Every other code describes the database or the connection
+ * (a read-only standby, a rotated password, a missing grant, a lock, a
+ * shutdown) and fails every row alike: dead-lettering those would move the
+ * whole topic into the DLQ and commit past it.
+ */
+const BAD_ROW_CLASSES = new Set([
+	"22", // data exception
+	"23" // integrity constraint violation
 ]);
 
 /** pg's DatabaseError carries the diagnostics on the error itself. */
@@ -41,8 +26,8 @@ const PG_DIAGNOSTIC_FIELDS = [
 	"severity"
 ] as const;
 
-export function isRetryablePostgresCode(code: string) {
-	return RETRYABLE_CODES.has(code) || RETRYABLE_CLASSES.has(code.slice(0, 2));
+function isBadRowPostgresCode(code: string) {
+	return BAD_ROW_CLASSES.has(code.slice(0, 2));
 }
 
 function extractDiagnostics(error: Record<string, unknown>) {
@@ -74,14 +59,20 @@ export function classifyPostgresError(
 	const reason =
 		error instanceof Error ? `${message}: ${error.message}` : message;
 
-	if (code && (isRetryablePostgresCode(code) || RETRYABLE_SYSCALLS.has(code))) {
+	if (code && isBadRowPostgresCode(code)) {
+		return new NonRetryableError(reason, { cause: error, details });
+	}
+
+	// Every other SQLSTATE, and the socket failures that carry a syscall code
+	// in its place (ECONNREFUSED, ECONNRESET, ETIMEDOUT, ...).
+	if (code) {
 		return new RetryableError(reason, { cause: error, details });
 	}
 
-	// No SQLSTATE and no syscall means the connection died mid-flight rather
-	// than the server rejecting the statement — pg surfaces these as plain
-	// Errors ("Connection terminated unexpectedly", pool acquisition timeouts).
-	if (!code && error instanceof Error) {
+	// No code at all means the connection died mid-flight rather than the
+	// server rejecting the statement — pg surfaces these as plain Errors
+	// ("Connection terminated unexpectedly", pool acquisition timeouts).
+	if (error instanceof Error) {
 		return new RetryableError(reason, { cause: error, details });
 	}
 

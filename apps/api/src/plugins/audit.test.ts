@@ -1,5 +1,16 @@
 import assert from "node:assert/strict";
-import { after, before, beforeEach, suite, test } from "node:test";
+import { request } from "node:http";
+import type { AddressInfo } from "node:net";
+import {
+	after,
+	before,
+	beforeEach,
+	type Mock,
+	mock,
+	suite,
+	test
+} from "node:test";
+import { setTimeout as wait } from "node:timers/promises";
 import type { FastifyInstance } from "fastify";
 import { pino } from "pino";
 import z from "zod";
@@ -22,6 +33,15 @@ const captureStream = {
 async function readAuditLines() {
 	await new Promise((resolve) => setImmediate(resolve));
 	return logLines.filter((line) => line.event === "audit");
+}
+
+// The client is the one hanging up, so its socket error is expected
+function ignoreClientError() {}
+
+async function waitForCalls(handler: Mock<() => Promise<unknown>>) {
+	while (handler.mock.callCount() === 0) {
+		await wait(1);
+	}
 }
 
 suite("audit line", () => {
@@ -144,5 +164,67 @@ suite("audit line", () => {
 			messages.push(line.msg);
 		}
 		assert.deepStrictEqual(messages, ["audit"]);
+	});
+});
+
+suite("audit line for a request whose client hangs up", () => {
+	let app: FastifyInstance;
+	let port: number;
+	let writeToken: string;
+	// Slow enough that the client hangs up while the handler is still running
+	const writeSlowly = mock.fn(async () => {
+		await wait(100);
+		return { ok: true };
+	});
+
+	before(async () => {
+		const { privateKey, tokenVerification } = await buildTestSigningKeys();
+		writeToken = await signTestToken(privateKey, {
+			sub: "7d2e9b40-3c1a-4f5e-a6b7-8c9d0e1f2a3b",
+			azp: "banking-portal",
+			scope: "tx:write"
+		});
+
+		app = buildServer({ logger: pino({ level: "info" }, captureStream) });
+		await app.register(authPlugin, { tokenVerification });
+		await app.register(auditPlugin);
+		app.put(
+			"/users/:userId/things",
+			{ config: { authConfig: { requiredScope: ["tx:write"] } } },
+			writeSlowly
+		);
+
+		await app.listen({ host: "127.0.0.1", port: 0 });
+		port = (app.server.address() as AddressInfo).port;
+	});
+	after(async () => {
+		await app.close();
+	});
+	beforeEach(() => {
+		logLines.length = 0;
+	});
+
+	// Its handler still runs, so the write can land: the caller must be on record
+	test("is written with 499, though its response is never sent", async () => {
+		const outgoing = request({
+			host: "127.0.0.1",
+			port,
+			method: "PUT",
+			path: `/users/${USER_ID}/things`,
+			headers: { authorization: `Bearer ${writeToken}` }
+		});
+		outgoing.on("error", ignoreClientError);
+		outgoing.end();
+		await waitForCalls(writeSlowly);
+		outgoing.destroy();
+		// Past the end of the handler, which still runs to completion
+		await wait(150);
+
+		const lines = await readAuditLines();
+		assert.strictEqual(lines.length, 1);
+		assert.strictEqual(lines[0]?.status, 499);
+		assert.strictEqual(lines[0]?.client_id, "banking-portal");
+		assert.strictEqual(lines[0]?.user_id, USER_ID);
+		assert.strictEqual(lines[0]?.method, "PUT");
 	});
 });

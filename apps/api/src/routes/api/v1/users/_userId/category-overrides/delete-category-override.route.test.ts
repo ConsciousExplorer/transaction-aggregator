@@ -34,7 +34,7 @@ const categoryRepository = {
 	db: {} as NodePgDatabase,
 	getCategories: mock.fn(async () => []),
 	getUserCategories: mock.fn(async () => []),
-	resolveCategory: mock.fn(async () => undefined),
+	findUnknownCategories: mock.fn(async () => []),
 	updateUserCategory: mock.fn(async () => undefined),
 	archiveUserCategory
 } satisfies CategoryRepository;
@@ -78,5 +78,16 @@ suite("DELETE /api/v1/users/:userId/category-overrides/:categoryId", () => {
 			url: buildOverrideUrl(999)
 		});
 		assert.strictEqual(response.statusCode, 204);
+	});
+
+	// category_id is a smallint: Postgres refuses a larger id outright, a 500
+	test("400: an id beyond the smallint range → validation problem, nothing archived", async () => {
+		const response = await app.inject({
+			method: "DELETE",
+			url: buildOverrideUrl(40_000)
+		});
+		assert.strictEqual(response.statusCode, 400);
+		assert.strictEqual(response.json().type, "validation-error");
+		assert.strictEqual(archiveUserCategory.mock.callCount(), 0);
 	});
 });

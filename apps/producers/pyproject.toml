@@ -37,3 +37,4 @@ format = "ruff format src"
 lint = "ruff check --fix src"
 typecheck = "pyright src"
 check = ["format", "lint", "typecheck"]
+audit = "bash scripts/audit.sh"

@@ -85,10 +85,10 @@ export async function startTestDatabase() {
 		.withStartupTimeout(120_000)
 		.start();
 
-	const adminPool = await connectAs(container, "admin", "admin_password");
+	const adminPool = connectAs(container, "admin", "admin_password");
 	await migrate(drizzle(adminPool), { migrationsFolder: MIGRATIONS_DIRECTORY });
 
-	const consumerPool = await connectAs(
+	const consumerPool = connectAs(
 		container,
 		"kafka_consumer",
 		"consumer_database_password"

@@ -123,6 +123,18 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		assert.strictEqual(response.json().type, "validation-error");
 	});
 
+	// category_id is a smallint: Postgres refuses a larger id outright, a 500
+	test("400: a categoryId beyond the smallint range → validation problem, nothing written", async () => {
+		const response = await app.inject({
+			method: "PUT",
+			url: OVERRIDE_URL,
+			payload: { categoryId: 40_000 }
+		});
+		assert.strictEqual(response.statusCode, 400);
+		assert.strictEqual(response.json().type, "validation-error");
+		assert.strictEqual(setTransactionCategory.mock.callCount(), 0);
+	});
+
 	test("404: transaction not owned or not found → not-found problem, nothing written", async () => {
 		getTransactionDetail.mock.mockImplementationOnce(async () => undefined);
 		const response = await app.inject({

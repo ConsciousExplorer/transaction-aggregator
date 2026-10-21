@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
+import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
 import registerListTransactionsRoute from "./list-transactions.route.ts";
@@ -72,6 +73,19 @@ const transactionRepository = {
 	archiveTransactionCategory: mock.fn(async () => undefined)
 } satisfies UserTransactionRepository;
 
+// Every slug names a category unless a test says otherwise
+const findUnknownCategories = mock.fn<
+	CategoryRepository["findUnknownCategories"]
+>(async () => []);
+const categoryRepository = {
+	db: {} as NodePgDatabase,
+	getCategories: mock.fn(async () => []),
+	getUserCategories: mock.fn(async () => []),
+	findUnknownCategories,
+	updateUserCategory: mock.fn(async () => undefined),
+	archiveUserCategory: mock.fn(async () => undefined)
+} satisfies CategoryRepository;
+
 function readRepositoryFilter() {
 	return getTransactions.mock.calls[0]?.arguments.at(0);
 }
@@ -84,6 +98,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		await app.register(registerListTransactionsRoute, {
 			prefix: "/api/v1/users/:userId/transactions",
 			transactionRepository,
+			categoryRepository,
 			queryWindow: { maxDays: 366 }
 		});
 		await app.ready();
@@ -94,6 +109,8 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	beforeEach(() => {
 		getTransactions.mock.resetCalls();
 		getTransactions.mock.mockImplementation(async () => ROWS);
+		findUnknownCategories.mock.resetCalls();
+		findUnknownCategories.mock.mockImplementation(async () => []);
 	});
 
 	test("200: list maps rows to the wire shape, non-completed statuses included", async () => {
@@ -175,6 +192,21 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			"dining",
 			"groceries"
 		]);
+	});
+
+	// The read would match nothing: an empty 200 that reads as no spending
+	test("400: an unknown category slug → validation problem, nothing read", async () => {
+		findUnknownCategories.mock.mockImplementationOnce(async () => ["grocery"]);
+		const response = await app.inject({
+			method: "GET",
+			url: `${LIST_URL}&category=grocery&category=dining`
+		});
+		assert.strictEqual(response.statusCode, 400);
+		assert.strictEqual(response.json().type, "validation-error");
+		assert.deepStrictEqual(findUnknownCategories.mock.calls[0]?.arguments, [
+			["grocery", "dining"]
+		]);
+		assert.strictEqual(getTransactions.mock.callCount(), 0);
 	});
 
 	test("400: an accountId that isn't a UUID → validation problem, repository untouched", async () => {

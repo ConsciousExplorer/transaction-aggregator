@@ -25,17 +25,32 @@ export function createDatabase(client: Pool | PoolClient) {
 	return drizzle(client);
 }
 
-export async function createPool(config: PoolConfig) {
+export function createPool(config: PoolConfig) {
 	const pool = new Pool({
 		min: 3,
 		max: 20,
 		idleTimeoutMillis: 30_000,
 		connectionTimeoutMillis: 10_000,
+		// Without the two timeouts an INSERT that never gets an answer waits
+		// forever: the flush never ends, the loop pulls nothing more, and the
+		// heartbeats keep the partitions. Either one fails the batch as
+		// retryable instead, so the process exits uncommitted and the restart
+		// reads the batch again.
+		//
+		// The server cancels a statement that runs, or waits on a lock, too long
+		statement_timeout: 25_000,
+		// A connection whose server is gone without a reset never answers at
+		// all; this timeout runs in the client, so it fails that query too.
+		query_timeout: 30_000,
+		// Probes an idle connection after 10 s, so a dead one is dropped from
+		// the pool instead of being handed to the next batch
+		keepAlive: true,
+		keepAliveInitialDelayMillis: 10_000,
 		...config
 	});
 
-	pool.on("error", (err) => {
-		logger.error({ err }, "Idle client error");
+	pool.on("error", (error) => {
+		logger.error({ err: error }, "Idle client error");
 	});
 
 	return pool;
@@ -52,13 +67,13 @@ function ignoreCheckedOutClientError() {}
 
 export async function runInTransaction<T>(
 	pool: Pool,
-	fn: (client: PoolClient) => Promise<T>
+	work: (client: PoolClient) => Promise<T>
 ) {
 	const client = await pool.connect();
 	client.on("error", ignoreCheckedOutClientError);
 	try {
 		await client.query("BEGIN");
-		const result = await fn(client);
+		const result = await work(client);
 		await client.query("COMMIT");
 		return result;
 	} catch (error) {

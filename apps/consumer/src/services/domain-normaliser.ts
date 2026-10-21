@@ -135,9 +135,10 @@ export function normaliseDebitOrder(record: DebitOrderTransaction) {
 		status: record.status.toLowerCase() as z.infer<
 			typeof transactionStatusSchema
 		>,
+		// The wire's category is the generator's hint, not a fact about the
+		// debit order: the categoriser decides the category, so it is not kept
 		metadata: {
 			mandateId: record.mandateId,
-			category: record.category,
 			creditorName: record.creditorName,
 			creditorAbbrevName: record.creditorAbbrevName,
 			collectionType: record.collectionType,

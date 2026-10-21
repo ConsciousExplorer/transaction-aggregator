@@ -1,5 +1,19 @@
 import z from "zod";
 
+// category_id is a smallint column. An id beyond its range can name no
+// category, and Postgres refuses it as a parameter (22003, numeric value out
+// of range) instead of finding nothing, so it is a 400 here, not a 500 there.
+const SMALLINT_MAX = 32_767;
+
+export const categoryIdSchema = z.number().int().positive().max(SMALLINT_MAX);
+
+// A path parameter arrives as text
+export const categoryIdParamSchema = z.coerce
+	.number()
+	.int()
+	.positive()
+	.max(SMALLINT_MAX);
+
 export const problemSchema = z.object({
 	type: z.string(),
 	title: z.string(),

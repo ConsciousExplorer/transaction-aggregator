@@ -2,29 +2,29 @@ import http from "node:http";
 import os from "node:os";
 import { registry } from "#src/telemetry/metrics.ts";
 
-export async function createServer(options?: {
+export function createServer(options?: {
 	appName?: string;
 	description?: string;
 }) {
-	return http.createServer(async (req, res) => {
+	return http.createServer(async (request, response) => {
 		/**
 		 * Health endpoints to see if the service is up and running.
 		 */
 		if (
-			req.method === "GET" &&
-			["/health", "/healthz"].includes(req.url ?? "")
+			request.method === "GET" &&
+			["/health", "/healthz"].includes(request.url ?? "")
 		) {
-			res.setHeader("Content-Type", "application/json");
-			return res.end(JSON.stringify({ status: "ok" }));
+			response.setHeader("Content-Type", "application/json");
+			return response.end(JSON.stringify({ status: "ok" }));
 		}
 
 		/**
 		 * Info endpoint for application metadata.
 		 * It is useful for monitoring and debugging purposes.
 		 */
-		if (req.method === "GET" && req.url === "/info") {
-			res.setHeader("Content-Type", "application/json");
-			return res.end(
+		if (request.method === "GET" && request.url === "/info") {
+			response.setHeader("Content-Type", "application/json");
+			return response.end(
 				JSON.stringify({
 					application: options?.appName || "Kafka Consumer",
 					description:
@@ -49,12 +49,12 @@ export async function createServer(options?: {
 		 * This is a standard endpoint that Prometheus scrapes to collect metrics from the application.
 		 * The metrics are collected from the `registry` which is defined in the `metrics.ts` file.
 		 */
-		if (req.method === "GET" && req.url === "/metrics") {
-			res.setHeader("Content-Type", registry.contentType);
-			return res.end(await registry.metrics());
+		if (request.method === "GET" && request.url === "/metrics") {
+			response.setHeader("Content-Type", registry.contentType);
+			return response.end(await registry.metrics());
 		}
 
-		res.statusCode = 404;
-		res.end();
+		response.statusCode = 404;
+		response.end();
 	});
 }

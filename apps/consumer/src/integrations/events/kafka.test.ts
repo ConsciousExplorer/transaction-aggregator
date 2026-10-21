@@ -4,6 +4,7 @@ import { type Mock, mock, suite, test } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
+import { batchFlushDurationSeconds } from "#src/telemetry/metrics.ts";
 import type {
 	BatchHandler,
 	ClassifiedMessage,
@@ -99,6 +100,47 @@ function readHandledOffsets(onBatch: Mock<BatchHandler>) {
 	return offsets;
 }
 
+/** A message whose commit is recorded, so a test can read what was committed. */
+function buildCommitRecordingMessage(offset: number) {
+	return { ...buildMessage(offset), commit: mock.fn(async () => {}) };
+}
+
+function readCommittedOffsets(
+	messages: ReturnType<typeof buildCommitRecordingMessage>[]
+) {
+	const offsets: bigint[] = [];
+	for (const message of messages) {
+		if (message.commit.mock.callCount() > 0) offsets.push(message.offset);
+	}
+	return offsets;
+}
+
+/**
+ * Slow enough that the next batch is queued before the first one fails. Only
+ * the batch holding offset 1 fails.
+ */
+async function failFirstBatchSlowly(messages: ClassifiedMessage[]) {
+	await wait(20);
+	if (messages[0]?.offset === 1n) throw new Error("database unavailable");
+}
+
+/** The histogram is a process-wide singleton, so tests compare before/after. */
+async function countFlushDurationObservations() {
+	const metric = await batchFlushDurationSeconds.get();
+	for (const value of metric.values) {
+		if (value.metricName === "batch_flush_duration_seconds_count") {
+			return value.value;
+		}
+	}
+	return 0;
+}
+
+async function waitForHandlerCalls(onBatch: Mock<BatchHandler>, count: number) {
+	while (onBatch.mock.callCount() < count) {
+		await wait(1);
+	}
+}
+
 suite("startBatchConsumer", () => {
 	test("never runs two flushes concurrently", async () => {
 		let active = 0;
@@ -166,6 +208,7 @@ suite("startBatchConsumer", () => {
 	test("a failed linger flush ends the consumer with that error", async () => {
 		const stream = new Readable({ objectMode: true, read() {} });
 		const failure = new Error("database unavailable");
+		const flushesTimedBefore = await countFlushDurationObservations();
 
 		const consuming = startBatchConsumer(
 			buildConsumer(stream),
@@ -179,6 +222,44 @@ suite("startBatchConsumer", () => {
 		stream.push(buildMessage(1));
 
 		await assert.rejects(consuming, failure);
+		// A slow failure shows in the flush duration too
+		assert.equal(
+			await countFlushDurationObservations(),
+			flushesTimedBefore + 1
+		);
+	});
+
+	// A failed batch was never stored, so nothing may commit past it: the
+	// restart must read it again. Committing a later batch moves the group's
+	// offset beyond it, and its messages are skipped for good.
+	test("a flush queued behind a failed linger flush neither handles nor commits its batch", async () => {
+		const stream = new Readable({ objectMode: true, read() {} });
+		const messages = [
+			buildCommitRecordingMessage(1),
+			buildCommitRecordingMessage(2),
+			buildCommitRecordingMessage(3),
+			buildCommitRecordingMessage(4)
+		];
+		const onBatch = mock.fn(failFirstBatchSlowly);
+
+		const consuming = startBatchConsumer(
+			buildConsumer(stream),
+			onBatch,
+			continueAfterDeserialisationError,
+			buildOptions({ batchSize: 3, lingerMs: 1 })
+		);
+
+		// Offset 1 alone: the linger timer flushes it, and the handler is slow
+		stream.push(messages[0]);
+		await waitForHandlerCalls(onBatch, 1);
+		// A full batch while that flush runs, so a size flush queues behind it
+		stream.push(messages[1]);
+		stream.push(messages[2]);
+		stream.push(messages[3]);
+
+		await assert.rejects(consuming, /database unavailable/);
+		assert.deepEqual(readHandledOffsets(onBatch), [1n]);
+		assert.deepEqual(readCommittedOffsets(messages), []);
 	});
 });
 
@@ -229,10 +310,24 @@ suite("classifyMessages", () => {
 		assert.strictEqual(classified.raw, raw);
 		assert.equal(classified.headers.get("traceparent"), TRACEPARENT);
 	});
+
+	test("every message keeps its key and when it was produced, for the DLQ", () => {
+		const consumed = {
+			...buildMessage(3),
+			key: CUSTOMER_ID,
+			timestamp: BigInt(PRODUCED_AT)
+		} as unknown as KafkaMessage;
+
+		const [classified] = classifyMessages([consumed]);
+
+		assert.equal(classified?.kind, "tombstone");
+		assert.equal(classified?.key, CUSTOMER_ID);
+		assert.equal(classified?.recordTimestamp, PRODUCED_AT);
+	});
 });
 
 interface SentRecord {
-	key: string;
+	key?: string;
 	value: Buffer;
 	headers: Record<string, string>;
 }
@@ -250,6 +345,10 @@ function readSentRecords(send: Mock<typeof acceptRecords>) {
 	return records;
 }
 
+// The producer's partition key, and when it produced the record
+const CUSTOMER_ID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+const PRODUCED_AT = 1_790_000_000_000;
+
 function buildValidFailure(
 	error: unknown,
 	headers = buildIncomingHeaders()
@@ -259,11 +358,12 @@ function buildValidFailure(
 			topic: "transactions.card",
 			partition: 3,
 			offset: 42n,
+			key: CUSTOMER_ID,
+			recordTimestamp: PRODUCED_AT,
 			headers,
 			kind: "valid",
 			value: { transactionId: "t1" } as unknown as DomainTransactionSchema,
-			raw: Buffer.from("framed avro"),
-			recordTimestamp: 0
+			raw: Buffer.from("framed avro")
 		},
 		error
 	};
@@ -275,6 +375,8 @@ function buildPoisonFailure(error: unknown): DeadLetterFailure {
 			topic: "transactions.card",
 			partition: 3,
 			offset: 43n,
+			key: CUSTOMER_ID,
+			recordTimestamp: PRODUCED_AT,
 			headers: buildIncomingHeaders(),
 			kind: "poison",
 			raw: Buffer.from("not avro"),
@@ -285,6 +387,7 @@ function buildPoisonFailure(error: unknown): DeadLetterFailure {
 }
 
 suite("createDeadLetterSender", () => {
+	// The original key, so a redrive produces it onto the customer's partition
 	test("a record is dead-lettered as it arrived, with the DLQ headers on top", async () => {
 		const send = mock.fn(acceptRecords);
 		const headers = buildIncomingHeaders();
@@ -302,7 +405,7 @@ suite("createDeadLetterSender", () => {
 		await sendToDeadLetterQueue([failure]);
 
 		const [record] = readSentRecords(send);
-		assert.equal(record?.key, "transactions.card-3-42");
+		assert.equal(record?.key, CUSTOMER_ID);
 		assert.deepEqual(record?.value, Buffer.from("framed avro"));
 		assert.deepEqual(record?.headers, {
 			traceparent: TRACEPARENT,
@@ -311,7 +414,8 @@ suite("createDeadLetterSender", () => {
 			"x-dlq-error": "status outside the enum",
 			"x-source-topic": "transactions.card",
 			"x-source-partition": "3",
-			"x-source-offset": "42"
+			"x-source-offset": "42",
+			"x-source-timestamp": String(PRODUCED_AT)
 		});
 	});
 
@@ -328,6 +432,7 @@ suite("createDeadLetterSender", () => {
 		]);
 
 		const [record] = readSentRecords(send);
+		assert.equal(record?.key, CUSTOMER_ID);
 		assert.deepEqual(record?.value, Buffer.from("not avro"));
 		assert.equal(record?.headers.traceparent, TRACEPARENT);
 		assert.equal(record?.headers["x-dlq-reason"], "deserialisation");

@@ -55,20 +55,20 @@ suite("request id", () => {
 	});
 
 	test("is the trace id of the caller's traceparent", async () => {
-		const res = await app.inject({
+		const response = await app.inject({
 			method: "GET",
 			url: "/request-id",
 			headers: {
 				traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 			}
 		});
-		assert.deepStrictEqual(res.json(), {
+		assert.deepStrictEqual(response.json(), {
 			id: "4bf92f3577b34da6a3ce929d0e0e4736"
 		});
 	});
 
 	test("is a fresh trace id when the caller sends none", async () => {
-		const res = await app.inject({ method: "GET", url: "/request-id" });
-		assert.match(res.json().id, /^[0-9a-f]{32}$/);
+		const response = await app.inject({ method: "GET", url: "/request-id" });
+		assert.match(response.json().id, /^[0-9a-f]{32}$/);
 	});
 });

@@ -10,10 +10,16 @@ import {
 
 const logger = createFileLogger(import.meta.url);
 
+/** Where the record came from, as a redrive needs it to produce it again. */
 interface MessageOrigin {
 	topic: string;
 	partition: number;
 	offset: bigint;
+	// The producer's partition key, the customer id. A record sent without a
+	// key has none.
+	key: string | undefined;
+	// When the record was produced, in milliseconds since the epoch
+	recordTimestamp: number;
 	headers: Map<string, string>;
 }
 
@@ -22,7 +28,6 @@ export type ClassifiedMessage =
 			kind: "valid";
 			value: DomainTransactionSchema;
 			raw: Buffer;
-			recordTimestamp: number;
 	  })
 	| (MessageOrigin & { kind: "tombstone" })
 	| (MessageOrigin & { kind: "poison"; raw: Buffer | null; error: unknown });

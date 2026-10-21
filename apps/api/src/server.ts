@@ -104,36 +104,36 @@ export function buildServer(options: BuildServerOptions = {}) {
 	/**
 	 *  Setting error handlers
 	 */
-	server.setErrorHandler((err: FastifyError, req, reply) => {
-		const log = req.log.child({ method: req.method, url: req.url });
+	server.setErrorHandler((error: FastifyError, request, reply) => {
+		const log = request.log.child({ method: request.method, url: request.url });
 
-		if (err instanceof HttpProblem) {
-			if (err.payload.status >= 500) {
-				log.error({ problem: err.payload }, "problem");
+		if (error instanceof HttpProblem) {
+			if (error.payload.status >= 500) {
+				log.error({ problem: error.payload }, "problem");
 			} else {
-				log.warn({ problem: err.payload }, "problem");
+				log.warn({ problem: error.payload }, "problem");
 			}
-			return send(reply, err);
+			return send(reply, error);
 		}
-		if (hasZodFastifySchemaValidationErrors(err)) {
-			const problem = validationError(err.validation);
+		if (hasZodFastifySchemaValidationErrors(error)) {
+			const problem = validationError(error.validation);
 			log.warn({ problem: problem.payload }, "problem");
 			return send(reply, problem);
 		}
-		if (isResponseSerializationError(err)) {
-			log.error({ err }, "response schema violation");
-			return send(reply, internalError(req.id));
+		if (isResponseSerializationError(error)) {
+			log.error({ err: error }, "response schema violation");
+			return send(reply, internalError(request.id));
 		}
-		const status = err.statusCode;
+		const status = error.statusCode;
 		if (typeof status === "number" && status >= 400 && status < 500) {
-			log.warn({ err }, "client error");
-			return send(reply, clientError(status, err.message));
+			log.warn({ err: error }, "client error");
+			return send(reply, clientError(status, error.message));
 		}
-		log.error({ err }, "unhandled");
-		return send(reply, internalError(req.id));
+		log.error({ err: error }, "unhandled");
+		return send(reply, internalError(request.id));
 	});
 
-	server.setNotFoundHandler((_req, reply) => send(reply, notFoundError()));
+	server.setNotFoundHandler((_request, reply) => send(reply, notFoundError()));
 
 	/**
 	 * RED metrics and the trace span's route for every request.

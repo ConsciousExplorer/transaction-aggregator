@@ -74,6 +74,7 @@ uv run start
 | `uv run start` | Runs the producer with `.env` |
 | `uv run pytest` | Unit tests |
 | `uv run poe check` | Ruff format and lint, then Pyright |
+| `uv run poe audit` | Audits the locked runtime dependencies with pip-audit. The allowed advisories are listed in `scripts/audit.sh`. |
 | `uv run avro-datagen ui` | A local page that previews generated records for a schema. Compose runs the same page as `avro-datagen-ui` on http://localhost:8501. |
 
 ## Testing

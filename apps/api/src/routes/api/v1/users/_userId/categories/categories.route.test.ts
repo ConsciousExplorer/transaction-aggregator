@@ -45,7 +45,7 @@ const categoryRepository = {
 	db: {} as NodePgDatabase,
 	getCategories: mock.fn(async () => []),
 	getUserCategories,
-	resolveCategory: mock.fn(async () => undefined),
+	findUnknownCategories: mock.fn(async () => []),
 	updateUserCategory: mock.fn(async () => undefined),
 	archiveUserCategory: mock.fn(async () => undefined)
 } satisfies CategoryRepository;

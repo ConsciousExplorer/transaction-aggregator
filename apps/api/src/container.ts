@@ -3,7 +3,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
 import type { Logger } from "pino";
 import type { AppInfoConfig, Config } from "#src/config.ts";
-import { createPool } from "#src/integrations/database/pool.ts";
+import { createPool, endPool } from "#src/integrations/database/pool.ts";
 import { QueryPlanLogger } from "#src/integrations/database/query-logger.ts";
 import { appInfo, baseLogger, config, secrets } from "#src/runtime.ts";
 import {
@@ -58,9 +58,7 @@ export async function buildContainer() {
 			)
 		)
 			.singleton()
-			.disposer(async (pool) => {
-				pool.end();
-			}),
+			.disposer(endPool),
 
 		// One drizzle instance for every repository. DATABASE_QUERY_LOG_SQL or
 		// DATABASE_QUERY_LOG_PLAN logs each statement it sends.

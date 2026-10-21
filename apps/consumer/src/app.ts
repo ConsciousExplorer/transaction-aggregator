@@ -102,14 +102,15 @@ async function shutDownGracefully(
 
 // #region: Boot
 const writerPool = await runStartupCheck("PostgreSQL", async () => {
-	const pool = await createPool({
+	const pool = createPool({
 		min: config.database.min,
 		max: config.database.max,
 		database: config.database.database,
 		host: config.database.host,
 		port: config.database.port,
 		user: config.database.user,
-		password: secrets.databasePassword
+		password: secrets.databasePassword,
+		ssl: config.database.ssl
 	});
 
 	/** Force a real connection and release client directly */
@@ -122,13 +123,13 @@ const ruleset = await runStartupCheck("Ruleset", () =>
 	loadRuleset(createDatabase(writerPool))
 );
 
-const avroDeserialiser = await runStartupCheck("SchemaRegistry", () =>
+const deserialiseValue = await runStartupCheck("SchemaRegistry", () =>
 	createAvroDeserialiser<DomainTransactionSchema>(config.schemaRegistry.url, [
 		`${config.kafka.topics.main}-value`
 	])
 );
 
-const kafkaConsumer = await createKafkaConsumer<
+const kafkaConsumer = createKafkaConsumer<
 	string,
 	ConsumedValue,
 	string,
@@ -152,7 +153,7 @@ const kafkaConsumer = await createKafkaConsumer<
 		},
 		deserializers: {
 			key: stringDeserializer,
-			value: avroDeserialiser.deserialise,
+			value: deserialiseValue,
 			headerKey: stringDeserializer,
 			headerValue: stringDeserializer
 		}
@@ -160,7 +161,7 @@ const kafkaConsumer = await createKafkaConsumer<
 	registry
 );
 
-const deadLetterProducer = await createKafkaDeadLetterProducer(
+const deadLetterProducer = createKafkaDeadLetterProducer(
 	{
 		clientId: `${config.kafka.clientId}_producer`,
 		acks: -1,
@@ -182,8 +183,8 @@ await runStartupCheck("Kafka", () =>
 	])
 );
 
-const server = await createServer();
-server.listen(config.app.port);
+const server = createServer();
+server.listen(config.app.port, config.app.host);
 
 const resources: Resources = {
 	kafkaConsumer,

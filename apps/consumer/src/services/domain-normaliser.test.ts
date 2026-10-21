@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { suite, test } from "node:test";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
+import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
 import type { EftTransaction } from "#src/schemas/eft.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 import { normaliseTransaction } from "#src/services/domain-normaliser.ts";
@@ -9,6 +10,8 @@ import {
 	buildCardRecord,
 	castToDomainTransaction
 } from "#src/services/test-records.ts";
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 suite("domain normaliser validation", () => {
 	test("accepts a well-formed record and returns canonical fields", () => {
@@ -115,6 +118,36 @@ suite("domain normaliser validation", () => {
 		);
 	});
 
+	// Stored, it would land in the default partition, past the monthly
+	// partitions made so far, and stop partition maintenance for the table
+	test("a transaction dated more than a day ahead is dead-lettered", () => {
+		const twoDaysAhead = Date.now() + 2 * MILLISECONDS_PER_DAY;
+
+		assert.throws(
+			() =>
+				normaliseTransaction(
+					castToDomainTransaction(buildCardRecord({ timestamp: twoDaysAhead })),
+					"card"
+				),
+			(error: unknown) => {
+				assert.ok(error instanceof NonRetryableError);
+				assert.match(String(error.details.issues), /occurredAt/);
+				return true;
+			}
+		);
+	});
+
+	test("a producer clock a few minutes fast is not a bad record", () => {
+		const fiveMinutesAhead = Date.now() + 5 * 60 * 1000;
+
+		const result = normaliseTransaction(
+			castToDomainTransaction(buildCardRecord({ timestamp: fiveMinutesAhead })),
+			"card"
+		);
+
+		assert.equal(result.occurredAt, new Date(fiveMinutesAhead).toISOString());
+	});
+
 	test("a malformed timestamp is dead-lettered, not thrown raw", () => {
 		// `new Date(NaN).toISOString()` throws inside the mapping itself, so the
 		// wrapper has to catch it or one bad record kills the whole batch.
@@ -166,6 +199,46 @@ suite("EFT normaliser", () => {
 			branchCode: "678910",
 			reference: "Rent October",
 			clearingType: "same-day"
+		});
+	});
+});
+
+/** A well-formed debit order as the producer emits it, every field set. */
+function buildDebitOrderRecord(
+	over: Partial<DebitOrderTransaction> = {}
+): DebitOrderTransaction {
+	return {
+		transactionId: "txn-0004",
+		transactionType: "debit_order",
+		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
+		mandateId: "MND-000123",
+		category: "insurance",
+		creditorName: "Discovery Life",
+		creditorAbbrevName: "DISCLIFE",
+		collectionType: "recurring",
+		frequency: "monthly",
+		amount: 45_000,
+		currency: "ZAR",
+		creditDebitIndicator: "debit",
+		description: "DISCOVERY LIFE PREMIUM",
+		status: "COMPLETED",
+		timestamp: 1_790_000_000_000,
+		...over
+	};
+}
+
+suite("debit order normaliser", () => {
+	// The wire's category is the generator's hint; the categoriser decides
+	test("leaves the wire's category hint out of metadata", () => {
+		const result = normaliseTransaction(buildDebitOrderRecord(), "debit_order");
+
+		assert.deepStrictEqual(result.metadata, {
+			mandateId: "MND-000123",
+			creditorName: "Discovery Life",
+			creditorAbbrevName: "DISCLIFE",
+			collectionType: "recurring",
+			frequency: "monthly"
 		});
 	});
 });

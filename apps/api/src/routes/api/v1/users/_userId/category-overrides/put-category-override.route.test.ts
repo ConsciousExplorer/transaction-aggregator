@@ -38,7 +38,7 @@ const categoryRepository = {
 	db: {} as NodePgDatabase,
 	getCategories: mock.fn(async () => []),
 	getUserCategories: mock.fn(async () => []),
-	resolveCategory: mock.fn(async () => undefined),
+	findUnknownCategories: mock.fn(async () => []),
 	updateUserCategory,
 	archiveUserCategory: mock.fn(async () => undefined)
 } satisfies CategoryRepository;
@@ -97,6 +97,26 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 		});
 		assert.strictEqual(response.statusCode, 400);
 		assert.strictEqual(response.json().type, "validation-error");
+	});
+
+	// category_id is a smallint: Postgres refuses a larger id outright, a 500
+	test("400: an id beyond the smallint range, in the path or the body → validation problem, nothing written", async () => {
+		const pathResponse = await app.inject({
+			method: "PUT",
+			url: buildOverrideUrl(40_000),
+			payload: { toCategoryId: 5 }
+		});
+		const bodyResponse = await app.inject({
+			method: "PUT",
+			url: buildOverrideUrl(1),
+			payload: { toCategoryId: 40_000 }
+		});
+
+		assert.strictEqual(pathResponse.statusCode, 400);
+		assert.strictEqual(pathResponse.json().type, "validation-error");
+		assert.strictEqual(bodyResponse.statusCode, 400);
+		assert.strictEqual(bodyResponse.json().type, "validation-error");
+		assert.strictEqual(updateUserCategory.mock.callCount(), 0);
 	});
 
 	test("400: self-remap → validation problem, nothing written", async () => {

@@ -2,7 +2,7 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
-import { problemSchema } from "#src/schemas/common.ts";
+import { categoryIdParamSchema, problemSchema } from "#src/schemas/common.ts";
 
 export default async function registerDeleteCategoryOverrideRoute(
 	fastify: FastifyInstance,
@@ -21,7 +21,7 @@ export default async function registerDeleteCategoryOverrideRoute(
 			hide: false,
 			params: z.object({
 				userId: z.uuid(),
-				categoryId: z.coerce.number().int().positive()
+				categoryId: categoryIdParamSchema
 			}),
 			response: {
 				204: z.undefined(),

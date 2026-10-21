@@ -1,14 +1,3 @@
-import { createFileLogger } from "#src/logger.ts";
-import {
-	batchFlushDurationSeconds,
-	batchFlushTotal,
-	batchSize,
-	deadLetterMessagesTotal
-} from "#src/telemetry/metrics.ts";
-import { runInSpan } from "#src/telemetry/tracing.ts";
-
-const logger = createFileLogger(import.meta.url);
-
 import {
 	type Link,
 	propagation,
@@ -32,7 +21,15 @@ import {
 } from "@platformatic/kafka";
 import type { Registry } from "@prometheus-io/client";
 import * as prometheusClient from "@prometheus-io/client";
+import { createFileLogger } from "#src/logger.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
+import {
+	batchFlushDurationSeconds,
+	batchFlushTotal,
+	batchSize,
+	deadLetterMessagesTotal
+} from "#src/telemetry/metrics.ts";
+import { runInSpan } from "#src/telemetry/tracing.ts";
 import type { DecodedValue } from "./avro-deserialiser.ts";
 import { commitBatch } from "./commit.ts";
 import type {
@@ -40,6 +37,8 @@ import type {
 	ClassifiedMessage,
 	DeadLetterFailure
 } from "./handlers/transactionBatchHandler.ts";
+
+const logger = createFileLogger(import.meta.url);
 
 /**
  * `undefined` is a tombstone or empty payload. A CONTINUE'd poison message
@@ -67,7 +66,7 @@ function buildKafkaMetricsOptions(registry: Registry) {
  * Given a registry, the client records its own metrics there
  * (kafka_consumed_messages, kafka_consumers_lags, ...). Without one, none.
  */
-export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
+export function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>,
 	registry?: Registry
 ) {
@@ -91,6 +90,8 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
 	return kafkaConsumer;
 }
 
+export type DeadLetterProducer = Producer<string, Buffer, string, string>;
+
 /**
  * Creates a DLQ kafka producer
  * No serializers should be passed.
@@ -98,9 +99,7 @@ export async function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
  * Given a registry, the client records its own metrics there
  * (kafka_produced_messages, ...). Without one, none.
  */
-export type DeadLetterProducer = Producer<string, Buffer, string, string>;
-
-export async function createKafkaDeadLetterProducer(
+export function createKafkaDeadLetterProducer(
 	options: Omit<ProducerOptions<string, Buffer, string, string>, "serializers">,
 	registry?: Registry
 ) {
@@ -128,8 +127,10 @@ function chooseDeadLetterReason(failure: DeadLetterFailure) {
 }
 
 /**
- * The record as it arrived: its raw bytes and its own headers, so a redrive
- * re-produces the original. The DLQ headers go on top and win a name clash.
+ * The record as it arrived: its key, its raw bytes and its own headers, so a
+ * redrive re-produces the original onto the customer's partition. The DLQ
+ * headers go on top and win a name clash; where it came from and when it was
+ * produced travel as headers too.
  */
 function buildDeadLetterRecord(
 	deadLetterTopic: string,
@@ -147,10 +148,12 @@ function buildDeadLetterRecord(
 	headers["x-source-topic"] = message.topic;
 	headers["x-source-partition"] = String(message.partition);
 	headers["x-source-offset"] = message.offset.toString();
+	headers["x-source-timestamp"] = String(message.recordTimestamp);
 
 	return {
 		topic: deadLetterTopic,
-		key: `${message.topic}-${message.partition}-${message.offset}`,
+		// A record produced without a key is dead-lettered without one
+		...(message.key !== undefined && { key: message.key }),
 		value: message.raw ?? Buffer.alloc(0),
 		headers
 	};
@@ -215,6 +218,8 @@ export function classifyMessages(messages: KafkaMessage[]) {
 			topic: message.topic,
 			partition: message.partition,
 			offset: message.offset,
+			key: message.key,
+			recordTimestamp: Number(message.timestamp),
 			headers: message.headers
 		};
 		const failure = getDeserialisationFailure(message);
@@ -234,8 +239,7 @@ export function classifyMessages(messages: KafkaMessage[]) {
 				...origin,
 				kind: "valid",
 				value: message.value.value,
-				raw: message.value.raw,
-				recordTimestamp: Number(message.timestamp)
+				raw: message.value.raw
 			});
 		}
 	}
@@ -283,7 +287,8 @@ interface BatchState {
 	// Orders flushes one after another. The linger timer cannot await, so
 	// without this a timer-triggered flush can run while a size-triggered one is
 	// still inserting — two concurrent transactions, two commits, and
-	// `messages` mutated in between. Every flush chains onto the previous.
+	// `messages` mutated in between. Every flush chains onto the previous, and
+	// once one fails every later flush fails with it (see `flushBatch`).
 	inFlight: Promise<void>;
 	onBatch: BatchHandler;
 	topic: string;
@@ -306,43 +311,49 @@ async function drainBatch(state: BatchState, trigger: FlushTrigger) {
 	batchFlushTotal.inc({ trigger });
 	batchSize.observe(batch.length);
 
-	await runInSpan(
-		`consume.batch ${state.topic}`,
-		{
-			// Each batch is its own trace. The producers' traces are links,
-			// not parents: one span cannot have a parent per message.
-			root: true,
-			kind: SpanKind.CONSUMER,
-			links: buildSpanLinks(batch),
-			attributes: {
-				"messaging.system": "kafka",
-				"messaging.destination.name": state.topic,
-				"messaging.batch.message_count": batch.length,
-				"batch.trigger": trigger
-			}
-		},
-		async () => {
-			await state.onBatch(classifyMessages(batch));
+	// Timed whether it succeeds or not, so a slow failure shows up too
+	try {
+		await runInSpan(
+			`consume.batch ${state.topic}`,
+			{
+				// Each batch is its own trace. The producers' traces are links,
+				// not parents: one span cannot have a parent per message.
+				root: true,
+				kind: SpanKind.CONSUMER,
+				links: buildSpanLinks(batch),
+				attributes: {
+					"messaging.system": "kafka",
+					"messaging.destination.name": state.topic,
+					"messaging.batch.message_count": batch.length,
+					"batch.trigger": trigger
+				}
+			},
+			async () => {
+				await state.onBatch(classifyMessages(batch));
 
-			try {
-				await commitBatch(batch);
-			} catch (error) {
-				logger.warn(
-					{ error: error, size: batch.length },
-					"Commit failed after a successful flush."
-				);
+				try {
+					await commitBatch(batch);
+				} catch (error) {
+					logger.warn(
+						{ err: error, size: batch.length },
+						"Commit failed after a successful flush."
+					);
+				}
 			}
-		}
-	);
-
-	endFlushTimer();
+		);
+	} finally {
+		endFlushTimer();
+	}
 }
 
 function flushBatch(state: BatchState, trigger: FlushTrigger) {
 	const flushed = state.inFlight.then(() => drainBatch(state, trigger));
-	// The queue swallows the rejection so one failure does not poison every
-	// later flush; the returned promise still carries it to the caller.
-	state.inFlight = flushed.catch(() => {});
+	// The queue keeps the rejection. A flush queued behind a failed one then
+	// fails with the same error before it inserts or commits anything: its
+	// commit would move the group's offset past the batch that was never
+	// stored. Every caller handles the rejection by ending the consumer, and
+	// the restart reads the failed batch again.
+	state.inFlight = flushed;
 	return flushed;
 }
 

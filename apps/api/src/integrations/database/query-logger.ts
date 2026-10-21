@@ -7,8 +7,6 @@ export interface QueryLogOptions {
 	plan: boolean;
 }
 
-// TODO: review this logger
-
 /**
  * Logs every statement drizzle sends, with the values beside it. sql fills the
  * values in, so the statement can be pasted into psql or DBeaver as it stands;
@@ -61,9 +59,9 @@ export class QueryPlanLogger implements DrizzleLogger {
 			}
 
 			this.logger.info({ params }, `${statement}\n\n${planLines.join("\n")}`);
-		} catch (err) {
+		} catch (error) {
 			this.logger.warn(
-				{ err, params },
+				{ err: error, params },
 				`${statement}\n\nNo plan: the EXPLAIN failed.`
 			);
 		}

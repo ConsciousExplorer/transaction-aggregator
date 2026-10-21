@@ -4,13 +4,12 @@ import packageJson from "../package.json" with { type: "json" };
 import { buildServer } from "#src/server.ts";
 import { loadConfig, loadPackageInfo } from "#src/config.ts";
 
-// 
-const packageInfoConfig = loadPackageInfo(packageJson)
+const packageInfoConfig = loadPackageInfo(packageJson);
 
-/** JSON.stringify preserves insertion order; sorting makes regeneration
- *  deterministic so openapi.json diffs show real contract changes only. 
- * 
-*/
+/**
+ * JSON.stringify preserves insertion order; sorting makes regeneration
+ * deterministic, so openapi.json diffs show real contract changes only.
+ */
 function sortKeysDeep(value: unknown) {
 	if (Array.isArray(value)) {
 		const sortedItems: unknown[] = [];

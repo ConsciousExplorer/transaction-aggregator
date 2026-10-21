@@ -2,12 +2,14 @@ import assert from "node:assert";
 import { suite, test } from "node:test";
 import type z from "zod";
 import type { canonicalTransactionSchema } from "../schemas/transaction.ts";
+import { normaliseTransaction } from "./domain-normaliser.ts";
 import {
 	categoriseTransaction,
 	compileRules,
 	type Rule,
 	type RuleSet
 } from "./rule-categoriser.ts";
+import { buildLoanRecord } from "./test-records.ts";
 
 type CanonicalTransaction = z.infer<typeof canonicalTransactionSchema>;
 
@@ -188,13 +190,13 @@ suite("tier 3: source_transaction_type", () => {
 		categoryId: 30
 	});
 
-	test("matches on transactionType plus metadata.transaction_type", () => {
+	test("matches on transactionType plus metadata.operation", () => {
 		const rules = compileRules(buildRuleSet([repaymentRule]));
 		assert.deepStrictEqual(
 			categoriseTransaction(
 				buildTransaction({
 					transactionType: "loan",
-					metadata: { transaction_type: "repayment" }
+					metadata: { operation: "repayment" }
 				}),
 				rules
 			),
@@ -207,28 +209,94 @@ suite("tier 3: source_transaction_type", () => {
 		);
 	});
 
-	test("same transaction_type on a different transactionType does not match", () => {
+	test("the same operation on a different transactionType does not match", () => {
 		const rules = compileRules(buildRuleSet([repaymentRule]));
 		const verdict = categoriseTransaction(
 			buildTransaction({
 				transactionType: "eft",
-				metadata: { transaction_type: "repayment" }
+				metadata: { operation: "repayment" }
 			}),
 			rules
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
 	});
 
-	test("non-string transaction_type is ignored", () => {
+	test("a non-string operation is ignored", () => {
 		const rules = compileRules(buildRuleSet([repaymentRule]));
 		const verdict = categoriseTransaction(
 			buildTransaction({
 				transactionType: "loan",
-				metadata: { transaction_type: 42 }
+				metadata: { operation: 42 }
 			}),
 			rules
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
+	});
+});
+
+// The seed's loan rules and pinned category ids
+// (database/migrations/0001_seed_categories_and_rules.sql): 10 is
+// loan_repayment, 11 is income.
+const SEED_LOAN_RULES = [
+	buildRule({
+		matcherType: "source_transaction_type",
+		pattern: "loan:repayment",
+		priority: 500,
+		categoryId: 10
+	}),
+	buildRule({
+		matcherType: "source_transaction_type",
+		pattern: "loan:disbursement",
+		priority: 501,
+		categoryId: 11
+	}),
+	buildRule({
+		matcherType: "source_default",
+		pattern: "loan",
+		priority: 901,
+		categoryId: 10
+	})
+];
+
+// The normaliser's real output, not hand-built metadata: the key the
+// categoriser reads is the one the normaliser writes, or rules 500 and 501
+// never fire and every loan falls through to the loan default.
+suite("tier 3 on the loan normaliser's output", () => {
+	test("a disbursement is income, by its source_transaction_type rule", () => {
+		const transaction = normaliseTransaction(
+			buildLoanRecord({
+				operation: "disbursement",
+				creditDebitIndicator: "credit"
+			}),
+			"loan"
+		);
+
+		const verdict = categoriseTransaction(
+			transaction,
+			compileRules(buildRuleSet(SEED_LOAN_RULES))
+		);
+
+		assert.deepStrictEqual(verdict, {
+			categoryId: 11,
+			ruleVersion: 7,
+			rulePriority: 501,
+			matcherType: "source_transaction_type"
+		});
+	});
+
+	test("a repayment matches its own rule, not the loan default", () => {
+		const transaction = normaliseTransaction(
+			buildLoanRecord({ operation: "repayment" }),
+			"loan"
+		);
+
+		const verdict = categoriseTransaction(
+			transaction,
+			compileRules(buildRuleSet(SEED_LOAN_RULES))
+		);
+
+		assert.strictEqual(verdict.rulePriority, 500);
+		assert.strictEqual(verdict.matcherType, "source_transaction_type");
 	});
 });
 
@@ -369,7 +437,7 @@ suite("tier precedence", () => {
 		const verdict = categoriseTransaction(
 			buildTransaction({
 				shortDescription: "SPAR",
-				metadata: { transaction_type: "purchase" }
+				metadata: { operation: "purchase" }
 			}),
 			rules
 		);
@@ -394,7 +462,7 @@ suite("tier precedence", () => {
 			])
 		);
 		const verdict = categoriseTransaction(
-			buildTransaction({ metadata: { transaction_type: "purchase" } }),
+			buildTransaction({ metadata: { operation: "purchase" } }),
 			rules
 		);
 		assert.strictEqual(verdict.matcherType, "source_transaction_type");
@@ -421,7 +489,7 @@ suite("tier precedence", () => {
 			buildTransaction({
 				transactionType: "eft",
 				creditDebitIndicator: "credit",
-				metadata: { transaction_type: "incoming" }
+				metadata: { operation: "incoming" }
 			}),
 			rules
 		);

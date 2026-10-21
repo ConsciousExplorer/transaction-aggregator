@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { alias } from "drizzle-orm/pg-core";
 import type { AppCradle } from "#src/container.ts";
@@ -24,16 +24,23 @@ export class CategoryRepository {
 		return result;
 	}
 
-	async resolveCategory(category: string) {
-		const [result] = await this.db
-			.select({
-				categoryId: categories.categoryId,
-				category: categories.category,
-				label: categories.label
-			})
+	/** The slugs, of those given, that no category has */
+	async findUnknownCategories(slugs: string[]) {
+		const rows = await this.db
+			.select({ category: categories.category })
 			.from(categories)
-			.where(eq(categories.category, category));
-		return result;
+			.where(inArray(categories.category, slugs));
+
+		const knownSlugs = new Set<string>();
+		for (const row of rows) {
+			knownSlugs.add(row.category);
+		}
+
+		const unknownSlugs: string[] = [];
+		for (const slug of slugs) {
+			if (!knownSlugs.has(slug)) unknownSlugs.push(slug);
+		}
+		return unknownSlugs;
 	}
 
 	async getUserCategories(userId: string) {

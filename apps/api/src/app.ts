@@ -2,6 +2,7 @@ import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { buildContainer } from "#src/container.ts";
 import { buildServer, type ServerDependencies } from "./server.ts";
+import { shutDownGracefully } from "./shutdown.ts";
 
 const container = await buildContainer();
 
@@ -51,24 +52,17 @@ try {
 	const { secretsSpec, ...configToLog } = config;
 	logger.debug({ config: configToLog }, "Starting server with configuration");
 	logger.debug(`Registered routes\n${server.printRoutes()}`);
-} catch (err) {
-	logger.error({ err }, "boot failed");
+} catch (error) {
+	logger.error({ err: error }, "boot failed");
 	await container.dispose();
 	process.exit(1);
 }
 
-process.on("SIGTERM", () => shutDownGracefully());
-process.on("SIGINT", () => shutDownGracefully());
-
-export async function shutDownGracefully(code = 0) {
-	try {
-		logger.warn("Shutting down services");
-		server.close();
-		container.dispose();
-		process.exit(code);
-	} catch (error) {
-		logger.error({ error }, "Error occurred when stopping services.");
-	} finally {
-		process.exit(code);
-	}
-}
+process.on(
+	"SIGTERM",
+	() => void shutDownGracefully(server, container, logger, 0)
+);
+process.on(
+	"SIGINT",
+	() => void shutDownGracefully(server, container, logger, 0)
+);
