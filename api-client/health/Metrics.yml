@@ -1,0 +1,14 @@
+info:
+  name: Metrics
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{api}}/metrics"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,7 +1,7 @@
 info:
   name: api (Read)
   type: folder
-  seq: 4
+  seq: 1
 
 request:
   auth:
@@ -13,7 +13,7 @@ request:
       clientSecret: banking-service-secret
       placement: body
     tokenConfig:
-      id: credentials
+      id: read-only
       placement:
         header: Bearer
       source: access_token

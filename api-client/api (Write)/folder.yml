@@ -13,7 +13,7 @@ request:
       clientSecret: banking-portal-secret
       placement: body
     tokenConfig:
-      id: credentials
+      id: portal
       placement:
         header: Bearer
       source: access_token

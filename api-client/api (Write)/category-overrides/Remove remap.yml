@@ -1,0 +1,15 @@
+info:
+  name: Remove remap
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{api}}/api/v1/users/{{userId}}/category-overrides/3"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

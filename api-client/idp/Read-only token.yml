@@ -1,0 +1,23 @@
+info:
+  name: Read-only token
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{idp}}/realms/txn-api/protocol/openid-connect/token"
+  body:
+    type: form-urlencoded
+    data:
+      - name: grant_type
+        value: client_credentials
+      - name: client_id
+        value: banking-service
+      - name: client_secret
+        value: banking-service-secret
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

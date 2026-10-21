@@ -1,0 +1,15 @@
+info:
+  name: Remove override
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{api}}/api/v1/users/{{userId}}/transaction-overrides/{{transactionId}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
