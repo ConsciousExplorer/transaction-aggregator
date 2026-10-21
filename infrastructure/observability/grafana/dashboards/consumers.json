@@ -182,8 +182,8 @@
     },
     {
       "type": "stat",
-      "title": "DLQ in range (S4)",
-      "description": "Errors. Messages sent to the dead-letter topic over the selected range. S4: zero. Any value means a poison message: see DLQ by reason below.",
+      "title": "DLQ in range",
+      "description": "Errors. Messages sent to the dead-letter topic over the selected range. Target: zero. Any value means a poison message: see DLQ by reason below.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -322,8 +322,8 @@
     },
     {
       "type": "stat",
-      "title": "Lag p95 in range (S2)",
-      "description": "Duration. 95th percentile of insert time minus the Kafka record timestamp, over the selected range. S2: under 5 s.",
+      "title": "Lag p95 in range",
+      "description": "Duration. 95th percentile of insert time minus the Kafka record timestamp, over the selected range. Target: under 5 s.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -777,8 +777,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Duration: ingest lag p95 (S2)",
-      "description": "Insert time minus the Kafka record timestamp, 95th percentile per consumer. S2: under 5 s (red line). Gaps mean no traffic.",
+      "title": "Duration: ingest lag p95",
+      "description": "Insert time minus the Kafka record timestamp, 95th percentile per consumer. Target: under 5 s (red line). Gaps mean no traffic.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1210,8 +1210,8 @@
     },
     {
       "type": "stat",
-      "title": "Max tx/s within S2",
-      "description": "The most messages consumed in one second while ingest lag p95 (over the minute before) stayed under 5 s: the throughput the consumers sustain and still meet S2. Below max transactions/s means the peak was reached by falling behind. A dash means no minute of the range stayed under 5 s, or there was no traffic. The highest value observed in the selected time range, so it stays after the traffic stops.",
+      "title": "Max tx/s within lag target",
+      "description": "The most messages consumed in one second while ingest lag p95 (over the minute before) stayed under 5 s: the throughput the consumers sustain and still keep lag under the 5 s target. Below max transactions/s means the peak was reached by falling behind. A dash means no minute of the range stayed under 5 s, or there was no traffic. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -3082,7 +3082,7 @@
     {
       "type": "timeseries",
       "title": "Duplicates skipped/s",
-      "description": "Rows skipped by ON CONFLICT DO NOTHING. Non-zero under CHAOS_DUPLICATE_PCT, or on a re-send of the same records, is correct behaviour (S3).",
+      "description": "Rows skipped by ON CONFLICT DO NOTHING. Non-zero when records already stored are sent or read again, and that is correct: each record is stored once.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

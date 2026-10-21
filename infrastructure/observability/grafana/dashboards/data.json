@@ -37,7 +37,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Headline: S5 and the S3 reconciliation",
+      "title": "Headline: categorisation and row reconciliation",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -50,8 +50,8 @@
     },
     {
       "type": "stat",
-      "title": "Uncategorised share (S5)",
-      "description": "Share of transactions in the time range whose category is uncategorised. S5: under 1%.",
+      "title": "Uncategorised share",
+      "description": "Share of transactions in the time range whose category is uncategorised. Target: under 1%.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "postgres"
@@ -119,7 +119,7 @@
     },
     {
       "type": "stat",
-      "title": "Rows in table (S3)",
+      "title": "Rows in table",
       "description": "Every row in transactions, deliberately ignoring the time range. Must equal Rows inserted (metrics).",
       "datasource": {
         "type": "grafana-postgresql-datasource",

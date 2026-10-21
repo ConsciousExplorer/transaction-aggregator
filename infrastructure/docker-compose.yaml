@@ -141,7 +141,7 @@ services:
 
   # One-shot: strip generator annotations (arg.properties / avro-datagen keys),
   # set subject compatibility BACKWARD, register the producers' *.avsc under
-  # TopicNameStrategy subjects (<topic>-value) — ADR-011.
+  # TopicNameStrategy subjects (<topic>-value).
   schemas-register:
     build: 
       context: ./schema-registry
