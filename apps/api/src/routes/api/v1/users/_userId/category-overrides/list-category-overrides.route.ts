@@ -8,7 +8,7 @@ import { userCategoryListResponseSchema } from "../categories/categories.schemas
 
 export default async function registerListCategoryOverridesRoute(
 	fastify: FastifyInstance,
-	options: { categoryRepository: CategoryRepository }
+	options: { categoryRepository: Pick<CategoryRepository, "getUserCategories"> }
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",

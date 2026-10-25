@@ -13,7 +13,9 @@ import { buildRemappedUserCategory } from "./category-overrides.mappers.ts";
 
 export default async function registerPutCategoryOverrideRoute(
 	fastify: FastifyInstance,
-	options: { categoryRepository: CategoryRepository }
+	options: {
+		categoryRepository: Pick<CategoryRepository, "updateUserCategory">;
+	}
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "PUT",

@@ -42,10 +42,9 @@ export const listTransactionsFilterSchema = z.object({
 		.optional(),
 	amountMin: z.number().int().optional(),
 	amountMax: z.number().int().optional(),
-	// The order rows are read in
-	sort: transactionSortSchema.default("-occurredAt"),
-	// Left out to read from the start. Otherwise only the rows after this
-	// keyset, in sort order.
+	sort: transactionSortSchema.default(
+		transactionSortSchema.enum["-occurredAt"]
+	),
 	cursor: transactionCursorSchema.optional(),
 	limit: z.number().int().min(1).max(100).default(50)
 });
@@ -75,10 +74,10 @@ export type SetTransactionCategory = z.infer<
 >;
 
 export class UserTransactionRepository {
-	db: NodePgDatabase;
+	readonly #db: NodePgDatabase;
 
 	constructor({ db }: AppCradle) {
-		this.db = db;
+		this.#db = db;
 	}
 
 	async getTransactions(filter: ListTransactionsFilter) {
@@ -149,7 +148,7 @@ export class UserTransactionRepository {
 			? [asc(transactions.occurredAt), asc(transactions.transactionId)]
 			: [desc(transactions.occurredAt), desc(transactions.transactionId)];
 
-		const result = await this.db
+		const result = await this.#db
 			.select({
 				transactionId: transactions.transactionId,
 				occurredAt: transactions.occurredAt,
@@ -160,9 +159,6 @@ export class UserTransactionRepository {
 				currency: transactions.currency,
 				category: categories.category,
 				shortDescription: transactions.shortDescription,
-				// occurred_at to the microsecond, as UTC ISO text, for the next page's
-				// keyset bound. Rows can differ only in microseconds, so a millisecond
-				// bound would skip or repeat them.
 				cursorOccurredAt: sql<string>`to_char(${transactions.occurredAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
 			})
 			.from(transactions)
@@ -196,7 +192,7 @@ export class UserTransactionRepository {
 	async getTransactionDetail(filter: TransactionDetailFilter) {
 		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
-		const [result] = await this.db
+		const [result] = await this.#db
 			.select({
 				transactionId: transactions.transactionId,
 				accountId: transactions.accountId,
@@ -234,10 +230,6 @@ export class UserTransactionRepository {
 				)
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
-			// No occurred_at bound: the id's time is when the row was inserted, not
-			// when the transaction happened, so it can't name the partition. Every
-			// partition's primary key index starts with transaction_id, so this is
-			// one index lookup per partition.
 			.where(
 				and(
 					eq(transactions.userId, filter.userId),
@@ -250,7 +242,7 @@ export class UserTransactionRepository {
 
 	async setTransactionCategory(transaction: SetTransactionCategory) {
 		try {
-			const [result] = await this.db
+			const [result] = await this.#db
 				.insert(userTransactionOverrides)
 				.values({
 					userId: transaction.userId,
@@ -279,9 +271,7 @@ export class UserTransactionRepository {
 	}
 
 	async archiveTransactionCategory(userId: string, transactionId: string) {
-		// No occurred_at bound, as in getTransactionDetail: one primary key index
-		// lookup per partition
-		const [result] = await this.db
+		const [result] = await this.#db
 			.update(userTransactionOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(

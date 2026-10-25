@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { buildServer } from "#src/server.ts";
@@ -24,20 +23,14 @@ const ARCHIVED: NonNullable<
 	archivedAt: "2026-09-05T08:00:00.000Z"
 };
 
-// `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `db` is here only to satisfy the
-// class shape; the route goes through the methods.
+// `satisfies` is the drift guard: the fake must match the real methods the
+// route calls, so a change to one of their signatures stops this compiling.
 const archiveUserCategory = mock.fn<CategoryRepository["archiveUserCategory"]>(
 	async () => ARCHIVED
 );
 const categoryRepository = {
-	db: {} as NodePgDatabase,
-	getCategories: mock.fn(async () => []),
-	getUserCategories: mock.fn(async () => []),
-	findUnknownCategories: mock.fn(async () => []),
-	updateUserCategory: mock.fn(async () => undefined),
 	archiveUserCategory
-} satisfies CategoryRepository;
+} satisfies Pick<CategoryRepository, "archiveUserCategory">;
 
 suite("DELETE /api/v1/users/:userId/category-overrides/:categoryId", () => {
 	let app: FastifyInstance;

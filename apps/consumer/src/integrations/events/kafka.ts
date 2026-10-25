@@ -14,6 +14,7 @@ import {
 	type Message,
 	MessagesStreamFallbackModes,
 	type MessagesStreamModeValue,
+	type MessageToProduce,
 	ProduceAcks,
 	Producer,
 	type ProducerOptions,
@@ -150,13 +151,16 @@ function buildDeadLetterRecord(
 	headers["x-source-offset"] = message.offset.toString();
 	headers["x-source-timestamp"] = String(message.recordTimestamp);
 
-	return {
+	const record: MessageToProduce<string, Buffer, string, string> = {
 		topic: deadLetterTopic,
-		// A record produced without a key is dead-lettered without one
-		...(message.key !== undefined && { key: message.key }),
 		value: message.raw ?? Buffer.alloc(0),
 		headers
 	};
+	// A record produced without a key is dead-lettered without one
+	if (message.key !== undefined) {
+		record.key = message.key;
+	}
+	return record;
 }
 
 export function createDeadLetterSender(

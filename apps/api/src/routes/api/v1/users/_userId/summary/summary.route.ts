@@ -18,8 +18,8 @@ import { summaryResponseSchema } from "./summary.schemas.ts";
 export default async function registerSummaryRoute(
 	fastify: FastifyInstance,
 	options: {
-		summaryRepository: SummaryRepository;
-		categoryRepository: CategoryRepository;
+		summaryRepository: Pick<SummaryRepository, "getUserSummary">;
+		categoryRepository: Pick<CategoryRepository, "findUnknownCategories">;
 		queryWindow: QueryWindowConfig;
 	}
 ) {

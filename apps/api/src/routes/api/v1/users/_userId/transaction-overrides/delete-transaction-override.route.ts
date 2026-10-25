@@ -6,7 +6,12 @@ import { problemSchema } from "#src/schemas/common.ts";
 
 export default async function registerDeleteTransactionOverrideRoute(
 	fastify: FastifyInstance,
-	options: { transactionRepository: UserTransactionRepository }
+	options: {
+		transactionRepository: Pick<
+			UserTransactionRepository,
+			"archiveTransactionCategory"
+		>;
+	}
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "DELETE",

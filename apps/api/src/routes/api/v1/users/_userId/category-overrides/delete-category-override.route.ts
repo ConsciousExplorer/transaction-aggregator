@@ -6,7 +6,9 @@ import { categoryIdParamSchema, problemSchema } from "#src/schemas/common.ts";
 
 export default async function registerDeleteCategoryOverrideRoute(
 	fastify: FastifyInstance,
-	options: { categoryRepository: CategoryRepository }
+	options: {
+		categoryRepository: Pick<CategoryRepository, "archiveUserCategory">;
+	}
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "DELETE",

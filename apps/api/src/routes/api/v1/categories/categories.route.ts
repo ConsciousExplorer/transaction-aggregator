@@ -7,7 +7,7 @@ import { categoryListResponseSchema } from "./categories.schemas.ts";
 
 export default async function registerCategoriesRoute(
 	fastify: FastifyInstance,
-	options: { categoryRepository: CategoryRepository }
+	options: { categoryRepository: Pick<CategoryRepository, "getCategories"> }
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",

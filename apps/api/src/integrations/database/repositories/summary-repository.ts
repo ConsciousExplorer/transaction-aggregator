@@ -12,6 +12,7 @@ import {
 	sql
 } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import z from "zod";
 import type { AppCradle } from "#src/container.ts";
 import {
@@ -33,7 +34,6 @@ export const userSummaryFilter = z.object({
 		.union([transactionTypeSchema, transactionTypeSchema.array()])
 		.optional(),
 	category: z.union([z.string(), z.string().array()]).optional(),
-	// Left out, the whole window is one bucket
 	interval: z.enum(["day", "week", "month"]).optional(),
 	creditDebitIndicator: z
 		.union([creditDebitIndicatorSchema, creditDebitIndicatorSchema.array()])
@@ -53,10 +53,10 @@ const BUCKET_FORMAT = {
 } satisfies Record<NonNullable<UserSummaryFilter["interval"]>, string>;
 
 export class SummaryRepository {
-	db: NodePgDatabase;
+	readonly #db: NodePgDatabase;
 
 	constructor({ db }: AppCradle) {
-		this.db = db;
+		this.#db = db;
 	}
 
 	async getUserSummary(filter: UserSummaryFilter) {
@@ -126,7 +126,18 @@ export class SummaryRepository {
 				: undefined
 		];
 
-		const result = await this.db
+		// Without an interval the whole window is one bucket, so there is no
+		// bucket to group or order by
+		const groupBy: (SQL | PgColumn)[] = [];
+		const orderBy: (SQL | PgColumn)[] = [];
+		if (filter.interval) {
+			groupBy.push(bucketStart);
+			orderBy.push(bucketStart);
+		}
+		groupBy.push(categories.category, transactions.currency);
+		orderBy.push(desc(debitAmount), categories.category);
+
+		const result = await this.#db
 			.select({
 				bucketStart,
 				category: categories.category,
@@ -159,18 +170,8 @@ export class SummaryRepository {
 			)
 			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
 			.where(and(...conditions))
-			.groupBy(
-				...(filter.interval ? [bucketStart] : []),
-				categories.category,
-				transactions.currency
-			)
-			// Buckets in time order; within a bucket the biggest spend first.
-			// Without an interval the bucket is one constant, so it orders nothing.
-			.orderBy(
-				...(filter.interval ? [bucketStart] : []),
-				desc(debitAmount),
-				categories.category
-			);
+			.groupBy(...groupBy)
+			.orderBy(...orderBy);
 
 		return result;
 	}

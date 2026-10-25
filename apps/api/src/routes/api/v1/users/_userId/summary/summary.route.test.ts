@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
@@ -41,29 +40,22 @@ const ROWS: Awaited<ReturnType<SummaryRepository["getUserSummary"]>> = [
 	}
 ];
 
-// `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `db` is here only to satisfy
-// the class shape — the route never touches it (it goes through the methods).
+// `satisfies` is the drift guard: the fake must match the real methods the
+// route calls, so a change to one of their signatures stops this compiling.
 const getUserSummary = mock.fn<SummaryRepository["getUserSummary"]>(
 	async () => ROWS
 );
 const summaryRepository = {
-	db: {} as NodePgDatabase,
 	getUserSummary
-} satisfies SummaryRepository;
+} satisfies Pick<SummaryRepository, "getUserSummary">;
 
 // Every slug names a category unless a test says otherwise
 const findUnknownCategories = mock.fn<
 	CategoryRepository["findUnknownCategories"]
 >(async () => []);
 const categoryRepository = {
-	db: {} as NodePgDatabase,
-	getCategories: mock.fn(async () => []),
-	getUserCategories: mock.fn(async () => []),
-	findUnknownCategories,
-	updateUserCategory: mock.fn(async () => undefined),
-	archiveUserCategory: mock.fn(async () => undefined)
-} satisfies CategoryRepository;
+	findUnknownCategories
+} satisfies Pick<CategoryRepository, "findUnknownCategories">;
 
 suite("GET /api/v1/users/:userId/summary", () => {
 	let app: FastifyInstance;

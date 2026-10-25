@@ -9,7 +9,12 @@ import { transactionOverrideSchema } from "./transaction-overrides.schemas.ts";
 
 export default async function registerPutTransactionOverrideRoute(
 	fastify: FastifyInstance,
-	options: { transactionRepository: UserTransactionRepository }
+	options: {
+		transactionRepository: Pick<
+			UserTransactionRepository,
+			"getTransactionDetail" | "setTransactionCategory"
+		>;
+	}
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "PUT",

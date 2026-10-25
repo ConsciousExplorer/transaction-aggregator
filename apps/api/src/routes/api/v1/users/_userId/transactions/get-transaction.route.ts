@@ -9,7 +9,12 @@ import { transactionDetailSchema } from "./transactions.schemas.ts";
 
 export default async function registerGetTransactionRoute(
 	fastify: FastifyInstance,
-	options: { transactionRepository: UserTransactionRepository }
+	options: {
+		transactionRepository: Pick<
+			UserTransactionRepository,
+			"getTransactionDetail"
+		>;
+	}
 ) {
 	fastify.withTypeProvider<ZodTypeProvider>().route({
 		method: "GET",

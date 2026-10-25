@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { buildServer } from "#src/server.ts";
@@ -11,20 +10,14 @@ const ROWS = [
 	{ categoryId: 2, category: "dining", label: "Dining" }
 ];
 
-// `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `db` is here only to satisfy the
-// class shape; the route goes through the methods.
+// `satisfies` is the drift guard: the fake must match the real methods the
+// route calls, so a change to one of their signatures stops this compiling.
 const getCategories = mock.fn<CategoryRepository["getCategories"]>(
 	async () => ROWS
 );
 const categoryRepository = {
-	db: {} as NodePgDatabase,
-	getCategories,
-	getUserCategories: mock.fn(async () => []),
-	findUnknownCategories: mock.fn(async () => []),
-	updateUserCategory: mock.fn(async () => undefined),
-	archiveUserCategory: mock.fn(async () => undefined)
-} satisfies CategoryRepository;
+	getCategories
+} satisfies Pick<CategoryRepository, "getCategories">;
 
 suite("GET /api/v1/categories", () => {
 	let app: FastifyInstance;

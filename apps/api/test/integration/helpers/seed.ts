@@ -39,8 +39,7 @@ const CARD_METADATA = {
 
 /** The full row for a fixture, for inserts made outside insertTransactions */
 export function buildTransactionRow(fixture: TransactionFixture) {
-	return {
-		...(fixture.transactionId && { transactionId: fixture.transactionId }),
+	const row: NewTransaction = {
 		userId: fixture.userId,
 		accountId: fixture.accountId ?? randomUUID(),
 		transactionType: "card",
@@ -54,7 +53,11 @@ export function buildTransactionRow(fixture: TransactionFixture) {
 		categoryId: fixture.categoryId,
 		ruleVersion: 1,
 		metadata: CARD_METADATA
-	} satisfies NewTransaction;
+	};
+	if (fixture.transactionId !== undefined) {
+		row.transactionId = fixture.transactionId;
+	}
+	return row;
 }
 
 /**

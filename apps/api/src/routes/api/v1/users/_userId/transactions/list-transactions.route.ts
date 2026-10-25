@@ -29,8 +29,8 @@ import { transactionListResponseSchema } from "./transactions.schemas.ts";
 export default async function registerListTransactionsRoute(
 	fastify: FastifyInstance,
 	options: {
-		transactionRepository: UserTransactionRepository;
-		categoryRepository: CategoryRepository;
+		transactionRepository: Pick<UserTransactionRepository, "getTransactions">;
+		categoryRepository: Pick<CategoryRepository, "findUnknownCategories">;
 		queryWindow: QueryWindowConfig;
 	}
 ) {

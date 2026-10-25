@@ -17,6 +17,7 @@ export const userCategorySchema = z.object({
 	label: z.string(),
 	mappedTo: mappedToSchema.optional()
 });
+export type UserCategory = z.infer<typeof userCategorySchema>;
 
 export const userCategoryListResponseSchema = z.object({
 	data: userCategorySchema.array(),

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { FastifyInstance } from "fastify";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
@@ -51,9 +50,8 @@ const OVERRIDE: NonNullable<
 	archivedAt: null
 };
 
-// `satisfies` is the drift guard: if the real class gains a member or changes
-// a signature, this fake stops compiling. `db` is here only to satisfy the
-// class shape; the route goes through the methods.
+// `satisfies` is the drift guard: the fake must match the real methods the
+// route calls, so a change to one of their signatures stops this compiling.
 const getTransactionDetail = mock.fn<
 	UserTransactionRepository["getTransactionDetail"]
 >(async () => TRANSACTION);
@@ -61,12 +59,12 @@ const setTransactionCategory = mock.fn<
 	UserTransactionRepository["setTransactionCategory"]
 >(async () => OVERRIDE);
 const transactionRepository = {
-	db: {} as NodePgDatabase,
-	getTransactions: mock.fn(async () => []),
 	getTransactionDetail,
-	setTransactionCategory,
-	archiveTransactionCategory: mock.fn(async () => undefined)
-} satisfies UserTransactionRepository;
+	setTransactionCategory
+} satisfies Pick<
+	UserTransactionRepository,
+	"getTransactionDetail" | "setTransactionCategory"
+>;
 
 suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 	let app: FastifyInstance;

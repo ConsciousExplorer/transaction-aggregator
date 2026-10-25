@@ -6,7 +6,7 @@ import type { CategoryRepository } from "#src/integrations/database/repositories
  * would match nothing, and an empty answer reads the same as no spending.
  */
 export async function assertKnownCategories(
-	categoryRepository: CategoryRepository,
+	categoryRepository: Pick<CategoryRepository, "findUnknownCategories">,
 	category: string | string[] | undefined
 ) {
 	if (category === undefined) return;

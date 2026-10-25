@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, InjectOptions } from "fastify";
 import type { TokenVerification } from "#src/auth/verifier.ts";
 import { buildServer, type ServerDependencies } from "#src/server.ts";
 import type { TestDatabase } from "./database.ts";
@@ -65,10 +65,13 @@ export function sendAs(
 	url: string,
 	payload?: object
 ) {
-	return server.inject({
+	const request: InjectOptions = {
 		method,
 		url,
-		headers: buildBearerHeaders(token),
-		...(payload !== undefined && { payload })
-	});
+		headers: buildBearerHeaders(token)
+	};
+	if (payload !== undefined) {
+		request.payload = payload;
+	}
+	return server.inject(request);
 }
