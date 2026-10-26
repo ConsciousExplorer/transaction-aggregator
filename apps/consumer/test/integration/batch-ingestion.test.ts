@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, suite, test } from "node:test";
 import type { Pool } from "pg";
+import type { RuleSet } from "#src/domain/rule-categoriser.ts";
+import { buildCardRecord, buildLoanRecord } from "#src/domain/test-records.ts";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import { createDatabase } from "#src/integrations/database/pool.ts";
 import { loadRuleset } from "#src/integrations/database/repositories/rule-repository.ts";
@@ -9,11 +11,6 @@ import {
 	createTransactionBatchHandler,
 	type DeadLetterFailure
 } from "#src/integrations/events/handlers/transactionBatchHandler.ts";
-import type { RuleSet } from "#src/services/rule-categoriser.ts";
-import {
-	buildCardRecord,
-	buildLoanRecord
-} from "#src/services/test-records.ts";
 import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 import {
 	startTestDatabase,

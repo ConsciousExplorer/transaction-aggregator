@@ -1,6 +1,6 @@
+import { castToDomainTransaction } from "#src/domain/test-records.ts";
 import type { ValidMessage } from "#src/integrations/events/handlers/transactionBatchHandler.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
-import { castToDomainTransaction } from "#src/services/test-records.ts";
 
 const TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
 

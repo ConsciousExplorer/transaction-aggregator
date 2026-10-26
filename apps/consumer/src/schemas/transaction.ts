@@ -71,6 +71,8 @@ export const categorisedTransactionSchema = canonicalTransactionSchema.extend({
 
 export type TransactionType = z.infer<typeof transactionTypeSchema>;
 
+export type TransactionStatus = z.infer<typeof transactionStatusSchema>;
+
 export type DomainTransactionSchema = z.infer<typeof domainTransactionSchema>;
 
 export type CanonicalTransactionSchema = z.infer<

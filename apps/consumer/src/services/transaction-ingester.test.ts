@@ -2,36 +2,26 @@ import assert from "node:assert";
 import { mock, suite, test } from "node:test";
 import { DatabaseError, type Pool } from "pg";
 import {
+	buildCardRecord,
+	castToDomainTransaction
+} from "#src/domain/test-records.ts";
+import {
 	NonRetryableError,
 	RetryableError
 } from "#src/errors/consumer-errors.ts";
-import {
-	buildCardRecord,
-	castToDomainTransaction
-} from "#src/services/test-records.ts";
 import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 import { insertDurationSeconds } from "#src/telemetry/metrics.ts";
 
 // No rules, so every transaction takes the fallback verdict.
 const EMPTY_RULESET = { version: 1, rules: [], uncategorisedId: 1 };
 
-/**
- * A pool whose INSERT fails as Postgres would fail it, with the given
- * SQLSTATE. BEGIN and ROLLBACK succeed.
- */
+/** A pool whose INSERT fails as Postgres would fail it, with the given SQLSTATE. */
 function buildPoolFailingInsert(code: string) {
-	const query = mock.fn(async (text: string) => {
-		if (text.includes("INSERT")) {
+	return {
+		async query() {
 			const error = new DatabaseError(`server error ${code}`, 0, "error");
 			error.code = code;
 			throw error;
-		}
-		return { rows: [], rowCount: 0 };
-	});
-
-	return {
-		async connect() {
-			return { query, on() {}, removeListener() {}, release() {} };
 		}
 	} as unknown as Pool;
 }
@@ -48,16 +38,12 @@ async function countInsertDurationObservations() {
 }
 
 suite("transaction ingestion", () => {
-	test("a valid transaction is inserted inside one database transaction", async () => {
+	test("a valid transaction is inserted in one statement", async () => {
 		const query = mock.fn(async (_text: string, _values?: unknown[]) => ({
 			rows: [],
 			rowCount: 1
 		}));
-		const pool = {
-			async connect() {
-				return { query, on() {}, removeListener() {}, release() {} };
-			}
-		} as unknown as Pool;
+		const pool = { query } as unknown as Pool;
 
 		const ingestTransactions = createTransactionIngester(
 			"card",
@@ -71,14 +57,11 @@ suite("transaction ingestion", () => {
 
 		assert.deepEqual(outcome, { attempted: 1, inserted: 1 });
 
-		const statements = [];
-		for (const call of query.mock.calls) {
-			statements.push(call.arguments[0]);
-		}
-		assert.equal(statements.length, 3);
-		assert.equal(statements[0], "BEGIN");
-		assert.match(statements[1] ?? "", /INSERT INTO txn_agg\.transactions/);
-		assert.equal(statements[2], "COMMIT");
+		assert.equal(query.mock.callCount(), 1);
+		assert.match(
+			query.mock.calls[0]?.arguments[0] ?? "",
+			/INSERT INTO txn_agg\.transactions/
+		);
 	});
 
 	// The batch handler dead-letters a non-retryable failure row by row and

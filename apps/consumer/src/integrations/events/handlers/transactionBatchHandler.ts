@@ -15,10 +15,7 @@ interface MessageOrigin {
 	topic: string;
 	partition: number;
 	offset: bigint;
-	// The producer's partition key, the customer id. A record sent without a
-	// key has none.
 	key: string | undefined;
-	// When the record was produced, in milliseconds since the epoch
 	recordTimestamp: number;
 	headers: Map<string, string>;
 }
@@ -121,9 +118,6 @@ export function createTransactionBatchHandler(
 				"Dead-lettered undeserialisable messages"
 			);
 		}
-
-		// Returning normally asserts every message is durably resolved —
-		// the adapter commits on it, and only on it.
 	};
 }
 

@@ -2,7 +2,6 @@ import assert from "node:assert";
 import { suite, test } from "node:test";
 import type z from "zod";
 import type { canonicalTransactionSchema } from "../schemas/transaction.ts";
-import { normaliseTransaction } from "./domain-normaliser.ts";
 import {
 	categoriseTransaction,
 	compileRules,
@@ -10,6 +9,7 @@ import {
 	type RuleSet
 } from "./rule-categoriser.ts";
 import { buildLoanRecord } from "./test-records.ts";
+import { normaliseTransaction } from "./transaction-normaliser.ts";
 
 type CanonicalTransaction = z.infer<typeof canonicalTransactionSchema>;
 

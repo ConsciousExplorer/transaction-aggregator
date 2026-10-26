@@ -13,7 +13,7 @@ import {
 
 /**
  * Disabled (OTEL_SDK_DISABLED=true, the default outside the obs profile):
- * register nothing, so getTracer() hands out no-op spans and the hot path stays
+ * register nothing, so the tracer hands out no-op spans and the hot path stays
  * clean. Enabled: export over OTLP/HTTP to the collector; the exporter and
  * sampler read OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_TRACES_SAMPLER themselves.
  */
@@ -32,10 +32,6 @@ export function startTracing(options: {
 	return provider;
 }
 
-export function getTracer() {
-	return trace.getTracer("consumer");
-}
-
 /**
  * Runs `work` inside a new span and makes it the active span, so spans
  * started inside become its children. A failure is recorded on the span and
@@ -46,7 +42,9 @@ export function runInSpan<T>(
 	options: SpanOptions,
 	work: (span: Span) => T | Promise<T>
 ) {
-	return getTracer().startActiveSpan(name, options, async (span) => {
+	const tracer = trace.getTracer("consumer");
+
+	return tracer.startActiveSpan(name, options, async (span) => {
 		try {
 			return await work(span);
 		} catch (error) {

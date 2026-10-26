@@ -1,8 +1,12 @@
+import type { Pool } from "pg";
 import type { CategorisedTransactionSchema } from "#src/schemas/transaction.ts";
-import type { Queryable } from "../pool.ts";
 
+/**
+ * One statement for the whole batch, so it is atomic without a transaction.
+ * UNNEST binds one array per column: 15 parameters however many rows.
+ */
 export async function batchInsertTransactions(
-	db: Queryable,
+	pool: Pool,
 	transactions: CategorisedTransactionSchema[]
 ) {
 	if (transactions.length === 0) return { attempted: 0, inserted: 0 };
@@ -41,7 +45,7 @@ export async function batchInsertTransactions(
 		metadataJson.push(JSON.stringify(transaction.metadata));
 	}
 
-	const result = await db.query(
+	const result = await pool.query(
 		`
         INSERT INTO txn_agg.transactions
         (
@@ -110,8 +114,7 @@ export async function batchInsertTransactions(
 			rule_priority,
 			metadata
 		)
-        ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING
-        RETURNING 1`,
+        ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`,
 		[
 			userIds, // 1
 			accountIds, // 2
@@ -130,5 +133,6 @@ export async function batchInsertTransactions(
 			metadataJson // 15 — string[] cast by $15::jsonb[]
 		]
 	);
+	// An INSERT's row count leaves out the rows ON CONFLICT skipped
 	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };
 }

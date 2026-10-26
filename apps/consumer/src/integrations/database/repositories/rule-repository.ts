@@ -1,5 +1,5 @@
 import { eq, max, sql } from "drizzle-orm";
-import type { Rule } from "#src/services/rule-categoriser.ts";
+import type { Rule } from "#src/domain/rule-categoriser.ts";
 import type { Database } from "../pool.ts";
 import {
 	categories,

@@ -67,8 +67,8 @@ function buildKafkaMetricsOptions(registry: Registry) {
  * Given a registry, the client records its own metrics there
  * (kafka_consumed_messages, kafka_consumers_lags, ...). Without one, none.
  */
-export function createKafkaConsumer<Key, Value, HeaderKey, HeaderValue>(
-	options: ConsumerOptions<Key, Value, HeaderKey, HeaderValue>,
+export function createKafkaConsumer(
+	options: ConsumerOptions<string, ConsumedValue, string, string>,
 	registry?: Registry
 ) {
 	const consumerOptions = { ...options };
@@ -106,7 +106,6 @@ export function createKafkaDeadLetterProducer(
 ) {
 	const producerOptions = {
 		...options,
-		acks: ProduceAcks.ALL,
 		serializers: {
 			key: stringSerializer,
 			headerKey: stringSerializer,
@@ -118,9 +117,7 @@ export function createKafkaDeadLetterProducer(
 		producerOptions.metrics = buildKafkaMetricsOptions(registry);
 	}
 
-	const kafkaDeadLetterProducer = new Producer(producerOptions);
-
-	return kafkaDeadLetterProducer;
+	return new Producer(producerOptions);
 }
 
 function chooseDeadLetterReason(failure: DeadLetterFailure) {
@@ -187,7 +184,10 @@ export function createDeadLetterSender(
 					"messaging.batch.message_count": records.length
 				}
 			},
-			() => deadLetterProducer.send({ messages: records, acks: -1 })
+			// Set on each send: send() falls back to a leader-only ack and never
+			// reads an acks given to the producer
+			() =>
+				deadLetterProducer.send({ messages: records, acks: ProduceAcks.ALL })
 		);
 
 		for (const failure of failures) {

@@ -1,6 +1,13 @@
 import type { Pool } from "pg";
+import {
+	type CompiledRules,
+	categoriseTransaction,
+	compileRules,
+	type RuleSet,
+	type Verdict
+} from "#src/domain/rule-categoriser.ts";
+import { normaliseTransaction } from "#src/domain/transaction-normaliser.ts";
 import { classifyPostgresError } from "#src/errors/postgres.ts";
-import { runInTransaction } from "#src/integrations/database/pool.ts";
 import { batchInsertTransactions } from "#src/integrations/database/repositories/transaction-repository.ts";
 import type {
 	CategorisedTransactionSchema,
@@ -14,14 +21,6 @@ import {
 	rowsInsertedTotal
 } from "#src/telemetry/metrics.ts";
 import { runInSpan } from "#src/telemetry/tracing.ts";
-import { normaliseTransaction } from "./domain-normaliser.ts";
-import {
-	type CompiledRules,
-	categoriseTransaction,
-	compileRules,
-	type RuleSet,
-	type Verdict
-} from "./rule-categoriser.ts";
 
 export interface BatchOutcome {
 	attempted: number;
@@ -81,7 +80,7 @@ function categoriseTransactions(
 }
 
 /**
- * One database transaction for the whole batch. A Postgres failure is
+ * One INSERT for the whole batch, atomic on its own. A Postgres failure is
  * classified here, so the batch handler can tell a retryable outage from a
  * row that will never insert.
  */
@@ -104,9 +103,7 @@ async function insertTransactions(
 				}
 			},
 			async (span) => {
-				const result = await runInTransaction(pool, (client) =>
-					batchInsertTransactions(client, transactions)
-				);
+				const result = await batchInsertTransactions(pool, transactions);
 				span.setAttribute("rows.inserted", result.inserted);
 				return result;
 			}
@@ -119,7 +116,7 @@ async function insertTransactions(
 }
 
 /**
- * Records only after the database transaction committed, so a batch that
+ * Records only after the insert committed, so a batch that
  * rolls back and is then retried one message at a time is not counted twice.
  */
 function recordCommittedBatch(

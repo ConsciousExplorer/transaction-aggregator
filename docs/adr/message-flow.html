@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Transaction Message Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one tall figure (the record's path, failures branching left and right),
+   then what happens to each kind of record, the steps with their code, and the DLQ record. */
+:root {
+	--paper: #eef2f5;
+	--panel: #fbfcfd;
+	--ink: #15212c;
+	--muted: #586878;
+	--rule: #d3dce4;
+	--track: #e2e8ee;
+	--code-bg: #e6ecf1;
+	--fetch: #3f51c7;
+	--commit: #2b7a4b;
+	--fail: #c2312f;
+	--poison: #9c2f8f;
+	--font-display: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif;
+	--font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--paper: #0d1318;
+		--panel: #131b22;
+		--ink: #e2e9ef;
+		--muted: #8fa0af;
+		--rule: #26333e;
+		--track: #1b2630;
+		--code-bg: #18222b;
+		--fetch: #8f9cff;
+		--commit: #5cc488;
+		--fail: #f2706b;
+		--poison: #d47fd0;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--paper: #0d1318;
+	--panel: #131b22;
+	--ink: #e2e9ef;
+	--muted: #8fa0af;
+	--rule: #26333e;
+	--track: #1b2630;
+	--code-bg: #18222b;
+	--fetch: #8f9cff;
+	--commit: #5cc488;
+	--fail: #f2706b;
+	--poison: #d47fd0;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font: 400 15px/1.55 var(--font-body);
+	padding-block: 32px 72px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	-webkit-text-size-adjust: 100%;
+}
+.page { max-width: 1080px; margin: 0 auto; display: grid; gap: 34px; }
+.masthead { display: grid; gap: 10px; max-width: 74ch; }
+.eyebrow {
+	margin: 0;
+	font: 600 12px/1.2 var(--font-mono);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+h1 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-stretch: 82%;
+	font-weight: 800;
+	font-size: clamp(32px, 5.4vw, 52px);
+	line-height: 1;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+h2 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-stretch: 86%;
+	font-weight: 750;
+	font-size: 25px;
+	line-height: 1.15;
+	text-wrap: balance;
+}
+.lede { margin: 0; font-size: 16px; max-width: 70ch; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+p { margin: 0; }
+a { color: var(--fetch); }
+
+figure { margin: 0; display: grid; gap: 10px; }
+.figure-scroll {
+	overflow-x: auto;
+	background: var(--panel);
+	border: 1px solid var(--rule);
+	border-radius: 10px;
+}
+.figure-scroll svg { display: block; width: 100%; min-width: 760px; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 78ch; }
+
+/* The diagram, styled from here so both themes apply */
+.flow text { fill: var(--ink); font-family: var(--font-body); }
+.flow .title { font-size: 13.5px; font-weight: 600; }
+.flow .sub { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.flow .label { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); }
+.flow .zone-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; fill: var(--muted); }
+.flow .zone { fill: var(--track); opacity: 0.6; }
+.flow .box { fill: var(--panel); stroke: var(--ink); stroke-width: 1.2; }
+.flow .box-kafka { fill: var(--panel); stroke: var(--fetch); stroke-width: 1.6; }
+.flow .box-commit { fill: color-mix(in srgb, var(--commit) 10%, var(--panel)); stroke: var(--commit); stroke-width: 1.4; }
+.flow .box-dlq { fill: color-mix(in srgb, var(--poison) 9%, var(--panel)); stroke: var(--poison); stroke-width: 1.4; }
+.flow .box-exit { fill: color-mix(in srgb, var(--fail) 8%, var(--panel)); stroke: var(--fail); stroke-width: 1.4; }
+.flow .edge { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+.flow .edge-schema { stroke: var(--fetch); stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
+.flow .edge-dlq { stroke: var(--poison); stroke-width: 1.5; fill: none; }
+.flow .edge-fail { stroke: var(--fail); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
+.flow .edge-store { stroke: var(--commit); stroke-width: 1.5; fill: none; }
+.flow .head-ink { fill: var(--ink); }
+.flow .head-schema { fill: var(--fetch); }
+.flow .head-dlq { fill: var(--poison); }
+.flow .head-fail { fill: var(--fail); }
+.flow .head-store { fill: var(--commit); }
+.flow .kafka-text { fill: var(--fetch); }
+.flow .dlq-text { fill: var(--poison); }
+.flow .fail-text { fill: var(--fail); }
+.flow .store-text { fill: var(--commit); }
+
+section { display: grid; gap: 12px; min-width: 0; max-width: 80ch; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule); }
+th { font: 600 11.5px/1.3 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.verdict { white-space: nowrap; font-weight: 600; }
+.verdict.stored { color: var(--commit); }
+.verdict.dlq { color: var(--poison); }
+.verdict.replay { color: var(--fail); }
+.verdict.skip { color: var(--muted); }
+
+.steps { margin: 0; padding-left: 26px; display: grid; gap: 12px; }
+.steps li { padding-left: 4px; }
+.steps li::marker { font: 600 13px var(--font-mono); color: var(--muted); }
+.steps b { font-weight: 600; }
+.source { display: block; margin-top: 2px; font: 400 12px var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+pre {
+	margin: 0;
+	background: var(--code-bg);
+	border-radius: 7px;
+	padding: 14px 16px;
+	overflow-x: auto;
+	font: 400 12.5px/1.6 var(--font-mono);
+}
+pre .comment { color: var(--muted); }
+.related { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+	<p class="eyebrow">apps/producers → Kafka → apps/consumer → Postgres</p>
+	<h1>Transaction Message Flow</h1>
+	<p class="lede">The path of one transaction, from the producer that makes it up to the row in Postgres, and every place it can leave that path. A record is stored, skipped as a duplicate, or sent to the dead-letter topic, and its offset is committed. The one exception is a failure that isn't the record's fault: then nothing is committed, the process exits, and the record is read again after the restart.</p>
+</header>
+
+<figure>
+	<div class="figure-scroll">
+		<svg class="flow" viewBox="0 0 1000 1032" role="img" aria-label="A transaction is generated, serialised as Avro and produced to its Kafka topic. The consumer fetches it, deserialises it, batches it, normalises, categorises and inserts it, then commits the offset. Records that won't decode, fail validation, or are rejected by Postgres as bad rows go to the dead-letter topic and are committed. A new schema id or any other database error makes the process exit without committing, and the restart reads the records again.">
+			<defs>
+				<marker id="head-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-schema" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-schema" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-dlq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-dlq" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-store" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-store" d="M0,0 L10,5 L0,10 z"/></marker>
+			</defs>
+
+			<!-- Who owns each stretch of the spine -->
+			<rect class="zone" x="260" y="12" width="376" height="268" rx="8"/>
+			<rect class="zone" x="260" y="288" width="376" height="84" rx="8"/>
+			<rect class="zone" x="260" y="380" width="376" height="636" rx="8"/>
+			<text class="zone-label" x="20" y="40">APPS/PRODUCERS</text>
+			<text class="sub" x="20" y="58">one container per source</text>
+			<text class="zone-label" x="20" y="326">KAFKA</text>
+			<text class="zone-label" x="20" y="396">APPS/CONSUMER</text>
+			<text class="sub" x="20" y="412">one group per source</text>
+
+			<!-- Spine -->
+			<rect class="box" x="276" y="24" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="49" text-anchor="middle">Generate a record</text>
+			<text class="sub" x="448" y="68" text-anchor="middle">avro-datagen · seeded customers · 18 months</text>
+
+			<rect class="box" x="276" y="116" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="141" text-anchor="middle">Serialise as Avro</text>
+			<text class="sub" x="448" y="160" text-anchor="middle">magic byte · schema id · Avro body</text>
+
+			<rect class="box" x="276" y="208" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="233" text-anchor="middle">Produce</text>
+			<text class="sub" x="448" y="252" text-anchor="middle">key customerId · traceparent · acks=all</text>
+
+			<rect class="box-kafka" x="276" y="300" width="344" height="60" rx="6"/>
+			<text class="title kafka-text" x="448" y="325" text-anchor="middle">transactions.&lt;source&gt;</text>
+			<text class="sub" x="448" y="344" text-anchor="middle">12 partitions · 7-day retention</text>
+
+			<rect class="box" x="276" y="392" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="417" text-anchor="middle">Fetch</text>
+			<text class="sub" x="448" y="436" text-anchor="middle">from the committed offset · at most 1 MiB</text>
+
+			<rect class="box" x="276" y="484" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="509" text-anchor="middle">Deserialise</text>
+			<text class="sub" x="448" y="528" text-anchor="middle">schema id → a schema loaded at boot</text>
+
+			<rect class="box" x="276" y="576" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="601" text-anchor="middle">Batch</text>
+			<text class="sub" x="448" y="620" text-anchor="middle">100 records, or 2 s after the first</text>
+
+			<rect class="box" x="276" y="668" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="693" text-anchor="middle">Normalise and validate</text>
+			<text class="sub" x="448" y="712" text-anchor="middle">per source → one canonical shape (Zod)</text>
+
+			<rect class="box" x="276" y="760" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="785" text-anchor="middle">Categorise</text>
+			<text class="sub" x="448" y="804" text-anchor="middle">MCC · keyword · type · credit/debit · default</text>
+
+			<rect class="box" x="276" y="852" width="344" height="60" rx="6"/>
+			<text class="title" x="448" y="877" text-anchor="middle">Insert the batch</text>
+			<text class="sub" x="448" y="896" text-anchor="middle">one transaction · ON CONFLICT DO NOTHING</text>
+
+			<rect class="box-commit" x="276" y="944" width="344" height="60" rx="6"/>
+			<text class="title store-text" x="448" y="969" text-anchor="middle">Commit offsets</text>
+			<text class="sub" x="448" y="988" text-anchor="middle">highest per partition, after the inserts</text>
+
+			<!-- Spine arrows -->
+			<line class="edge" x1="448" y1="84" x2="448" y2="112" marker-end="url(#head-ink)"/>
+			<line class="edge" x1="448" y1="176" x2="448" y2="204" marker-end="url(#head-ink)"/>
+			<line class="edge" x1="448" y1="268" x2="448" y2="296" marker-end="url(#head-ink)"/>
+			<text class="label" x="456" y="286">partition = hash(customerId)</text>
+			<line class="edge" x1="448" y1="360" x2="448" y2="388" marker-end="url(#head-ink)"/>
+			<line class="edge" x1="448" y1="452" x2="448" y2="480" marker-end="url(#head-ink)"/>
+			<line class="edge" x1="448" y1="544" x2="448" y2="572" marker-end="url(#head-ink)"/>
+			<text class="label" x="456" y="562">decoded</text>
+			<line class="edge" x1="448" y1="636" x2="448" y2="664" marker-end="url(#head-ink)"/>
+			<text class="label" x="456" y="654">flush</text>
+			<line class="edge" x1="448" y1="728" x2="448" y2="756" marker-end="url(#head-ink)"/>
+			<line class="edge" x1="448" y1="820" x2="448" y2="848" marker-end="url(#head-ink)"/>
+			<text class="label" x="456" y="838">never fails: fallback is uncategorised</text>
+			<line class="edge-store" x1="448" y1="912" x2="448" y2="940" marker-end="url(#head-store)"/>
+			<text class="label" x="456" y="930">and the DLQ sends</text>
+
+			<!-- Schema Registry -->
+			<rect class="box-kafka" x="760" y="116" width="220" height="60" rx="6"/>
+			<text class="title kafka-text" x="870" y="141" text-anchor="middle">Schema Registry</text>
+			<text class="sub" x="870" y="160" text-anchor="middle">&lt;topic&gt;-value · BACKWARD</text>
+			<line class="edge-schema" x1="760" y1="146" x2="624" y2="146" marker-end="url(#head-schema)"/>
+			<text class="label" x="692" y="138" text-anchor="middle">pinned schema</text>
+			<polyline class="edge-schema" points="800,176 800,236 690,236 690,500 624,500" marker-end="url(#head-schema)"/>
+			<text class="label" x="698" y="392">every version,</text>
+			<text class="label" x="698" y="406">at boot</text>
+
+			<!-- Dead-letter topic -->
+			<rect class="box-dlq" x="760" y="484" width="220" height="312" rx="6"/>
+			<text class="title dlq-text" x="870" y="512" text-anchor="middle">transactions.&lt;source&gt;.dlq</text>
+			<text class="sub" x="776" y="540">3 partitions · 30 days</text>
+			<text class="sub" x="776" y="572">value: the raw bytes</text>
+			<text class="sub" x="776" y="590">key and headers kept</text>
+			<text class="sub" x="776" y="622">+ x-dlq-reason</text>
+			<text class="sub" x="776" y="640">+ x-dlq-error</text>
+			<text class="sub" x="776" y="658">+ x-source-topic,</text>
+			<text class="sub" x="776" y="676">  partition, offset,</text>
+			<text class="sub" x="776" y="694">  timestamp</text>
+			<text class="sub" x="776" y="726">acks=all</text>
+			<text class="sub" x="776" y="758">then committed</text>
+			<text class="sub" x="776" y="776">like any record</text>
+
+			<line class="edge-dlq" x1="620" y1="528" x2="756" y2="528" marker-end="url(#head-dlq)"/>
+			<text class="label dlq-text" x="690" y="520" text-anchor="middle">won't decode</text>
+			<text class="label" x="690" y="544" text-anchor="middle">deserialisation</text>
+
+			<line class="edge-dlq" x1="620" y1="712" x2="756" y2="712" marker-end="url(#head-dlq)"/>
+			<text class="label dlq-text" x="690" y="704" text-anchor="middle">invalid</text>
+			<text class="label" x="690" y="728" text-anchor="middle">processing</text>
+
+			<polyline class="edge-dlq" points="620,868 700,868 700,780 756,780" marker-end="url(#head-dlq)"/>
+			<text class="label dlq-text" x="708" y="818">bad row (22, 23)</text>
+			<text class="label" x="708" y="832">one by one · processing</text>
+
+			<!-- Postgres -->
+			<path class="box-commit" d="M760,862 v52 a110,10 0 0 0 220,0 v-52"/>
+			<ellipse class="box-commit" cx="870" cy="862" rx="110" ry="10"/>
+			<text class="title store-text" x="870" y="896" text-anchor="middle">txn_agg.transactions</text>
+			<text class="sub" x="870" y="912" text-anchor="middle">partitioned by month</text>
+			<line class="edge-store" x1="620" y1="896" x2="756" y2="896" marker-end="url(#head-store)"/>
+			<text class="label store-text" x="690" y="888" text-anchor="middle">rows</text>
+			<text class="label" x="690" y="928" text-anchor="middle">id: uuidv7()</text>
+
+			<!-- Process exits: nothing committed, read again -->
+			<rect class="box-exit" x="20" y="484" width="156" height="428" rx="6"/>
+			<text class="title fail-text" x="98" y="512" text-anchor="middle">Process exits</text>
+			<text class="sub" x="34" y="560">nothing committed</text>
+			<text class="sub" x="34" y="600">Docker restarts it</text>
+			<text class="sub" x="34" y="640">it rejoins the group</text>
+			<text class="sub" x="34" y="658">at the committed</text>
+			<text class="sub" x="34" y="676">offset and reads</text>
+			<text class="sub" x="34" y="694">the batch again</text>
+			<text class="sub" x="34" y="734">a schema added</text>
+			<text class="sub" x="34" y="752">since boot is</text>
+			<text class="sub" x="34" y="770">loaded on restart</text>
+			<text class="sub" x="34" y="810">re-sent rows are</text>
+			<text class="sub" x="34" y="828">skipped by</text>
+			<text class="sub" x="34" y="846">ON CONFLICT</text>
+
+			<line class="edge-fail" x1="276" y1="528" x2="180" y2="528" marker-end="url(#head-fail)"/>
+			<text class="label fail-text" x="228" y="520" text-anchor="middle">new schema</text>
+			<text class="label fail-text" x="228" y="544" text-anchor="middle">id</text>
+
+			<line class="edge-fail" x1="276" y1="882" x2="180" y2="882" marker-end="url(#head-fail)"/>
+			<text class="label fail-text" x="228" y="874" text-anchor="middle">DB down,</text>
+			<text class="label fail-text" x="228" y="898" text-anchor="middle">any other</text>
+			<text class="label fail-text" x="228" y="910" text-anchor="middle">error</text>
+
+			<polyline class="edge-fail" points="98,484 98,422 272,422" marker-end="url(#head-fail)"/>
+			<text class="label fail-text" x="196" y="414">replay</text>
+		</svg>
+	</div>
+	<figcaption>Black is the normal path, top to bottom. Magenta arrows end in the dead-letter topic: those records are dealt with, and their offsets are committed like the rest. Red dashed arrows are failures that aren't the record's fault: the process exits before it commits, and the restart reads the same records again. Blue dashed lines are where the schemas come from.</figcaption>
+</figure>
+
+<section>
+	<h2>Where each record ends up</h2>
+	<div class="table-wrap">
+		<table>
+			<thead><tr><th>The record</th><th>What happens</th><th>Offset</th></tr></thead>
+			<tbody>
+				<tr><td>Valid and new</td><td>Categorised and inserted; Postgres gives it a <code>transaction_id</code> (UUIDv7)</td><td class="verdict stored">committed</td></tr>
+				<tr><td>Already stored (a re-send or a replay)</td><td>Skipped by <code>ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING</code>; counted in <code>duplicates_skipped_total</code></td><td class="verdict stored">committed</td></tr>
+				<tr><td>A tombstone (no value)</td><td>Skipped and counted</td><td class="verdict skip">committed</td></tr>
+				<tr><td>Bytes that won't decode</td><td>Dead-lettered with reason <code>deserialisation</code></td><td class="verdict dlq">committed</td></tr>
+				<tr><td>Decodes, but fails validation (bad currency, a field too long, dated more than a day ahead)</td><td>Dead-lettered with reason <code>processing</code>; the rest of the batch is inserted</td><td class="verdict dlq">committed</td></tr>
+				<tr><td>Postgres rejects the row (SQLSTATE class 22 or 23)</td><td>The batch rolls back and is inserted one record at a time; the bad one is dead-lettered with reason <code>processing</code></td><td class="verdict dlq">committed</td></tr>
+				<tr><td>A schema id the consumer didn't load at boot</td><td>The stream fails, the process exits, and the restart loads the new schema and reads the record again</td><td class="verdict replay">not committed</td></tr>
+				<tr><td>Postgres is down, or any other error during the insert</td><td>The flush rejects, every flush queued behind it rejects too, the process exits, and the restart reads the batch again</td><td class="verdict replay">not committed</td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>So the rule is: a record that can never be stored is dead-lettered and committed, and a failure that a restart could fix is never committed.</p>
+</section>
+
+<section>
+	<h2>Step by step</h2>
+	<ol class="steps">
+		<li><b>Generate.</b> Each source has its own producer container. <code>avro-datagen</code> fills the source's schema from the generator hints in it: customers and accounts come from seeded pools (5,000 customers, three accounts each), and timestamps fall in the 18 months before the anchor date. <code>make up</code> pins the seed and anchor, so it sends the same records every time.<span class="source">apps/producers/src/app.py · schemas/*.avsc</span></li>
+		<li><b>Serialise.</b> The serialiser is pinned to the schema the registry holds for <code>&lt;topic&gt;-value</code>, and never registers one itself. The bytes on the wire are a magic byte, the 4-byte schema id, then the Avro body. The schemas were registered once at startup by <code>schemas-register</code>, with the generator hints stripped and compatibility set to BACKWARD.<span class="source">apps/producers/src/producer_core.py build_serializer · infrastructure/schema-registry/register.py</span></li>
+		<li><b>Produce.</b> The key is <code>customerId</code>, the partition key the schema declares, so one customer's records stay in order on one partition. Each record carries a fresh <code>traceparent</code> and an <code>x-producer</code> header. The producer is idempotent with <code>acks=all</code>, and the record's Kafka timestamp is the time it was sent.<span class="source">apps/producers/src/producer_core.py produce_records · apps/producers/src/config.py</span></li>
+		<li><b>Fetch.</b> Each source has its own consumer container and consumer group. It reads from the group's committed offset, at most 1 MiB per fetch, and commits by hand.<span class="source">apps/consumer/src/integrations/events/kafka.ts startBatchConsumer</span></li>
+		<li><b>Deserialise.</b> The consumer loaded every registered version of its subject at boot. It reads the schema id from the record and decodes the body with that schema. Bytes that aren't in this format, or don't decode, continue as poison. A schema id it never loaded stops the consumer instead, because a newer producer is writing a version registered since boot.<span class="source">apps/consumer/src/integrations/events/avro-deserialiser.ts · handlers/handleDeserialisationError.ts</span></li>
+		<li><b>Batch.</b> Records collect into a batch of 100, or until 2 s after the first one, and one flush runs at a time. The <a href="consumer-batching.html">consumer batching page</a> shows this part in motion.<span class="source">apps/consumer/src/integrations/events/kafka.ts flushBatch, drainBatch</span></li>
+		<li><b>Normalise and validate.</b> Each source's normaliser maps its record onto one canonical transaction: the customer becomes the user, the status is lower-cased, and an EFT beneficiary's account number is cut to its last four digits. The result is checked against the canonical Zod schema, which caps field lengths, requires a three-letter currency and rejects a date more than a day ahead.<span class="source">apps/consumer/src/services/domain-normaliser.ts · schemas/transaction.ts</span></li>
+		<li><b>Categorise.</b> The rules loaded at boot are tried in order: merchant category code, keyword, the source's own transaction type, credit or debit for the source, then the source's default. If none match, the category is <code>uncategorised</code>, so this step never fails. The winning rule's version and priority are stored with the row.<span class="source">apps/consumer/src/services/rule-categoriser.ts · database/migrations/0001_seed_categories_and_rules.sql</span></li>
+		<li><b>Insert.</b> The whole batch goes in as one Postgres transaction, one <code>INSERT … SELECT FROM unnest(…)</code>. Postgres assigns the <code>transaction_id</code> and puts the row in its month's partition. Errors are sorted by SQLSTATE: classes 22 and 23 mean a bad row, and anything else is retried by restarting.<span class="source">apps/consumer/src/services/transaction-ingester.ts · integrations/database/repositories/transaction-repository.ts · errors/postgres.ts</span></li>
+		<li><b>Dead-letter.</b> Records go to <code>&lt;topic&gt;.dlq</code> with <code>acks=all</code>. A flush's poison records go in one produce call; a bad row found during the one-at-a-time retry is sent on its own.<span class="source">apps/consumer/src/integrations/events/kafka.ts createDeadLetterSender</span></li>
+		<li><b>Commit.</b> Only after the inserts and the dead-letter sends does the consumer commit, at the highest offset of each partition in the batch.<span class="source">apps/consumer/src/integrations/events/commit.ts commitBatch</span></li>
+	</ol>
+</section>
+
+<section>
+	<h2>What a dead-letter record carries</h2>
+	<p>Enough to send it back to its source topic unchanged once the problem is fixed: the original key, so it lands on the customer's partition again; the original bytes and headers; and headers saying why and where it came from.</p>
+<pre><code><span class="comment">// buildDeadLetterRecord, kafka.ts</span>
+topic:   transactions.card.dlq
+key:     the original key (customerId)
+value:   the original bytes, exactly as consumed
+headers: the original headers (traceparent, x-producer), plus
+  x-dlq-reason        deserialisation | processing
+  x-dlq-error         the error message
+  x-source-topic      transactions.card
+  x-source-partition  7
+  x-source-offset     184213
+  x-source-timestamp  when it was produced</code></pre>
+</section>
+
+<section>
+	<h2>Related</h2>
+	<div class="related">
+		<a href="consumer-batching.html">Consumer batching: fetches, batches and flushes</a>
+		<a href="keyset-paging.html">Keyset paging: how the API pages through the stored rows</a>
+	</div>
+</section>
+
+</main>
+</body>
+</html>

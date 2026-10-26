@@ -36,13 +36,13 @@ export const batchFlushDurationSeconds = new Histogram({
 
 export const insertDurationSeconds = new Histogram({
 	name: "insert_duration_seconds",
-	help: "The batch insert's database transaction only",
+	help: "The batch INSERT only",
 	registers: [registry]
 });
 
 export const rowsInsertedTotal = new Counter({
 	name: "rows_inserted_total",
-	help: "Rows the insert's RETURNING clause reported",
+	help: "Rows the batch INSERT inserted",
 	registers: [registry]
 });
 

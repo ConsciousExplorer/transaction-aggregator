@@ -5,30 +5,13 @@ import {
 import { z } from "zod";
 import { LOG_LEVELS } from "./logger.ts";
 import { CANONICAL_TRANSACTION_TYPES } from "./schemas/transaction.ts";
+import { separateByDelimiter } from "./utils/separate-by-delimiter.ts";
 
 const KAFKA_READ_MODES = [
 	"earliest",
 	"latest",
 	"committed"
 ] as const satisfies readonly MessagesStreamModeValue[];
-
-const appInfoSchema = z.object({
-	name: z.string(),
-	version: z.string(),
-	description: z.string(),
-	author: z.string()
-});
-
-export function separateByDelimiter(value: string, delimiter: string) {
-	const entries: string[] = [];
-	for (const entry of value.split(delimiter)) {
-		const trimmed = entry.trim();
-		if (trimmed !== "") {
-			entries.push(trimmed);
-		}
-	}
-	return entries;
-}
 
 const configSchema = z
 	.object({
@@ -212,21 +195,6 @@ const configSchema = z
 	);
 
 export type Config = z.infer<typeof configSchema>;
-export type AppInfoConfig = z.infer<typeof appInfoSchema>;
-
-export function loadPackageInfo(packageJson: unknown) {
-	const config = appInfoSchema.safeParse(packageJson);
-
-	if (!config.success) {
-		const issueLines: string[] = [];
-		for (const issue of config.error.issues) {
-			issueLines.push(`  ${issue.path.join(".")}: ${issue.message}`);
-		}
-		throw new Error(`Invalid configuration:\n${issueLines.join("\n")}`);
-	}
-
-	return config.data;
-}
 
 export function loadConfig(env: Record<string, string | undefined>) {
 	const config = configSchema.safeParse(env);

@@ -2,7 +2,7 @@ import { basename } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { pino } from "pino";
-import { z } from "zod";
+import { separateByDelimiter } from "./utils/separate-by-delimiter.ts";
 
 /** The levels pino understands. config.ts reuses this for LOG_LEVEL. */
 export const LOG_LEVELS = [
@@ -27,60 +27,47 @@ const BASE_SENSITIVE_FIELDS = [
 ];
 
 /**
- * Logger signature
+ * One path per field per level of nesting ("pan", "*.pan", "*.*.pan"), so a
+ * field is redacted up to `depth` levels into a logged object.
  */
-export const loggerOptionsSchema = z.object({
-	level: z.enum(LOG_LEVELS).default("info"),
-	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
-	redactedFields: z.array(z.string()).default([]),
-	/** How deep into a json record should look to redact values. */
-	redactDepth: z.number().int().positive().default(3)
-});
+function buildRedactPaths(redactedFields: string[], depth: number) {
+	const sensitiveFields = new Set([
+		...BASE_SENSITIVE_FIELDS,
+		...redactedFields
+	]);
 
-export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
-
-/**
- * Factory for a pino logger with sensible defaults and redaction of sensitive fields.
- */
-function createLogger(options: LoggerOptions = {}) {
-	const { level, redactedFields, redactDepth } =
-		loggerOptionsSchema.parse(options);
-
-	const sensitiveFields = [
-		...new Set([...BASE_SENSITIVE_FIELDS, ...redactedFields])
-	];
 	const redactPaths: string[] = [];
 	for (const field of sensitiveFields) {
-		for (let depth = 0; depth < redactDepth; depth += 1) {
-			redactPaths.push(`${"*.".repeat(depth)}${field}`);
+		for (let nesting = 0; nesting < depth; nesting += 1) {
+			redactPaths.push(`${"*.".repeat(nesting)}${field}`);
 		}
 	}
-
-	return pino({
-		level,
-		redact: { paths: redactPaths, censor: "[REDACTED]" }
-	});
+	return redactPaths;
 }
 
-// Matched, not cast: an unknown LOG_LEVEL must fall back to the schema default,
-// never throw from an import. config.ts validates it properly and fails startup.
-const level = LOG_LEVELS.find(
-	(candidate) => candidate === process.env.LOG_LEVEL
+// Read from the environment, not from config: every module creates its logger
+// at import, before config loads. A bad value falls back to the default here
+// instead of throwing from an import; config.ts validates all three and fails
+// startup.
+const level =
+	LOG_LEVELS.find((candidate) => candidate === process.env.LOG_LEVEL) ?? "info";
+const redactedFields = separateByDelimiter(
+	process.env.LOG_REDACTED_FIELDS ?? "",
+	","
 );
-
-const redactedFields: string[] = [];
-for (const field of (process.env.LOG_REDACTED_FIELDS ?? "").split(",")) {
-	const trimmed = field.trim();
-	if (trimmed !== "") {
-		redactedFields.push(trimmed);
-	}
-}
+const configuredDepth = Number(process.env.LOG_REDACT_DEPTH);
+const redactDepth =
+	Number.isInteger(configuredDepth) && configuredDepth > 0
+		? configuredDepth
+		: 3;
 
 /** Base logger, used for all logging in this service. */
-const baseLogger = createLogger({
+const baseLogger = pino({
 	level,
-	redactedFields,
-	redactDepth: Number(process.env.LOG_REDACT_DEPTH) || undefined
+	redact: {
+		paths: buildRedactPaths(redactedFields, redactDepth),
+		censor: "[REDACTED]"
+	}
 });
 
 /** Child logger tagged with the calling module's name. */

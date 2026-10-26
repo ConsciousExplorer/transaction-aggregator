@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 925" width="1300" height="925" role="img" aria-labelledby="title description">
 	<title id="title">Consumer batch flow</title>
-	<desc id="description">How a Kafka batch moves through kafka.ts, transactionBatchHandler and transaction-ingester: valid messages are inserted in one transaction, poison messages are dead-lettered, tombstones are skipped, a retryable failure exits without committing so the batch replays, and offsets are committed only after the handler returns.</desc>
+	<desc id="description">How a Kafka batch moves through kafka.ts, transactionBatchHandler and transaction-ingester: valid messages are inserted in one statement, poison messages are dead-lettered, tombstones are skipped, a retryable failure exits without committing so the batch replays, and offsets are committed only after the handler returns.</desc>
 	<defs>
 		<style>
 			.lane-title { font: 700 17px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #f2f2f2; }
@@ -119,7 +119,7 @@
 	<text class="box-detail" x="1135" y="383" text-anchor="middle">bad mapping → NonRetryable</text>
 
 	<rect class="box" x="1000" y="430" width="270" height="80" rx="8"/>
-	<text class="box-title" x="1135" y="455" text-anchor="middle">runInTransaction · insert</text>
+	<text class="box-title" x="1135" y="455" text-anchor="middle">insert (one statement)</text>
 	<text class="box-detail" x="1135" y="477" text-anchor="middle">UNNEST · ON CONFLICT DO NOTHING</text>
 	<text class="box-detail" x="1135" y="495" text-anchor="middle">classifyPostgresError on throw</text>
 

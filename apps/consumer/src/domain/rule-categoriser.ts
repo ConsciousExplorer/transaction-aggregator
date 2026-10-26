@@ -54,6 +54,13 @@ export interface CompiledRules {
 	fallback: Verdict;
 }
 
+/** Keeps the first rule added for a pattern: the lowest priority. */
+function addFirstRule(rulesByPattern: Map<string, Rule>, rule: Rule) {
+	if (!rulesByPattern.has(rule.pattern)) {
+		rulesByPattern.set(rule.pattern, rule);
+	}
+}
+
 /**
  * Compile step: O(r log r) sort + O(r) map builds, paid once at boot. Within
  * a map the lowest priority wins, because the rules are added in priority order
@@ -73,24 +80,19 @@ export function compileRules(ruleset: RuleSet) {
 	for (const rule of sorted) {
 		switch (rule.matcherType) {
 			case "mcc":
-				if (!mccRules.has(rule.pattern)) mccRules.set(rule.pattern, rule);
-				break;
-			case "source_transaction_type":
-				if (!sourceTransactionTypeRules.has(rule.pattern))
-					sourceTransactionTypeRules.set(rule.pattern, rule);
+				addFirstRule(mccRules, rule);
 				break;
 			case "keyword":
 				keywordRules.push({ term: rule.pattern.toLowerCase(), rule });
 				break;
-
-			case "source_credit_debit_indicator":
-				if (!sourceCreditDebitIndicatorRules.has(rule.pattern))
-					sourceCreditDebitIndicatorRules.set(rule.pattern, rule);
+			case "source_transaction_type":
+				addFirstRule(sourceTransactionTypeRules, rule);
 				break;
-
+			case "source_credit_debit_indicator":
+				addFirstRule(sourceCreditDebitIndicatorRules, rule);
+				break;
 			case "source_default":
-				if (!defaultRules.has(rule.pattern))
-					defaultRules.set(rule.pattern, rule);
+				addFirstRule(defaultRules, rule);
 				break;
 		}
 	}
@@ -127,10 +129,7 @@ export function categoriseTransaction(
 	// 6. Fallback        — O(1), always succeeds
 
 	// 1. MCC
-	if (
-		transaction.metadata.mcc !== null &&
-		typeof transaction.metadata.mcc === "string"
-	) {
+	if (typeof transaction.metadata.mcc === "string") {
 		const rule = rules.mccRules.get(transaction.metadata.mcc);
 		if (rule) {
 			return buildVerdict(rule, rules.version);

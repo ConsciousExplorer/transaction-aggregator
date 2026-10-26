@@ -26,7 +26,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 ## How it works
 
 - **Batches.** Messages are buffered and flushed as one batch once 100 have arrived (`KAFKA_BATCH_SIZE`) or 2 seconds after the first one arrived (`KAFKA_BATCH_LINGER_MS`), whichever happens first. Only one flush runs at a time.
-- **One insert per batch.** Valid messages are normalised and categorised, then written by a single `INSERT … SELECT FROM unnest(…)` inside one database transaction.
+- **One insert per batch.** Valid messages are normalised and categorised, then written by a single `INSERT … SELECT FROM unnest(…)` statement, which is atomic without a transaction.
 - **Idempotent writes.** The insert uses `ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`. Kafka may deliver a message more than once, but each row is stored once, so replaying a batch is safe.
 - **Commit last.** Offsets are committed by hand (`autocommit: false`), after the batch handler returns. The handler returns only once every message in the batch has been inserted, dead-lettered or skipped.
 - **Exit instead of retrying.** A retryable failure (connection lost, deadlock, serialization failure) is rethrown and the process exits without committing. Docker restarts it (`restart: unless-stopped`), and the batch is read again from the last commit.
@@ -122,15 +122,16 @@ apps/consumer
     │   │       ├── transactionBatchHandler.ts      batch policy: insert, fallback, dead-letter
     │   │       └── handleDeserialisationError.ts   FAIL on an unknown schema id, otherwise CONTINUE
     │   ├── database/
-    │   │   ├── pool.ts                    pg Pool, runInTransaction
+    │   │   ├── pool.ts                    pg Pool, Drizzle for the ruleset
     │   │   ├── repositories/              transaction insert (unnest), ruleset load (Drizzle)
     │   │   └── schemas/                   Drizzle tables, pulled from the database
     │   └── http/
     │       └── server.ts                  /health, /info, /metrics
-    ├── services/                  domain logic; knows nothing about Kafka
-    │   ├── transaction-ingester.ts        normalise → categorise → insert
-    │   ├── domain-normaliser.ts           each source shape → one canonical row
+    ├── domain/                    pure: no I/O, no async; imports only schemas/ and errors/
+    │   ├── transaction-normaliser.ts      each source shape → one canonical row
     │   └── rule-categoriser.ts            compiled rules: five matcher tiers, then a fallback
+    ├── services/                  the use case that does the I/O; knows nothing about Kafka
+    │   └── transaction-ingester.ts        normalise → categorise → insert
     ├── schemas/                   Zod: five generated source schemas and the canonical row
     ├── telemetry/
     │   ├── metrics.ts                     Prometheus registry and the consumer's own metrics
@@ -156,7 +157,7 @@ The consumer's own metrics measure the work the Kafka client can't see:
 | `batch_size` | histogram | Messages per flush |
 | `batch_flush_total{trigger}` | counter | Flushes by trigger: `size`, `linger` or `stream_end` |
 | `batch_flush_duration_seconds` | histogram | The whole flush: handling the batch, then committing it |
-| `insert_duration_seconds` | histogram | The batch insert's database transaction only |
+| `insert_duration_seconds` | histogram | The batch INSERT only |
 | `rows_inserted_total` | counter | Rows actually inserted |
 | `duplicates_skipped_total` | counter | Rows skipped by `ON CONFLICT DO NOTHING` |
 | `dlq_messages_total{reason}` | counter | Dead-lettered messages, by `deserialisation` or `processing` |

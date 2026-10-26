@@ -50,6 +50,8 @@ Synthetic data generators stand in for the source systems, so the whole system r
   <img src="docs/pipeline.svg" width="100%" alt="Write path: five Python producers publish Avro records to Kafka; five Node consumers categorise them and insert them into PostgreSQL, sending records they can't store to dead-letter topics; both look their schemas up in Schema Registry. Read path: a client, such as the demo portal, gets a token from Keycloak and calls the API, which verifies it against Keycloak's JWKS and queries PostgreSQL.">
 </p>
 
+Three pages in [docs/adr](docs/adr) look closer at how it works: the [message flow](docs/adr/message-flow.html) from producer to row or dead-letter topic, [consumer batching](docs/adr/consumer-batching.html) with its fetches and flushes, and [keyset paging](docs/adr/keyset-paging.html) in the API. They are self-contained HTML, so open them in a browser after cloning, for example `open docs/adr/message-flow.html`.
+
 ## Components
 
 | Component | Where | What it does |

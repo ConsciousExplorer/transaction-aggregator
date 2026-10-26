@@ -1,15 +1,15 @@
 import assert from "node:assert";
 import { suite, test } from "node:test";
+import {
+	buildCardRecord,
+	castToDomainTransaction
+} from "#src/domain/test-records.ts";
+import { normaliseTransaction } from "#src/domain/transaction-normaliser.ts";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
 import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
 import type { EftTransaction } from "#src/schemas/eft.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import { normaliseTransaction } from "#src/services/domain-normaliser.ts";
-import {
-	buildCardRecord,
-	castToDomainTransaction
-} from "#src/services/test-records.ts";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 

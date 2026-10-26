@@ -12,10 +12,7 @@ const REGISTRY_TIMEOUT_MS = 5_000;
  * undefined when the registry was unreachable), so the startup failure log
  * tells "not found" from "registry down" without parsing messages.
  */
-export async function fetchFromRegistry<S extends z.ZodType>(
-	url: string,
-	schema: S
-) {
+async function fetchFromRegistry<S extends z.ZodType>(url: string, schema: S) {
 	let response: Response;
 
 	try {
@@ -67,12 +64,5 @@ export function getSubjectVersions(registryUrl: string, subject: string) {
 	return fetchFromRegistry(
 		`${registryUrl}/subjects/${subject}/versions`,
 		z.array(z.number().int().positive())
-	);
-}
-
-export function getLatestSubjectVersion(registryUrl: string, subject: string) {
-	return fetchFromRegistry(
-		`${registryUrl}/subjects/${subject}/versions/latest`,
-		AvroSchemaObject
 	);
 }

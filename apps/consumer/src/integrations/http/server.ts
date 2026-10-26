@@ -2,10 +2,7 @@ import http from "node:http";
 import os from "node:os";
 import { registry } from "#src/telemetry/metrics.ts";
 
-export function createServer(options?: {
-	appName?: string;
-	description?: string;
-}) {
+export function createServer() {
 	return http.createServer(async (request, response) => {
 		/**
 		 * Health endpoints to see if the service is up and running.
@@ -26,9 +23,8 @@ export function createServer(options?: {
 			response.setHeader("Content-Type", "application/json");
 			return response.end(
 				JSON.stringify({
-					application: options?.appName || "Kafka Consumer",
-					description:
-						options?.description || "Kafka Consumer App for transactions",
+					application: "Kafka Consumer",
+					description: "Kafka Consumer App for transactions",
 					node: process.version,
 					platform: process.platform,
 					arch: process.arch,

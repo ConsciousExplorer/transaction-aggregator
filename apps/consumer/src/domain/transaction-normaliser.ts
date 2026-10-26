@@ -1,4 +1,3 @@
-import type z from "zod";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
 import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
@@ -9,8 +8,8 @@ import {
 	type CanonicalTransactionSchema,
 	canonicalTransactionSchema,
 	type DomainTransactionSchema,
+	type TransactionStatus,
 	type TransactionType,
-	type transactionStatusSchema,
 	transactionTypeSchema
 } from "#src/schemas/transaction.ts";
 
@@ -94,6 +93,11 @@ function mapToCanonical(
 	}
 }
 
+/** "savings" becomes "Savings" */
+function capitaliseFirstLetter(word: string) {
+	return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+}
+
 export function normaliseCard(record: CardTransaction) {
 	return {
 		userId: record.customerId,
@@ -106,9 +110,7 @@ export function normaliseCard(record: CardTransaction) {
 		currency: record.currency,
 		amountMinor: record.amount,
 		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as z.infer<
-			typeof transactionStatusSchema
-		>,
+		status: record.status.toLowerCase() as TransactionStatus,
 		metadata: {
 			mcc: record.mccCode,
 			merchantName: record.merchantName,
@@ -132,9 +134,7 @@ export function normaliseDebitOrder(record: DebitOrderTransaction) {
 		currency: record.currency,
 		amountMinor: record.amount,
 		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as z.infer<
-			typeof transactionStatusSchema
-		>,
+		status: record.status.toLowerCase() as TransactionStatus,
 		// The wire's category is the generator's hint, not a fact about the
 		// debit order: the categoriser decides the category, so it is not kept
 		metadata: {
@@ -159,9 +159,7 @@ export function normaliseEft(record: EftTransaction) {
 		currency: record.currency,
 		amountMinor: record.amount,
 		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as z.infer<
-			typeof transactionStatusSchema
-		>,
+		status: record.status.toLowerCase() as TransactionStatus,
 		metadata: {
 			beneficiaryName: record.beneficiaryName,
 			beneficiaryAccountLast4: record.beneficiaryAccountNumber.slice(-4),
@@ -188,13 +186,11 @@ export function normaliseInternalTransfer(record: InternalTransferTransaction) {
 		occurredAt: new Date(record.timestamp).toISOString(),
 		longDescription: record.description,
 		// e.g. "Savings Account" — the account type on the other side of the transfer
-		shortDescription: `${otherAccountType.charAt(0).toUpperCase()}${otherAccountType.slice(1)} Account`,
+		shortDescription: `${capitaliseFirstLetter(otherAccountType)} Account`,
 		currency: record.currency,
 		amountMinor: record.amount,
 		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as z.infer<
-			typeof transactionStatusSchema
-		>,
+		status: record.status.toLowerCase() as TransactionStatus,
 		metadata: {
 			fromAccountId: record.fromAccountId,
 			toAccountId: record.toAccountId,
@@ -212,13 +208,11 @@ export function normaliseLoan(record: LoanTransaction) {
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		longDescription: record.description,
-		shortDescription: `${record.loanType.charAt(0).toUpperCase()}${record.loanType.slice(1)} Loan`,
+		shortDescription: `${capitaliseFirstLetter(record.loanType)} Loan`,
 		currency: record.currency,
 		amountMinor: record.amount,
 		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as z.infer<
-			typeof transactionStatusSchema
-		>,
+		status: record.status.toLowerCase() as TransactionStatus,
 		metadata: {
 			operation: record.operation,
 			loanAccountId: record.loanAccountId,

@@ -10,7 +10,6 @@ import { createAvroDeserialiser } from "./integrations/events/avro-deserialiser.
 import { handleDeserialisationError } from "./integrations/events/handlers/handleDeserialisationError.ts";
 import { createTransactionBatchHandler } from "./integrations/events/handlers/transactionBatchHandler.ts";
 import {
-	type ConsumedValue,
 	createDeadLetterSender,
 	createKafkaConsumer,
 	createKafkaDeadLetterProducer,
@@ -129,12 +128,7 @@ const deserialiseValue = await runStartupCheck("SchemaRegistry", () =>
 	])
 );
 
-const kafkaConsumer = createKafkaConsumer<
-	string,
-	ConsumedValue,
-	string,
-	string
->(
+const kafkaConsumer = createKafkaConsumer(
 	{
 		groupId: config.kafka.groupId,
 		clientId: `${config.kafka.clientId}_consumer`,
@@ -142,8 +136,8 @@ const kafkaConsumer = createKafkaConsumer<
 
 		// Kafka group membership
 		sessionTimeout: config.kafka.sessionTimeout,
-		heartbeatInterval: config.kafka.heartbeatInterval, // 5_000
-		rebalanceTimeout: config.kafka.rebalanceTimeout, // 30_000
+		heartbeatInterval: config.kafka.heartbeatInterval,
+		rebalanceTimeout: config.kafka.rebalanceTimeout,
 		requestTimeout: config.kafka.requestTimeout,
 
 		sasl: {
@@ -164,7 +158,6 @@ const kafkaConsumer = createKafkaConsumer<
 const deadLetterProducer = createKafkaDeadLetterProducer(
 	{
 		clientId: `${config.kafka.clientId}_producer`,
-		acks: -1,
 		bootstrapBrokers: config.kafka.brokers,
 		sasl: {
 			mechanism: config.kafka.sasl.mechanism,
@@ -224,7 +217,7 @@ try {
 		handleTransactionBatch,
 		handleDeserialisationError,
 		{
-			topics: Array(config.kafka.topics.main),
+			topics: [config.kafka.topics.main],
 			mode: config.kafka.readMode,
 			maxWaitTime: config.kafka.maxWaitTime,
 			fetchMaxBytes: config.kafka.fetchMaxBytes,
