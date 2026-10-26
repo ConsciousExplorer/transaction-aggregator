@@ -23,7 +23,6 @@ export default async function registerDeleteTransactionOverrideRoute(
 		},
 		schema: {
 			tags: ["transactions"],
-			hide: false,
 			params: z.object({ userId: z.uuid(), transactionId: z.uuid() }),
 			response: {
 				204: z.undefined(),

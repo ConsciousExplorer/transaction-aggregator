@@ -70,7 +70,7 @@ suite("transactions, read through the API", () => {
 		// The id's time is the insert, months after occurred_at, so the lookup
 		// can't take its partition from the id
 		const userId = randomUUID();
-		const [inserted] = await insertTransactions(database.adminDb, [
+		const [inserted] = await insertTransactions(database.adminDatabase, [
 			{
 				userId,
 				occurredAt: "2026-01-15T10:00:00.000Z",
@@ -93,15 +93,18 @@ suite("transactions, read through the API", () => {
 	});
 
 	test("detail of another user's transaction is the same 404 as one that doesn't exist", async () => {
-		const [othersTransaction] = await insertTransactions(database.adminDb, [
-			{
-				userId: randomUUID(),
-				occurredAt: "2026-08-15T10:00:00.000Z",
-				creditDebitIndicator: "debit",
-				amountMinor: 2500,
-				categoryId: CATEGORY_IDS.groceries
-			}
-		]);
+		const [othersTransaction] = await insertTransactions(
+			database.adminDatabase,
+			[
+				{
+					userId: randomUUID(),
+					occurredAt: "2026-08-15T10:00:00.000Z",
+					creditDebitIndicator: "debit",
+					amountMinor: 2500,
+					categoryId: CATEGORY_IDS.groceries
+				}
+			]
+		);
 		assert.ok(othersTransaction);
 		const userId = randomUUID();
 
@@ -147,7 +150,7 @@ suite("transactions, read through the API", () => {
 				...fixture
 			});
 		}
-		const inserted = await insertTransactions(database.adminDb, rows);
+		const inserted = await insertTransactions(database.adminDatabase, rows);
 		const ids: string[] = [];
 		for (const row of inserted) {
 			ids.push(row.transactionId);
@@ -184,7 +187,7 @@ suite("transactions, read through the API", () => {
 
 	test("the window includes fromDateTime and excludes toDateTime", async () => {
 		const userId = randomUUID();
-		const inserted = await insertTransactions(database.adminDb, [
+		const inserted = await insertTransactions(database.adminDatabase, [
 			{
 				userId,
 				occurredAt: "2026-07-31T23:59:59.999999Z",
@@ -239,7 +242,7 @@ suite("transactions, read through the API", () => {
 	test("each filter narrows the list to the rows it names", async () => {
 		const userId = randomUUID();
 		const accountId = randomUUID();
-		const inserted = await insertTransactions(database.adminDb, [
+		const inserted = await insertTransactions(database.adminDatabase, [
 			{
 				userId,
 				accountId,

@@ -10,10 +10,10 @@ import { UserTransactionRepository } from "#src/integrations/database/repositori
  * test database. container.ts itself can't be imported: importing it loads
  * config from the environment and reads secrets from /secrets.
  */
-export function buildRepositories(db: NodePgDatabase) {
+export function buildRepositories(database: NodePgDatabase) {
 	const container = createContainer<AppCradle>();
 	container.register({
-		db: asValue(db),
+		database: asValue(database),
 		categoryRepository: asClass(CategoryRepository),
 		transactionRepository: asClass(UserTransactionRepository),
 		summaryRepository: asClass(SummaryRepository)

@@ -49,15 +49,11 @@ const configSchema = z
 
 		AUTH_JWKS_URI: z
 			.url()
-			.optional()
 			.default(
 				"http://keycloak:8086/realms/txn-api/protocol/openid-connect/certs"
 			),
-		AUTH_ISSUER: z
-			.url()
-			.optional()
-			.default("http://keycloak:8086/realms/txn-api"),
-		AUTH_AUDIENCE: z.string().optional().default("txn-api"),
+		AUTH_ISSUER: z.url().default("http://keycloak:8086/realms/txn-api"),
+		AUTH_AUDIENCE: z.string().default("txn-api"),
 
 		// Widest fromDateTime → toDateTime span the list and summary accept. Any
 		// twelve calendar months fit in 366 days.
@@ -110,30 +106,23 @@ export type Config = z.infer<typeof configSchema>;
 export type AppInfoConfig = z.infer<typeof appInfoSchema>;
 export type QueryWindowConfig = Config["queryWindow"];
 
+/** One line per issue, so startup fails naming every bad setting at once */
+function invalidConfigurationError(error: z.ZodError) {
+	const issueLines: string[] = [];
+	for (const issue of error.issues) {
+		issueLines.push(`  ${issue.path.join(".")}: ${issue.message}`);
+	}
+	return new Error(`Invalid configuration:\n${issueLines.join("\n")}`);
+}
+
 export function loadPackageInfo(packageJson: unknown) {
 	const config = appInfoSchema.safeParse(packageJson);
-
-	if (!config.success) {
-		const issueLines: string[] = [];
-		for (const issue of config.error.issues) {
-			issueLines.push(`  ${issue.path.join(".")}: ${issue.message}`);
-		}
-		throw new Error(`Invalid configuration:\n${issueLines.join("\n")}`);
-	}
-
+	if (!config.success) throw invalidConfigurationError(config.error);
 	return config.data;
 }
 
 export function loadConfig(env: Record<string, string | undefined>) {
 	const config = configSchema.safeParse(env);
-
-	if (!config.success) {
-		const issueLines: string[] = [];
-		for (const issue of config.error.issues) {
-			issueLines.push(`  ${issue.path.join(".")}: ${issue.message}`);
-		}
-		throw new Error(`Invalid configuration:\n${issueLines.join("\n")}`);
-	}
-
+	if (!config.success) throw invalidConfigurationError(config.error);
 	return config.data;
 }

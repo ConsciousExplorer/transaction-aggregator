@@ -1,6 +1,6 @@
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
-import { healthCheckResponseSchema } from "./checks.schemas.ts";
+import { okStatusSchema } from "./checks.schemas.ts";
 
 /** The process is up. Reachable without a token. */
 export default async function registerHealthRoute(fastify: FastifyInstance) {
@@ -11,7 +11,7 @@ export default async function registerHealthRoute(fastify: FastifyInstance) {
 		schema: {
 			hide: true,
 			response: {
-				200: healthCheckResponseSchema
+				200: okStatusSchema
 			}
 		},
 		handler: async (_request, reply) => {

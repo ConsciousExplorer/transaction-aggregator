@@ -26,7 +26,6 @@ export default async function registerPutTransactionOverrideRoute(
 		},
 		schema: {
 			tags: ["transactions"],
-			hide: false,
 			params: z.object({ userId: z.uuid(), transactionId: z.uuid() }),
 			body: z.object({ categoryId: categoryIdSchema }),
 			response: {

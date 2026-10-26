@@ -15,7 +15,7 @@ const rejectingTokenVerification = {
 };
 
 const query = mock.fn(async () => ({ rows: [{ "?column?": 1 }] }));
-const database = { query } as unknown as Pool;
+const pool = { query } as unknown as Pool;
 
 suite("GET /ready", () => {
 	let app: FastifyInstance;
@@ -25,7 +25,7 @@ suite("GET /ready", () => {
 		await app.register(authPlugin, {
 			tokenVerification: rejectingTokenVerification
 		});
-		await app.register(registerReadyRoute, { database });
+		await app.register(registerReadyRoute, { pool });
 		await app.ready();
 	});
 	after(async () => {

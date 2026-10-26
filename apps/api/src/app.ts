@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import type { FastifyInstance } from "fastify";
 import { buildContainer } from "#src/container.ts";
 import { buildServer, type ServerDependencies } from "./server.ts";
 import { shutDownGracefully } from "./shutdown.ts";
@@ -11,7 +10,7 @@ const {
 	config,
 	logger,
 	tokenVerification,
-	database,
+	pool,
 	categoryRepository,
 	transactionRepository,
 	summaryRepository
@@ -19,18 +18,18 @@ const {
 
 // Typed so a dependency left out here fails to compile
 const serverDependencies: ServerDependencies = {
-	tokenVerification: tokenVerification,
-	database: database,
-	categoryRepository: categoryRepository,
-	transactionRepository: transactionRepository,
-	summaryRepository: summaryRepository,
+	tokenVerification,
+	pool,
+	categoryRepository,
+	transactionRepository,
+	summaryRepository,
 	queryWindow: config.queryWindow
 };
 
-const server: FastifyInstance = buildServer({
+const server = buildServer({
 	...serverDependencies,
-	appInfo: appInfo,
-	logger: logger,
+	appInfo,
+	logger,
 	pluginAutoLoadParameters: {
 		dir: join(import.meta.dirname, "plugins"),
 		enableSwagger: config.api.enableSwagger
@@ -44,7 +43,7 @@ const server: FastifyInstance = buildServer({
 });
 
 try {
-	await database.query("Select 1");
+	await pool.query("SELECT 1");
 
 	// Start the server and start listening for requests
 	await server.listen({ host: config.app.host, port: config.app.port });

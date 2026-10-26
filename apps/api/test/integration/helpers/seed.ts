@@ -66,12 +66,12 @@ export function buildTransactionRow(fixture: TransactionFixture) {
  * fixture.
  */
 export async function insertTransactions(
-	adminDb: NodePgDatabase,
+	adminDatabase: NodePgDatabase,
 	fixtures: TransactionFixture[]
 ) {
 	const inserted = [];
 	for (const fixture of fixtures) {
-		const [row] = await adminDb
+		const [row] = await adminDatabase
 			.insert(transactions)
 			.values(buildTransactionRow(fixture))
 			.returning({

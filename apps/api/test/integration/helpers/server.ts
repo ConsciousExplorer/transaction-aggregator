@@ -16,11 +16,11 @@ export async function buildTestServer(
 	database: TestDatabase,
 	tokenVerification: TokenVerification
 ) {
-	const repositories = buildRepositories(database.apiDb);
+	const repositories = buildRepositories(database.apiDatabase);
 
 	const serverDependencies: ServerDependencies = {
 		tokenVerification,
-		database: database.apiPool,
+		pool: database.apiPool,
 		categoryRepository: repositories.categoryRepository,
 		transactionRepository: repositories.transactionRepository,
 		summaryRepository: repositories.summaryRepository,

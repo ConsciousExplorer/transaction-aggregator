@@ -56,11 +56,11 @@ function buildRecordingLogger(lines: Record<string, unknown>[]) {
 function buildContainerHoldingPool(pool: Pool) {
 	const container = createContainer();
 	container.register({
-		database: asFunction(() => pool)
+		pool: asFunction(() => pool)
 			.singleton()
 			.disposer(endPool)
 	});
-	container.resolve("database");
+	container.resolve("pool");
 	return container;
 }
 

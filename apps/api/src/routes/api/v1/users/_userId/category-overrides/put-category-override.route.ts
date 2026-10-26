@@ -27,7 +27,6 @@ export default async function registerPutCategoryOverrideRoute(
 		},
 		schema: {
 			tags: ["user categories"],
-			hide: false,
 			params: z.object({
 				userId: z.uuid(),
 				categoryId: categoryIdParamSchema

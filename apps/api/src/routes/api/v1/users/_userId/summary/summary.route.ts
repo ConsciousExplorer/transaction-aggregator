@@ -4,10 +4,10 @@ import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
-import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
+import { problemSchema } from "#src/schemas/common.ts";
 import {
-	creditDebitIndicatorSchema,
-	transactionTypeSchema
+	buildTransactionFilterQuerySchema,
+	summaryIntervalSchema
 } from "#src/schemas/transactions.ts";
 import { assertKnownCategories } from "#src/utils/category-filter.ts";
 import { buildLink } from "#src/utils/paging.ts";
@@ -35,35 +35,11 @@ export default async function registerSummaryRoute(
 		},
 		schema: {
 			tags: ["summary"],
-			hide: false,
 			params: z.object({
 				userId: z.uuid()
 			}),
-			querystring: z.object({
-				fromDateTime: windowDateTimeSchema,
-				toDateTime: windowDateTimeSchema.describe(
-					`Exclusive. At most ${maxWindowDays} days after fromDateTime`
-				),
-				accountId: z
-					.union([z.uuid(), z.uuid().array()])
-					.describe(
-						"One or more of the user's accounts; all accounts when left out"
-					)
-					.optional(),
-				transactionType: z
-					.union([transactionTypeSchema, transactionTypeSchema.array()])
-					.optional(),
-				category: z.union([z.string(), z.string().array()]).optional(),
-				creditDebitIndicator: z
-					.union([
-						creditDebitIndicatorSchema,
-						creditDebitIndicatorSchema.array()
-					])
-					.optional(),
-				amountMin: z.coerce.number().int().optional(),
-				amountMax: z.coerce.number().int().optional(),
-				interval: z
-					.enum(["day", "week", "month"])
+			querystring: buildTransactionFilterQuerySchema(maxWindowDays).extend({
+				interval: summaryIntervalSchema
 					.optional()
 					.describe("Left out, the whole window is one bucket")
 			}),
@@ -86,8 +62,8 @@ export default async function registerSummaryRoute(
 
 			const rows = await options.summaryRepository.getUserSummary({
 				userId: request.params.userId,
-				fromDate: request.query.fromDateTime,
-				toDate: request.query.toDateTime,
+				fromDateTime: request.query.fromDateTime,
+				toDateTime: request.query.toDateTime,
 				accountId: request.query.accountId,
 				transactionType: request.query.transactionType,
 				category: request.query.category,

@@ -4,7 +4,6 @@ import {
 	desc,
 	eq,
 	gte,
-	inArray,
 	isNull,
 	lt,
 	lte,
@@ -12,13 +11,10 @@ import {
 	sql
 } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import z from "zod";
 import type { AppCradle } from "#src/container.ts";
-import {
-	creditDebitIndicatorSchema,
-	transactionCursorSchema,
-	transactionSortSchema,
-	transactionTypeSchema
+import type {
+	TransactionCursor,
+	TransactionSort
 } from "#src/schemas/transactions.ts";
 import { isForeignKeyViolation } from "../pool.ts";
 import {
@@ -26,69 +22,44 @@ import {
 	userTransactionOverrides
 } from "../schemas/partitioned.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
+import {
+	buildFilterConditions,
+	categoryOverrideJoin,
+	effectiveCategoryId,
+	effectiveCategoryJoin,
+	type TransactionFilter,
+	transactionOverrideJoin
+} from "./transaction-conditions.ts";
 
-// Filters/params for GET .../transactions (list + query string).
-export const listTransactionsFilterSchema = z.object({
-	userId: z.string(),
-	fromDateTime: z.iso.datetime(),
-	toDateTime: z.iso.datetime(),
-	accountId: z.union([z.uuid(), z.uuid().array()]).optional(),
-	transactionType: z
-		.union([transactionTypeSchema, transactionTypeSchema.array()])
-		.optional(),
-	category: z.union([z.string(), z.string().array()]).optional(),
-	creditDebitIndicator: z
-		.union([creditDebitIndicatorSchema, creditDebitIndicatorSchema.array()])
-		.optional(),
-	amountMin: z.number().int().optional(),
-	amountMax: z.number().int().optional(),
-	sort: transactionSortSchema.default(
-		transactionSortSchema.enum["-occurredAt"]
-	),
-	cursor: transactionCursorSchema.optional(),
-	limit: z.number().int().min(1).max(100).default(50)
-});
+/** GET .../transactions: the filters, plus the page to read */
+export interface ListTransactionsFilter extends TransactionFilter {
+	sort: TransactionSort;
+	cursor?: TransactionCursor | undefined;
+	limit: number;
+}
 
-// Params for GET .../transactions/:transactionId (single-row lookup).
-export const transactionDetailFilterSchema = z.object({
-	userId: z.string(),
-	transactionId: z.string()
-});
+/** GET .../transactions/:transactionId */
+export interface TransactionDetailFilter {
+	userId: string;
+	transactionId: string;
+}
 
-// Body for PUT .../transactions/:transactionId/category
-export const setTransactionCategorySchema = z.object({
-	userId: z.string(),
-	transactionId: z.string(),
-	occurredAt: z.iso.datetime(),
-	categoryId: z.number().int()
-});
-
-export type ListTransactionsFilter = z.infer<
-	typeof listTransactionsFilterSchema
->;
-export type TransactionDetailFilter = z.infer<
-	typeof transactionDetailFilterSchema
->;
-export type SetTransactionCategory = z.infer<
-	typeof setTransactionCategorySchema
->;
+/** PUT .../transaction-overrides/:transactionId */
+export interface SetTransactionCategory {
+	userId: string;
+	transactionId: string;
+	occurredAt: string;
+	categoryId: number;
+}
 
 export class UserTransactionRepository {
-	readonly #db: NodePgDatabase;
+	readonly #database: NodePgDatabase;
 
-	constructor({ db }: AppCradle) {
-		this.#db = db;
+	constructor({ database }: AppCradle) {
+		this.#database = database;
 	}
 
 	async getTransactions(filter: ListTransactionsFilter) {
-		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
-		const categoryValues =
-			filter.category === undefined
-				? undefined
-				: Array.isArray(filter.category)
-					? filter.category
-					: [filter.category];
-
 		const ascending = filter.sort === "occurredAt";
 
 		// The cursor conditions go before the window. Postgres starts each
@@ -109,46 +80,20 @@ export class UserTransactionRepository {
 			}
 		}
 
-		const conditions: (SQL | undefined)[] = [
+		const conditions = [
 			eq(transactions.userId, filter.userId),
 			cursorBound,
 			cursorSeek,
 			gte(transactions.occurredAt, filter.fromDateTime),
 			lt(transactions.occurredAt, filter.toDateTime),
-			filter.accountId !== undefined
-				? Array.isArray(filter.accountId)
-					? inArray(transactions.accountId, filter.accountId)
-					: eq(transactions.accountId, filter.accountId)
-				: undefined,
-			filter.transactionType !== undefined
-				? Array.isArray(filter.transactionType)
-					? inArray(transactions.transactionType, filter.transactionType)
-					: eq(transactions.transactionType, filter.transactionType)
-				: undefined,
-			filter.creditDebitIndicator !== undefined
-				? Array.isArray(filter.creditDebitIndicator)
-					? inArray(
-							transactions.creditDebitIndicator,
-							filter.creditDebitIndicator
-						)
-					: eq(transactions.creditDebitIndicator, filter.creditDebitIndicator)
-				: undefined,
-			filter.amountMin !== undefined
-				? gte(transactions.amountMinor, filter.amountMin)
-				: undefined,
-			filter.amountMax !== undefined
-				? lte(transactions.amountMinor, filter.amountMax)
-				: undefined,
-			categoryValues && categoryValues.length > 0
-				? inArray(categories.category, categoryValues)
-				: undefined
+			...buildFilterConditions(filter)
 		];
 
 		const order = ascending
 			? [asc(transactions.occurredAt), asc(transactions.transactionId)]
 			: [desc(transactions.occurredAt), desc(transactions.transactionId)];
 
-		const result = await this.#db
+		const rows = await this.#database
 			.select({
 				transactionId: transactions.transactionId,
 				occurredAt: transactions.occurredAt,
@@ -162,37 +107,18 @@ export class UserTransactionRepository {
 				cursorOccurredAt: sql<string>`to_char(${transactions.occurredAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
 			})
 			.from(transactions)
-			.leftJoin(
-				userTransactionOverrides,
-				and(
-					eq(
-						userTransactionOverrides.transactionId,
-						transactions.transactionId
-					),
-					eq(userTransactionOverrides.occurredAt, transactions.occurredAt),
-					isNull(userTransactionOverrides.archivedAt)
-				)
-			)
-			.leftJoin(
-				userCategoryOverrides,
-				and(
-					eq(userCategoryOverrides.userId, transactions.userId),
-					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId),
-					isNull(userCategoryOverrides.archivedAt)
-				)
-			)
-			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
+			.leftJoin(userTransactionOverrides, transactionOverrideJoin)
+			.leftJoin(userCategoryOverrides, categoryOverrideJoin)
+			.innerJoin(categories, effectiveCategoryJoin)
 			.where(and(...conditions))
 			.orderBy(...order)
 			.limit(filter.limit);
 
-		return result;
+		return rows;
 	}
 
 	async getTransactionDetail(filter: TransactionDetailFilter) {
-		const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
-
-		const [result] = await this.#db
+		const [result] = await this.#database
 			.select({
 				transactionId: transactions.transactionId,
 				accountId: transactions.accountId,
@@ -210,26 +136,9 @@ export class UserTransactionRepository {
 				metadata: transactions.metadata
 			})
 			.from(transactions)
-			.leftJoin(
-				userTransactionOverrides,
-				and(
-					eq(
-						userTransactionOverrides.transactionId,
-						transactions.transactionId
-					),
-					eq(userTransactionOverrides.occurredAt, transactions.occurredAt),
-					isNull(userTransactionOverrides.archivedAt)
-				)
-			)
-			.leftJoin(
-				userCategoryOverrides,
-				and(
-					eq(userCategoryOverrides.userId, transactions.userId),
-					eq(userCategoryOverrides.fromCategoryId, transactions.categoryId),
-					isNull(userCategoryOverrides.archivedAt)
-				)
-			)
-			.innerJoin(categories, eq(categories.categoryId, effectiveCategoryId))
+			.leftJoin(userTransactionOverrides, transactionOverrideJoin)
+			.leftJoin(userCategoryOverrides, categoryOverrideJoin)
+			.innerJoin(categories, effectiveCategoryJoin)
 			.where(
 				and(
 					eq(transactions.userId, filter.userId),
@@ -242,7 +151,7 @@ export class UserTransactionRepository {
 
 	async setTransactionCategory(transaction: SetTransactionCategory) {
 		try {
-			const [result] = await this.#db
+			const [result] = await this.#database
 				.insert(userTransactionOverrides)
 				.values({
 					userId: transaction.userId,
@@ -271,7 +180,7 @@ export class UserTransactionRepository {
 	}
 
 	async archiveTransactionCategory(userId: string, transactionId: string) {
-		const [result] = await this.#db
+		const [result] = await this.#database
 			.update(userTransactionOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(

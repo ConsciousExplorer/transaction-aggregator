@@ -92,13 +92,13 @@ export async function startTestDatabase() {
 		.start();
 
 	const adminPool = connectAs(container, "admin", "admin_password");
-	const adminDb = drizzle(adminPool);
-	await migrate(adminDb, { migrationsFolder: MIGRATIONS_DIRECTORY });
+	const adminDatabase = drizzle(adminPool);
+	await migrate(adminDatabase, { migrationsFolder: MIGRATIONS_DIRECTORY });
 
 	const apiPool = connectAs(container, "api_write", "api_write_password");
-	const apiDb = drizzle(apiPool);
+	const apiDatabase = drizzle(apiPool);
 
-	return { container, adminPool, adminDb, apiPool, apiDb };
+	return { container, adminPool, adminDatabase, apiPool, apiDatabase };
 }
 
 export type TestDatabase = Awaited<ReturnType<typeof startTestDatabase>>;

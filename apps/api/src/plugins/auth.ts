@@ -22,9 +22,8 @@ declare module "fastify" {
 		authContext?: AuthContext;
 	}
 	interface FastifyContextConfig {
-		// Explicit opt-out for routes that must stay reachable without a token (health checks, docs)
-		// public?: boolean;
 		authConfig?: {
+			// Explicit opt-out for routes that must stay reachable without a token (health checks, docs)
 			public?: boolean;
 			requiredScope?: string[];
 		};

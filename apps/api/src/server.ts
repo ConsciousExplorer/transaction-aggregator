@@ -41,7 +41,7 @@ const IGNORE_TEST_FILES = /\.test\.(ts|js)$/;
  */
 export type ServerDependencies = {
 	tokenVerification: TokenVerification;
-	database: Pool;
+	pool: Pool;
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;
 	summaryRepository: SummaryRepository;
@@ -81,7 +81,7 @@ export function buildServer(options: BuildServerOptions = {}) {
 	const {
 		pluginAutoLoadParameters,
 		routeAutoLoadParameters,
-		database,
+		pool,
 		categoryRepository,
 		transactionRepository,
 		summaryRepository,
@@ -170,7 +170,7 @@ export function buildServer(options: BuildServerOptions = {}) {
 			...routeAutoLoadParameters,
 			ignoreFilter: IGNORE_TEST_FILES,
 			options: {
-				database,
+				pool,
 				categoryRepository,
 				transactionRepository,
 				summaryRepository,

@@ -86,7 +86,10 @@ suite("summary against the hand-computed samples", () => {
 			});
 			server = await buildTestServer(database, tokenVerification);
 
-			const inserted = await insertTransactions(database.adminDb, SAMPLE_ROWS);
+			const inserted = await insertTransactions(
+				database.adminDatabase,
+				SAMPLE_ROWS
+			);
 			sampleTransactionIds = [];
 			for (const row of inserted) {
 				sampleTransactionIds.push(row.transactionId);

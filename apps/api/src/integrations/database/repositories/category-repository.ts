@@ -6,14 +6,14 @@ import { isForeignKeyViolation } from "../pool.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 
 export class CategoryRepository {
-	readonly #db: NodePgDatabase;
+	readonly #database: NodePgDatabase;
 
-	constructor({ db }: AppCradle) {
-		this.#db = db;
+	constructor({ database }: AppCradle) {
+		this.#database = database;
 	}
 
 	async getCategories() {
-		const result = await this.#db
+		const result = await this.#database
 			.select({
 				categoryId: categories.categoryId,
 				category: categories.category,
@@ -26,7 +26,7 @@ export class CategoryRepository {
 
 	/** The slugs, of those given, that no category has */
 	async findUnknownCategories(slugs: string[]) {
-		const rows = await this.#db
+		const rows = await this.#database
 			.select({ category: categories.category })
 			.from(categories)
 			.where(inArray(categories.category, slugs));
@@ -46,7 +46,7 @@ export class CategoryRepository {
 	async getUserCategories(userId: string) {
 		const toCategories = alias(categories, "to_categories");
 
-		const result = await this.#db
+		const result = await this.#database
 			.select({
 				categoryId: categories.categoryId,
 				category: categories.category,
@@ -81,7 +81,7 @@ export class CategoryRepository {
 		toCategoryId: number
 	) {
 		try {
-			const [override] = await this.#db
+			const [override] = await this.#database
 				.insert(userCategoryOverrides)
 				.values({ userId, fromCategoryId, toCategoryId })
 				.onConflictDoUpdate({
@@ -99,7 +99,7 @@ export class CategoryRepository {
 			if (!override) return undefined;
 
 			const toCategories = alias(categories, "to_categories");
-			const [names] = await this.#db
+			const [names] = await this.#database
 				.select({
 					category: categories.category,
 					label: categories.label,
@@ -119,7 +119,7 @@ export class CategoryRepository {
 	}
 
 	async archiveUserCategory(userId: string, fromCategoryId: number) {
-		const [result] = await this.#db
+		const [result] = await this.#database
 			.update(userCategoryOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(

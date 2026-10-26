@@ -19,7 +19,6 @@ export default async function registerCategoriesRoute(
 		},
 		schema: {
 			tags: ["categories"],
-			hide: false,
 			response: {
 				200: categoryListResponseSchema,
 				400: problemSchema,

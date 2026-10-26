@@ -1,8 +1,5 @@
-import type { NodePgClient } from "drizzle-orm/node-postgres";
 import { Pool, type PoolConfig } from "pg";
 import type { Logger } from "pino";
-
-export type Queryable = NodePgClient; // Pool | PoolClient | Client
 
 export function createPool(config: PoolConfig, logger: Logger) {
 	// Pool size (min, max) always comes from config

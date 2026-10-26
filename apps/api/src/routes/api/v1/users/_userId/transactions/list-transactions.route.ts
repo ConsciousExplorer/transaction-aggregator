@@ -4,12 +4,11 @@ import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import { problemSchema, windowDateTimeSchema } from "#src/schemas/common.ts";
+import { problemSchema } from "#src/schemas/common.ts";
 import {
-	creditDebitIndicatorSchema,
+	buildTransactionFilterQuerySchema,
 	transactionPageCursorSchema,
-	transactionSortSchema,
-	transactionTypeSchema
+	transactionSortSchema
 } from "#src/schemas/transactions.ts";
 import { assertKnownCategories } from "#src/utils/category-filter.ts";
 import {
@@ -46,33 +45,10 @@ export default async function registerListTransactionsRoute(
 		},
 		schema: {
 			tags: ["transactions"],
-			hide: false,
 			params: z.object({
 				userId: z.uuid()
 			}),
-			querystring: z.object({
-				fromDateTime: windowDateTimeSchema,
-				toDateTime: windowDateTimeSchema.describe(
-					`Exclusive. At most ${maxWindowDays} days after fromDateTime`
-				),
-				accountId: z
-					.union([z.uuid(), z.uuid().array()])
-					.describe(
-						"One or more of the user's accounts; all accounts when left out"
-					)
-					.optional(),
-				transactionType: z
-					.union([transactionTypeSchema, transactionTypeSchema.array()])
-					.optional(),
-				category: z.union([z.string(), z.string().array()]).optional(),
-				creditDebitIndicator: z
-					.union([
-						creditDebitIndicatorSchema,
-						creditDebitIndicatorSchema.array()
-					])
-					.optional(),
-				amountMin: z.coerce.number().int().optional(),
-				amountMax: z.coerce.number().int().optional(),
+			querystring: buildTransactionFilterQuerySchema(maxWindowDays).extend({
 				sort: transactionSortSchema
 					.default("-occurredAt")
 					.describe("-occurredAt is newest first, occurredAt oldest first"),

@@ -26,7 +26,6 @@ export default async function registerGetTransactionRoute(
 		},
 		schema: {
 			tags: ["transactions"],
-			hide: false,
 			params: z.object({
 				userId: z.uuid(),
 				transactionId: z.uuid()

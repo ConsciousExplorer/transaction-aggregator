@@ -20,7 +20,6 @@ export default async function registerDeleteCategoryOverrideRoute(
 		},
 		schema: {
 			tags: ["user categories"],
-			hide: false,
 			params: z.object({
 				userId: z.uuid(),
 				categoryId: categoryIdParamSchema

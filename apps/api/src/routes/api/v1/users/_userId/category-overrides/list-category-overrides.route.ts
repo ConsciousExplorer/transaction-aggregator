@@ -20,7 +20,6 @@ export default async function registerListCategoryOverridesRoute(
 		},
 		schema: {
 			tags: ["user categories"],
-			hide: false,
 			params: z.object({ userId: z.uuid() }),
 			response: {
 				200: userCategoryListResponseSchema,

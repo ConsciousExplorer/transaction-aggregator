@@ -14,15 +14,14 @@ import { CategoryRepository } from "./integrations/database/repositories/categor
 import { SummaryRepository } from "./integrations/database/repositories/summary-repository.ts";
 import { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 
-// Define what the repositories contain
-
+/** Everything the container builds, by the name it is resolved by */
 export type AppCradle = {
 	appInfo: AppInfoConfig;
 	config: Config;
 	logger: Logger;
 	tokenVerification: TokenVerification;
-	database: Pool;
-	db: NodePgDatabase;
+	pool: Pool;
+	database: NodePgDatabase;
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;
 	summaryRepository: SummaryRepository;
@@ -43,7 +42,7 @@ export async function buildContainer() {
 			buildTokenVerification(config.auth)
 		).singleton(),
 
-		database: asFunction(({ config, logger }: AppCradle) =>
+		pool: asFunction(({ config, logger }: AppCradle) =>
 			createPool(
 				{
 					min: config.database.min,
@@ -62,17 +61,17 @@ export async function buildContainer() {
 
 		// One drizzle instance for every repository. DATABASE_QUERY_LOG_SQL or
 		// DATABASE_QUERY_LOG_PLAN logs each statement it sends.
-		db: asFunction(({ config, database, logger }: AppCradle) => {
+		database: asFunction(({ config, pool, logger }: AppCradle) => {
 			const queryLog = config.database.queryLog;
 			if (!queryLog.sql && !queryLog.plan) {
-				return drizzle(database);
+				return drizzle(pool);
 			}
 			const queryLogger = new QueryPlanLogger(
-				database,
+				pool,
 				logger.child({ module: "query-logger" }),
 				queryLog
 			);
-			return drizzle(database, { logger: queryLogger });
+			return drizzle(pool, { logger: queryLogger });
 		}).singleton(),
 
 		categoryRepository: asClass(CategoryRepository),

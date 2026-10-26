@@ -62,14 +62,14 @@ suite("database roles", () => {
 
 	test("api_write cannot insert a transaction", async () => {
 		await assert.rejects(async () => {
-			await database.apiDb
+			await database.apiDatabase
 				.insert(transactions)
 				.values(buildAnyTransactionRow(randomUUID()));
 		}, assertPermissionDenied);
 	});
 
 	test("api_write can upsert a category remap", async () => {
-		const { categoryRepository } = buildRepositories(database.apiDb);
+		const { categoryRepository } = buildRepositories(database.apiDatabase);
 
 		const remap = await categoryRepository.updateUserCategory(
 			randomUUID(),
@@ -83,7 +83,7 @@ suite("database roles", () => {
 
 	test("api_write cannot delete an override, only archive it", async () => {
 		await assert.rejects(async () => {
-			await database.apiDb
+			await database.apiDatabase
 				.delete(userCategoryOverrides)
 				.where(eq(userCategoryOverrides.userId, randomUUID()));
 		}, assertPermissionDenied);
@@ -91,7 +91,7 @@ suite("database roles", () => {
 
 	test("api_write cannot add a category", async () => {
 		await assert.rejects(async () => {
-			await database.apiDb
+			await database.apiDatabase
 				.insert(categories)
 				.values({ category: "new", label: "New" });
 		}, assertPermissionDenied);

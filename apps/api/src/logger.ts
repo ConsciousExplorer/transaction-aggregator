@@ -1,5 +1,4 @@
 import { pino } from "pino";
-import { z } from "zod";
 
 /** The levels pino understands. config.ts reuses this for LOG_LEVEL. */
 export const LOG_LEVELS = [
@@ -23,37 +22,31 @@ const BASE_SENSITIVE_FIELDS = [
 	"primaryAccountNumber"
 ];
 
-/**
- * Logger signature
- */
-export const loggerOptionsSchema = z.object({
-	level: z.enum(LOG_LEVELS).default("info"),
-	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS. */
-	redactedFields: z.array(z.string()).default([]),
-	/**
-	 * How deep into a json record should look to redact values
-	 */
-	redactDepth: z.number().int().positive().default(3)
-});
+/** config.logging, which config.ts has already validated */
+export interface LoggerOptions {
+	level: (typeof LOG_LEVELS)[number];
+	/** Extra field names to redact, on top of BASE_SENSITIVE_FIELDS */
+	redactedFields: string[];
+	/** How many levels into a logged object a field is still redacted */
+	redactDepth: number;
+}
 
-export type LoggerOptions = z.input<typeof loggerOptionsSchema>;
+export function createLogger(options: LoggerOptions) {
+	const sensitiveFields = new Set([
+		...BASE_SENSITIVE_FIELDS,
+		...options.redactedFields
+	]);
 
-export function createLogger(options: LoggerOptions = {}) {
-	const { level, redactedFields, redactDepth } =
-		loggerOptionsSchema.parse(options);
-
-	const sensitiveFields = [
-		...new Set([...BASE_SENSITIVE_FIELDS, ...redactedFields])
-	];
+	// One path per field per level of nesting: "pan", "*.pan", "*.*.pan"
 	const redactPaths: string[] = [];
 	for (const field of sensitiveFields) {
-		for (let depth = 0; depth < redactDepth; depth += 1) {
-			redactPaths.push(`${"*.".repeat(depth)}${field}`);
+		for (let nesting = 0; nesting < options.redactDepth; nesting += 1) {
+			redactPaths.push(`${"*.".repeat(nesting)}${field}`);
 		}
 	}
 
 	return pino({
-		level,
+		level: options.level,
 		redact: { paths: redactPaths, censor: "[REDACTED]" }
 	});
 }

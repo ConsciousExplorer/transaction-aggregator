@@ -5,6 +5,7 @@ import {
 	linksSchema,
 	signedAmountSchema
 } from "#src/schemas/common.ts";
+import { summaryIntervalSchema } from "#src/schemas/transactions.ts";
 
 // Every amount is a money object. debit and credit totals are positive;
 // netAmount is the one signed figure.
@@ -41,7 +42,7 @@ const summaryMetaSchema = collectionMetaSchema.extend({
 	fromDateTime: z.iso.datetime(),
 	toDateTime: z.iso.datetime(),
 	groupBy: z.string().array(),
-	interval: z.enum(["day", "week", "month"]).optional()
+	interval: summaryIntervalSchema.optional()
 });
 
 export const summaryResponseSchema = z.object({

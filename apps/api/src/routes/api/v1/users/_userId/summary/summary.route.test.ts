@@ -141,8 +141,8 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.strictEqual(getUserSummary.mock.callCount(), 1);
 		assert.deepStrictEqual(getUserSummary.mock.calls[0]?.arguments.at(0), {
 			userId: USER_ID,
-			fromDate: FROM,
-			toDate: TO,
+			fromDateTime: FROM,
+			toDateTime: TO,
 			accountId: undefined,
 			transactionType: undefined,
 			category: undefined,
@@ -250,12 +250,12 @@ suite("GET /api/v1/users/:userId/summary", () => {
 
 		assert.strictEqual(response.statusCode, 200);
 		const filter = getUserSummary.mock.calls[0]?.arguments.at(0);
-		assert.strictEqual(filter?.fromDate, fromDateTime);
-		const toDate = Date.parse(filter?.toDate ?? "");
-		assert.ok(toDate >= startedAt && toDate <= finishedAt);
-		assert.strictEqual(response.json().meta.toDateTime, filter?.toDate);
+		assert.strictEqual(filter?.fromDateTime, fromDateTime);
+		const clampedTo = Date.parse(filter?.toDateTime ?? "");
+		assert.ok(clampedTo >= startedAt && clampedTo <= finishedAt);
+		assert.strictEqual(response.json().meta.toDateTime, filter?.toDateTime);
 		const self = new URL(response.json().links.self, "http://client.example");
-		assert.strictEqual(self.searchParams.get("toDateTime"), filter?.toDate);
+		assert.strictEqual(self.searchParams.get("toDateTime"), filter?.toDateTime);
 	});
 
 	test("200: twelve calendar months across a leap day (366 days) are allowed", async () => {
