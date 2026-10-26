@@ -2,12 +2,12 @@ import assert from "node:assert";
 import { suite, test } from "node:test";
 import {
 	buildCardRecord,
+	buildDebitOrderRecord,
 	castToDomainTransaction
 } from "#src/domain/test-records.ts";
 import { normaliseTransaction } from "#src/domain/transaction-normaliser.ts";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { CardTransaction } from "#src/schemas/card.ts";
-import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
 import type { EftTransaction } from "#src/schemas/eft.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 
@@ -260,31 +260,6 @@ suite("EFT normaliser", () => {
 		});
 	});
 });
-
-/** A well-formed debit order as the producer emits it, every field set. */
-function buildDebitOrderRecord(
-	over: Partial<DebitOrderTransaction> = {}
-): DebitOrderTransaction {
-	return {
-		transactionId: "txn-0004",
-		transactionType: "debit_order",
-		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
-		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
-		mandateId: "MND-000123",
-		category: "insurance",
-		creditorName: "Discovery Life",
-		creditorAbbrevName: "DISCLIFE",
-		collectionType: "recurring",
-		frequency: "monthly",
-		amount: 45_000,
-		currency: "ZAR",
-		creditDebitIndicator: "debit",
-		description: "DISCOVERY LIFE PREMIUM",
-		status: "COMPLETED",
-		timestamp: 1_790_000_000_000,
-		...over
-	};
-}
 
 suite("debit order normaliser", () => {
 	// The wire's category is the generator's hint; the categoriser decides

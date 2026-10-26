@@ -13,24 +13,21 @@ const STORED_EFT_METADATA = {
 
 suite("parseFundingSource", () => {
 	test("an EFT stored without clearingType maps with clearingType null", () => {
-		assert.deepStrictEqual(
-			parseFundingSource("eft", STORED_EFT_METADATA, "ZAR"),
-			{
-				transactionType: "eft",
-				beneficiaryName: "Jacqueline Mcgee",
-				beneficiaryAccountLast4: "7922",
-				beneficiaryBank: "TymeBank",
-				branchCode: "527490",
-				reference: "Democratic very.",
-				clearingType: null
-			}
-		);
+		assert.deepStrictEqual(parseFundingSource("eft", STORED_EFT_METADATA), {
+			transactionType: "eft",
+			beneficiaryName: "Jacqueline Mcgee",
+			beneficiaryAccountLast4: "7922",
+			beneficiaryBank: "TymeBank",
+			branchCode: "527490",
+			reference: "Democratic very.",
+			clearingType: null
+		});
 	});
 
 	test("an EFT stored with clearingType keeps it", () => {
 		const metadata = { ...STORED_EFT_METADATA, clearingType: "same-day" };
 
-		assert.deepStrictEqual(parseFundingSource("eft", metadata, "ZAR"), {
+		assert.deepStrictEqual(parseFundingSource("eft", metadata), {
 			transactionType: "eft",
 			beneficiaryName: "Jacqueline Mcgee",
 			beneficiaryAccountLast4: "7922",

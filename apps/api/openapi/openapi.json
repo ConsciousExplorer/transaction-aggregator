@@ -1499,7 +1499,6 @@
                   "enum": [
                     "card",
                     "eft",
-                    "loan",
                     "debit_order",
                     "internal_transfer"
                   ],
@@ -1510,7 +1509,6 @@
                     "enum": [
                       "card",
                       "eft",
-                      "loan",
                       "debit_order",
                       "internal_transfer"
                     ],
@@ -2708,7 +2706,6 @@
                   "enum": [
                     "card",
                     "eft",
-                    "loan",
                     "debit_order",
                     "internal_transfer"
                   ],
@@ -2719,7 +2716,6 @@
                     "enum": [
                       "card",
                       "eft",
-                      "loan",
                       "debit_order",
                       "internal_transfer"
                     ],
@@ -2909,7 +2905,6 @@
                             "enum": [
                               "card",
                               "eft",
-                              "loan",
                               "debit_order",
                               "internal_transfer"
                             ],
@@ -3312,85 +3307,6 @@
                             "merchantName",
                             "posEntryMode",
                             "authCode"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "interest": {
-                              "additionalProperties": false,
-                              "nullable": true,
-                              "properties": {
-                                "amountMinor": {
-                                  "description": "Always positive, in minor units",
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer"
-                                },
-                                "currency": {
-                                  "maxLength": 3,
-                                  "minLength": 3,
-                                  "type": "string"
-                                }
-                              },
-                              "required": [
-                                "amountMinor",
-                                "currency"
-                              ],
-                              "type": "object"
-                            },
-                            "loanAccountId": {
-                              "format": "uuid",
-                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                              "type": "string"
-                            },
-                            "loanType": {
-                              "type": "string"
-                            },
-                            "operation": {
-                              "enum": [
-                                "repayment",
-                                "disbursement"
-                              ],
-                              "type": "string"
-                            },
-                            "principal": {
-                              "additionalProperties": false,
-                              "nullable": true,
-                              "properties": {
-                                "amountMinor": {
-                                  "description": "Always positive, in minor units",
-                                  "maximum": 9007199254740991,
-                                  "minimum": -9007199254740991,
-                                  "type": "integer"
-                                },
-                                "currency": {
-                                  "maxLength": 3,
-                                  "minLength": 3,
-                                  "type": "string"
-                                }
-                              },
-                              "required": [
-                                "amountMinor",
-                                "currency"
-                              ],
-                              "type": "object"
-                            },
-                            "transactionType": {
-                              "enum": [
-                                "loan"
-                              ],
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "transactionType",
-                            "loanAccountId",
-                            "loanType",
-                            "operation",
-                            "principal",
-                            "interest"
                           ],
                           "type": "object"
                         },

@@ -4,7 +4,6 @@ import { cursorDirectionSchema, windowDateTimeSchema } from "./common.ts";
 export const transactionTypeSchema = z.enum([
 	"card",
 	"eft",
-	"loan",
 	"debit_order",
 	"internal_transfer"
 ]);

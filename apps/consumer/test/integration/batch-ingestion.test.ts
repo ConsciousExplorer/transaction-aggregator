@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { after, before, suite, test } from "node:test";
 import type { Pool } from "pg";
 import type { RuleSet } from "#src/domain/rule-categoriser.ts";
-import { buildCardRecord, buildLoanRecord } from "#src/domain/test-records.ts";
+import {
+	buildCardRecord,
+	buildDebitOrderRecord
+} from "#src/domain/test-records.ts";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import { createDatabase } from "#src/integrations/database/pool.ts";
 import { loadRuleset } from "#src/integrations/database/repositories/rule-repository.ts";
@@ -112,28 +115,31 @@ suite("batch ingestion into Postgres", () => {
 		);
 	});
 
-	// The seeded loan rules match on what the loan normaliser writes, so a
-	// disbursement is income rather than the loan default, loan_repayment
-	test("the seeded rules categorise a loan disbursement as income and a repayment by its own rule", async () => {
+	// The seeded keyword rules match on the descriptions the debit-order
+	// normaliser writes, so a repayment to a lender is loan_repayment rather
+	// than the debit-order default, recurring_payments
+	test("the seeded rules categorise a debit order to a lender by its keyword rule and any other by the default", async () => {
 		const userId = randomUUID();
 		const ingestTransactions = createTransactionIngester(
-			"loan",
+			"debit_order",
 			ruleset,
 			database.consumerPool
 		);
 
 		await ingestTransactions([
-			buildLoanRecord({
-				transactionId: "disbursement",
+			buildDebitOrderRecord({
+				transactionId: "lender",
 				customerId: userId,
-				operation: "disbursement",
-				creditDebitIndicator: "credit"
+				creditorName: "Wesbank",
+				creditorAbbrevName: "Wesbank",
+				description: "Debit order: Wesbank"
 			}),
-			buildLoanRecord({
-				transactionId: "repayment",
+			buildDebitOrderRecord({
+				transactionId: "other",
 				customerId: userId,
-				operation: "repayment",
-				creditDebitIndicator: "debit"
+				creditorName: "Acme Storage",
+				creditorAbbrevName: "Acme Storage",
+				description: "Debit order: Acme Storage"
 			})
 		]);
 
@@ -141,14 +147,14 @@ suite("batch ingestion into Postgres", () => {
 			await readStoredCategories(database.adminPool, userId),
 			[
 				{
-					external_id: "disbursement",
-					category_id: CATEGORY_IDS.income,
-					rule_priority: 501
+					external_id: "lender",
+					category_id: CATEGORY_IDS.loan_repayment,
+					rule_priority: 351
 				},
 				{
-					external_id: "repayment",
-					category_id: CATEGORY_IDS.loan_repayment,
-					rule_priority: 500
+					external_id: "other",
+					category_id: CATEGORY_IDS.recurring_payments,
+					rule_priority: 902
 				}
 			]
 		);

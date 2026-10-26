@@ -11,7 +11,7 @@
     },
     {
       "name": "transactionType",
-      "type": { "type": "enum", "name": "TransactionType", "symbols": ["card", "eft", "loan", "debit_order", "internal_transfer"] },
+      "type": { "type": "enum", "name": "TransactionType", "symbols": ["card", "eft", "debit_order", "internal_transfer"] },
       "doc": "What kind of transaction this is, with the same values as the database's transaction_type.",
       "arg.properties": { "options": ["card"] }
     },

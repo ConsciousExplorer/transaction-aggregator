@@ -14,7 +14,7 @@ const ITEM = {
 };
 
 suite("transactionItemSchema", () => {
-	test("transactionType is required and one of the five types", () => {
+	test("transactionType is required and one of the four types", () => {
 		const { transactionType: _, ...withoutTransactionType } = ITEM;
 
 		assert.strictEqual(transactionItemSchema.safeParse(ITEM).success, true);

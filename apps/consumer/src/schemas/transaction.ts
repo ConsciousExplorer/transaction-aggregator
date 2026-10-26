@@ -3,12 +3,10 @@ import { cardTransactionSchema } from "./card.ts";
 import { debitOrderTransactionSchema } from "./debit_order.ts";
 import { eftTransactionSchema } from "./eft.ts";
 import { internalTransferTransactionSchema } from "./internal_transfer.ts";
-import { loanTransactionSchema } from "./loan.ts";
 
 export const CANONICAL_TRANSACTION_TYPES = [
 	"card",
 	"eft",
-	"loan",
 	"debit_order",
 	"internal_transfer"
 ] as const;
@@ -30,8 +28,7 @@ export const domainTransactionSchema = z.union([
 	cardTransactionSchema,
 	debitOrderTransactionSchema,
 	eftTransactionSchema,
-	internalTransferTransactionSchema,
-	loanTransactionSchema
+	internalTransferTransactionSchema
 ]);
 
 export const canonicalTransactionSchema = z.object({

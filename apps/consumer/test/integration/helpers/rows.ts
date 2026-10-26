@@ -6,7 +6,8 @@ export const CATEGORY_IDS = {
 	uncategorised: 1,
 	groceries: 2,
 	loan_repayment: 10,
-	income: 11
+	income: 11,
+	recurring_payments: 16
 };
 
 /**

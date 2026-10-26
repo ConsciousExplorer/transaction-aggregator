@@ -11,14 +11,6 @@
 			"cwd": "${workspaceFolder}"
 		},
 		{
-			"name": "consumer: loan",
-			"type": "node",
-			"request": "launch",
-			"program": "${workspaceFolder}/src/app.ts",
-			"runtimeArgs": ["--env-file=.env"],
-			"env": { "SOURCE": "loan", "PORT": "3002" }
-		},
-		{
 			"name": "consumer: debit-order",
 			"type": "node",
 			"request": "launch",
@@ -48,10 +40,9 @@
 	],
 	"compounds": [
 		{
-			"name": "card + loan consumers + eft + internal-transfer + debit-order",
+			"name": "card + eft + internal-transfer + debit-order consumers",
 			"configurations": [
 				"consumer: card",
-				"consumer: loan",
 				"consumer: eft",
 				"consumer: internal-transfer",
 				"consumer: debit-order"

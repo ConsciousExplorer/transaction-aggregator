@@ -33,9 +33,7 @@ WITH kinds (kind, transaction_type, short_description, metadata) AS (
     (2, 'debit_order'::txn_agg.transaction_type, 'Test creditor',
      '{"category": "LOAN_REPAYMENT", "frequency": "monthly", "mandateId": "55a6a3f1-50c2-4d5d-bdee-d28f38996a54", "creditorName": "Test creditor", "collectionType": "tracking", "creditorAbbrevName": "TEST"}'::jsonb),
     (3, 'internal_transfer'::txn_agg.transaction_type, NULL,
-     '{"toAccountId": "00000000-0000-4000-8000-0000000000a2", "fromAccountId": "00000000-0000-4000-8000-0000000000a1", "toAccountType": "savings", "fromAccountType": "current"}'::jsonb),
-    (4, 'loan'::txn_agg.transaction_type, NULL,
-     '{"loanType": "personal", "operation": "repayment", "loanAccountId": "00000000-0000-4000-8000-0000000000a3", "interestAmount": 12000, "principalAmount": 88000}'::jsonb)
+     '{"toAccountId": "00000000-0000-4000-8000-0000000000a2", "fromAccountId": "00000000-0000-4000-8000-0000000000a1", "toAccountType": "savings", "fromAccountType": "current"}'::jsonb)
 )
 INSERT INTO txn_agg.transactions (
   transaction_id, user_id, account_id, transaction_type, external_id, occurred_at,
@@ -61,7 +59,7 @@ SELECT -- UUIDv7: occurred_at in milliseconds as the first 48 bits, version 7, t
        NULL,      -- no rule lineage, so the (rule_version, rule_priority) foreign key is skipped
        kinds.metadata
 FROM generate_series(1, 100000) AS n
-JOIN kinds ON kinds.kind = n % 5
+JOIN kinds ON kinds.kind = n % 4
 CROSS JOIN LATERAL (
   SELECT occurred_at,
          lpad(to_hex((extract(epoch FROM occurred_at) * 1000)::bigint), 12, '0') AS milliseconds_hex

@@ -7,7 +7,7 @@ import {
 	compileRules,
 	type Rule
 } from "./rule-categoriser.ts";
-import { buildLoanRecord } from "./test-records.ts";
+import { buildDebitOrderRecord } from "./test-records.ts";
 import { normaliseTransaction } from "./transaction-normaliser.ts";
 
 type CanonicalTransaction = z.infer<typeof canonicalTransactionSchema>;
@@ -179,21 +179,86 @@ suite("tier 2: keyword", () => {
 	});
 });
 
+// The seed's rules for a debit order to a lender, and their pinned category
+// ids (database/migrations/0001_seed_categories_and_rules.sql): 10 is
+// loan_repayment, 16 is recurring_payments.
+const SEED_DEBIT_ORDER_RULES = [
+	buildRule({
+		matcherType: "keyword",
+		pattern: "wesbank",
+		priority: 351,
+		categoryId: 10
+	}),
+	buildRule({
+		matcherType: "source_default",
+		pattern: "debit_order",
+		priority: 902,
+		categoryId: 16
+	})
+];
+
+// The normaliser's real output, not hand-built descriptions: the keyword tier
+// reads the descriptions the normaliser fills, or rule 351 never fires and
+// every repayment to a lender falls through to the debit-order default.
+suite("tier 2 on the debit-order normaliser's output", () => {
+	test("a debit order to a lender is loan_repayment, by its keyword rule", () => {
+		const transaction = normaliseTransaction(
+			buildDebitOrderRecord({
+				creditorName: "Wesbank",
+				creditorAbbrevName: "Wesbank",
+				description: "Debit order: Wesbank"
+			}),
+			"debit_order"
+		);
+
+		const verdict = categoriseTransaction(
+			transaction,
+			compileRules(buildRuleSet(SEED_DEBIT_ORDER_RULES))
+		);
+
+		assert.deepStrictEqual(verdict, {
+			categoryId: 10,
+			ruleVersion: 7,
+			rulePriority: 351,
+			matcherType: "keyword"
+		});
+	});
+
+	test("a creditor no keyword names gets the debit-order default", () => {
+		const transaction = normaliseTransaction(
+			buildDebitOrderRecord({
+				creditorName: "Acme Storage",
+				creditorAbbrevName: "Acme Storage",
+				description: "Debit order: Acme Storage"
+			}),
+			"debit_order"
+		);
+
+		const verdict = categoriseTransaction(
+			transaction,
+			compileRules(buildRuleSet(SEED_DEBIT_ORDER_RULES))
+		);
+
+		assert.strictEqual(verdict.rulePriority, 902);
+		assert.strictEqual(verdict.matcherType, "source_default");
+	});
+});
+
 suite("tier 3: source_transaction_type", () => {
-	const repaymentRule = buildRule({
+	const purchaseRule = buildRule({
 		matcherType: "source_transaction_type",
-		pattern: "loan:repayment",
+		pattern: "card:purchase",
 		priority: 505,
 		categoryId: 30
 	});
 
 	test("matches on transactionType plus metadata.operation", () => {
-		const rules = compileRules(buildRuleSet([repaymentRule]));
+		const rules = compileRules(buildRuleSet([purchaseRule]));
 		assert.deepStrictEqual(
 			categoriseTransaction(
 				buildTransaction({
-					transactionType: "loan",
-					metadata: { operation: "repayment" }
+					transactionType: "card",
+					metadata: { operation: "purchase" }
 				}),
 				rules
 			),
@@ -207,11 +272,11 @@ suite("tier 3: source_transaction_type", () => {
 	});
 
 	test("the same operation on a different transactionType does not match", () => {
-		const rules = compileRules(buildRuleSet([repaymentRule]));
+		const rules = compileRules(buildRuleSet([purchaseRule]));
 		const verdict = categoriseTransaction(
 			buildTransaction({
 				transactionType: "eft",
-				metadata: { operation: "repayment" }
+				metadata: { operation: "purchase" }
 			}),
 			rules
 		);
@@ -219,81 +284,15 @@ suite("tier 3: source_transaction_type", () => {
 	});
 
 	test("a non-string operation is ignored", () => {
-		const rules = compileRules(buildRuleSet([repaymentRule]));
+		const rules = compileRules(buildRuleSet([purchaseRule]));
 		const verdict = categoriseTransaction(
 			buildTransaction({
-				transactionType: "loan",
+				transactionType: "card",
 				metadata: { operation: 42 }
 			}),
 			rules
 		);
 		assert.strictEqual(verdict.matcherType, "fallback");
-	});
-});
-
-// The seed's loan rules and pinned category ids
-// (database/migrations/0001_seed_categories_and_rules.sql): 10 is
-// loan_repayment, 11 is income.
-const SEED_LOAN_RULES = [
-	buildRule({
-		matcherType: "source_transaction_type",
-		pattern: "loan:repayment",
-		priority: 500,
-		categoryId: 10
-	}),
-	buildRule({
-		matcherType: "source_transaction_type",
-		pattern: "loan:disbursement",
-		priority: 501,
-		categoryId: 11
-	}),
-	buildRule({
-		matcherType: "source_default",
-		pattern: "loan",
-		priority: 901,
-		categoryId: 10
-	})
-];
-
-// The normaliser's real output, not hand-built metadata: the key the
-// categoriser reads is the one the normaliser writes, or rules 500 and 501
-// never fire and every loan falls through to the loan default.
-suite("tier 3 on the loan normaliser's output", () => {
-	test("a disbursement is income, by its source_transaction_type rule", () => {
-		const transaction = normaliseTransaction(
-			buildLoanRecord({
-				operation: "disbursement",
-				creditDebitIndicator: "credit"
-			}),
-			"loan"
-		);
-
-		const verdict = categoriseTransaction(
-			transaction,
-			compileRules(buildRuleSet(SEED_LOAN_RULES))
-		);
-
-		assert.deepStrictEqual(verdict, {
-			categoryId: 11,
-			ruleVersion: 7,
-			rulePriority: 501,
-			matcherType: "source_transaction_type"
-		});
-	});
-
-	test("a repayment matches its own rule, not the loan default", () => {
-		const transaction = normaliseTransaction(
-			buildLoanRecord({ operation: "repayment" }),
-			"loan"
-		);
-
-		const verdict = categoriseTransaction(
-			transaction,
-			compileRules(buildRuleSet(SEED_LOAN_RULES))
-		);
-
-		assert.strictEqual(verdict.rulePriority, 500);
-		assert.strictEqual(verdict.matcherType, "source_transaction_type");
 	});
 });
 

@@ -21,7 +21,7 @@
 
 This service reads transaction events from Kafka in batches, categorises each one against a rule set, and writes them to PostgreSQL. A record that can't be decoded or stored goes to a dead-letter topic. When the failure is an outage, the process exits before committing anything, and the restart reads the batch again.
 
-It is one app in the [transaction-aggregator](../../README.md) monorepo. The same image runs five times, once per transaction type (`card`, `eft`, `loan`, `debit_order`, `internal_transfer`). Each instance has its own source topic, consumer group and dead-letter topic.
+It is one app in the [transaction-aggregator](../../README.md) monorepo. The same image runs four times, once per transaction type (`card`, `eft`, `debit_order`, `internal_transfer`). Each instance has its own source topic, consumer group and dead-letter topic.
 
 ## How it works
 
@@ -101,7 +101,7 @@ apps/consumer
 ├── test/
 │   └── integration/
 │       ├── transaction-insert.test.ts     the batch insert, column by column
-│       ├── batch-ingestion.test.ts        a rejected row dead-lettered alone; the seeded loan rules
+│       ├── batch-ingestion.test.ts        a rejected row dead-lettered alone; the seeded debit-order rules
 │       ├── database-outage.test.ts        an outage is retryable, never dead-lettered
 │       └── helpers/                       test database, message and row builders, recording DLQ
 └── src/
@@ -132,7 +132,7 @@ apps/consumer
     │   └── rule-categoriser.ts            compiled rules: five matcher tiers, then a fallback
     ├── services/                  the use case that does the I/O; knows nothing about Kafka
     │   └── transaction-ingester.ts        normalise → categorise → insert
-    ├── schemas/                   Zod: five generated source schemas and the canonical row
+    ├── schemas/                   Zod: four generated source schemas and the canonical row
     ├── telemetry/
     │   ├── metrics.ts                     Prometheus registry and the consumer's own metrics
     │   └── tracing.ts                     OpenTelemetry; off unless enabled
@@ -202,7 +202,7 @@ All configuration comes from environment variables, validated at startup by [`sr
 
 ## Running it
 
-The whole system, including all five consumers, runs from the repo root:
+The whole system, including all four consumers, runs from the repo root:
 
 ```sh
 make up     # Kafka, Schema Registry, Postgres, producers and consumers
@@ -245,7 +245,7 @@ The code under test connects as `kafka_consumer`, the consumer's own login, so a
 | Test file | What it checks |
 | --- | --- |
 | `transaction-insert.test.ts` | Every field lands in its own column, including a bigint past the 32-bit range, escaped JSON and nulls. A re-sent batch inserts only the new rows and reports how many it inserted. A transaction older than every monthly partition is stored in the default partition. |
-| `batch-ingestion.test.ts` | A row Postgres rejects (the `amount_minor > 0` check) is dead-lettered alone with its original bytes, and the rest of the batch is stored. |
+| `batch-ingestion.test.ts` | A row Postgres rejects (the `amount_minor > 0` check) is dead-lettered alone with its original bytes, and the rest of the batch is stored. The seeded rules put a debit order to a lender in `loan_repayment` by its keyword rule, and any other debit order in the debit-order default. |
 | `database-outage.test.ts` | If the database dies during an insert, or is already down when a batch arrives, the flush fails with `RetryableError` and nothing is dead-lettered. |
 
 The integration tests need Docker. The first run builds the Postgres image, which takes a while; after that, Docker's build cache makes a run take a few seconds. The API's integration tests build the same image under the same name, so either suite fills the cache. The tests use the dev secrets in the repo's root `secrets/` folder.

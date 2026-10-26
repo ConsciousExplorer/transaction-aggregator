@@ -14,7 +14,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 
 **Money is an object of integer minor units.**
 
-- Every amount in every response is `{amountMinor, currency}`, such as `{amountMinor: 12550, currency: "ZAR"}`. That covers list items, detail, a loan's principal and interest, and summary totals.
+- Every amount in every response is `{amountMinor, currency}`, such as `{amountMinor: 12550, currency: "ZAR"}`. That covers list items, detail and summary totals.
 - An amount never travels apart from its currency.
 - **Amounts are positive.** Whether money came in or went out is `creditDebitIndicator`, `credit` or `debit`, from the account holder's side: ISO 20022's name for it, also used by UK Open Banking. In the summary it's in the field name: `debit.total`, `credit.total`.
 - **The one signed figure is the summary's `netAmount` = credit − debit,** because a difference is naturally signed.

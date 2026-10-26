@@ -39,7 +39,6 @@ const FILTER_KINDS = ["category", "transactionType", "creditDebitIndicator"];
 const TRANSACTION_TYPES = [
 	"card",
 	"eft",
-	"loan",
 	"debit_order",
 	"internal_transfer"
 ];

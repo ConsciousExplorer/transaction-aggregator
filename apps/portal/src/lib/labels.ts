@@ -5,7 +5,6 @@ import type { Transaction, TransactionType } from "./types.ts";
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
 	card: "Card",
 	eft: "EFT",
-	loan: "Loan",
 	debit_order: "Debit order",
 	internal_transfer: "Own transfer"
 };

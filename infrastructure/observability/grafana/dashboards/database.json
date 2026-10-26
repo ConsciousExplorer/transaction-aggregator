@@ -344,7 +344,7 @@
     {
       "type": "stat",
       "title": "Connections",
-      "description": "Client connections to txn_agg, any state. Orange above the budget of 32 (5 consumers \u00d7 3, API 10, Grafana 5, exporter 2); red near max_connections (100).",
+      "description": "Client connections to txn_agg, any state. Orange above the budget of 29 (4 consumers \u00d7 3, API 10, Grafana 5, exporter 2); red near max_connections (100).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -364,7 +364,7 @@
               },
               {
                 "color": "orange",
-                "value": 33
+                "value": 30
               },
               {
                 "color": "red",
@@ -1312,7 +1312,7 @@
     {
       "type": "stat",
       "title": "Max connections",
-      "description": "The most client connections open to txn_agg. Orange above the budget of 32. The highest value observed in the selected time range, so it stays after the traffic stops.",
+      "description": "The most client connections open to txn_agg. Orange above the budget of 29. The highest value observed in the selected time range, so it stays after the traffic stops.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1332,7 +1332,7 @@
               },
               {
                 "color": "orange",
-                "value": 33
+                "value": 30
               },
               {
                 "color": "red",
@@ -2279,7 +2279,7 @@
     {
       "type": "timeseries",
       "title": "Connections by role",
-      "description": "Client connections to txn_agg per login role, stacked. Dashed line: the budget of 32. Each role carries its own CONNECTION LIMIT.",
+      "description": "Client connections to txn_agg per login role, stacked. Dashed line: the budget of 29. Each role carries its own CONNECTION LIMIT.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2315,7 +2315,7 @@
               },
               {
                 "color": "orange",
-                "value": 32
+                "value": 29
               }
             ]
           },

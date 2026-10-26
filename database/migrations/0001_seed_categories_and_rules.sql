@@ -92,10 +92,6 @@ FROM (VALUES
   (351, 'keyword', 'wesbank',           'loan_repayment'),
   (352, 'keyword', 'mfc',               'loan_repayment'),
 
-  -- source_transaction_type: matches "{source}:{metadata.transaction_type}"
-  (500, 'source_transaction_type', 'loan:repayment',    'loan_repayment'),
-  (501, 'source_transaction_type', 'loan:disbursement', 'income'),
-
   -- source_credit_debit_indicator: matches "{source}:{credit_debit_indicator}" — money-in classification.
   -- Coarse by design: EVERY eft credit is income until a finer rule (mcc/keyword/
   -- source_transaction_type) outranks it in a later ruleset version.
@@ -103,7 +99,6 @@ FROM (VALUES
 
   -- source_default: default for each transaction source
   (900, 'source_default', 'card',              'uncategorised'),
-  (901, 'source_default', 'loan',              'loan_repayment'),
   (902, 'source_default', 'debit_order',       'recurring_payments'),
   (903, 'source_default', 'eft',               'transfers'),
   (904, 'source_default', 'internal_transfer', 'transfers')

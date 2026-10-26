@@ -104,7 +104,7 @@ A service layer becomes worth having when one of these appears:
 - a second way in that reuses the write logic, such as a command consumer or an admin CLI;
 - a route that needs more than two repository calls and branches between them.
 
-The [consumer](../consumer/README.md) is layered into handlers, services and integrations because it has that kind of logic: it turns five source shapes into one row and categorises each one.
+The [consumer](../consumer/README.md) is layered into handlers, services and integrations because it has that kind of logic: it turns four source shapes into one row and categorises each one.
 
 ## Project structure
 

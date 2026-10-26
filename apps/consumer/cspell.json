@@ -54,7 +54,8 @@
 		"undeserialisable",
 		"upserts",
 		"uuidv",
-		"uuidv4"
+		"uuidv4",
+		"Wesbank"
 	],
 	"ignorePaths": ["node_modules/**", "dist/**", "package-lock.json"]
 }

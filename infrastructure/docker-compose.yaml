@@ -24,7 +24,7 @@
 #   postgres          core     5432   5432
 #   keycloak          core     8086   8080       host 8080 belongs to kafbat-ui; health on 9000
 #   api               core     8083   8083       REST API, /ready
-#   consumer-* (x5)   core     -      8080       health + metrics; one image, one port, like
+#   consumer-* (x4)   core     -      8080      health + metrics; one image, one port, like
 #                                                replicas on k8s/ECS. Prometheus scrapes in-network
 #   kafbat-ui         ui       8080   8080
 #   avro-datagen-ui   ui       8501   8501       Streamlit default
@@ -42,7 +42,7 @@
 # volume names stay transaction-aggregator-*, not infrastructure-*.
 name: transaction-aggregator
 
-# The five consumers run one image with the same settings, and differ only in
+# The four consumers run one image with the same settings, and differ only in
 # the source they read. Only what differs from the consumer's own defaults
 # (apps/consumer/src/config.ts) is set here.
 x-consumer: &consumer
@@ -138,8 +138,9 @@ services:
       retries: 5
     networks: [txn-network]
 
-  # One-shot: SCRAM credentials (app-worker, app-generator, host-admin) + the five
-  # application topics (txn.{card,loan,transfer,airtime}.v1, txn.dlq.v1 — 12 partitions).
+  # One-shot: SCRAM credentials (app-worker, app-generator, host-admin) + the four
+  # application topics (transactions.<source>, 12 partitions) and their
+  # dead-letter topics (transactions.<source>.dlq, 3 partitions).
   kafka-init:
     image: apache/kafka:4.0.0
     container_name: kafka-init
@@ -327,42 +328,6 @@ services:
       LOG_LEVEL: INFO
     networks: [txn-network]
 
-  producer-loan:
-    build: 
-      context: ../apps/producers
-      dockerfile: Dockerfile
-    pull_policy: build
-    container_name: producer-loan
-    depends_on:
-      kafka-init: { condition: service_completed_successfully }
-      # The producer pins its serializer to the subject's latest registry
-      # version at startup — the subject must exist before it boots.
-      schemas-register: { condition: service_completed_successfully }
-    restart: "no"
-    volumes:
-      - ../schemas:/schemas:ro
-    environment:
-      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
-      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
-      KAFKA_USERNAME: producer
-      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
-      KAFKA_TOPIC: transactions.loan
-      PRODUCER_NAME: producer-loan
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      GENERATOR_SCHEMA_PATH: /schemas/loan.avsc
-      GENERATOR_COUNT: ${LOAN_COUNT:-40000}
-      # Empty = a random seed per run (make produce). make up passes a pinned one
-      # (SEED in the Makefile), so it sends the same records every time.
-      GENERATOR_SEED: ${GENERATOR_SEED:-}
-      # Day the 18 months of history end on (00:00 UTC); empty = today.
-      # make up pins it (ANCHOR_DATE in the Makefile).
-      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
-      # oneshot sends GENERATOR_COUNT records and exits; stream (make produce-stream) sends PRODUCER_RATE/s until stopped
-      PRODUCER_MODE: ${PRODUCER_MODE:-oneshot}
-      PRODUCER_RATE: ${LOAN_RATE:-1}
-      LOG_LEVEL: INFO
-    networks: [txn-network]
-
   producer-internal-transfer:
     build: 
       context: ../apps/producers
@@ -472,15 +437,6 @@ services:
       TRANSACTION_TYPE: debit_order
       KAFKA_TOPIC: transactions.debit-order
       OTEL_SERVICE_NAME: consumer-debit-order
-
-  consumer-loan:
-    <<: *consumer
-    container_name: consumer-loan
-    environment:
-      <<: *consumer-environment
-      TRANSACTION_TYPE: loan
-      KAFKA_TOPIC: transactions.loan
-      OTEL_SERVICE_NAME: consumer-loan
 
   api:
     build: { context: ../apps/api }

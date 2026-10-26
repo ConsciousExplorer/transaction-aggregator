@@ -611,7 +611,7 @@ function flushBatch(state: BatchState, trigger: FlushTrigger) {
 				</tbody>
 			</table>
 		</div>
-		<p class="footnote">Counts from Prometheus, <code>batch_flush_total</code> by trigger across the five consumers since they last started, 21 Oct 2026.</p>
+		<p class="footnote">Counts from Prometheus, <code>batch_flush_total</code> by trigger across the consumers since they last started, 21 Oct 2026.</p>
 		<p>The stream ends only when shutdown closes the consumer. A partial batch still buffered then is not flushed: a closed consumer can't commit, so the restart reads those records again.</p>
 	</section>
 

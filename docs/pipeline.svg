@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680" role="img" aria-labelledby="title description">
 	<title id="title">transaction-aggregator end to end</title>
-	<desc id="description">Write path: five Python producers publish Avro records to the Kafka topics transactions.&lt;type&gt;; five Node consumers read them in batches, categorise them and insert them into PostgreSQL, dead-lettering records they can't store; both look their schemas up in Schema Registry. Read path: a client gets a token from Keycloak and calls the API, which verifies the token against Keycloak's JWKS and queries PostgreSQL. The optional obs profile adds Prometheus, Grafana and Tempo.</desc>
+	<desc id="description">Write path: four Python producers publish Avro records to the Kafka topics transactions.&lt;type&gt;; four Node consumers read them in batches, categorise them and insert them into PostgreSQL, dead-lettering records they can't store; both look their schemas up in Schema Registry. Read path: a client gets a token from Keycloak and calls the API, which verifies the token against Keycloak's JWKS and queries PostgreSQL. The optional obs profile adds Prometheus, Grafana and Tempo.</desc>
 	<defs>
 		<style>
 			.lane-title { font: 700 17px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #f2f2f2; }
@@ -36,11 +36,11 @@
 	<text class="lane-title" x="40" y="46">WRITE PATH</text>
 	<text class="lane-subtitle" x="40" y="68">Avro events in, categorised rows out</text>
 
-	<!-- Producers: one image, five containers -->
+	<!-- Producers: one image, four containers -->
 	<rect class="stack" x="50" y="90" width="220" height="80" rx="8"/>
 	<rect class="stack" x="45" y="95" width="220" height="80" rx="8"/>
 	<rect class="box" x="40" y="100" width="220" height="80" rx="8"/>
-	<text class="box-title" x="150" y="128" text-anchor="middle">producer-&lt;type&gt; ×5</text>
+	<text class="box-title" x="150" y="128" text-anchor="middle">producer-&lt;type&gt; ×4</text>
 	<text class="box-detail" x="150" y="150" text-anchor="middle">Python · avro-datagen</text>
 	<text class="box-detail" x="150" y="168" text-anchor="middle">one-shot or stream</text>
 
@@ -58,11 +58,11 @@
 	<text class="box-title" x="450" y="330" text-anchor="middle">Schema Registry</text>
 	<text class="box-detail" x="450" y="352" text-anchor="middle">schemas/*.avsc</text>
 
-	<!-- Consumers: one image, five containers -->
+	<!-- Consumers: one image, four containers -->
 	<rect class="stack" x="650" y="90" width="220" height="80" rx="8"/>
 	<rect class="stack" x="645" y="95" width="220" height="80" rx="8"/>
 	<rect class="box" x="640" y="100" width="220" height="80" rx="8"/>
-	<text class="box-title" x="750" y="128" text-anchor="middle">consumer-&lt;type&gt; ×5</text>
+	<text class="box-title" x="750" y="128" text-anchor="middle">consumer-&lt;type&gt; ×4</text>
 	<text class="box-detail" x="750" y="150" text-anchor="middle">normalise · categorise</text>
 	<text class="box-detail" x="750" y="168" text-anchor="middle">one INSERT per batch</text>
 

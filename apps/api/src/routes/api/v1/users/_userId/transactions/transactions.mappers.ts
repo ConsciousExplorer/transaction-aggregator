@@ -75,36 +75,15 @@ export function buildTransactionDetail(row: TransactionDetailRow) {
 		longDescription: row.longDescription,
 		shortDescription: row.shortDescription,
 		category: row.category,
-		fundingSource: parseFundingSource(
-			row.transactionType,
-			row.metadata,
-			row.currency
-		)
+		fundingSource: parseFundingSource(row.transactionType, row.metadata)
 	};
 }
 
 export function parseFundingSource(
 	transactionType: TransactionDetailRow["transactionType"],
-	metadata: unknown,
-	currency: string
+	metadata: unknown
 ) {
 	const raw = metadata as Record<string, unknown>;
-
-	if (transactionType === "loan") {
-		const { principalAmount, interestAmount, ...rest } = raw;
-		return fundingSourceSchema.parse({
-			transactionType,
-			...rest,
-			principal:
-				typeof principalAmount === "number"
-					? { amountMinor: principalAmount, currency }
-					: null,
-			interest:
-				typeof interestAmount === "number"
-					? { amountMinor: interestAmount, currency }
-					: null
-		});
-	}
 
 	return fundingSourceSchema.parse({ transactionType, ...raw });
 }

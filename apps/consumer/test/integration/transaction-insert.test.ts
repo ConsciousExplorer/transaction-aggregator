@@ -115,7 +115,7 @@ suite("the consumer's batch insert", () => {
 		const sparse = buildCategorisedRow({
 			userId,
 			externalId: "sparse",
-			transactionType: "loan",
+			transactionType: "internal_transfer",
 			longDescription: null,
 			shortDescription: null,
 			metadata: {},

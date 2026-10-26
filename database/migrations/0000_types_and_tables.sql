@@ -8,7 +8,7 @@ CREATE SCHEMA txn_agg;
 GRANT USAGE ON SCHEMA txn_agg TO txn_agg_read;
 ALTER DEFAULT PRIVILEGES IN SCHEMA txn_agg GRANT SELECT ON TABLES TO txn_agg_read;
 
-CREATE TYPE txn_agg.transaction_type AS ENUM ('card', 'loan', 'debit_order', 'eft', 'internal_transfer');
+CREATE TYPE txn_agg.transaction_type AS ENUM ('card', 'debit_order', 'eft', 'internal_transfer');
 CREATE TYPE txn_agg.credit_debit_indicator AS ENUM ('credit', 'debit');
 CREATE TYPE txn_agg.transaction_status AS ENUM ('completed', 'pending', 'reversed', 'failed');
 
@@ -76,7 +76,7 @@ CREATE TABLE txn_agg.transactions (
   amount_minor  bigint      NOT NULL CHECK (amount_minor > 0),
   currency      char(3)     NOT NULL,
   long_description  text,
-  short_description text, -- who we paid / who paid us: card merchant, EFT beneficiary/payer, debit-order creditor; NULL for loan, internal_transfer (no external counterparty)
+  short_description text, -- who we paid / who paid us: card merchant, EFT beneficiary/payer, debit-order creditor; NULL for internal_transfer (no external counterparty)
   category_id   smallint    NOT NULL REFERENCES txn_agg.categories(category_id),
   rule_version  int         NOT NULL REFERENCES txn_agg.rule_sets(version),
   rule_priority int,        -- lineage: with rule_version, names the EXACT rule that fired; NULL = engine fallback (no rule matched)

@@ -90,15 +90,6 @@ echo "Creating topics..."
 
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
-  --topic transactions.loan \
-  --partitions 12 \
-  --replication-factor 1 \
-  --config retention.ms=604800000 \
-  --config compression.type=producer \
-  --config message.timestamp.type=CreateTime
-
-/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
-  --create --if-not-exists \
   --topic transactions.debit-order \
   --partitions 12 \
   --replication-factor 1 \
@@ -135,14 +126,6 @@ echo "Creating topics..."
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
   --create --if-not-exists \
   --topic transactions.debit-order.dlq \
-  --partitions 3 \
-  --replication-factor 1 \
-  --config retention.ms=2592000000 \
-  --config compression.type=producer
-
-/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka1:29092 \
-  --create --if-not-exists \
-  --topic transactions.loan.dlq \
   --partitions 3 \
   --replication-factor 1 \
   --config retention.ms=2592000000 \

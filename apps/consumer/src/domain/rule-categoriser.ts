@@ -145,8 +145,9 @@ export function categoriseTransaction(
 	}
 
 	// 3. source:transaction_type — the source's own name for what happened,
-	// which the loan normaliser stores as metadata.operation (repayment,
-	// disbursement). The rules spell it "loan:repayment".
+	// which a normaliser stores as metadata.operation. The rules spell it
+	// "{transactionType}:{operation}". No current normaliser sets it, so the
+	// seeded ruleset has no rules in this tier.
 	const sourceTransactionType = transaction.metadata.operation;
 	if (typeof sourceTransactionType === "string") {
 		const rule = rules.sourceTransactionTypeRules.get(

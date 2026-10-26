@@ -43,7 +43,7 @@ An outbox avoids both: the event row exists exactly when the fact row was insert
 | --- | --- |
 | CDC (Debezium) on the transactions table | The table's internals become other teams' contract: the `metadata` JSON, the numeric category ids, every column rename. It also needs Kafka Connect, and partitions that pg_partman creates and drops under a replication slot. |
 | Read access to a replica | One `GRANT` today, then every schema change breaks another team, and each team writes its own copy of the override resolution. |
-| An HTTP endpoint on the consumer for on-demand categorisation | The consumer exits on any database error by design, runs as five per-source instances, and has no auth. If on-demand categorisation is needed, it belongs on the API, with the matcher shared as a package. |
+| An HTTP endpoint on the consumer for on-demand categorisation | The consumer exits on any database error by design, runs as four per-source instances, and has no auth. If on-demand categorisation is needed, it belongs on the API, with the matcher shared as a package. |
 | A bulk endpoint on the API now | Nobody has asked for one. |
 
 ## Consequences

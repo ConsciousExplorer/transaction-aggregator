@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Is ingestion keeping up, and is it correct? RED for the five consumers, then throughput, latency, correctness and runtime.",
+  "description": "Is ingestion keeping up, and is it correct? RED for the four consumers, then throughput, latency, correctness and runtime.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -571,21 +571,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -720,21 +705,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -876,21 +846,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -1441,21 +1396,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -1715,21 +1655,6 @@
           },
           {
             "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
               "id": "byName",
               "options": "Time"
             },
@@ -1875,21 +1800,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -2240,21 +2150,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -2503,21 +2398,6 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
               "options": " p50$"
             },
             "properties": [
@@ -2694,21 +2574,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -2843,21 +2708,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -2996,21 +2846,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -3164,21 +2999,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -3313,21 +3133,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -3635,21 +3440,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -3800,21 +3590,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -3952,21 +3727,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
-                }
-              }
-            ]
           }
         ]
       },
@@ -4101,21 +3861,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "^consumer-loan( .*)?$"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
                 }
               }
             ]

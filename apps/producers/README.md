@@ -14,7 +14,7 @@
 
 This app generates realistic bank transactions and publishes them to Kafka as Avro, so the rest of the system has something to ingest.
 
-It is one app in the [transaction-aggregator](../../README.md) monorepo. The same image runs five times, once per transaction source (`card`, `eft`, `loan`, `debit-order`, `internal-transfer`). Each instance generates from its own schema in [`schemas/`](../../schemas) and publishes to its own topic, `transactions.<source>`.
+It is one app in the [transaction-aggregator](../../README.md) monorepo. The same image runs four times, once per transaction source (`card`, `eft`, `debit-order`, `internal-transfer`). Each instance generates from its own schema in [`schemas/`](../../schemas) and publishes to its own topic, `transactions.<source>`.
 
 ## How it works
 
@@ -51,12 +51,12 @@ All configuration comes from environment variables, or a `.env` file, validated 
 
 ## Running it
 
-The five producers run from the repo root as part of the stack:
+The four producers run from the repo root as part of the stack:
 
 ```sh
 make up                   # each producer sends its records with a fixed seed, then exits
-make produce              # all five again, with a random seed
-make produce-card         # one source; also produce-eft, produce-loan, produce-debit-order, produce-internal-transfer
+make produce              # all four again, with a random seed
+make produce-card         # one source; also produce-eft, produce-debit-order, produce-internal-transfer
 make produce-stream       # live transactions until Ctrl-C; change a rate with CARD_RATE=100
 make produce-load-data    # about 5M more transactions, for the load test
 ```

@@ -49,15 +49,6 @@ const cardFundingSourceSchema = z.object({
 	authCode: z.string().nullable()
 });
 
-const loanFundingSourceSchema = z.object({
-	transactionType: z.literal("loan"),
-	loanAccountId: z.uuid(),
-	loanType: z.string(),
-	operation: z.enum(["repayment", "disbursement"]),
-	principal: amountSchema.nullable(),
-	interest: amountSchema.nullable()
-});
-
 const eftFundingSourceSchema = z.object({
 	transactionType: z.literal("eft"),
 	beneficiaryName: z.string(),
@@ -87,7 +78,6 @@ const internalTransferFundingSourceSchema = z.object({
 
 export const fundingSourceSchema = z.discriminatedUnion("transactionType", [
 	cardFundingSourceSchema,
-	loanFundingSourceSchema,
 	eftFundingSourceSchema,
 	debitOrderFundingSourceSchema,
 	internalTransferFundingSourceSchema

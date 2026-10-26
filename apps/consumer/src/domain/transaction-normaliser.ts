@@ -3,7 +3,6 @@ import type { CardTransaction } from "#src/schemas/card.ts";
 import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
 import type { EftTransaction } from "#src/schemas/eft.ts";
 import type { InternalTransferTransaction } from "#src/schemas/internal_transfer.ts";
-import type { LoanTransaction } from "#src/schemas/loan.ts";
 import {
 	type CanonicalTransactionSchema,
 	canonicalTransactionSchema,
@@ -81,8 +80,6 @@ function mapToCanonical(
 			return normaliseCard(transaction as CardTransaction);
 		case transactionTypeSchema.enum.eft:
 			return normaliseEft(transaction as EftTransaction);
-		case transactionTypeSchema.enum.loan:
-			return normaliseLoan(transaction as LoanTransaction);
 		case transactionTypeSchema.enum.debit_order:
 			return normaliseDebitOrder(transaction as DebitOrderTransaction);
 		case transactionTypeSchema.enum.internal_transfer:
@@ -171,7 +168,7 @@ export function normaliseEft(record: EftTransaction) {
 }
 
 export function normaliseInternalTransfer(record: InternalTransferTransaction) {
-	// e.g looking from the Saving Account, we paid into the Loan Account
+	// e.g looking from the Saving Account, we paid into the Credit Account
 	const otherAccountType =
 		record.creditDebitIndicator === "debit"
 			? record.toAccountType
@@ -195,29 +192,6 @@ export function normaliseInternalTransfer(record: InternalTransferTransaction) {
 			toAccountId: record.toAccountId,
 			fromAccountType: record.fromAccountType,
 			toAccountType: record.toAccountType
-		}
-	};
-}
-
-export function normaliseLoan(record: LoanTransaction) {
-	return {
-		userId: record.customerId,
-		accountId: record.accountId,
-		transactionType: transactionTypeSchema.enum.loan,
-		externalId: record.transactionId,
-		occurredAt: new Date(record.timestamp).toISOString(),
-		longDescription: record.description,
-		shortDescription: `${capitaliseFirstLetter(record.loanType)} Loan`,
-		currency: record.currency,
-		amountMinor: record.amount,
-		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as TransactionStatus,
-		metadata: {
-			operation: record.operation,
-			loanAccountId: record.loanAccountId,
-			loanType: record.loanType,
-			principalAmount: record.principalAmount,
-			interestAmount: record.interestAmount
 		}
 	};
 }

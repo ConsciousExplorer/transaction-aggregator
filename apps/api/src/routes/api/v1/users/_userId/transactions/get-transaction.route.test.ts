@@ -99,33 +99,6 @@ suite("GET /api/v1/users/:userId/transactions/:transactionId", () => {
 		);
 	});
 
-	test("loan principal and interest carry the transaction's own currency", async () => {
-		getTransactionDetail.mock.mockImplementationOnce(async () => ({
-			...DETAIL,
-			transactionType: "loan",
-			currency: "USD",
-			metadata: {
-				operation: "repayment",
-				loanAccountId: "5b2e1c3d-4a5f-4e6b-8c7d-9e0f1a2b3c4d",
-				loanType: "home",
-				principalAmount: 90000,
-				interestAmount: 10000
-			}
-		}));
-
-		const response = await app.inject({ method: "GET", url: DETAIL_URL });
-		assert.strictEqual(response.statusCode, 200);
-		const fundingSource = response.json().fundingSource;
-		assert.deepStrictEqual(fundingSource.principal, {
-			amountMinor: 90000,
-			currency: "USD"
-		});
-		assert.deepStrictEqual(fundingSource.interest, {
-			amountMinor: 10000,
-			currency: "USD"
-		});
-	});
-
 	test("404: unknown transaction → not-found problem", async () => {
 		getTransactionDetail.mock.mockImplementationOnce(async () => undefined);
 		const response = await app.inject({ method: "GET", url: DETAIL_URL });

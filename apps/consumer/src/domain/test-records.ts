@@ -1,5 +1,5 @@
 import type { CardTransaction } from "#src/schemas/card.ts";
-import type { LoanTransaction } from "#src/schemas/loan.ts";
+import type { DebitOrderTransaction } from "#src/schemas/debit_order.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 
 // Wire records for tests. Not a .test.ts file, so the test runner does not run
@@ -35,24 +35,25 @@ export function buildCardRecord(
 	};
 }
 
-/** A well-formed loan repayment as the producer emits it. */
-export function buildLoanRecord(
-	over: Partial<LoanTransaction> = {}
-): LoanTransaction {
+/** A well-formed debit order as the producer emits it, every field set. */
+export function buildDebitOrderRecord(
+	over: Partial<DebitOrderTransaction> = {}
+): DebitOrderTransaction {
 	return {
-		transactionId: "txn-0003",
-		transactionType: "loan",
+		transactionId: "txn-0004",
+		transactionType: "debit_order",
 		customerId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
 		accountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
-		loanAccountId: "3f2504e0-4f89-41d3-9a0c-0305e82c3303",
-		loanType: "personal",
-		operation: "repayment",
-		amount: 250_000,
-		principalAmount: 200_000,
-		interestAmount: 50_000,
+		mandateId: "MND-000123",
+		category: "insurance",
+		creditorName: "Discovery Life",
+		creditorAbbrevName: "DISCLIFE",
+		collectionType: "recurring",
+		frequency: "monthly",
+		amount: 45_000,
 		currency: "ZAR",
 		creditDebitIndicator: "debit",
-		description: "personal loan repayment",
+		description: "DISCOVERY LIFE PREMIUM",
 		status: "COMPLETED",
 		timestamp: 1_790_000_000_000,
 		...over

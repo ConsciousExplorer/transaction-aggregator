@@ -539,7 +539,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
         <button type="button" id="type-eft" data-type="eft">eft</button>
         <button type="button" id="type-debit_order" data-type="debit_order">debit_order</button>
         <button type="button" id="type-internal_transfer" data-type="internal_transfer">internal_transfer</button>
-        <button type="button" id="type-loan" data-type="loan">loan</button>
       </div>
     </div>
     <label class="field" for="amountMin"><span class="lbl">amountMin</span>
@@ -678,7 +677,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   const USER_ID = "7c1e9a52-3f04-4d8b-9a61-2e5b8c0d4f17";
   const PATH = `/api/v1/users/${USER_ID}/transactions`;
   const WINDOW = { from: "2026-09-01T00:00:00Z", to: "2026-10-08T00:00:00Z" };
-  const TYPES = ["card", "eft", "debit_order", "internal_transfer", "loan"];
+  const TYPES = ["card", "eft", "debit_order", "internal_transfer"];
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const COLUMN = { at: "occurred_at", id: "transaction_id", amount: "amount_minor" };
   const SORTS = {
@@ -711,7 +710,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     ["2026-10-01T00:00:00.000000Z", "Vodacom contract", "debit_order", "debit", 59900, "utilities"],
     ["2026-10-01T00:00:00.000000Z", "Netflix", "debit_order", "debit", 19900, "entertainment"],
     ["2026-10-02T08:14:39.501226Z", "Woolworths Food", "card", "debit", 102344, "groceries"],
-    ["2026-10-03T14:22:07.481203Z", "Home loan instalment", "loan", "debit", 985000, "housing"],
+    ["2026-10-03T14:22:07.481203Z", "Bond repayment", "debit_order", "debit", 985000, "housing"],
     ["2026-10-05T17:36:58.023418Z", "Mugg & Bean", "card", "debit", 8650, "dining"],
     ["2026-10-06T09:58:31.774051Z", "Takealot", "card", "debit", 129900, "shopping"]
   ];

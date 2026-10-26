@@ -6,7 +6,7 @@
 
 ## Context
 
-Five sources share most of their fields: who, which account, when, how much, which way, and a description. Each also has a few of its own, such as a card's merchant category code or a loan's principal and interest.
+Four sources share most of their fields: who, which account, when, how much, which way, and a description. Each also has a few of its own, such as a card's merchant category code or a debit order's mandate.
 
 Every API read is about one user: a page of their transactions, or a summary over a date window. Data is kept for 18 months and must expire cheaply. Ingest must be idempotent.
 

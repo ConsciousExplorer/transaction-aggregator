@@ -6,7 +6,6 @@ export type Money = { amountMinor: number; currency: string };
 export type TransactionType =
 	| "card"
 	| "eft"
-	| "loan"
 	| "debit_order"
 	| "internal_transfer";
 

@@ -16,7 +16,7 @@ The schemas change over time. `schemas/v2/card.avsc` already adds a field.
 
 **One Avro schema per source, governed by Confluent Schema Registry.**
 
-- The five schemas live in `schemas/*.avsc`. `register.py` registers each one under its topic's subject (`transactions.card-value`) and sets that subject's compatibility to BACKWARD: every new version must be able to read the records written with the one before.
+- The four schemas live in `schemas/*.avsc`. `register.py` registers each one under its topic's subject (`transactions.card-value`) and sets that subject's compatibility to BACKWARD: every new version must be able to read the records written with the one before.
 - Producers never register schemas (`auto.register.schemas: False`). At startup each one fetches its subject's latest version and pins its serializer to it. The registry enforces the rules, and git decides what the schemas are.
 - The record key is the field the schema names as `partitionKey`: `customerId`. Each customer's transactions stay in order on one partition.
 - The consumer loads every version of its subject at startup. It decodes each message with the writer schema named by the id in the message's frame, and never resolves it against a reader schema of its own. A message with an id it didn't load stops the consumer, and the restart loads the new version ([0003](0003-at-least-once-crash-only.md)).

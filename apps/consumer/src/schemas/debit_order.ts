@@ -6,13 +6,7 @@ import { z } from "zod";
 export const debitOrderTransactionSchema = z.object({
 	transactionId: z.string(),
 	// What kind of transaction this is, with the same values as the database's transaction_type.
-	transactionType: z.enum([
-		"card",
-		"eft",
-		"loan",
-		"debit_order",
-		"internal_transfer"
-	]),
+	transactionType: z.enum(["card", "eft", "debit_order", "internal_transfer"]),
 	customerId: z.string(),
 	// Customer account the transaction occurred on.
 	accountId: z.string(),

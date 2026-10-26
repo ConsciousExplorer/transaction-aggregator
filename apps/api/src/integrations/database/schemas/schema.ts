@@ -21,7 +21,6 @@ export const transactionStatus = txnAgg.enum("transaction_status", [
 ]);
 export const transactionType = txnAgg.enum("transaction_type", [
 	"card",
-	"loan",
 	"debit_order",
 	"eft",
 	"internal_transfer"
