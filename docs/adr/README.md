@@ -1,4 +1,24 @@
-# How it works
+# Architecture decisions
+
+## Decisions
+
+Each record states what was decided, what was rejected and why, and what would make us look again. They follow a transaction's path, from the wire to the API.
+
+| ADR | Decision |
+| --- | --- |
+| [0001](0001-avro-schema-registry-contract.md) | Avro and Schema Registry are the contract between producers and consumers |
+| [0002](0002-one-consumer-per-source.md) | One consumer codebase, deployed once per source |
+| [0003](0003-at-least-once-crash-only.md) | At-least-once delivery into an idempotent table; crash rather than retry |
+| [0004](0004-versioned-rules-read-time-overrides.md) | Rules categorise at ingest from versioned rule sets; user overrides apply on read |
+| [0005](0005-one-partitioned-table.md) | One partitioned transactions table with bounded JSON metadata |
+| [0006](0006-database-roles-enforce-writes.md) | Database roles decide who can write what |
+| [0007](0007-routes-and-repositories.md) | API routes call repositories directly; Zod is the one contract source |
+| [0008](0008-service-to-service-auth.md) | Service-to-service auth: the calling app chooses the user |
+| [0009](0009-keyset-paging.md) | Keyset paging with an opaque cursor |
+| [0010](0010-wire-conventions.md) | Money, categories and date windows on the wire |
+| [0011](0011-egress.md) | Other systems read through the API; events and exports come later |
+
+## How it works
 
 Three self-contained HTML pages, each about one part of the system. GitHub shows their source, so open them in a browser after cloning:
 
