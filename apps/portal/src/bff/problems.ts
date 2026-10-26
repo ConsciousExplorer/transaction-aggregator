@@ -9,7 +9,7 @@ type ProblemPayload = {
 	trace_id?: string | undefined;
 };
 
-export class BffProblem extends Error {
+class BffProblem extends Error {
 	payload: ProblemPayload;
 	constructor(payload: ProblemPayload) {
 		super(payload.title);

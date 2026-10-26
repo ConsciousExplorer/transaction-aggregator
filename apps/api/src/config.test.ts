@@ -31,6 +31,25 @@ suite("logging", () => {
 	});
 });
 
+suite("database pool", () => {
+	// The server cancels first, so a lock wait fails as 57014 and the
+	// client-side timeout is left for a connection that never answers
+	test("by default the statement timeout fires before the query timeout", () => {
+		const { database } = loadConfig({});
+		assert.ok(database.statementTimeout < database.queryTimeout);
+	});
+
+	test("an environment value overrides a pool timeout's default", () => {
+		const config = loadConfig({
+			DATABASE_IDLE_TIMEOUT_MS: "5000",
+			DATABASE_CONNECTION_TIMEOUT_MS: "2000"
+		});
+
+		assert.strictEqual(config.database.idleTimeout, 5000);
+		assert.strictEqual(config.database.connectionTimeout, 2000);
+	});
+});
+
 suite("query logging", () => {
 	test("logs nothing unless set", () => {
 		assert.deepStrictEqual(loadConfig({}).database.queryLog, {

@@ -15,7 +15,6 @@ export interface Rule {
 	matcherType: MatcherType;
 	pattern: string;
 	categoryId: number;
-	version: number;
 }
 export interface Verdict {
 	categoryId: number;

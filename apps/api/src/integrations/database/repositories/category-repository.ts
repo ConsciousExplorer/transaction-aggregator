@@ -54,7 +54,6 @@ export class CategoryRepository {
 				toCategoryId: userCategoryOverrides.toCategoryId,
 				toCategory: toCategories.category,
 				toLabel: toCategories.label,
-				createdAt: userCategoryOverrides.createdAt,
 				updatedAt: userCategoryOverrides.updatedAt
 			})
 			.from(categories)
@@ -119,7 +118,7 @@ export class CategoryRepository {
 	}
 
 	async archiveUserCategory(userId: string, fromCategoryId: number) {
-		const [result] = await this.#database
+		await this.#database
 			.update(userCategoryOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(
@@ -128,9 +127,6 @@ export class CategoryRepository {
 					eq(userCategoryOverrides.fromCategoryId, fromCategoryId),
 					isNull(userCategoryOverrides.archivedAt)
 				)
-			)
-			.returning();
-
-		return result;
+			);
 	}
 }

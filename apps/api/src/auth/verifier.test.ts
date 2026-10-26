@@ -8,11 +8,7 @@ import {
 import type { AddressInfo } from "node:net";
 import { suite, test } from "node:test";
 import { createRemoteJWKSet, generateKeyPair } from "jose";
-import {
-	InvalidClaimsError,
-	TokenVerificationError,
-	type TokenVerificationReason
-} from "#src/errors/auth-errors.ts";
+import { ZodError } from "zod";
 import {
 	buildTestSigningKeys,
 	signTestToken,
@@ -30,19 +26,48 @@ import {
 // Made once for the file, and verified for real
 const { privateKey, tokenVerification } = await buildTestSigningKeys();
 
-async function assertRejectsWithReason(
+/**
+ * Verifying the token fails with an error that has every property in
+ * `expected`: jose's own error for a bad token, ours for a key set that can't
+ * be fetched
+ */
+async function assertRejectsWith(
 	token: Promise<string> | string,
 	verification: TokenVerification,
-	reason: TokenVerificationReason
+	expected: Record<string, string>
 ) {
 	await assert.rejects(
 		async () => verifyToken(await token, verification),
-		(error: unknown) => {
-			assert.ok(error instanceof TokenVerificationError);
-			assert.equal(error.reason, reason);
-			return true;
-		}
+		expected
 	);
+}
+
+/** Verifying the token fails because the claim jose names is wrong or missing */
+async function assertRejectsOnClaim(
+	token: Promise<string> | string,
+	claim: string
+) {
+	await assertRejectsWith(token, tokenVerification, {
+		code: "ERR_JWT_CLAIM_VALIDATION_FAILED",
+		claim
+	});
+}
+
+/** parseClaims throws, keeping zod's issues as the cause */
+function readClaimIssuePaths(payload: Record<string, unknown>) {
+	try {
+		parseClaims(payload);
+	} catch (error) {
+		assert.ok(error instanceof Error);
+		assert.equal(error.message, "Missing or malformed required claims");
+		assert.ok(error.cause instanceof ZodError);
+		const paths = [];
+		for (const issue of error.cause.issues) {
+			paths.push(issue.path);
+		}
+		return paths;
+	}
+	assert.fail("expected parseClaims to throw");
 }
 
 /** Verification that fetches its key set from the identity provider at this URL */
@@ -82,65 +107,65 @@ suite("Token Verifier", () => {
 
 	// Negative test cases
 	test("Should reject an expired token", async () => {
-		await assertRejectsWithReason(
+		await assertRejectsWith(
 			signTestToken(privateKey, {}, { expiresIn: "-1s" }),
 			tokenVerification,
-			"expired"
+			{ code: "ERR_JWT_EXPIRED" }
 		);
 	});
 
 	test("Should reject a token signed with the wrong key", async () => {
 		const otherPair = await generateKeyPair("RS256");
 
-		await assertRejectsWithReason(
+		await assertRejectsWith(
 			signTestToken(otherPair.privateKey),
 			tokenVerification,
-			"signature"
+			{ code: "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" }
 		);
 	});
 
 	test("Should reject a token with the wrong issuer", async () => {
-		await assertRejectsWithReason(
+		await assertRejectsOnClaim(
 			signTestToken(privateKey, {}, { issuer: "https://not-the-issuer.com" }),
-			tokenVerification,
-			"issuer"
+			"iss"
 		);
 	});
 
 	test("Should reject a token with the wrong audience", async () => {
-		await assertRejectsWithReason(
+		await assertRejectsOnClaim(
 			signTestToken(privateKey, {}, { audience: "not-the-audience" }),
-			tokenVerification,
-			"audience"
+			"aud"
 		);
 	});
 
 	test("Should reject a token signed with a disallowed algorithm", async () => {
 		const { privateKey: pssKey } = await generateKeyPair("PS256");
 
-		await assertRejectsWithReason(
+		await assertRejectsWith(
 			signTestToken(pssKey, {}, { algorithm: "PS256" }),
 			tokenVerification,
-			"algorithm"
+			{ code: "ERR_JOSE_ALG_NOT_ALLOWED" }
 		);
 	});
 
 	test("Should reject a token whose key is not in the key set", async () => {
-		await assertRejectsWithReason(
+		await assertRejectsWith(
 			signTestToken(privateKey, {}, { keyId: "not-in-the-jwks" }),
 			tokenVerification,
-			"unknown-key"
+			{ code: "ERR_JWKS_NO_MATCHING_KEY" }
 		);
 	});
 
 	test("Should reject a malformed token", async () => {
-		await assertRejectsWithReason("not-a-jwt", tokenVerification, "malformed");
+		await assertRejectsWith("not-a-jwt", tokenVerification, {
+			code: "ERR_JWS_INVALID"
+		});
 	});
 
 	// jose checks exp only when a token has one, so without it a token never
 	// expires. Every other claim is present, so exp is the one missing.
 	test("Should reject a token without an expiry", async () => {
-		await assertRejectsWithReason(
+		await assertRejectsOnClaim(
 			signTestToken(
 				privateKey,
 				{
@@ -150,29 +175,27 @@ suite("Token Verifier", () => {
 				},
 				{ expiresIn: null }
 			),
-			tokenVerification,
-			"missing-claims"
+			"exp"
 		);
 	});
 
 	test("Should reject a token that is not valid yet", async () => {
-		await assertRejectsWithReason(
+		await assertRejectsOnClaim(
 			signTestToken(privateKey, {}, { notBefore: "10m" }),
-			tokenVerification,
-			"not-yet-valid"
+			"nbf"
 		);
 	});
 });
 
 // A key set that cannot be fetched is the identity provider's failure, not the
-// caller's token: its own reason, so the auth hook can answer 503, not 401.
+// caller's token: its own error, so the auth hook can answer 503, not 401.
 suite("Token Verifier with a key set it cannot fetch", () => {
 	test("an identity provider that refuses the connection", async () => {
 		// Nothing listens on port 1, so the connection is refused at once
-		await assertRejectsWithReason(
+		await assertRejectsWith(
 			signTestToken(privateKey),
 			buildRemoteVerification("http://127.0.0.1:1/certs"),
-			"key-set-unavailable"
+			{ name: "KeySetUnavailableError" }
 		);
 	});
 
@@ -183,10 +206,10 @@ suite("Token Verifier with a key set it cannot fetch", () => {
 		const { port } = identityProvider.address() as AddressInfo;
 
 		try {
-			await assertRejectsWithReason(
+			await assertRejectsWith(
 				signTestToken(privateKey),
 				buildRemoteVerification(`http://127.0.0.1:${port}/certs`),
-				"key-set-unavailable"
+				{ name: "KeySetUnavailableError" }
 			);
 		} finally {
 			identityProvider.close();
@@ -208,65 +231,34 @@ suite("parseClaims", () => {
 	});
 
 	test("rejects a payload missing sub", () => {
-		assert.throws(
-			() => parseClaims({ azp: "banking-service", scope: "read write" }),
-			(error: unknown) => {
-				assert.ok(error instanceof TokenVerificationError);
-				assert.equal(error.reason, "missing-claims");
-				return true;
-			}
+		assert.deepEqual(
+			readClaimIssuePaths({ azp: "banking-service", scope: "read write" }),
+			[["sub"]]
 		);
 	});
 
 	test("rejects a payload missing azp, the client the token was issued to", () => {
-		assert.throws(
-			() => parseClaims({ sub: "user-123", scope: "read write" }),
-			(error: unknown) => {
-				assert.ok(error instanceof InvalidClaimsError);
-				const [issue] = error.issues as { path: unknown }[];
-				assert.deepEqual(issue?.path, ["azp"]);
-				return true;
-			}
+		assert.deepEqual(
+			readClaimIssuePaths({ sub: "user-123", scope: "read write" }),
+			[["azp"]]
 		);
 	});
 
 	test("rejects a payload missing scope", () => {
-		assert.throws(
-			() => parseClaims({ sub: "user-123", azp: "banking-service" }),
-			(error: unknown) => {
-				assert.ok(error instanceof TokenVerificationError);
-				assert.equal(error.reason, "missing-claims");
-				return true;
-			}
+		assert.deepEqual(
+			readClaimIssuePaths({ sub: "user-123", azp: "banking-service" }),
+			[["scope"]]
 		);
 	});
 
 	test("rejects a payload where scope is not a string", () => {
-		assert.throws(
-			() =>
-				parseClaims({
-					sub: "user-123",
-					azp: "banking-service",
-					scope: ["read", "write"]
-				}),
-			(error: unknown) => {
-				assert.ok(error instanceof TokenVerificationError);
-				assert.equal(error.reason, "missing-claims");
-				return true;
-			}
-		);
-	});
-
-	test("carries the zod issues on the thrown error", () => {
-		assert.throws(
-			() => parseClaims({ azp: "banking-service", scope: "read write" }),
-			(error: unknown) => {
-				assert.ok(error instanceof InvalidClaimsError);
-				assert.equal(error.issues.length, 1);
-				const [issue] = error.issues as { path: unknown }[];
-				assert.deepEqual(issue?.path, ["sub"]);
-				return true;
-			}
+		assert.deepEqual(
+			readClaimIssuePaths({
+				sub: "user-123",
+				azp: "banking-service",
+				scope: ["read", "write"]
+			}),
+			[["scope"]]
 		);
 	});
 });

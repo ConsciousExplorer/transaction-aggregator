@@ -26,7 +26,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 ## How it works
 
 - **Batches.** Messages are buffered and flushed as one batch once 100 have arrived (`KAFKA_BATCH_SIZE`) or 2 seconds after the first one arrived (`KAFKA_BATCH_LINGER_MS`), whichever happens first. Only one flush runs at a time.
-- **One insert per batch.** Valid messages are normalised and categorised, then written by a single `INSERT … SELECT FROM unnest(…)` statement, which is atomic without a transaction.
+- **One insert per batch.** Valid messages are normalised and categorised, then written by a single `INSERT … SELECT FROM json_populate_recordset(…)` statement, which is atomic without a transaction. The batch goes over as one JSON array of rows.
 - **Idempotent writes.** The insert uses `ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`. Kafka may deliver a message more than once, but each row is stored once, so replaying a batch is safe.
 - **Commit last.** Offsets are committed by hand (`autocommit: false`), after the batch handler returns. The handler returns only once every message in the batch has been inserted, dead-lettered or skipped.
 - **Exit instead of retrying.** A retryable failure (connection lost, deadlock, serialization failure) is rethrown and the process exits without committing. Docker restarts it (`restart: unless-stopped`), and the batch is read again from the last commit.
@@ -70,7 +70,7 @@ The dead-letter producer waits for `acks=all`, so a record counts as sent only o
 4. **Ruleset**: loads the active categorisation rules. The ingester compiles them once, so a batch only looks rules up.
 5. **Schema registry**: loads every registered version of `<topic>-value`. Deserialisers are synchronous, so nothing is fetched while a message is being read.
 6. **Kafka**: creates the consumer and the dead-letter producer, and fetches metadata with both to prove that the brokers are reachable and the SASL credentials work.
-7. **HTTP server**: serves `/health`, `/info` and `/metrics` on `PORT`.
+7. **HTTP server**: serves `/health` and `/metrics` on `PORT`.
 8. **Consume**: starts lag monitoring and the batch loop.
 
 Shutdown runs on `SIGTERM` or `SIGINT`, or when the loop stops on an error. It closes things in this order:
@@ -106,7 +106,7 @@ apps/consumer
 │       └── helpers/                       test database, message and row builders, recording DLQ
 └── src/
     ├── app.ts                     startup checks, wiring, consume loop, shutdown
-    ├── runtime.ts                 config, secrets and package info, loaded once
+    ├── runtime.ts                 config and secrets, loaded once
     ├── config.ts                  environment → frozen config (Zod)
     ├── logger.ts                  pino; one child logger per file; card numbers redacted
     ├── errors/
@@ -123,10 +123,10 @@ apps/consumer
     │   │       └── handleDeserialisationError.ts   FAIL on an unknown schema id, otherwise CONTINUE
     │   ├── database/
     │   │   ├── pool.ts                    pg Pool, Drizzle for the ruleset
-    │   │   ├── repositories/              transaction insert (unnest), ruleset load (Drizzle)
+    │   │   ├── repositories/              transaction insert (one JSON array), ruleset load (Drizzle)
     │   │   └── schemas/                   Drizzle tables, pulled from the database
     │   └── http/
-    │       └── server.ts                  /health, /info, /metrics
+    │       └── server.ts                  /health, /metrics
     ├── domain/                    pure: no I/O, no async; imports only schemas/ and errors/
     │   ├── transaction-normaliser.ts      each source shape → one canonical row
     │   └── rule-categoriser.ts            compiled rules: five matcher tiers, then a fallback
@@ -147,7 +147,6 @@ Each unit test (`src/**/*.test.ts`) sits next to the file it tests; the tree lea
 | Endpoint | Returns |
 | --- | --- |
 | `GET /health`, `GET /healthz` | `{"status":"ok"}`, for liveness |
-| `GET /info` | app, Node version, host, PID, uptime |
 | `GET /metrics` | Prometheus text format |
 
 The consumer's own metrics measure the work the Kafka client can't see:
@@ -155,7 +154,7 @@ The consumer's own metrics measure the work the Kafka client can't see:
 | Metric | Type | What it measures |
 | --- | --- | --- |
 | `batch_size` | histogram | Messages per flush |
-| `batch_flush_total{trigger}` | counter | Flushes by trigger: `size`, `linger` or `stream_end` |
+| `batch_flush_total{trigger}` | counter | Flushes by trigger: `size` or `linger` |
 | `batch_flush_duration_seconds` | histogram | The whole flush: handling the batch, then committing it |
 | `insert_duration_seconds` | histogram | The batch INSERT only |
 | `rows_inserted_total` | counter | Rows actually inserted |
@@ -193,6 +192,9 @@ All configuration comes from environment variables, validated at startup by [`sr
 | `KAFKA_REBALANCE_TIMEOUT_MS` | `30000` | At least the session timeout |
 | `KAFKA_REQUEST_TIMEOUT_MS` | `40000` | Must exceed the rebalance timeout |
 | `DATABASE_POOL_MIN` / `DATABASE_POOL_MAX` | `3` / `20` | Postgres pool size |
+| `DATABASE_IDLE_TIMEOUT_MS` / `DATABASE_CONNECTION_TIMEOUT_MS` | `30000` / `10000` | Close an idle connection after; give up opening one after |
+| `DATABASE_STATEMENT_TIMEOUT_MS` / `DATABASE_QUERY_TIMEOUT_MS` | `25000` / `30000` | The server cancels a statement after; the client fails a query after. Keep the statement timeout lower |
+| `DATABASE_KEEP_ALIVE_DELAY_MS` | `10000` | Idle time before TCP keep-alive probes a connection |
 | `DATABASE_SSL` | `false` | Connect to Postgres over TLS |
 | `SCHEMA_REGISTRY_URL` | `http://localhost:8081` | Read once at startup |
 | `OTEL_SDK_DISABLED` | `true` | Set to `false` to export traces over OTLP |

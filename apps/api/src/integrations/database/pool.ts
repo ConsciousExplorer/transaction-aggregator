@@ -1,25 +1,13 @@
 import { Pool, type PoolConfig } from "pg";
 import type { Logger } from "pino";
 
+/**
+ * Size and timeouts come from config. Keep-alive is always on, so an idle
+ * connection whose server has gone is found and dropped.
+ */
 export function createPool(config: PoolConfig, logger: Logger) {
-	// Pool size (min, max) always comes from config
-	const pool = new Pool({
-		idleTimeoutMillis: 30_000,
-		connectionTimeoutMillis: 10_000,
-		// The server cancels a statement that runs or waits on a lock too long
-		statement_timeout: 5_000,
-		// A connection whose server is gone without a reset never answers, so
-		// the server-side timeout never arrives either; this one runs in the
-		// client and fails the query a second later
-		query_timeout: 6_000,
-		// Probes an idle connection after 10 s, so a dead one is dropped from
-		// the pool instead of being handed to the next request
-		keepAlive: true,
-		keepAliveInitialDelayMillis: 10_000,
-		...config
-	});
+	const pool = new Pool({ ...config, keepAlive: true });
 
-	// Register listeners
 	pool.on("acquire", () => {
 		logger.debug("Acquired a connection.");
 	});

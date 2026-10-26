@@ -61,17 +61,8 @@ const { queryWindow } = loadConfig({});
 const app = buildServer({
 	appInfo: packageInfoConfig,
 	queryWindow,
-	pluginAutoLoadParameters: {
-			dir: resolve(import.meta.dirname, "../src/plugins"),
-			routeParams: true,
-			enableSwagger: true
-		},
-	routeAutoLoadParameters: {
-			dir: resolve(import.meta.dirname, "../src/routes"),
-			dirNameRoutePrefix: true,
-			routeParams: true,
-			matchFilter: /route\.(ts|js)$/
-		}
+	autoload: true,
+	enableSwagger: true
 });
 
 await app.ready();

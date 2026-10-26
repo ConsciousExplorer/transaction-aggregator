@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { buildContainer } from "#src/container.ts";
 import { buildServer, type ServerDependencies } from "./server.ts";
 import { shutDownGracefully } from "./shutdown.ts";
@@ -30,16 +29,8 @@ const server = buildServer({
 	...serverDependencies,
 	appInfo,
 	logger,
-	pluginAutoLoadParameters: {
-		dir: join(import.meta.dirname, "plugins"),
-		enableSwagger: config.api.enableSwagger
-	},
-	routeAutoLoadParameters: {
-		dir: join(import.meta.dirname, "routes"),
-		dirNameRoutePrefix: true,
-		routeParams: true,
-		matchFilter: /route\.(ts|js)$/
-	}
+	autoload: true,
+	enableSwagger: config.api.enableSwagger
 });
 
 try {
@@ -57,11 +48,5 @@ try {
 	process.exit(1);
 }
 
-process.on(
-	"SIGTERM",
-	() => void shutDownGracefully(server, container, logger, 0)
-);
-process.on(
-	"SIGINT",
-	() => void shutDownGracefully(server, container, logger, 0)
-);
+process.on("SIGTERM", () => void shutDownGracefully(server, container, logger));
+process.on("SIGINT", () => void shutDownGracefully(server, container, logger));

@@ -2,17 +2,10 @@
 // browser never holds a token the API accepts. Problems come back as one error type a page can show.
 
 export class PortalRequestError extends Error {
-	status: number;
 	detail: string | undefined;
 	traceId: string | undefined;
-	constructor(
-		title: string,
-		status: number,
-		detail?: string,
-		traceId?: string
-	) {
+	constructor(title: string, detail?: string, traceId?: string) {
 		super(title);
-		this.status = status;
 		this.detail = detail;
 		this.traceId = traceId;
 	}
@@ -24,7 +17,7 @@ type ProblemBody = { title?: string; detail?: string; trace_id?: string };
 async function readResponse(response: Response) {
 	if (response.status === 401) {
 		window.location.assign("/?error=session-expired");
-		throw new PortalRequestError("Your session expired", 401);
+		throw new PortalRequestError("Your session expired");
 	}
 	if (response.status === 204) return undefined;
 	const body: unknown = await response.json();
@@ -32,7 +25,6 @@ async function readResponse(response: Response) {
 		const problem = body as ProblemBody;
 		throw new PortalRequestError(
 			problem.title ?? "The request failed",
-			response.status,
 			problem.detail,
 			problem.trace_id
 		);
@@ -65,5 +57,5 @@ export async function sendJson(
 // Anything a load can throw, as the one error type pages show
 export function describeError(error: unknown) {
 	if (error instanceof PortalRequestError) return error;
-	return new PortalRequestError("The portal couldn't reach its server", 0);
+	return new PortalRequestError("The portal couldn't reach its server");
 }

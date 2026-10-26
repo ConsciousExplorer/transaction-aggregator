@@ -11,22 +11,10 @@ function buildOverrideUrl(categoryId: number) {
 	return `/api/v1/users/${USER_ID}/category-overrides/${categoryId}`;
 }
 
-// Typed off the real method so drift in the select shape breaks compilation
-const ARCHIVED: NonNullable<
-	Awaited<ReturnType<CategoryRepository["archiveUserCategory"]>>
-> = {
-	userId: USER_ID,
-	fromCategoryId: 1,
-	toCategoryId: 5,
-	createdAt: "2026-09-01T08:00:00.000Z",
-	updatedAt: "2026-09-03T08:00:00.000Z",
-	archivedAt: "2026-09-05T08:00:00.000Z"
-};
-
 // `satisfies` is the drift guard: the fake must match the real methods the
 // route calls, so a change to one of their signatures stops this compiling.
 const archiveUserCategory = mock.fn<CategoryRepository["archiveUserCategory"]>(
-	async () => ARCHIVED
+	async () => {}
 );
 const categoryRepository = {
 	archiveUserCategory
@@ -48,7 +36,7 @@ suite("DELETE /api/v1/users/:userId/category-overrides/:categoryId", () => {
 	});
 	beforeEach(() => {
 		archiveUserCategory.mock.resetCalls();
-		archiveUserCategory.mock.mockImplementation(async () => ARCHIVED);
+		archiveUserCategory.mock.mockImplementation(async () => {});
 	});
 
 	test("204: archives by id, no body", async () => {
@@ -62,15 +50,6 @@ suite("DELETE /api/v1/users/:userId/category-overrides/:categoryId", () => {
 			USER_ID,
 			1
 		]);
-	});
-
-	test("204: idempotent, nothing to archive is still success", async () => {
-		archiveUserCategory.mock.mockImplementationOnce(async () => undefined);
-		const response = await app.inject({
-			method: "DELETE",
-			url: buildOverrideUrl(999)
-		});
-		assert.strictEqual(response.statusCode, 204);
 	});
 
 	// category_id is a smallint: Postgres refuses a larger id outright, a 500

@@ -51,7 +51,12 @@ export async function buildContainer() {
 					host: config.database.host,
 					port: config.database.port,
 					user: config.database.user,
-					password: secrets.databasePassword
+					password: secrets.databasePassword,
+					idleTimeoutMillis: config.database.idleTimeout,
+					connectionTimeoutMillis: config.database.connectionTimeout,
+					statement_timeout: config.database.statementTimeout,
+					query_timeout: config.database.queryTimeout,
+					keepAliveInitialDelayMillis: config.database.keepAliveDelay
 				},
 				logger
 			)

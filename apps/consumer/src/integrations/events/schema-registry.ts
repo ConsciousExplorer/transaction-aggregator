@@ -8,9 +8,8 @@ import { AvroSchemaObject } from "#src/schemas/avro.ts";
 const REGISTRY_TIMEOUT_MS = 5_000;
 
 /**
- * Every failure becomes a SchemaRegistryError carrying the HTTP status (or
- * undefined when the registry was unreachable), so the startup failure log
- * tells "not found" from "registry down" without parsing messages.
+ * Every failure becomes a SchemaRegistryError whose message says which kind it
+ * was, so the startup failure log tells "not found" from "registry down".
  */
 async function fetchFromRegistry<S extends z.ZodType>(url: string, schema: S) {
 	let response: Response;
@@ -21,18 +20,14 @@ async function fetchFromRegistry<S extends z.ZodType>(url: string, schema: S) {
 		});
 	} catch (error) {
 		throw new SchemaRegistryError(`Schema registry unreachable: ${url}`, {
-			cause: error,
-			status: undefined
+			cause: error
 		});
 	}
 
 	if (!response.ok) {
 		throw new SchemaRegistryError(
 			`Schema registry request failed: [HTTP ${response.status}] ${url}`,
-			{
-				cause: await response.json().catch(() => undefined),
-				status: response.status
-			}
+			{ cause: await response.json().catch(() => undefined) }
 		);
 	}
 
@@ -42,7 +37,7 @@ async function fetchFromRegistry<S extends z.ZodType>(url: string, schema: S) {
 	if (!result.success) {
 		throw new SchemaRegistryError(
 			`Schema registry returned an unexpected body: ${url}`,
-			{ cause: result.error, status: response.status }
+			{ cause: result.error }
 		);
 	}
 

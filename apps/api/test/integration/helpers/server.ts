@@ -1,16 +1,12 @@
-import { join } from "node:path";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import type { TokenVerification } from "#src/auth/verifier.ts";
 import { buildServer, type ServerDependencies } from "#src/server.ts";
 import type { TestDatabase } from "./database.ts";
 import { buildRepositories } from "./repositories.ts";
 
-const SOURCE_DIRECTORY = join(import.meta.dirname, "../../../src");
-
 /**
- * The whole API as app.ts builds it, with the plugins and routes autoloaded
- * with app.ts's options, on the test database and trusting the test signing
- * keys. Keep the autoload options in step with app.ts.
+ * The whole API as app.ts builds it, plugins and routes included, on the test
+ * database and trusting the test signing keys.
  */
 export async function buildTestServer(
 	database: TestDatabase,
@@ -27,19 +23,7 @@ export async function buildTestServer(
 		queryWindow: { maxDays: 366 }
 	};
 
-	const server = buildServer({
-		...serverDependencies,
-		pluginAutoLoadParameters: {
-			dir: join(SOURCE_DIRECTORY, "plugins"),
-			enableSwagger: false
-		},
-		routeAutoLoadParameters: {
-			dir: join(SOURCE_DIRECTORY, "routes"),
-			dirNameRoutePrefix: true,
-			routeParams: true,
-			matchFilter: /route\.(ts|js)$/
-		}
-	});
+	const server = buildServer({ ...serverDependencies, autoload: true });
 	await server.ready();
 	return server;
 }

@@ -4,7 +4,6 @@ import path from "node:path"
 
 const schemaDirectory = path.resolve('src/integrations/database/schemas')
 const schemaFile = 'schema.ts'
-const relationsFile = 'relations.ts'
 const partitionedFile = 'partitioned.ts'
 const partitionTableSuffix = '_default'
 const partitionConstSuffix = 'Default'
@@ -14,21 +13,11 @@ const partitionConstSuffix = 'Default'
 // suffix is dropped, so the repositories import transactions and categories
 const schemaConstName = 'txnAgg'
 const schemaNameSuffix = 'InTxnAgg'
+// relations.ts is deleted with the rest: drizzle reads relations only through
+// drizzle(pool, { schema }), and neither app passes a schema
 const filesToKeep = new Set([
-    'schema.ts', 'relations.ts', 'partitioned.ts'
+    'schema.ts', 'partitioned.ts'
 ])
-
-type PartitionedTable = {
-    constName: string        // transactionsDefault
-    renamedConstName: string // transactions
-    block: string            // full table declaration as pulled
-}
-
-// Determine is we are in the correct directory and if it exists
-if (!readdirSync(schemaDirectory)) {
-    console.log('Schema directory does not exist')
-    process.exit(0)
-}
 
 // Loop over schemaDirectory and remove files that are not needed by application
 for (const entry of readdirSync(schemaDirectory)) {
@@ -43,23 +32,22 @@ for (const entry of readdirSync(schemaDirectory)) {
 
 // Drop the schema suffix first: everything below matches the plain names
 removeSchemaNameSuffix(path.join(schemaDirectory, schemaFile))
-removeSchemaNameSuffix(path.join(schemaDirectory, relationsFile))
-console.log(`Removed the ${schemaNameSuffix} suffix from ${schemaFile} and ${relationsFile}`)
+console.log(`Removed the ${schemaNameSuffix} suffix from ${schemaFile}`)
 
 // drizzle-kit pull only introspects the _default partitions, not the partitioned
 // parent tables the application actually reads/writes, so move the parents out
 const schemaPath = path.join(schemaDirectory, schemaFile)
 const schemaSource = readFileSync(schemaPath, 'utf8')
-const partitionedTables = extractPartitionedTables(schemaSource)
+const partitionedBlocks = extractPartitionedTables(schemaSource)
 
-if (partitionedTables.length === 0) {
+if (partitionedBlocks.length === 0) {
     console.log(`No ${partitionTableSuffix} tables found in ${schemaFile}, leaving ${partitionedFile} untouched`)
     process.exit(0)
 }
 
 const renamedBlocks: string[] = []
-for (const table of partitionedTables) {
-    renamedBlocks.push(stripPartitionSuffix(table.block))
+for (const block of partitionedBlocks) {
+    renamedBlocks.push(stripPartitionSuffix(block))
 }
 
 const tableCode = renamedBlocks.join('\n\n')
@@ -74,17 +62,13 @@ const fileLines = [
 ]
 
 writeFileSync(path.join(schemaDirectory, partitionedFile), fileLines.join('\n'))
-console.log(`Wrote ${partitionedTables.length} partitioned parent table(s) to ${partitionedFile}`)
+console.log(`Wrote ${partitionedBlocks.length} partitioned parent table(s) to ${partitionedFile}`)
 
-writeFileSync(schemaPath, removePartitionedTables(schemaSource, partitionedTables))
+writeFileSync(schemaPath, removePartitionedTables(schemaSource, partitionedBlocks))
 console.log(`Removed the ${partitionTableSuffix} tables from ${schemaFile}`)
 
-rewriteRelationsFile(path.join(schemaDirectory, relationsFile), partitionedTables)
-console.log(`Pointed ${relationsFile} at the renamed tables in ${partitionedFile}`)
 
-
-// transactionsDefaultInTxnAgg becomes transactionsDefault, in names and in the
-// relationName strings drizzle-kit builds from them
+// transactionsDefaultInTxnAgg becomes transactionsDefault
 function removeSchemaNameSuffix(filePath: string) {
     const source = readFileSync(filePath, 'utf8')
     writeFileSync(filePath, source.replaceAll(schemaNameSuffix, ''))
@@ -92,23 +76,15 @@ function removeSchemaNameSuffix(filePath: string) {
 
 // Collect every table declaration whose table name ends with the partition
 // suffix, from its `export const` line down to the closing `});` / `]);`
-function extractPartitionedTables(source: string): PartitionedTable[] {
-    const tables: PartitionedTable[] = []
-    let currentTable: PartitionedTable | null = null
-    let currentLines: string[] = []
-    const tableStartPattern = new RegExp(`^export const (\\w+) = ${schemaConstName}\\.table\\("(\\w+)", \\{`)
+function extractPartitionedTables(source: string): string[] {
+    const blocks: string[] = []
+    let currentLines: string[] | null = null
+    const tableStartPattern = new RegExp(`^export const \\w+ = ${schemaConstName}\\.table\\("(\\w+)", \\{`)
 
     for (const line of source.split('\n')) {
-        if (currentTable === null) {
-            const tableStart = line.match(tableStartPattern)
-            const constName = tableStart?.[1]
-            const tableName = tableStart?.[2]
-            if (constName !== undefined && tableName !== undefined && tableName.endsWith(partitionTableSuffix)) {
-                currentTable = {
-                    constName,
-                    renamedConstName: constName.replace(new RegExp(`${partitionConstSuffix}$`), ''),
-                    block: ''
-                }
+        if (currentLines === null) {
+            const tableName = line.match(tableStartPattern)?.[1]
+            if (tableName !== undefined && tableName.endsWith(partitionTableSuffix)) {
                 currentLines = [line]
             }
             continue
@@ -116,13 +92,12 @@ function extractPartitionedTables(source: string): PartitionedTable[] {
 
         currentLines.push(line)
         if (line === '});' || line === ']);') {
-            currentTable.block = currentLines.join('\n')
-            tables.push(currentTable)
-            currentTable = null
+            blocks.push(currentLines.join('\n'))
+            currentLines = null
         }
     }
 
-    return tables
+    return blocks
 }
 
 // transactionsDefault / "transactions_default" become transactions / "transactions".
@@ -156,13 +131,13 @@ function buildImportLines(source: string, code: string): string[] {
 
 // Drop the moved table blocks from schema.ts, then prune import names
 // (e.g. char, jsonb) that only those tables used
-function removePartitionedTables(source: string, tables: PartitionedTable[]): string {
+function removePartitionedTables(source: string, blocks: string[]): string {
     let remaining = source
-    for (const table of tables) {
-        if (remaining.includes(`${table.block}\n\n`)) {
-            remaining = remaining.replace(`${table.block}\n\n`, '')
+    for (const block of blocks) {
+        if (remaining.includes(`${block}\n\n`)) {
+            remaining = remaining.replace(`${block}\n\n`, '')
         } else {
-            remaining = remaining.replace(table.block, '')
+            remaining = remaining.replace(block, '')
         }
     }
     remaining = remaining.replace(/\n+$/, '\n')
@@ -187,71 +162,6 @@ function removePartitionedTables(source: string, tables: PartitionedTable[]): st
         }
     }
     return rebuiltLines.join('\n')
-}
-
-// relations.ts references the _default tables by const name, so rename them and
-// import the renamed tables from partitioned.ts instead of schema.ts
-function rewriteRelationsFile(filePath: string, tables: PartitionedTable[]) {
-    let source = readFileSync(filePath, 'utf8')
-
-    // drizzle-kit emits relative imports without file extensions, which NodeNext rejects
-    source = source.replaceAll('from "./schema"', `from "./${schemaFile}"`)
-
-    // Longest names first so a const name embedded in a longer one is never split.
-    // The plural form goes before the bare name: the generated relation keys are
-    // the const name plus "s" (transactionsDefaults), and the parent names are
-    // already plural, so both collapse to the renamed const
-    const byLengthDescending = tables.slice().sort(compareConstNameLengthDescending)
-    for (const table of byLengthDescending) {
-        source = source.replaceAll(`${table.constName}s`, table.renamedConstName)
-        source = source.replaceAll(table.constName, table.renamedConstName)
-    }
-
-    writeFileSync(filePath, splitSchemaImport(source, tables))
-}
-
-// Split the schema.ts import in relations.ts: names that now live in
-// partitioned.ts move to their own import line. Matched as one regex over the
-// whole file because a formatter may have spread the import over multiple lines
-function splitSchemaImport(source: string, tables: PartitionedTable[]): string {
-    const renamedNames = new Set<string>()
-    for (const table of tables) {
-        renamedNames.add(table.renamedConstName)
-    }
-
-    const escapedSchemaFile = schemaFile.replaceAll('.', '\\.')
-    const schemaImport = source.match(new RegExp(`import \\{([^}]*)\\} from "\\./${escapedSchemaFile}";?`))
-    if (schemaImport === null || schemaImport[1] === undefined) {
-        console.log(`Warning: no ./${schemaFile} import found in ${relationsFile}, leaving its imports as-is`)
-        return source
-    }
-
-    const schemaNames: string[] = []
-    const partitionedNames: string[] = []
-    for (const rawName of schemaImport[1].split(',')) {
-        const name = rawName.trim()
-        if (name === '')
-            continue;
-
-        if (renamedNames.has(name)) {
-            partitionedNames.push(name)
-        } else {
-            schemaNames.push(name)
-        }
-    }
-
-    const newImports: string[] = []
-    if (schemaNames.length > 0) {
-        newImports.push(`import { ${schemaNames.join(', ')} } from "./${schemaFile}";`)
-    }
-    if (partitionedNames.length > 0) {
-        newImports.push(`import { ${partitionedNames.join(', ')} } from "./${partitionedFile}";`)
-    }
-    return source.replace(schemaImport[0], newImports.join('\n'))
-}
-
-function compareConstNameLengthDescending(a: PartitionedTable, b: PartitionedTable): number {
-    return b.constName.length - a.constName.length
 }
 
 // Names inside the braces of an import line; moduleName '' matches any module

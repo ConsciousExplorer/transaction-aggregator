@@ -1,5 +1,4 @@
 import http from "node:http";
-import os from "node:os";
 import { registry } from "#src/telemetry/metrics.ts";
 
 export function createServer() {
@@ -13,31 +12,6 @@ export function createServer() {
 		) {
 			response.setHeader("Content-Type", "application/json");
 			return response.end(JSON.stringify({ status: "ok" }));
-		}
-
-		/**
-		 * Info endpoint for application metadata.
-		 * It is useful for monitoring and debugging purposes.
-		 */
-		if (request.method === "GET" && request.url === "/info") {
-			response.setHeader("Content-Type", "application/json");
-			return response.end(
-				JSON.stringify({
-					application: "Kafka Consumer",
-					description: "Kafka Consumer App for transactions",
-					node: process.version,
-					platform: process.platform,
-					arch: process.arch,
-
-					hostname: os.hostname(),
-					pid: process.pid,
-
-					uptime: Math.floor(process.uptime()),
-					startedAt: new Date(
-						Date.now() - process.uptime() * 1000
-					).toISOString()
-				})
-			);
 		}
 
 		/**

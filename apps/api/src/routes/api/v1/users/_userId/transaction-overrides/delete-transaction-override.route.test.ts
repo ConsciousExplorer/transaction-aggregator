@@ -9,24 +9,11 @@ const USER_ID = "7a1e5b3c-2d4f-4e6a-8b9c-0d1e2f3a4b5c";
 const TRANSACTION_ID = "3f8e8c1a-6b1d-4f4e-9a2b-1c9d8e7f6a5b";
 const OVERRIDE_URL = `/api/v1/users/${USER_ID}/transaction-overrides/${TRANSACTION_ID}`;
 
-// Typed off the real method so drift in the select shape breaks compilation
-const ARCHIVED: NonNullable<
-	Awaited<ReturnType<UserTransactionRepository["archiveTransactionCategory"]>>
-> = {
-	userId: USER_ID,
-	transactionId: TRANSACTION_ID,
-	occurredAt: "2026-08-15T09:30:00.000Z",
-	categoryId: 5,
-	createdAt: "2026-09-03T08:00:00.000Z",
-	updatedAt: "2026-09-03T08:00:00.000Z",
-	archivedAt: "2026-09-05T08:00:00.000Z"
-};
-
 // `satisfies` is the drift guard: the fake must match the real methods the
 // route calls, so a change to one of their signatures stops this compiling.
 const archiveTransactionCategory = mock.fn<
 	UserTransactionRepository["archiveTransactionCategory"]
->(async () => ARCHIVED);
+>(async () => {});
 const transactionRepository = {
 	archiveTransactionCategory
 } satisfies Pick<UserTransactionRepository, "archiveTransactionCategory">;
@@ -47,7 +34,7 @@ suite("DELETE /api/v1/users/:userId/transaction-overrides/:transactionId", () =>
 	});
 	beforeEach(() => {
 		archiveTransactionCategory.mock.resetCalls();
-		archiveTransactionCategory.mock.mockImplementation(async () => ARCHIVED);
+		archiveTransactionCategory.mock.mockImplementation(async () => {});
 	});
 
 	test("204: archives by transactionId, no ownership probe, no body", async () => {
@@ -58,14 +45,6 @@ suite("DELETE /api/v1/users/:userId/transaction-overrides/:transactionId", () =>
 			archiveTransactionCategory.mock.calls[0]?.arguments,
 			[USER_ID, TRANSACTION_ID]
 		);
-	});
-
-	test("204: idempotent, nothing to archive is still success", async () => {
-		archiveTransactionCategory.mock.mockImplementationOnce(
-			async () => undefined
-		);
-		const response = await app.inject({ method: "DELETE", url: OVERRIDE_URL });
-		assert.strictEqual(response.statusCode, 204);
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {

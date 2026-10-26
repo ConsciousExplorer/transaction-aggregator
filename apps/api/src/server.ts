@@ -1,4 +1,5 @@
-import { type AutoloadPluginOptions, fastifyAutoload } from "@fastify/autoload";
+import { join } from "node:path";
+import { fastifyAutoload } from "@fastify/autoload";
 import {
 	hasZodFastifySchemaValidationErrors,
 	isResponseSerializationError,
@@ -49,13 +50,12 @@ export type ServerDependencies = {
 };
 
 export type BuildServerOptions = Partial<ServerDependencies> & {
-	serverOptions?: FastifyServerOptions;
 	appInfo?: AppInfoConfig;
 	logger?: Logger;
-	pluginAutoLoadParameters?: AutoloadPluginOptions & {
-		enableSwagger?: boolean;
-	};
-	routeAutoLoadParameters?: AutoloadPluginOptions;
+	// Loads the plugins and routes folders beside this file. Off, the server
+	// has no routes and the caller registers what it wants, as route tests do.
+	autoload?: boolean;
+	enableSwagger?: boolean;
 };
 
 /**
@@ -76,11 +76,7 @@ export function buildServer(options: BuildServerOptions = {}) {
 		...options.appInfo
 	};
 
-	const serverOptions = options.serverOptions ?? {};
-
 	const {
-		pluginAutoLoadParameters,
-		routeAutoLoadParameters,
 		pool,
 		categoryRepository,
 		transactionRepository,
@@ -88,12 +84,16 @@ export function buildServer(options: BuildServerOptions = {}) {
 		queryWindow
 	} = options;
 
-	const server = fastify({
+	// Typed as Fastify's own options, so the server is a plain FastifyInstance.
+	// Left to inference, pino's Logger type becomes part of the server's type,
+	// and a caller that declares a FastifyInstance can't hold it.
+	const serverOptions: FastifyServerOptions = {
 		loggerInstance: logger,
 		logController: new LogController({ disableRequestLogging: true }),
-		genReqId: resolveTraceId,
-		...serverOptions
-	}).withTypeProvider<ZodTypeProvider>();
+		genReqId: resolveTraceId
+	};
+
+	const server = fastify(serverOptions).withTypeProvider<ZodTypeProvider>();
 
 	/**
 	 * Zod owns request validation and response serialization
@@ -143,32 +143,25 @@ export function buildServer(options: BuildServerOptions = {}) {
 	 */
 	server.register(httpMetrics);
 
-	/**
-	 * Plugin autoload
-	 * Autoload every plugin in the specified directory
-	 *
-	 * OpenAPI spec + /docs
-	 */
-	if (pluginAutoLoadParameters) {
+	if (options.autoload) {
+		// Auth, the audit line, and the OpenAPI spec with /docs
 		server.register(fastifyAutoload, {
-			...pluginAutoLoadParameters,
+			dir: join(import.meta.dirname, "plugins"),
 			ignoreFilter: IGNORE_TEST_FILES,
 			options: {
 				appInfo,
-				enableSwagger: pluginAutoLoadParameters.enableSwagger,
+				enableSwagger: options.enableSwagger ?? false,
 				tokenVerification: options.tokenVerification
 			}
 		});
-	}
 
-	/**
-	 * No autoLoadParameters → no autoload: the server carries zero routes and
-	 * the caller registers what it wants (this is what route tests do).
-	 */
-	if (routeAutoLoadParameters) {
 		server.register(fastifyAutoload, {
-			...routeAutoLoadParameters,
-			ignoreFilter: IGNORE_TEST_FILES,
+			dir: join(import.meta.dirname, "routes"),
+			// A folder named _userId is the :userId route parameter
+			routeParams: true,
+			// Only <operation>.route.ts files are routes: the schemas, mappers
+			// and tests beside them are not
+			matchFilter: /route\.(ts|js)$/,
 			options: {
 				pool,
 				categoryRepository,

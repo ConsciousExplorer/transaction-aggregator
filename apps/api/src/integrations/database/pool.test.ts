@@ -3,20 +3,28 @@ import { suite, test } from "node:test";
 import { pino } from "pino";
 import { createPool } from "./pool.ts";
 
+const SILENT_LOGGER = pino({ level: "silent" });
+
 suite("createPool", () => {
-	// statement_timeout alone never fires on a connection whose server is gone
-	// without a reset; the client-side timeout does
-	test("bounds every statement on the server and in the client, and probes idle connections", async () => {
-		const pool = createPool({}, pino({ level: "silent" }));
+	test("probes idle connections, so a dead one is dropped from the pool", async () => {
+		const pool = createPool({}, SILENT_LOGGER);
 
 		try {
-			const { statement_timeout, query_timeout, keepAlive } = pool.options;
-			assert.strictEqual(typeof statement_timeout, "number");
-			assert.strictEqual(typeof query_timeout, "number");
-			// The server cancels first, so a lock wait fails as 57014 and the
-			// client-side timeout is left for a connection that never answers
-			assert.ok(Number(statement_timeout) < Number(query_timeout));
-			assert.strictEqual(keepAlive, true);
+			assert.strictEqual(pool.options.keepAlive, true);
+		} finally {
+			await pool.end();
+		}
+	});
+
+	test("takes its timeouts from config", async () => {
+		const pool = createPool(
+			{ statement_timeout: 5_000, query_timeout: 6_000 },
+			SILENT_LOGGER
+		);
+
+		try {
+			assert.strictEqual(pool.options.statement_timeout, 5_000);
+			assert.strictEqual(pool.options.query_timeout, 6_000);
 		} finally {
 			await pool.end();
 		}

@@ -36,18 +36,13 @@ export class UnknownSchemaIdError extends Error {
 }
 
 /**
- * The registry could not give a usable answer. `status` is the HTTP status, or
- * undefined when the registry was unreachable or timed out.
+ * The registry could not give a usable answer. The message says why: it was
+ * unreachable, it answered with an HTTP error status, or the body was not
+ * what was asked for.
  */
 export class SchemaRegistryError extends Error {
-	readonly status: number | undefined;
-
-	constructor(
-		message: string,
-		context: { cause?: unknown; status: number | undefined }
-	) {
-		super(message, { cause: context.cause });
+	constructor(message: string, options: { cause: unknown }) {
+		super(message, options);
 		this.name = "SchemaRegistryError";
-		this.status = context.status;
 	}
 }

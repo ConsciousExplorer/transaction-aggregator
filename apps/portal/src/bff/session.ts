@@ -11,7 +11,7 @@ import { notSignedInError } from "./problems.ts";
 
 // The session is a sealed cookie (encrypted and signed), with no server-side store: the BFF stays
 // stateless. The browser can't read it (httpOnly), and it holds no token the API would accept.
-export type PortalSession = {
+type PortalSession = {
 	customerId: string;
 	displayName: string;
 	idToken: string;

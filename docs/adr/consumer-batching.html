@@ -584,7 +584,8 @@ for await (const message of messageStream) {
 	}
 }
 
-await flushBatch(state, "stream_end");</code></pre>
+<span class="comment">// The stream ends only on shutdown: the partial batch is read again after the restart</span>
+if (state.lingerTimer) clearTimeout(state.lingerTimer);</code></pre>
 		<ul>
 			<li>The size flush is awaited, so the loop takes nothing more from the stream until the insert and the commit are done. That wait is the consumer's only backpressure. Nothing calls <code>pause()</code>.</li>
 			<li>The linger flush runs from a timer callback, which can't be awaited. The loop keeps filling the next batch while it runs.</li>
@@ -607,11 +608,11 @@ function flushBatch(state: BatchState, trigger: FlushTrigger) {
 				<tbody>
 					<tr><td><code>size</code></td><td>the 100th record joins the batch</td><td>Yes, until the insert and commit finish</td><td>25,690 flushes, almost all of them while the 5M-row load was read</td></tr>
 					<tr><td><code>linger</code></td><td>2 s after the batch's first record</td><td>No, the loop keeps reading</td><td>2 flushes in the same period. The normal case for <code>make produce-stream</code></td></tr>
-					<tr><td><code>stream_end</code></td><td>the stream ends on shutdown</td><td>It is the loop's last step</td><td>Only on shutdown</td></tr>
 				</tbody>
 			</table>
 		</div>
 		<p class="footnote">Counts from Prometheus, <code>batch_flush_total</code> by trigger across the five consumers since they last started, 21 Oct 2026.</p>
+		<p>The stream ends only when shutdown closes the consumer. A partial batch still buffered then is not flushed: a closed consumer can't commit, so the restart reads those records again.</p>
 	</section>
 
 	<section>
@@ -768,7 +769,7 @@ function createSimulation(loadKey) {
 		postgresUp: true,
 		process: { status: "running", nextStepAt: null },
 		counters: {
-			flushes: { size: 0, linger: 0, stream_end: 0 },
+			flushes: { size: 0, linger: 0 },
 			fetches: 0,
 			rowsInserted: 0,
 			duplicatesSkipped: 0,

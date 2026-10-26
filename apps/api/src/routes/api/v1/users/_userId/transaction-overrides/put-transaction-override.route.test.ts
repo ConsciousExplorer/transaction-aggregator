@@ -25,7 +25,6 @@ const TRANSACTION: NonNullable<
 	longDescription: null,
 	amountMinor: 1234,
 	currency: "ZAR",
-	categoryId: 1,
 	category: "groceries",
 	shortDescription: "Spar",
 	metadata: {

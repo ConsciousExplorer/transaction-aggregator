@@ -23,7 +23,7 @@ export const batchSize = new Histogram({
 
 export const batchFlushTotal = new Counter({
 	name: "batch_flush_total",
-	help: "Flushes by what triggered them: size, linger or stream_end",
+	help: "Flushes by what triggered them: size or linger",
 	labelNames: ["trigger"] as const,
 	registers: [registry]
 });

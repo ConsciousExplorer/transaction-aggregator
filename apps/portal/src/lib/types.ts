@@ -23,9 +23,9 @@ export type Transaction = {
 	amount: Money;
 };
 
-export type Links = { self: string; next?: string; prev?: string };
+type Links = { self: string; next?: string; prev?: string };
 
-export type TransactionPageMeta = {
+type TransactionPageMeta = {
 	count: number;
 	limit: number;
 	sort: "-occurredAt" | "occurredAt";
@@ -46,7 +46,7 @@ export type TransactionPage = {
 	previousCursor?: string | undefined;
 };
 
-export type SummarySide = { count: number; total: Money };
+type SummarySide = { count: number; total: Money };
 
 export type SummaryRow = {
 	group: { category?: string; day?: string; week?: string; month?: string };
@@ -58,13 +58,6 @@ export type SummaryRow = {
 
 export type Summary = {
 	data: SummaryRow[];
-	meta: {
-		count: number;
-		fromDateTime: string;
-		toDateTime: string;
-		groupBy: string[];
-		interval?: "day" | "week" | "month";
-	};
 	totals: {
 		transactionCount: number;
 		credit: SummarySide;
@@ -72,8 +65,6 @@ export type Summary = {
 		netAmount: Money;
 	};
 };
-
-export type ApiSummary = Summary & { links: Links };
 
 export type Category = {
 	id: number;

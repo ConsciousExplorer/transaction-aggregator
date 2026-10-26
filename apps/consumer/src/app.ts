@@ -109,7 +109,12 @@ const writerPool = await runStartupCheck("PostgreSQL", async () => {
 		port: config.database.port,
 		user: config.database.user,
 		password: secrets.databasePassword,
-		ssl: config.database.ssl
+		ssl: config.database.ssl,
+		idleTimeoutMillis: config.database.idleTimeout,
+		connectionTimeoutMillis: config.database.connectionTimeout,
+		statement_timeout: config.database.statementTimeout,
+		query_timeout: config.database.queryTimeout,
+		keepAliveInitialDelayMillis: config.database.keepAliveDelay
 	});
 
 	/** Force a real connection and release client directly */

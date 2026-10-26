@@ -18,15 +18,7 @@ suite("route auth config", () => {
 	const routes: RouteOptions[] = [];
 
 	before(async () => {
-		app = buildServer({
-			queryWindow: { maxDays: 366 },
-			routeAutoLoadParameters: {
-				dir: import.meta.dirname,
-				dirNameRoutePrefix: true,
-				routeParams: true,
-				matchFilter: /route\.(ts|js)$/
-			}
-		});
+		app = buildServer({ queryWindow: { maxDays: 366 }, autoload: true });
 		app.addHook("onRoute", (route) => {
 			routes.push(route);
 		});

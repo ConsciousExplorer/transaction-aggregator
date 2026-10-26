@@ -81,10 +81,4 @@ suite("classifyPostgresError", () => {
 		);
 		assert.match(classified.message, /^Batch insert failed: /);
 	});
-
-	test("returns an error that is already classified unchanged", () => {
-		const classified = new RetryableError("connection died");
-
-		assert.strictEqual(classifyPostgresError(classified), classified);
-	});
 });

@@ -19,7 +19,6 @@ const USER_CATEGORY_ROWS: Awaited<
 		toCategoryId: 5,
 		toCategory: "dining",
 		toLabel: "Dining",
-		createdAt: "2026-09-01T08:00:00.000Z",
 		updatedAt: "2026-09-03T08:00:00.000Z"
 	},
 	{
@@ -29,7 +28,6 @@ const USER_CATEGORY_ROWS: Awaited<
 		toCategoryId: null,
 		toCategory: null,
 		toLabel: null,
-		createdAt: null,
 		updatedAt: null
 	}
 ];

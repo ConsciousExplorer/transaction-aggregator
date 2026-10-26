@@ -87,14 +87,11 @@ export function internalError(traceId: string) {
 
 /** Generic 4xx fallback for errors that carry a Fastify statusCode but aren't
  *  one of the named HttpProblem factories above (e.g. a framework-thrown 413). */
-export function clientError(status: number, detail?: string) {
-	const payload: HttpProblem["payload"] = {
+export function clientError(status: number, detail: string) {
+	return new HttpProblem({
 		type: "client-error",
 		title: "Request could not be processed",
-		status: status
-	};
-	if (detail !== undefined) {
-		payload.detail = detail;
-	}
-	return new HttpProblem(payload);
+		status: status,
+		detail: detail
+	});
 }

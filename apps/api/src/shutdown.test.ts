@@ -74,8 +74,7 @@ suite("shutDownGracefully", () => {
 		await shutDownGracefully(
 			buildSlowClosingServer(events),
 			buildContainerHoldingPool(buildSlowEndingPool(events)),
-			pino({ level: "silent" }),
-			0
+			pino({ level: "silent" })
 		);
 
 		assert.deepStrictEqual(events, ["server closed", "pool ended", "exit 0"]);
@@ -88,8 +87,7 @@ suite("shutDownGracefully", () => {
 		await shutDownGracefully(
 			buildFailingServer(),
 			createContainer(),
-			buildRecordingLogger(lines),
-			0
+			buildRecordingLogger(lines)
 		);
 
 		assert.strictEqual(exit.mock.callCount(), 1);

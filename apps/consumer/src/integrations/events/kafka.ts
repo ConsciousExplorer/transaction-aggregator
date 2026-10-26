@@ -7,7 +7,6 @@ import {
 } from "@opentelemetry/api";
 import {
 	type BaseOptions,
-	type BeforeHookPayloadType,
 	Consumer,
 	type ConsumerOptions,
 	type DeserializationErrorHandler,
@@ -44,10 +43,10 @@ const logger = createFileLogger(import.meta.url);
 /**
  * `undefined` is a tombstone or empty payload. A CONTINUE'd poison message
  * instead carries the raw Buffer with `metadata.deserializationError` set, so
- * anything reading `message.value` must check `hasDeserialisationFailure`
+ * anything reading `message.value` must check `getDeserialisationFailure`
  * first and cope with a missing value.
  */
-export type ConsumedValue = DecodedValue<DomainTransactionSchema> | undefined;
+type ConsumedValue = DecodedValue<DomainTransactionSchema> | undefined;
 
 export type KafkaMessage = Message<string, ConsumedValue, string, string>;
 
@@ -165,8 +164,6 @@ export function createDeadLetterSender(
 	deadLetterTopic: string
 ) {
 	return async function sendToDeadLetterQueue(failures: DeadLetterFailure[]) {
-		if (failures.length === 0) return;
-
 		const records: ReturnType<typeof buildDeadLetterRecord>[] = [];
 		for (const failure of failures) {
 			records.push(buildDeadLetterRecord(deadLetterTopic, failure));
@@ -197,13 +194,12 @@ export function createDeadLetterSender(
 }
 
 /**
- * What the stream writes onto `metadata` when the handler returned CONTINUE
- * (messages-stream.js:673). `Message.metadata` is `Record<string, unknown>`, so
- * this narrows rather than blindly casting.
+ * What the stream writes onto `metadata` when the handler returned CONTINUE.
+ * `Message.metadata` is `Record<string, unknown>`, so this narrows rather than
+ * blindly casting.
  */
 interface DeserialisationFailure {
 	error: unknown;
-	payloadType: BeforeHookPayloadType;
 }
 
 function getDeserialisationFailure(message: KafkaMessage) {
@@ -260,7 +256,7 @@ export interface BatchConsumerOptions {
 	lingerMs: number;
 }
 
-type FlushTrigger = "size" | "linger" | "stream_end";
+type FlushTrigger = "size" | "linger";
 
 /**
  * One link per message that carries a W3C traceparent header, pointing at the
@@ -405,7 +401,8 @@ export async function startBatchConsumer(
 		}
 	}
 
-	// The stream ended with a partial batch still buffered — flush it, and let
-	// a failure propagate rather than dropping the messages silently.
-	await flushBatch(state, "stream_end");
+	// The stream ends only when shutdown closes the consumer, and a closed
+	// consumer can't commit. A partial batch still buffered is read again after
+	// the restart, so it is not flushed.
+	if (state.lingerTimer) clearTimeout(state.lingerTimer);
 }

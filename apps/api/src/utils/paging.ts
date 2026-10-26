@@ -2,19 +2,13 @@ import type { ZodType } from "zod";
 import { invalidCursorError } from "#src/errors/http-problem.ts";
 import type { CursorDirection, Links } from "#src/schemas/common.ts";
 
-export interface KeysetPage<Row> {
-	/** At most limit rows, in sort order */
-	rows: Row[];
-	/** The row the next page continues from, or null when there is none */
-	nextFrom: Row | null;
-	/** The row the prev page continues from, or null when there is none */
-	prevFrom: Row | null;
-}
-
 /**
  * One page from the rows a keyset query returned when read with limit + 1.
  * The extra row only proves that another page exists in the direction read.
  * A prev page is read against the sort order, so it is flipped back.
+ *
+ * Returns at most limit rows in sort order, plus the row the next page and the
+ * prev page continue from: `nextFrom` and `prevFrom`, null when there is none.
  */
 export function buildKeysetPage<Row>(
 	fetched: Row[],

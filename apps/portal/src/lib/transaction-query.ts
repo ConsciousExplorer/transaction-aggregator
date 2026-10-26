@@ -7,7 +7,7 @@ import { buildMonthWindow } from "./summary.ts";
 //   starts a new walk through the list
 // - a walk's own state (cursor, page, and the window its first page was read with)
 
-export const PAGE_SIZES = ["10", "25", "50"];
+const PAGE_SIZES = ["10", "25", "50"];
 
 const FILTER_NAMES = [
 	"months",

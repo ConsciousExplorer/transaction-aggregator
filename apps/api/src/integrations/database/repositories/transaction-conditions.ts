@@ -44,7 +44,8 @@ export const categoryOverrideJoin = and(
 	isNull(userCategoryOverrides.archivedAt)
 );
 
-export const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
+// The category the user sees: their override, else their remap, else the stored one
+const effectiveCategoryId = sql<number>`coalesce(${userTransactionOverrides.categoryId}, ${userCategoryOverrides.toCategoryId}, ${transactions.categoryId})`;
 
 export const effectiveCategoryJoin = eq(
 	categories.categoryId,

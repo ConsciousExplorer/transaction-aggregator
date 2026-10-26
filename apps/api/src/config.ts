@@ -42,6 +42,38 @@ const configSchema = z
 		DATABASE_PASSWORD_SECRET_NAME: z.string().default("super_secret"),
 		DATABASE_POOL_MIN: z.coerce.number().int().positive().default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+		DATABASE_IDLE_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(30_000),
+		DATABASE_CONNECTION_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(10_000),
+		// The server cancels a statement that runs or waits on a lock too long. A
+		// connection whose server is gone without a reset never answers, so that
+		// cancel never arrives either; the query timeout runs in the client and
+		// fails the query a second later.
+		DATABASE_STATEMENT_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(5_000),
+		DATABASE_QUERY_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(6_000),
+		// How long a connection sits idle before TCP keep-alive probes it, so a
+		// dead one is dropped from the pool instead of being handed to the next
+		// request
+		DATABASE_KEEP_ALIVE_DELAY_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(10_000),
 		// Either one logs every statement drizzle sends. _SQL fills its values in;
 		// _PLAN adds its plan (EXPLAIN ANALYZE re-runs every read).
 		DATABASE_QUERY_LOG_SQL: z.stringbool().default(false),
@@ -80,6 +112,11 @@ const configSchema = z
 				user: environment.DATABASE_USER,
 				min: environment.DATABASE_POOL_MIN,
 				max: environment.DATABASE_POOL_MAX,
+				idleTimeout: environment.DATABASE_IDLE_TIMEOUT_MS,
+				connectionTimeout: environment.DATABASE_CONNECTION_TIMEOUT_MS,
+				statementTimeout: environment.DATABASE_STATEMENT_TIMEOUT_MS,
+				queryTimeout: environment.DATABASE_QUERY_TIMEOUT_MS,
+				keepAliveDelay: environment.DATABASE_KEEP_ALIVE_DELAY_MS,
 				queryLog: Object.freeze({
 					sql: environment.DATABASE_QUERY_LOG_SQL,
 					plan: environment.DATABASE_QUERY_LOG_PLAN

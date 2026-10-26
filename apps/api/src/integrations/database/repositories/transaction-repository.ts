@@ -25,7 +25,6 @@ import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 import {
 	buildFilterConditions,
 	categoryOverrideJoin,
-	effectiveCategoryId,
 	effectiveCategoryJoin,
 	type TransactionFilter,
 	transactionOverrideJoin
@@ -130,7 +129,6 @@ export class UserTransactionRepository {
 				amountMinor: transactions.amountMinor,
 				transactionType: transactions.transactionType,
 				currency: transactions.currency,
-				categoryId: effectiveCategoryId,
 				category: categories.category,
 				shortDescription: transactions.shortDescription,
 				metadata: transactions.metadata
@@ -180,7 +178,7 @@ export class UserTransactionRepository {
 	}
 
 	async archiveTransactionCategory(userId: string, transactionId: string) {
-		const [result] = await this.#database
+		await this.#database
 			.update(userTransactionOverrides)
 			.set({ archivedAt: sql`now()` })
 			.where(
@@ -189,9 +187,6 @@ export class UserTransactionRepository {
 					eq(userTransactionOverrides.transactionId, transactionId),
 					isNull(userTransactionOverrides.archivedAt)
 				)
-			)
-			.returning();
-
-		return result;
+			);
 	}
 }

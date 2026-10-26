@@ -20,7 +20,7 @@ An earlier version logged a failed insert and committed the offsets anyway, so t
 **Deduplicate in the database, on the business key.** The batch insert is one statement:
 
 ```sql
-INSERT … SELECT … FROM unnest(…) ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING
+INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING
 ```
 
 - A transaction's identity is its source and its source's id. The record's Kafka position, `(topic, partition, offset)`, is never used to dedupe, because a redelivery has a new offset.

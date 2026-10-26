@@ -21,8 +21,7 @@ async function loadActiveRules(db: Database) {
 			priority: categorizationRules.priority,
 			matcherType: categorizationRules.matcherType,
 			pattern: categorizationRules.pattern,
-			categoryId: categorizationRules.categoryId,
-			version: categorizationRules.rulesetVersion
+			categoryId: categorizationRules.categoryId
 		})
 		.from(categorizationRules)
 		.where(eq(categorizationRules.rulesetVersion, activeVersion))

@@ -7,7 +7,7 @@ import {
 	type TokenVerification,
 	verifyToken
 } from "#src/auth/verifier.ts";
-import { TokenVerificationError } from "#src/errors/auth-errors.ts";
+import { KeySetUnavailableError } from "#src/errors/auth-errors.ts";
 import {
 	authUnavailableError,
 	forbiddenError,
@@ -50,23 +50,15 @@ async function verifyBearerToken(
 		const claims = await verifyToken(token, tokenVerification);
 		request.authContext = buildAuthContext(claims);
 	} catch (error) {
-		if (isKeySetUnavailable(error)) {
+		if (error instanceof KeySetUnavailableError) {
 			request.log.error({ err: error }, "auth unavailable");
 			throw authUnavailableError();
 		}
 
-		// reason stays internal in logs and not returned in the response
+		// Why the token was refused stays in the log, never in the response
 		request.log.warn({ err: error }, "auth rejected");
 		throw unauthorizedError();
 	}
-}
-
-/** The signing keys could not be fetched: no token could be checked */
-function isKeySetUnavailable(error: unknown) {
-	return (
-		error instanceof TokenVerificationError &&
-		error.reason === "key-set-unavailable"
-	);
 }
 
 // onRequest, before validation: a caller without a valid token gets 401,

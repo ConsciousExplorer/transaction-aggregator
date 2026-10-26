@@ -11,10 +11,9 @@ import type { Logger } from "pino";
 export async function shutDownGracefully(
 	server: FastifyInstance,
 	container: AwilixContainer,
-	logger: Logger,
-	code: number
+	logger: Logger
 ) {
-	let exitCode = code;
+	let exitCode = 0;
 
 	try {
 		logger.warn("Shutting down services");

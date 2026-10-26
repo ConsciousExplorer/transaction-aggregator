@@ -36,6 +36,40 @@ const configSchema = z
 		DATABASE_SSL: z.stringbool().default(false),
 		DATABASE_POOL_MIN: z.coerce.number().int().min(0).default(3),
 		DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
+		DATABASE_IDLE_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(30_000),
+		DATABASE_CONNECTION_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(10_000),
+		// Without the statement and query timeouts an INSERT that never gets an
+		// answer waits forever: the flush never ends, the loop pulls nothing more,
+		// and the heartbeats keep the partitions. Either one fails the batch as
+		// retryable instead, so the process exits uncommitted and the restart
+		// reads the batch again. The statement timeout runs on the server and
+		// fires first, so a lock wait fails as 57014. The query timeout runs in
+		// the client, for a connection whose server is gone without a reset.
+		DATABASE_STATEMENT_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(25_000),
+		DATABASE_QUERY_TIMEOUT_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(30_000),
+		// How long a connection sits idle before TCP keep-alive probes it, so a
+		// dead one is dropped from the pool instead of being handed to the next batch
+		DATABASE_KEEP_ALIVE_DELAY_MS: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(10_000),
 
 		SCHEMA_REGISTRY_URL: z.url().default("http://localhost:8081"),
 
@@ -140,7 +174,6 @@ const configSchema = z
 	.transform((environment) =>
 		Object.freeze({
 			app: Object.freeze({
-				name: environment.APP_NAME,
 				host: environment.HOST,
 				port: environment.PORT
 			}),
@@ -151,7 +184,12 @@ const configSchema = z
 				user: environment.DATABASE_USER,
 				ssl: environment.DATABASE_SSL,
 				min: environment.DATABASE_POOL_MIN,
-				max: environment.DATABASE_POOL_MAX
+				max: environment.DATABASE_POOL_MAX,
+				idleTimeout: environment.DATABASE_IDLE_TIMEOUT_MS,
+				connectionTimeout: environment.DATABASE_CONNECTION_TIMEOUT_MS,
+				statementTimeout: environment.DATABASE_STATEMENT_TIMEOUT_MS,
+				queryTimeout: environment.DATABASE_QUERY_TIMEOUT_MS,
+				keepAliveDelay: environment.DATABASE_KEEP_ALIVE_DELAY_MS
 			}),
 			transactionType: environment.TRANSACTION_TYPE,
 			kafka: Object.freeze({

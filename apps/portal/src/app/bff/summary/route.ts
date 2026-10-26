@@ -3,7 +3,7 @@ import { loadConfig } from "@/bff/config.ts";
 import { respondWithProblem } from "@/bff/problems.ts";
 import { buildApiQuery } from "@/bff/query.ts";
 import { requireCustomer } from "@/bff/session.ts";
-import type { ApiSummary } from "@/lib/types.ts";
+import type { Summary } from "@/lib/types.ts";
 
 const SUMMARY_PARAMETERS = ["fromDateTime", "toDateTime", "interval"];
 
@@ -20,12 +20,8 @@ export async function GET(request: Request) {
 			method: "GET",
 			path: buildCustomerPath(customer.customerId, "/summary"),
 			query
-		})) as ApiSummary;
-		return Response.json({
-			data: summary.data,
-			meta: summary.meta,
-			totals: summary.totals
-		});
+		})) as Summary;
+		return Response.json({ data: summary.data, totals: summary.totals });
 	} catch (error) {
 		return respondWithProblem(error);
 	}

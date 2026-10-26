@@ -17,10 +17,8 @@ const AvroSchemaString = z.string().refine(
 	}
 );
 
+/** The two fields the deserialiser reads from a registry subject version */
 export const AvroSchemaObject = z.object({
-	subject: z.string(),
-	version: z.number().int().positive(),
 	id: z.number().int().positive(),
-	schemaType: z.literal("AVRO").default("AVRO"),
 	schema: AvroSchemaString
 });

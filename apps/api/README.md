@@ -200,6 +200,9 @@ All configuration comes from environment variables, validated at startup by [`sr
 | `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_NAME` | `localhost` / `5432` / `txn_agg` | Where Postgres is |
 | `DATABASE_USER` | `api_write` | Can read, and write only the override tables |
 | `DATABASE_POOL_MIN` / `DATABASE_POOL_MAX` | `3` / `10` | Postgres pool size |
+| `DATABASE_IDLE_TIMEOUT_MS` / `DATABASE_CONNECTION_TIMEOUT_MS` | `30000` / `10000` | Close an idle connection after; give up opening one after |
+| `DATABASE_STATEMENT_TIMEOUT_MS` / `DATABASE_QUERY_TIMEOUT_MS` | `5000` / `6000` | The server cancels a statement after; the client fails a query after. Keep the statement timeout lower |
+| `DATABASE_KEEP_ALIVE_DELAY_MS` | `10000` | Idle time before TCP keep-alive probes a connection |
 | `DATABASE_QUERY_LOG_SQL` | `false` | Logs each statement with its values filled in |
 | `DATABASE_QUERY_LOG_PLAN` | `false` | Logs each statement with its plan; a read runs a second time under `EXPLAIN ANALYZE` |
 | `AUTH_JWKS_URI` / `AUTH_ISSUER` / `AUTH_AUDIENCE` | `keycloak:8086` URLs / `txn-api` | Where the token keys come from, and what the token must say. Compose and `sample.env` set the URLs that work there. |

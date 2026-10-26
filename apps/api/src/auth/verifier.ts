@@ -6,8 +6,8 @@ import {
 } from "jose";
 import z from "zod";
 import {
-	InvalidClaimsError,
-	translateJoseError
+	isKeySetFailure,
+	KeySetUnavailableError
 } from "#src/errors/auth-errors.ts";
 
 export interface AuthConfig {
@@ -27,7 +27,7 @@ const verifiedClaimsSchema = z.looseObject({
 	scope: z.string()
 });
 
-export type VerifiedClaims = z.infer<typeof verifiedClaimsSchema>;
+type VerifiedClaims = z.infer<typeof verifiedClaimsSchema>;
 
 export interface AuthContext {
 	clientId: string;
@@ -36,7 +36,11 @@ export interface AuthContext {
 
 export function parseClaims(payload: JWTPayload) {
 	const result = verifiedClaimsSchema.safeParse(payload);
-	if (!result.success) throw new InvalidClaimsError(result.error.issues);
+	if (!result.success) {
+		throw new Error("Missing or malformed required claims", {
+			cause: result.error
+		});
+	}
 	return result.data;
 }
 
@@ -74,7 +78,10 @@ export async function verifyToken(
 			requiredClaims: ["exp"]
 		}));
 	} catch (error) {
-		throw translateJoseError(error);
+		if (isKeySetFailure(error)) {
+			throw new KeySetUnavailableError({ cause: error });
+		}
+		throw error;
 	}
 	return parseClaims(payload);
 }

@@ -5,8 +5,7 @@ import type { canonicalTransactionSchema } from "../schemas/transaction.ts";
 import {
 	categoriseTransaction,
 	compileRules,
-	type Rule,
-	type RuleSet
+	type Rule
 } from "./rule-categoriser.ts";
 import { buildLoanRecord } from "./test-records.ts";
 import { normaliseTransaction } from "./transaction-normaliser.ts";
@@ -19,19 +18,17 @@ function buildRule(over: Partial<Rule> = {}): Rule {
 		matcherType: "mcc",
 		pattern: "5411",
 		categoryId: 10,
-		version: 1,
 		...over
 	};
 }
 
-// Ruleset version (7) deliberately differs from rule.version (1): a verdict
-// must carry the loaded ruleset's version on every path, never the rule's own.
-function buildRuleSet(rules: Rule[], over: Partial<RuleSet> = {}) {
+// Every verdict below expects ruleVersion 7, the loaded ruleset's version, on
+// every path, the fallback included
+function buildRuleSet(rules: Rule[]) {
 	return {
 		version: 7,
 		rules,
-		uncategorisedId: 999,
-		...over
+		uncategorisedId: 999
 	};
 }
 
@@ -521,18 +518,5 @@ suite("tier precedence", () => {
 			rules
 		);
 		assert.strictEqual(verdict.matcherType, "source_credit_debit_indicator");
-	});
-});
-
-suite("verdict versioning", () => {
-	test("every verdict carries the ruleset version, not the rule's own", () => {
-		const rules = compileRules(buildRuleSet([buildRule({ version: 1 })]));
-		const matched = categoriseTransaction(
-			buildTransaction({ metadata: { mcc: "5411" } }),
-			rules
-		);
-		const fallback = categoriseTransaction(buildTransaction(), rules);
-		assert.strictEqual(matched.ruleVersion, 7);
-		assert.strictEqual(fallback.ruleVersion, 7);
 	});
 });

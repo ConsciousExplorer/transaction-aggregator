@@ -9,7 +9,6 @@ secrets/
 
 # Test scaffolding does not ship
 **/*.test.ts
-**/test-runtime.ts
 src/domain/test-records.ts
 test/
 

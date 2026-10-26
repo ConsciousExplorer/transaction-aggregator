@@ -26,7 +26,7 @@ export async function buildTestSigningKeys() {
 	};
 }
 
-export interface TestTokenOptions {
+interface TestTokenOptions {
 	issuer?: string;
 	audience?: string;
 	algorithm?: string;

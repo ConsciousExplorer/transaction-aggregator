@@ -34,19 +34,7 @@ function buildMessage(offset: number) {
 	} as unknown as KafkaMessage;
 }
 
-/**
- * Yields messages with a real gap between them. The gap matters: an
- * array-backed stream delivers everything in one microtask burst, so the
- * linger timer never gets to fire mid-flush and the race stays hidden.
- */
-async function* generateMessages(count: number, gapMilliseconds: number) {
-	for (let index = 1; index <= count; index += 1) {
-		await wait(gapMilliseconds);
-		yield buildMessage(index);
-	}
-}
-
-/** A consumer that reads the given stream: generated, or one a test pushes into. */
+/** A consumer that reads the given stream: a fixed one, or one a test pushes into. */
 function buildConsumer(stream: Readable) {
 	return {
 		async consume() {
@@ -141,8 +129,18 @@ async function waitForHandlerCalls(onBatch: Mock<BatchHandler>, count: number) {
 	}
 }
 
+async function waitForHandledOffsets(
+	onBatch: Mock<BatchHandler>,
+	count: number
+) {
+	while (readHandledOffsets(onBatch).length < count) {
+		await wait(1);
+	}
+}
+
 suite("startBatchConsumer", () => {
 	test("never runs two flushes concurrently", async () => {
+		const stream = new Readable({ objectMode: true, read() {} });
 		let active = 0;
 		let maxActive = 0;
 		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {
@@ -152,12 +150,25 @@ suite("startBatchConsumer", () => {
 			active -= 1;
 		});
 
-		await startBatchConsumer(
-			buildConsumer(Readable.from(generateMessages(7, 5))),
+		const consuming = startBatchConsumer(
+			buildConsumer(stream),
 			onBatch,
 			continueAfterDeserialisationError,
 			buildOptions()
 		);
+
+		// A real gap between messages: pushed all at once, they arrive in one
+		// microtask burst, the linger timer never fires mid-flush, and the race
+		// stays hidden
+		for (let offset = 1; offset <= 7; offset += 1) {
+			await wait(5);
+			stream.push(buildMessage(offset));
+		}
+		// Ended only once every message is handled: a batch still buffered when
+		// the stream ends is left for the restart
+		await waitForHandledOffsets(onBatch, 7);
+		stream.push(null);
+		await consuming;
 
 		assert.equal(maxActive, 1, "flushes must not overlap");
 		assert.deepEqual(
@@ -175,10 +186,7 @@ suite("startBatchConsumer", () => {
 		const consumeCalls: Array<{ maxBytes?: number }> = [];
 
 		await startBatchConsumer(
-			buildRecordingConsumer(
-				Readable.from(generateMessages(1, 1)),
-				consumeCalls
-			),
+			buildRecordingConsumer(Readable.from([buildMessage(1)]), consumeCalls),
 			mock.fn(async (_messages: ClassifiedMessage[]) => {}),
 			continueAfterDeserialisationError,
 			buildOptions({ fetchMaxBytes: 262_144 })
@@ -187,22 +195,27 @@ suite("startBatchConsumer", () => {
 		assert.strictEqual(consumeCalls[0]?.maxBytes, 262_144);
 	});
 
-	test("flushes the trailing partial batch when the stream ends", async () => {
+	// The stream ends only when shutdown closes the consumer, which can no longer
+	// commit. A flush then would store rows whose offsets are never committed, so
+	// the partial batch is left for the restart to read again.
+	test("leaves a trailing partial batch for the restart when the stream ends", async () => {
 		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {});
+		const messages = [
+			buildMessage(1),
+			buildMessage(2),
+			buildMessage(3),
+			buildMessage(4)
+		];
 
-		// 4 messages with batchSize 3 leaves one buffered at stream end.
+		// 4 messages with batchSize 3 leave one buffered when the stream ends
 		await startBatchConsumer(
-			buildConsumer(Readable.from(generateMessages(4, 1))),
+			buildConsumer(Readable.from(messages)),
 			onBatch,
 			continueAfterDeserialisationError,
 			buildOptions({ lingerMs: 10_000 })
 		);
 
-		assert.deepEqual(
-			readHandledOffsets(onBatch),
-			[1n, 2n, 3n, 4n],
-			"the 4th must not be dropped"
-		);
+		assert.deepEqual(readHandledOffsets(onBatch), [1n, 2n, 3n]);
 	});
 
 	test("a failed linger flush ends the consumer with that error", async () => {

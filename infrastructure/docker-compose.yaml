@@ -42,6 +42,41 @@
 # volume names stay transaction-aggregator-*, not infrastructure-*.
 name: transaction-aggregator
 
+# The five consumers run one image with the same settings, and differ only in
+# the source they read. Only what differs from the consumer's own defaults
+# (apps/consumer/src/config.ts) is set here.
+x-consumer: &consumer
+  build:
+    context: ../apps/consumer
+  pull_policy: build
+  restart: unless-stopped
+  depends_on:
+    migrate: { condition: service_completed_successfully }
+    schemas-register: { condition: service_completed_successfully }
+    kafka-init: { condition: service_completed_successfully }
+  volumes:
+    - ../secrets:/secrets:ro
+  networks: [txn-network]
+
+x-consumer-environment: &consumer-environment
+  # Container port 8080, unpublished; Prometheus scrapes it in-network
+  PORT: 8080
+  DATABASE_HOST: postgres
+  DATABASE_USER: kafka_consumer
+  DATABASE_PASSWORD_SECRET_NAME: consumer_database_password
+  DATABASE_POOL_MIN: 2
+  DATABASE_POOL_MAX: 3
+  SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  # CLIENT listener (in-network SASL)
+  KAFKA_BROKERS: kafka1:9094
+  KAFKA_USERNAME: consumer
+  KAFKA_PASSWORD_SECRET_NAME: consumer_kafka_password
+  # Tracing is off unless an obs run opts in (OTEL_SDK_DISABLED=false). The
+  # OTel SDK reads the endpoint and sampler itself.
+  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_TRACES_SAMPLER: always_on
+
 services:
   # ──────────────────────────────── Kafka ────────────────────────────────
   kafka1:
@@ -400,311 +435,52 @@ services:
       LOG_LEVEL: INFO
     networks: [txn-network]
 
-  # consumer-card
+  # One consumer per source: the same image, told which source it reads.
+  # Everything else they share comes from x-consumer above.
   consumer-card:
-    build:
-      context: ../apps/consumer
-    pull_policy: build
+    <<: *consumer
     container_name: consumer-card
-    restart: unless-stopped
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      schemas-register: { condition: service_completed_successfully }
-      kafka-init: { condition: service_completed_successfully }
-    volumes:
-      - ../secrets:/secrets:ro
     environment:
-      # NODE and APP configuration
-      NODE_ENV: production
-      APP_NAME: "transaction-aggregator"
-      HOST: 0.0.0.0
-      PORT: 8080
-      # Secrets and certs
-      SECRET_DIR: "/secrets"
+      <<: *consumer-environment
       TRANSACTION_TYPE: card
       KAFKA_TOPIC: transactions.card
-      # Logging configuration
-      LOG_LEVEL: info
-      # Postgres configuration
-      DATABASE_HOST: postgres
-      DATABASE_NAME: txn_agg
-      DATABASE_PORT: 5432
-      DATABASE_USER: 'kafka_consumer'
-      DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 3
-      DATABASE_IDLE_TIMEOUT: 30000
-      DATABASE_CONNECTION_TIMEOUT: 5000
-      # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # KAFKA configuration
-      KAFKA_BROKERS: 'kafka1:9094'
-      KAFKA_USERNAME: consumer
-      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-      # Kafka group membership — library defaults (60s session) stall restarts
-      KAFKA_SESSION_TIMEOUT_MS: 15000
-      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
-      KAFKA_REBALANCE_TIMEOUT_MS: 30000
-      KAFKA_REQUEST_TIMEOUT_MS: 40000
-      # Fetch and batching
-      KAFKA_MAX_WAIT_TIME_MS: 1000
-      KAFKA_FETCH_MAX_BYTES: 1048576
-      KAFKA_BATCH_SIZE: 100
-      KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: committed
-      # Secrets
-      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
-      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing — lag interval matches Prometheus scrape_interval
-      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
-      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_TRACES_SAMPLER: always_on
       OTEL_SERVICE_NAME: consumer-card
-    networks: [txn-network]
 
   consumer-eft:
-    build:
-      context: ../apps/consumer
-    pull_policy: build
+    <<: *consumer
     container_name: consumer-eft
-    restart: unless-stopped
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      schemas-register: { condition: service_completed_successfully }
-      kafka-init: { condition: service_completed_successfully }
-    volumes:
-      - ../secrets:/secrets:ro
     environment:
-      # NODE and APP configuration
-      NODE_ENV: production
-      APP_NAME: "transaction-aggregator"
-      HOST: 0.0.0.0
-      PORT: 8080
-      # Secrets and certs
-      SECRET_DIR: "/secrets"
+      <<: *consumer-environment
       TRANSACTION_TYPE: eft
       KAFKA_TOPIC: transactions.eft
-      # Logging configuration
-      LOG_LEVEL: info
-      # Postgres configuration
-      DATABASE_HOST: postgres
-      DATABASE_NAME: txn_agg
-      DATABASE_PORT: 5432
-      DATABASE_USER: 'kafka_consumer'
-      DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 3
-      DATABASE_IDLE_TIMEOUT: 30000
-      DATABASE_CONNECTION_TIMEOUT: 5000
-      # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # KAFKA configuration
-      KAFKA_BROKERS: 'kafka1:9094'
-      KAFKA_USERNAME: consumer
-      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-      # Kafka group membership — library defaults (60s session) stall restarts
-      KAFKA_SESSION_TIMEOUT_MS: 15000
-      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
-      KAFKA_REBALANCE_TIMEOUT_MS: 30000
-      KAFKA_REQUEST_TIMEOUT_MS: 40000
-      # Fetch and batching
-      KAFKA_MAX_WAIT_TIME_MS: 1000
-      KAFKA_FETCH_MAX_BYTES: 1048576
-      KAFKA_BATCH_SIZE: 100
-      KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: committed
-      # Secrets
-      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
-      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing — lag interval matches Prometheus scrape_interval
-      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
-      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_TRACES_SAMPLER: always_on
       OTEL_SERVICE_NAME: consumer-eft
-    networks: [txn-network]
 
   consumer-internal-transfer:
-    build:
-      context: ../apps/consumer
-    pull_policy: build
+    <<: *consumer
     container_name: consumer-internal-transfer
-    restart: unless-stopped
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      schemas-register: { condition: service_completed_successfully }
-      kafka-init: { condition: service_completed_successfully }
-    volumes:
-      - ../secrets:/secrets:ro
     environment:
-      # NODE and APP configuration
-      NODE_ENV: production
-      APP_NAME: "transaction-aggregator"
-      HOST: 0.0.0.0
-      PORT: 8080
-      # Secrets and certs
-      SECRET_DIR: "/secrets"
+      <<: *consumer-environment
       TRANSACTION_TYPE: internal_transfer
       KAFKA_TOPIC: transactions.internal-transfer
-      # Logging configuration
-      LOG_LEVEL: info
-      # Postgres configuration
-      DATABASE_HOST: postgres
-      DATABASE_NAME: txn_agg
-      DATABASE_PORT: 5432
-      DATABASE_USER: 'kafka_consumer'
-      DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 3
-      DATABASE_IDLE_TIMEOUT: 30000
-      DATABASE_CONNECTION_TIMEOUT: 5000
-      # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # KAFKA configuration
-      KAFKA_BROKERS: 'kafka1:9094'
-      KAFKA_USERNAME: consumer
-      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-      # Kafka group membership — library defaults (60s session) stall restarts
-      KAFKA_SESSION_TIMEOUT_MS: 15000
-      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
-      KAFKA_REBALANCE_TIMEOUT_MS: 30000
-      KAFKA_REQUEST_TIMEOUT_MS: 40000
-      # Fetch and batching
-      KAFKA_MAX_WAIT_TIME_MS: 1000
-      KAFKA_FETCH_MAX_BYTES: 1048576
-      KAFKA_BATCH_SIZE: 100
-      KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: committed
-      # Secrets
-      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
-      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing — lag interval matches Prometheus scrape_interval
-      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
-      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_TRACES_SAMPLER: always_on
       OTEL_SERVICE_NAME: consumer-internal-transfer
-    networks: [txn-network]
 
   consumer-debit-order:
-    build:
-      context: ../apps/consumer
-    pull_policy: build
+    <<: *consumer
     container_name: consumer-debit-order
-    restart: unless-stopped
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      schemas-register: { condition: service_completed_successfully }
-      kafka-init: { condition: service_completed_successfully }
-    volumes:
-      - ../secrets:/secrets:ro
     environment:
-      # NODE and APP configuration
-      NODE_ENV: production
-      APP_NAME: "transaction-aggregator"
-      HOST: 0.0.0.0
-      PORT: 8080
-      # Secrets and certs
-      SECRET_DIR: "/secrets"
+      <<: *consumer-environment
       TRANSACTION_TYPE: debit_order
       KAFKA_TOPIC: transactions.debit-order
-      # Logging configuration
-      LOG_LEVEL: info
-      # Postgres configuration
-      DATABASE_HOST: postgres
-      DATABASE_NAME: txn_agg
-      DATABASE_PORT: 5432
-      DATABASE_USER: 'kafka_consumer'
-      DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 3
-      DATABASE_IDLE_TIMEOUT: 30000
-      DATABASE_CONNECTION_TIMEOUT: 5000
-      # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # KAFKA configuration
-      KAFKA_BROKERS: 'kafka1:9094'
-      KAFKA_USERNAME: consumer
-      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-      # Kafka group membership — library defaults (60s session) stall restarts
-      KAFKA_SESSION_TIMEOUT_MS: 15000
-      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
-      KAFKA_REBALANCE_TIMEOUT_MS: 30000
-      KAFKA_REQUEST_TIMEOUT_MS: 40000
-      # Fetch and batching
-      KAFKA_MAX_WAIT_TIME_MS: 1000
-      KAFKA_FETCH_MAX_BYTES: 1048576
-      KAFKA_BATCH_SIZE: 100
-      KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: committed
-      # Secrets
-      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
-      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing — lag interval matches Prometheus scrape_interval
-      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
-      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_TRACES_SAMPLER: always_on
       OTEL_SERVICE_NAME: consumer-debit-order
-    networks: [txn-network]
 
   consumer-loan:
-    build:
-      context: ../apps/consumer
-    pull_policy: build
+    <<: *consumer
     container_name: consumer-loan
-    restart: unless-stopped
-    depends_on:
-      migrate: { condition: service_completed_successfully }
-      schemas-register: { condition: service_completed_successfully }
-      kafka-init: { condition: service_completed_successfully }
-    volumes:
-      - ../secrets:/secrets:ro
     environment:
-      # NODE and APP configuration
-      NODE_ENV: production
-      APP_NAME: "transaction-aggregator"
-      HOST: 0.0.0.0
-      PORT: 8080
-      # Secrets and certs
-      SECRET_DIR: "/secrets"
+      <<: *consumer-environment
       TRANSACTION_TYPE: loan
       KAFKA_TOPIC: transactions.loan
-      # Logging configuration
-      LOG_LEVEL: info
-      # Postgres configuration
-      DATABASE_HOST: postgres
-      DATABASE_NAME: txn_agg
-      DATABASE_PORT: 5432
-      DATABASE_USER: 'kafka_consumer'
-      DATABASE_POOL_MIN: 2
-      DATABASE_POOL_MAX: 3
-      DATABASE_IDLE_TIMEOUT: 30000
-      DATABASE_CONNECTION_TIMEOUT: 5000
-      # Schema Registry configuration
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # KAFKA configuration
-      KAFKA_BROKERS: 'kafka1:9094'
-      KAFKA_USERNAME: consumer
-      KAFKA_SASL_MECHANISM: SCRAM-SHA-512
-      # Kafka group membership — library defaults (60s session) stall restarts
-      KAFKA_SESSION_TIMEOUT_MS: 15000
-      KAFKA_HEARTBEAT_INTERVAL_MS: 5000
-      KAFKA_REBALANCE_TIMEOUT_MS: 30000
-      KAFKA_REQUEST_TIMEOUT_MS: 40000
-      # Fetch and batching
-      KAFKA_MAX_WAIT_TIME_MS: 1000
-      KAFKA_FETCH_MAX_BYTES: 1048576
-      KAFKA_BATCH_SIZE: 100
-      KAFKA_BATCH_LINGER_MS: 2000
-      KAFKA_READ_MODE: committed
-      # Secrets
-      DATABASE_PASSWORD_SECRET_NAME: 'consumer_database_password'
-      KAFKA_PASSWORD_SECRET_NAME: 'consumer_kafka_password'
-      # Metrics and tracing — lag interval matches Prometheus scrape_interval
-      KAFKA_LAG_MONITORING_INTERVAL_MS: 10000
-      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_TRACES_SAMPLER: always_on
       OTEL_SERVICE_NAME: consumer-loan
-    networks: [txn-network]
 
   api:
     build: { context: ../apps/api }
@@ -719,7 +495,6 @@ services:
     volumes:
       - ../secrets:/secrets:ro
     environment:
-      NODE_ENV: 'production'
       HTTP_PORT: 8083
       ENABLE_SWAGGER: true
       # make load runs it at info: debug logs every pool acquire and release

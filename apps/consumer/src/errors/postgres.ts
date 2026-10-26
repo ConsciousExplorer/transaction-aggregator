@@ -1,3 +1,4 @@
+import { DatabaseError } from "pg";
 import { NonRetryableError, RetryableError } from "./consumer-errors.ts";
 
 /**
@@ -26,15 +27,24 @@ const PG_DIAGNOSTIC_FIELDS = [
 	"severity"
 ] as const;
 
-function isBadRowPostgresCode(code: string) {
-	return BAD_ROW_CLASSES.has(code.slice(0, 2));
+/**
+ * Only the server answers with a SQLSTATE. A connection that fails carries a
+ * syscall code (ECONNREFUSED, ECONNRESET) or none at all, and is never a bad row.
+ */
+function isBadRowError(error: unknown) {
+	if (!(error instanceof DatabaseError) || error.code === undefined) {
+		return false;
+	}
+	return BAD_ROW_CLASSES.has(error.code.slice(0, 2));
 }
 
-function extractDiagnostics(error: Record<string, unknown>) {
+function extractDiagnostics(error: unknown) {
 	const details: Record<string, unknown> = {};
+	if (!(error instanceof Error)) return details;
 
+	const fields = error as Error & Record<string, unknown>;
 	for (const field of PG_DIAGNOSTIC_FIELDS) {
-		if (error[field] !== undefined) details[field] = error[field];
+		if (fields[field] !== undefined) details[field] = fields[field];
 	}
 
 	return details;
@@ -44,37 +54,15 @@ export function classifyPostgresError(
 	error: unknown,
 	message = "Postgres operation failed"
 ) {
-	// Already classified upstream — don't re-wrap and lose the original context.
-	if (error instanceof RetryableError || error instanceof NonRetryableError) {
-		return error;
-	}
-
-	if (typeof error !== "object" || error === null) {
-		return new NonRetryableError(message, { cause: error });
-	}
-
-	const candidate = error as Record<string, unknown>;
-	const code = typeof candidate.code === "string" ? candidate.code : undefined;
-	const details = extractDiagnostics(candidate);
 	const reason =
 		error instanceof Error ? `${message}: ${error.message}` : message;
+	const details = extractDiagnostics(error);
 
-	if (code && isBadRowPostgresCode(code)) {
+	if (isBadRowError(error)) {
 		return new NonRetryableError(reason, { cause: error, details });
 	}
 
-	// Every other SQLSTATE, and the socket failures that carry a syscall code
-	// in its place (ECONNREFUSED, ECONNRESET, ETIMEDOUT, ...).
-	if (code) {
-		return new RetryableError(reason, { cause: error, details });
-	}
-
-	// No code at all means the connection died mid-flight rather than the
-	// server rejecting the statement — pg surfaces these as plain Errors
-	// ("Connection terminated unexpectedly", pool acquisition timeouts).
-	if (error instanceof Error) {
-		return new RetryableError(reason, { cause: error, details });
-	}
-
-	return new NonRetryableError(reason, { cause: error, details });
+	// Every other failure is the database or the connection, and fails every
+	// row alike
+	return new RetryableError(reason, { cause: error, details });
 }

@@ -12,8 +12,9 @@ import {
 import { buildCategorisedRow, CATEGORY_IDS } from "./helpers/rows.ts";
 
 // The consumer's batch insert, run as kafka_consumer and read back as admin.
-// It binds one array per column by position and lets Postgres zip them, skip
-// duplicates and choose the partition, so only Postgres can show the result.
+// It sends the batch as one JSON array and lets Postgres turn it into rows,
+// convert each value to its column's type, skip duplicates and choose the
+// partition, so only Postgres can show the result.
 
 /** Every column the insert writes, for one user, ordered by external id */
 async function readStoredRows(adminPool: Pool, userId: string) {
@@ -90,8 +91,8 @@ suite("the consumer's batch insert", () => {
 
 	test("every field of a batch lands in its own column", async () => {
 		const userId = randomUUID();
-		// Every column holds a value no other column holds, so a swapped pair
-		// of same-typed arrays shows up as a wrong value
+		// Every column holds a value no other column holds, so two same-typed
+		// columns mapped the wrong way round show up as a wrong value
 		const full = buildCategorisedRow({
 			userId,
 			externalId: "full",
@@ -102,8 +103,8 @@ suite("the consumer's batch insert", () => {
 			amountMinor: 123_456_789_012,
 			longDescription: "long description",
 			shortDescription: "short description",
-			// node-postgres sends the array as a Postgres array literal, so these
-			// strings are escaped twice on the way in
+			// The batch goes over as JSON with metadata nested inside it, so
+			// these strings have to survive its escaping
 			metadata: {
 				reference: 'a "quoted" \\ backslash and non-ASCII é ü ✓',
 				nested: { list: [1, "two", null] }

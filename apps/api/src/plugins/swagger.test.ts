@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
 import { after, before, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "#src/server.ts";
@@ -17,16 +16,8 @@ suite("OpenAPI contract", () => {
 	before(async () => {
 		app = buildServer({
 			queryWindow: { maxDays: 366 },
-			pluginAutoLoadParameters: {
-				dir: import.meta.dirname,
-				enableSwagger: true
-			},
-			routeAutoLoadParameters: {
-				dir: join(import.meta.dirname, "../routes"),
-				dirNameRoutePrefix: true,
-				routeParams: true,
-				matchFilter: /route\.(ts|js)$/
-			}
+			autoload: true,
+			enableSwagger: true
 		});
 		await app.ready();
 	});

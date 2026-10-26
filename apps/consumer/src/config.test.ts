@@ -31,8 +31,6 @@ const sampleEnv: Record<string, string | undefined> = {
 	DATABASE_PASSWORD_SECRET_NAME: "db_password",
 	DATABASE_POOL_MIN: "2",
 	DATABASE_POOL_MAX: "10",
-	DATABASE_IDLE_TIMEOUT: "30000",
-	DATABASE_CONNECTION_TIMEOUT: "5000",
 
 	// # Schema Registry configuration
 	SCHEMA_REGISTRY_URL: "http://localhost:8081",
@@ -90,6 +88,24 @@ suite("loadConfig", () => {
 
 	test("bounds each fetch to 1 MiB by default, so a backlog can't fill memory", () => {
 		assert.strictEqual(loadConfig(sampleEnv).kafka.fetchMaxBytes, 1_048_576);
+	});
+
+	// The server cancels first, so a lock wait fails as 57014 and the
+	// client-side timeout is left for a connection that never answers
+	test("by default the statement timeout fires before the query timeout", () => {
+		const { database } = loadConfig(sampleEnv);
+		assert.ok(database.statementTimeout < database.queryTimeout);
+	});
+
+	test("an environment value overrides a pool timeout's default", () => {
+		const config = loadConfig({
+			...sampleEnv,
+			DATABASE_IDLE_TIMEOUT_MS: "5000",
+			DATABASE_CONNECTION_TIMEOUT_MS: "2000"
+		});
+
+		assert.strictEqual(config.database.idleTimeout, 5000);
+		assert.strictEqual(config.database.connectionTimeout, 2000);
 	});
 
 	test("missing KAFKA_TOPIC fails validation", () => {

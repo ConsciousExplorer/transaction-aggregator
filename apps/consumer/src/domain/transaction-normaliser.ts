@@ -61,7 +61,6 @@ export function normaliseTransaction(
 	try {
 		normalised = mapToCanonical(transaction, transactionType);
 	} catch (error) {
-		if (error instanceof NonRetryableError) throw error;
 		throw new NonRetryableError("Transaction could not be normalised", {
 			cause: error,
 			details: { transactionType: transaction.transactionType }
