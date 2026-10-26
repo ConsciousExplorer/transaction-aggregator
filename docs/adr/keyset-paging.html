@@ -647,8 +647,8 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   </section>
 
   <section class="ref" aria-labelledby="namingTitle">
-    <h2 id="namingTitle">KeysetPage or CursorPage?</h2>
-    <p class="verdict">Keep <code>KeysetPage</code>. It holds rows, and the cursor is made from them one layer up.</p>
+    <h2 id="namingTitle">buildKeysetPage or buildCursorPage?</h2>
+    <p class="verdict">Keep <code>buildKeysetPage</code>. It returns rows, and the cursor is made from them one layer up.</p>
     <div class="prose">
       <p>Keyset is the technique: seek past the last row's sort key instead of counting rows. A cursor is what the client holds: a position it sends back. The code already uses each word for its own layer:</p>
     </div>
@@ -657,15 +657,15 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
         <thead><tr><th scope="col">Layer</th><th scope="col">What it holds</th><th scope="col">Names today</th><th scope="col">Word</th></tr></thead>
         <tbody>
           <tr><th scope="row">Repository</th><td>The seek on the sort key</td><td><code>cursorBound</code>, <code>cursorSeek</code></td><td>keyset, fed by the cursor's position</td></tr>
-          <tr><th scope="row"><code>paging.ts</code></th><td>Up to limit rows, plus the boundary rows <code>nextFrom</code> and <code>prevFrom</code></td><td><code>KeysetPage</code>, <code>buildKeysetPage</code></td><td>keyset: it holds rows, not cursors</td></tr>
+          <tr><th scope="row"><code>paging.ts</code></th><td>Up to limit rows, plus the boundary rows <code>nextFrom</code> and <code>prevFrom</code></td><td><code>buildKeysetPage</code></td><td>keyset: it holds rows, not cursors</td></tr>
           <tr><th scope="row">Route</th><td>A boundary row turned into a position, and back</td><td><code>buildPageCursor</code>, <code>encodeCursor</code>, <code>decodeCursor</code>, <code>transactionPageCursorSchema</code></td><td>cursor</td></tr>
           <tr><th scope="row">Wire</th><td>One opaque query value a client sends back</td><td><code>cursor</code>: base64url of <code>{ direction, position }</code></td><td>cursor: what clients know it as</td></tr>
         </tbody>
       </table>
     </div>
     <div class="prose">
-      <h3>Why not CursorPage</h3>
-      <p>It would say the object carries cursors when it carries rows. The route turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word should change.</p>
+      <h3>Why not buildCursorPage</h3>
+      <p>It would say the page carries cursors when it carries rows. The route turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word should change.</p>
       <p>In Postgres, a cursor is <code>DECLARE … CURSOR</code>: a server-side position held open between fetches. Keyset paging holds nothing between requests, and that is its whole point. Keeping "keyset" on the database side avoids an interviewer asking whether a cursor stays open between page requests.</p>
       <p><code>buildKeysetPage(fetched, limit, cursorDirection, hasCursor)</code> takes cursor words as inputs. That is correct: they are facts about the request, not about the page.</p>
     </div>
@@ -695,7 +695,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     ["2026-09-03T07:41:12.204518Z", "Woolworths Food", "card", "debit", 84237, "groceries"],
     ["2026-09-05T12:03:55.918004Z", "Engen Rosebank", "card", "debit", 95000, "fuel"],
     ["2026-09-08T18:22:41.000731Z", "Uber Eats", "card", "debit", 23450, "dining"],
-    ["2026-09-10T09:15:02.663120Z", "Rent, 14 Oak Ave", "eft", "debit", 1250000, "housing"],
+    ["2026-09-10T09:15:02.663120Z", "Rent, 14 Oak Ave", "eft", "debit", 1250000, "recurring_payments"],
     ["2026-09-12T13:47:19.330981Z", "Checkers Sixty60", "card", "debit", 61289, "groceries"],
     ["2026-09-15T08:00:00.112934Z", "Transfer to savings", "internal_transfer", "debit", 200000, "transfers"],
     ["2026-09-15T08:00:00.112935Z", "Transfer from cheque", "internal_transfer", "credit", 200000, "transfers"],
@@ -704,15 +704,15 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     ["2026-09-24T16:05:08.091447Z", "Gautrain", "card", "debit", 5000, "transport"],
     ["2026-09-25T06:30:00.000000Z", "Salary, Acme (Pty) Ltd", "eft", "credit", 3845000, "income"],
     ["2026-09-26T19:44:13.276590Z", "Spur Steak Ranches", "card", "debit", 48600, "dining"],
-    ["2026-09-28T10:02:47.918332Z", "Takealot refund", "eft", "credit", 129900, "shopping"],
+    ["2026-09-28T10:02:47.918332Z", "Takealot refund", "eft", "credit", 129900, "retail"],
     ["2026-09-29T15:51:20.640075Z", "Gautrain", "card", "debit", 5000, "transport"],
     ["2026-10-01T00:00:00.000000Z", "Discovery Health", "debit_order", "debit", 312450, "medical"],
     ["2026-10-01T00:00:00.000000Z", "Vodacom contract", "debit_order", "debit", 59900, "utilities"],
     ["2026-10-01T00:00:00.000000Z", "Netflix", "debit_order", "debit", 19900, "entertainment"],
     ["2026-10-02T08:14:39.501226Z", "Woolworths Food", "card", "debit", 102344, "groceries"],
-    ["2026-10-03T14:22:07.481203Z", "Bond repayment", "debit_order", "debit", 985000, "housing"],
+    ["2026-10-03T14:22:07.481203Z", "Bond repayment", "debit_order", "debit", 985000, "loan_repayment"],
     ["2026-10-05T17:36:58.023418Z", "Mugg & Bean", "card", "debit", 8650, "dining"],
-    ["2026-10-06T09:58:31.774051Z", "Takealot", "card", "debit", 129900, "shopping"]
+    ["2026-10-06T09:58:31.774051Z", "Takealot", "card", "debit", 129900, "retail"]
   ];
   const ARRIVALS = [
     ["2026-10-07T12:10:44.390117Z", "Pick n Pay", "card", "debit", 45612, "groceries"],

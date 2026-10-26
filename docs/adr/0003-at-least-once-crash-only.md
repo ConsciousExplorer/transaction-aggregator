@@ -37,8 +37,8 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 | --- | --- |
 | Bytes that won't decode | Dead-lettered as `deserialisation`, and the batch continues |
 | A message that fails normalising or validation | Dead-lettered as `processing`, and the batch continues |
-| A row Postgres rejects (SQLSTATE class 22 or 23) | The batch is retried one message at a time, so only the bad row is dead-lettered |
-| Any other database error, a dropped connection, or a statement past its timeout | `RetryableError`: the process exits with code 1 and nothing is committed |
+| A row Postgres rejects (a `DatabaseError` with SQLSTATE class 22 or 23) | The batch is retried one message at a time, so only the bad row is dead-lettered |
+| Any other database error, a dropped connection, or a statement past its timeout (`DATABASE_STATEMENT_TIMEOUT_MS`) | `RetryableError`: the process exits with code 1 and nothing is committed |
 | A schema id the consumer didn't load at startup | The process exits, and the restart loads the new schema version |
 
 **Crash rather than retry.**

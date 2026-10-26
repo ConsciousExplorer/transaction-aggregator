@@ -38,7 +38,7 @@ The end user signs in to the calling app, not to this API. That app knows who th
 **Rate limiting belongs to the gateway in front of the API, not to the API.** The API protects its database with capacity limits instead:
 
 - a pool of at most 10 connections;
-- a 5-second statement timeout;
+- a 5-second statement timeout (`DATABASE_STATEMENT_TIMEOUT_MS`);
 - at most 100 rows a page;
 - a 366-day window ([0010](0010-wire-conventions.md)).
 

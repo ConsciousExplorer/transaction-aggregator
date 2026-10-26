@@ -37,11 +37,11 @@ Card traffic dwarfs the others. A slow or broken source should not hold the othe
 
 - **Isolation:** sources fail, lag and restart independently. Stopping `consumer-eft` stops only EFT ingest.
 - **Scaling:** card can get more instances (up to its 12 partitions) without touching the others.
-- **Duplicated settings:** compose repeats a service block four times, and they differ only in those two settings. A change to one setting means four edits.
+- **Shared settings, one place:** the four compose services share the `x-consumer` and `x-consumer-environment` blocks. Each sets only its container name, `TRANSACTION_TYPE`, `KAFKA_TOPIC` and `OTEL_SERVICE_NAME`.
 - **Shared resources:** all four share the broker, Postgres and one Kafka user. A database outage stops them all, by design ([0003](0003-at-least-once-crash-only.md)).
 - **Shared code:** a bug in the shared code reaches every source at once.
 
 ## Revisit when
 
 - A source needs different processing after normalising, not just a different normaliser.
-- The number of sources grows enough that four-way duplication in deployment config costs more than it isolates.
+- The number of sources grows enough that one container per source costs more than it isolates.

@@ -18,7 +18,7 @@ The rules are tried in tiers, and the first match wins:
 
 1. **MCC:** the card's merchant category code.
 2. **Keyword:** a word in the description. Card and debit order only.
-3. **Source and operation:** the source plus `metadata.operation`.
+3. **Source and operation:** the source plus `metadata.operation`. No seeded rule uses this tier since the loan source was removed, and no normaliser sets `operation`.
 4. **Source and credit/debit:** for example, an EFT credit is `income`.
 5. **Source default.**
 6. **Fallback:** `uncategorised`.
@@ -30,6 +30,7 @@ Categorising can't fail, because the fallback always matches. The rule set is lo
 - `rule_sets` holds the versions, and `categorization_rules` holds each version's rules. The active version is the highest.
 - Every stored row records the category, the `rule_version` and the `rule_priority` that matched. A composite foreign key points at that exact rule. A null priority means the fallback matched.
 - A rule change is a new version, added by a migration. The apps can only read the rule tables, so only a migration can change them.
+- Before the first release the seed is edited in place, and every database is rebuilt from empty. Version 1 lost the three loan rules that way.
 - Rows already stored keep the version that categorised them.
 - The seed pins the 16 category ids, so the ids are the same in every environment.
 
@@ -58,7 +59,7 @@ Categorising can't fail, because the fallback always matches. The rule set is lo
 - **Old rows keep old verdicts:** re-categorising history would need a backfill job, which doesn't exist.
 - **Reads cost two joins:** every read joins the two override tables. Both are small and keyed for the join.
 - **Downstream sees the system category:** anything reading stored rows directly, such as an export, gets the system category unless it applies the same resolution ([0011](0011-egress.md)).
-- **Append-only is partly by convention:** the grants stop the apps changing rules, but nothing stops a migration editing a version's rows.
+- **Append-only is partly by convention:** the grants stop the apps changing rules, but nothing stops a migration editing a version's rows. A database built before an in-place edit keeps the old rules, because migrations that have already run aren't applied again.
 
 ## Revisit when
 

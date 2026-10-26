@@ -57,7 +57,7 @@ A page of a user's transactions is an index scan inside the partitions its windo
 
 ## Consequences
 
-- **One write path:** there is one insert statement, and a new source needs a normaliser and a schema but no DDL.
+- **One write path:** there is one insert statement. A new source needs a normaliser, a schema and one new value in the `transaction_type` enum, but no new table or column.
 - **No statistics on JSON keys:** Postgres keeps none. The day a key needs filtering, the ladder is an expression index, then `CREATE STATISTICS`, then a `STORED` generated column.
 - **The database doesn't check `metadata`:** the column is nullable with no CHECK, and its keys are fixed only by the normalisers' code.
 - **Corrected timestamps duplicate rows:** the unique key includes `occurred_at`, so a source that re-sends an id with a corrected time creates a second row.

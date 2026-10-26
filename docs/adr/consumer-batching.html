@@ -495,7 +495,7 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 
 		<article class="station" data-area="loop" data-arrow="down" id="station-loop">
 			<h3><span class="stage">4</span>for await loop</h3>
-			<p class="where">kafka.ts:390</p>
+			<p class="where">kafka.ts:386</p>
 			<span class="pill" id="loop-state" data-tone="fetch">pulling</span>
 			<p class="detail" id="loop-detail"></p>
 		</article>
@@ -565,7 +565,7 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 	<section>
 		<h2>One loop, two ways to flush</h2>
 		<p>The whole consumer is one <code>for await</code> loop over the message stream. Each pass adds one record to the batch. The first record starts a linger timer. The hundredth record makes the loop <code>await</code> a size flush.</p>
-<pre><code><span class="comment">// apps/consumer/src/integrations/events/kafka.ts:390-410</span>
+<pre><code><span class="comment">// apps/consumer/src/integrations/events/kafka.ts:386-407</span>
 for await (const message of messageStream) {
 	state.messages.push(message);
 
@@ -591,7 +591,7 @@ if (state.lingerTimer) clearTimeout(state.lingerTimer);</code></pre>
 			<li>The linger flush runs from a timer callback, which can't be awaited. The loop keeps filling the next batch while it runs.</li>
 			<li>Both go through <code>flushBatch</code>, which chains every flush onto one promise, so two flushes never run at the same time.</li>
 		</ul>
-<pre><code><span class="comment">// kafka.ts:353-362, comments trimmed</span>
+<pre><code><span class="comment">// kafka.ts:349-358, comments trimmed</span>
 function flushBatch(state: BatchState, trigger: FlushTrigger) {
 	const flushed = state.inFlight.then(() =&gt; drainBatch(state, trigger));
 	state.inFlight = flushed;
@@ -625,8 +625,8 @@ function flushBatch(state: BatchState, trigger: FlushTrigger) {
 			<li>Sends poison records to the dead-letter topic with their raw bytes and headers.</li>
 			<li>Commits the highest offset of each partition. The group's offset moves only now, after the data is stored.</li>
 		</ol>
-		<p>Measured here: 59 ms per flush on average (p50 41 ms, p95 198 ms), 49 ms of it the insert, for full batches of 100. One consumer works through about 1,700 records a second while catching up.</p>
-		<p class="source">kafka.ts:301-351 drainBatch · transactionBatchHandler.ts · transaction-ingester.ts · commit.ts</p>
+		<p>Measured here: 59 ms per flush on average (p50 41 ms, p95 198 ms), 49 ms of it the insert, for full batches of 100. These were measured with the earlier <code>unnest</code> insert, before it became <code>json_populate_recordset</code>, and haven't been measured again. One consumer works through about 1,700 records a second while catching up.</p>
+		<p class="source">kafka.ts:297-347 drainBatch · transactionBatchHandler.ts · transaction-ingester.ts · commit.ts</p>
 	</section>
 
 	<section>

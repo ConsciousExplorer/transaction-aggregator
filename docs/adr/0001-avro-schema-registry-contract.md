@@ -30,7 +30,8 @@ The schemas change over time. `schemas/v2/card.avsc` already adds a field.
 
 - **A field added with a default** can ship producer-first. Each running consumer restarts once, on the first message with the new id.
 - **A removed field** that the consumer reads ships consumer-first. BACKWARD allows a removal, so the registry won't stop it.
-- **A change BACKWARD rejects** goes to a new topic, such as `transactions.card.v2`.
+- **A change BACKWARD rejects** goes to a new topic, such as `transactions.card.v2`. Removing an enum symbol is one of these, because the new schema can't read old records that carry it.
+- **Before the first release** the schemas are changed in place, and the stack is rebuilt from empty volumes (`make clean`, then `make up`). `loan` was removed from `TransactionType` that way. A stack that kept its volumes still has the old versions, and the registry would refuse the new ones.
 
 CI's `schemas` workflow checks the same rule without a registry. Each schema must read the records of its version on the base branch, and each `schemas/vN` file must read its base schema.
 

@@ -2,7 +2,7 @@
 
 ## Decisions
 
-Each record states what was decided, what was rejected and why, and what would make us look again. They follow a transaction's path, from the wire to the API.
+Each record states what was decided, what was rejected and why, and what would make us look again. 0001 to 0011 follow a transaction's path, from the wire to the API. 0012 is about the data that drives it.
 
 | ADR | Decision |
 | --- | --- |
@@ -17,6 +17,7 @@ Each record states what was decided, what was rejected and why, and what would m
 | [0009](0009-keyset-paging.md) | Keyset paging with an opaque cursor |
 | [0010](0010-wire-conventions.md) | Money, categories and date windows on the wire |
 | [0011](0011-egress.md) | Other systems read through the API; events and exports come later |
+| [0012](0012-test-data-from-the-schemas.md) | Test data is generated from the schemas, with avro-datagen |
 
 ## How it works
 
