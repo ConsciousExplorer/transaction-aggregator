@@ -52,7 +52,7 @@ Synthetic data generators stand in for the source systems, so the whole system r
 
 The decisions behind this design, each with the alternatives it rejected, are recorded in [docs/adr](docs/adr/README.md): from Avro as the contract and at-least-once delivery, through the table and database roles, to the API's auth, paging and wire conventions.
 
-Three pages there look closer at how it works: the [message flow](docs/adr/message-flow.html) from producer to row or dead-letter topic, [consumer batching](docs/adr/consumer-batching.html) with its fetches and flushes, and [keyset paging](docs/adr/keyset-paging.html) in the API. They are self-contained HTML, so open them in a browser after cloning, for example `open docs/adr/message-flow.html`.
+Four pages there look closer at how it works: the [message flow](docs/adr/message-flow.html) from producer to row or dead-letter topic, [consumer batching](docs/adr/consumer-batching.html) with its fetches and flushes, [keyset paging](docs/adr/keyset-paging.html) in the API, and the [CI pipelines](docs/adr/ci-pipelines.html) that guard each app and both contracts. They are self-contained HTML, so open them in a browser after cloning, for example `open docs/adr/message-flow.html`.
 
 ## Components
 

@@ -4,9 +4,9 @@
 
 set -eo pipefail
 
-ALLOWED_ADVISORIES=(
-  PYSEC-2026-4320 # certifi 2026.7.22, fixed in 2026.10.19
-)
+# One advisory per line, with the package and its fixed version, e.g.
+#   PYSEC-2026-4320 # certifi 2026.7.22, fixed in 2026.10.19
+ALLOWED_ADVISORIES=()
 
 cd "$(dirname "$0")/.."
 
