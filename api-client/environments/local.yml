@@ -1,0 +1,12 @@
+name: local
+variables:
+  - name: api
+    value: http://localhost:8083
+  - name: idp
+    value: http://localhost:8086
+  - name: schema-registry
+    value: http://localhost:8081
+  - name: userId
+    value: 30440930-4207-4d26-bc11-1d65c07fe6c3
+  - name: accountId
+    value: c37b3e53-c30c-4c5a-b547-85fdadedd459

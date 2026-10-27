@@ -1,0 +1,166 @@
+import assert from "node:assert";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { suite, test } from "node:test";
+import { loadConfig } from "#src/config.ts";
+import { loadSecrets } from "#src/utils/secrets.ts";
+
+// Config only carries the secretsSpec; loadSecrets reads the files on disk.
+const secretsDir = mkdtempSync(join(tmpdir(), "config-secrets-"));
+writeFileSync(join(secretsDir, "db_password"), "db-pw-from-file\n");
+writeFileSync(join(secretsDir, "kafka_password"), "  kafka-pw-from-file  ");
+
+const sampleEnv: Record<string, string | undefined> = {
+	// # NODE and APP configuration
+	APP_NAME: "transaction-aggregator",
+	HOST: "0.0.0.0",
+	PORT: "6000",
+
+	// # Secrets and certs
+	SECRET_DIR: secretsDir,
+
+	// # Logging configuration
+	LOG_LEVEL: "info",
+
+	// # Postgres configuration
+	DATABASE_HOST: "localhost",
+	DATABASE_NAME: "txn_agg",
+	DATABASE_PORT: "5432",
+	DATABASE_USER: "kafka_consumer",
+	DATABASE_PASSWORD_SECRET_NAME: "db_password",
+	DATABASE_POOL_MIN: "2",
+	DATABASE_POOL_MAX: "10",
+
+	// # Schema Registry configuration
+	SCHEMA_REGISTRY_URL: "http://localhost:8081",
+
+	// # KAFKA configuration
+	KAFKA_BROKERS: "localhost:9092",
+	KAFKA_TOPIC: "transactions.card",
+	KAFKA_USERNAME: "consumer",
+	KAFKA_PASSWORD_SECRET_NAME: "kafka_password",
+	KAFKA_SASL_MECHANISM: "SCRAM-SHA-512"
+};
+
+suite("loadConfig", () => {
+	test("config loads correctly when all values are loaded", () => {
+		const config = loadConfig(sampleEnv);
+		assert.strictEqual(config.database.user, "kafka_consumer");
+	});
+
+	test("TRANSACTION_TYPE derives the group id and stays canonical", () => {
+		const config = loadConfig({
+			...sampleEnv,
+			TRANSACTION_TYPE: "debit_order",
+			KAFKA_TOPIC: "transactions.debit-order"
+		});
+
+		assert.strictEqual(config.transactionType, "debit_order");
+		assert.strictEqual(
+			config.kafka.groupId,
+			"transaction-consumer-debit_order"
+		);
+	});
+
+	test("topic comes from KAFKA_TOPIC as-is; DLQ topic is <topic>.dlq", () => {
+		// Topic names are explicit config (dashed on the broker:
+		// transactions.debit-order); never derived from the canonical type.
+		const config = loadConfig({
+			...sampleEnv,
+			TRANSACTION_TYPE: "internal_transfer",
+			KAFKA_TOPIC: "transactions.internal-transfer"
+		});
+
+		assert.strictEqual(
+			config.kafka.topics.main,
+			"transactions.internal-transfer"
+		);
+		assert.strictEqual(
+			config.kafka.topics.deadLetter,
+			"transactions.internal-transfer.dlq"
+		);
+	});
+
+	test("reads from committed offsets by default, so a restart resumes", () => {
+		assert.strictEqual(loadConfig(sampleEnv).kafka.readMode, "committed");
+	});
+
+	test("bounds each fetch to 1 MiB by default, so a backlog can't fill memory", () => {
+		assert.strictEqual(loadConfig(sampleEnv).kafka.fetchMaxBytes, 1_048_576);
+	});
+
+	// The server cancels first, so a lock wait fails as 57014 and the
+	// client-side timeout is left for a connection that never answers
+	test("by default the statement timeout fires before the query timeout", () => {
+		const { database } = loadConfig(sampleEnv);
+		assert.ok(database.statementTimeout < database.queryTimeout);
+	});
+
+	test("an environment value overrides a pool timeout's default", () => {
+		const config = loadConfig({
+			...sampleEnv,
+			DATABASE_IDLE_TIMEOUT_MS: "5000",
+			DATABASE_CONNECTION_TIMEOUT_MS: "2000"
+		});
+
+		assert.strictEqual(config.database.idleTimeout, 5000);
+		assert.strictEqual(config.database.connectionTimeout, 2000);
+	});
+
+	test("missing KAFKA_TOPIC fails validation", () => {
+		const { KAFKA_TOPIC, ...rest } = sampleEnv;
+		assert.throws(() => loadConfig(rest));
+	});
+
+	test("rejects an unknown TRANSACTION_TYPE", () => {
+		assert.throws(() =>
+			loadConfig({ ...sampleEnv, TRANSACTION_TYPE: "bitcoin" })
+		);
+	});
+
+	test("should fail validation required vars are not passed", () => {
+		const { DATABASE_USER, KAFKA_USERNAME, ...rest } = sampleEnv;
+		assert.throws(() => loadConfig(rest), {
+			name: "Error"
+		});
+	});
+
+	test("LOG_REDACT_DEPTH must be a positive integer", () => {
+		assert.doesNotThrow(() =>
+			loadConfig({ ...sampleEnv, LOG_REDACT_DEPTH: "5" })
+		);
+		assert.throws(() => loadConfig({ ...sampleEnv, LOG_REDACT_DEPTH: "0" }));
+	});
+
+	test("rejects an unknown LOG_LEVEL", () => {
+		assert.throws(() => loadConfig({ ...sampleEnv, LOG_LEVEL: "verbose" }));
+	});
+
+	test("reads each secret from the file named by its env var", () => {
+		const config = loadConfig(sampleEnv);
+		const secrets = loadSecrets(config.secretsSpec);
+
+		assert.strictEqual(secrets.databasePassword, "db-pw-from-file");
+		assert.strictEqual(secrets.kafkaPassword, "kafka-pw-from-file");
+	});
+
+	test("secrets are kept out of the loggable config sections", () => {
+		const config = loadConfig(sampleEnv);
+
+		assert.ok(!("password" in config.database));
+		assert.ok(!("password" in config.kafka.sasl));
+	});
+
+	test("fails when the named secret file is missing", () => {
+		const config = loadConfig({
+			...sampleEnv,
+			DATABASE_PASSWORD_SECRET_NAME: "not_mounted"
+		});
+
+		assert.throws(
+			() => loadSecrets(config.secretsSpec),
+			/Unable to read secret "not_mounted"/
+		);
+	});
+});

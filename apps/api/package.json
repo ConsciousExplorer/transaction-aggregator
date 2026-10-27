@@ -1,0 +1,70 @@
+{
+	"name": "Transaction API",
+	"version": "1.0.0",
+	"description": "Transaction API for client transactions",
+	"license": "ISC",
+	"author": "transaction@fakemail.com",
+	"type": "module",
+	"main": "src/app.ts",
+	"scripts": {
+		"precheck": "npx madge --circular --extensions ts --warning src/",
+		"check": "npx tsc",
+		"lib:update": "npx npm-check-updates --interactive --format group",
+		"lib:audit": "npx audit-ci --config ./audit-ci.json",
+		"format": "npx @biomejs/biome format --write .",
+		"lint": "npx @biomejs/biome check --write . && npm run spell",
+		"spell": "cspell \"**/*.{ts,js}\"",
+		"start": "node --env-file=.env --watch src/app.ts | pino-pretty --colorize",
+		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
+		"test:unit": "node --test 'src/**/*.test.ts' --test-skip-pattern integration",
+		"test:integration": "node --env-file=test.env --test 'test/integration/**/*.test.ts'",
+		"biome:migrate": "npx @biomejs/biome migrate --write",
+		"drizzle:pull-schema": "npx drizzle-kit pull --config=drizzle.config.ts && node scripts/cleanup-drizzle-pull.ts",
+		"drizzle:studio": "npx drizzle-kit studio --port=3000 --config=drizzle.config.ts",
+		"generate-contract": "node scripts/generate-openapi.ts"
+	},
+	"imports": {
+		"#src/*": "./src/*"
+	},
+	"madge": {
+		"detectiveOptions": {
+			"ts": {
+				"skipTypeImports": true
+			}
+		},
+		"tsConfig": {
+			"compilerOptions": {
+				"module": "NodeNext",
+				"moduleResolution": "NodeNext"
+			}
+		}
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.15",
+		"@types/node": "24.x",
+		"@types/pg": "8.23.1",
+		"audit-ci": "7.1.0",
+		"cspell": "10.4.0",
+		"drizzle-kit": "0.31.11",
+		"pino-pretty": "^13.2.0",
+		"testcontainers": "12.2.1",
+		"typescript": "^7.0.2"
+	},
+	"dependencies": {
+		"@fastify/autoload": "6.5.1",
+		"@fastify/swagger": "9.9.2",
+		"@fastify/swagger-ui": "6.1.2",
+		"@fastify/type-provider-zod": "1.0.1",
+		"@opentelemetry/api": "1.9.1",
+		"@opentelemetry/auto-instrumentations-node": "0.81.0",
+		"@opentelemetry/core": "2.12.0",
+		"@prometheus-io/client": "0.16.1",
+		"awilix": "13.0.5",
+		"drizzle-orm": "0.45.4",
+		"fastify": "^5.12.7",
+		"fastify-plugin": "6.0.1",
+		"jose": "6.2.12",
+		"pg": "8.23.1",
+		"zod": "^4.6.7"
+	}
+}

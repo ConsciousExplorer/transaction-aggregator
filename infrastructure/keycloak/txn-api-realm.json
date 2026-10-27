@@ -1,0 +1,297 @@
+{
+	"realm": "txn-api",
+	"enabled": true,
+	"accessTokenLifespan": 900,
+
+    "roles": {
+        "realm": [
+                { "name": "admins", "description": "Full kafbat-ui access" },
+                { "name": "viewers", "description": "Read-only kafbat-ui access" }
+            ]
+    },
+
+    "users": [
+            {
+                "username": "kafka-admin",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "kafka-admin@txn.local",
+                "firstName": "Kafka",
+                "lastName": "Admin",
+                "credentials": [{ "type": "password", "value": "kafka-password", "temporary": false }],
+                "realmRoles": ["admins"]
+            },
+            {
+                "username": "kafka-viewer",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "kafka-viewer@txn.local",
+                "firstName": "Kafka",
+                "lastName": "Viewer",
+                "credentials": [{ "type": "password", "value": "kafka-password", "temporary": false }],
+                "realmRoles": ["viewers"]
+            },
+            {
+                "username": "john.doe",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "john.doe@portal.demo",
+                "firstName": "John",
+                "lastName": "Doe",
+                "attributes": { "customer_id": ["46acaa64-caf9-4577-b4a0-c25f09a8bb66"] },
+                "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
+            },
+            {
+                "username": "jane.doe",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "jane.doe@portal.demo",
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "attributes": { "customer_id": ["12fdd94b-dc11-42fe-8c95-128011e02e77"] },
+                "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
+            },
+            {
+                "username": "richard.roe",
+                "enabled": true,
+                "emailVerified": true,
+                "email": "richard.roe@portal.demo",
+                "firstName": "Richard",
+                "lastName": "Roe",
+                "attributes": { "customer_id": ["212e1295-0e18-4f7a-8c3e-36d106b12844"] },
+                "credentials": [{ "type": "password", "value": "portal-password", "temporary": false }]
+            }
+    ],
+
+	"clientScopes": [
+		{
+			"name": "tx:read",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "tx:read scope mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-client-role-mapper",
+					"config": {
+						"include.in.token.scope": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "tx:write",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "tx:write scope mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-client-role-mapper",
+					"config": {
+						"include.in.token.scope": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "ops",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "ops scope mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-client-role-mapper",
+					"config": {
+						"include.in.token.scope": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "groups",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "realm-roles-as-groups",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-realm-role-mapper",
+					"config": {
+						"multivalued": "true",
+						"claim.name": "groups",
+						"id.token.claim": "true",
+						"access.token.claim": "true",
+						"userinfo.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "profile",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "username",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-property-mapper",
+					"config": {
+						"user.attribute": "username",
+						"claim.name": "preferred_username",
+						"id.token.claim": "true",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "email",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "email",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-property-mapper",
+					"config": {
+						"user.attribute": "email",
+						"claim.name": "email",
+						"id.token.claim": "true",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "roles",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "realm roles",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-usermodel-realm-role-mapper",
+					"config": {
+						"claim.name": "realm_access.roles",
+						"multivalued": "true",
+						"id.token.claim": "true",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		},
+		{
+			"name": "txn-api-audience",
+			"protocol": "openid-connect",
+			"protocolMappers": [
+				{
+					"name": "txn-api audience mapper",
+					"protocol": "openid-connect",
+					"protocolMapper": "oidc-audience-mapper",
+					"config": {
+						"included.custom.audience": "txn-api",
+						"id.token.claim": "false",
+						"access.token.claim": "true"
+					}
+				}
+			]
+		}
+	],
+
+	"clients": [
+		{
+			"clientId": "banking-portal",
+            "name": "banking-portal",
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"serviceAccountsEnabled": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"secret": "banking-portal-secret",
+			"defaultClientScopes": ["tx:read", "tx:write", "txn-api-audience"]
+		},
+		{
+			"clientId": "banking-service",
+            "name": "banking-service",
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"serviceAccountsEnabled": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"secret": "banking-service-secret",
+			"defaultClientScopes": ["tx:read", "txn-api-audience"]
+		},
+		{
+			"clientId": "ops-console",
+            "name": "ops-console",
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"serviceAccountsEnabled": true,
+			"standardFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"secret": "ops-console-secret",
+			"defaultClientScopes": ["ops", "txn-api-audience"]
+		},
+        {
+            "clientId": "kafbat-ui",
+            "protocol": "openid-connect",
+            "publicClient": false,
+            "standardFlowEnabled": true,
+            "serviceAccountsEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "secret": "kafbat-ui-secret",
+            "redirectUris": ["http://localhost:8080/login/oauth2/code/keycloak"],
+            "defaultClientScopes": ["profile", "email", "roles", "groups"]
+        },
+        {
+            "clientId": "banking-portal-web",
+            "name": "banking-portal-web",
+            "protocol": "openid-connect",
+            "publicClient": false,
+            "secret": "banking-portal-web-secret",
+            "standardFlowEnabled": true,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "redirectUris": ["http://localhost:8084/bff/auth/callback"],
+            "webOrigins": ["http://localhost:8084"],
+            "attributes": {
+                "pkce.code.challenge.method": "S256",
+                "post.logout.redirect.uris": "http://localhost:8084/*"
+            },
+            "defaultClientScopes": ["profile"],
+            "protocolMappers": [
+                {
+                    "name": "customer id",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "config": {
+                        "user.attribute": "customer_id",
+                        "claim.name": "customer_id",
+                        "jsonType.label": "String",
+                        "id.token.claim": "true",
+                        "access.token.claim": "false",
+                        "userinfo.token.claim": "true"
+                    }
+                },
+                {
+                    "name": "full name",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-full-name-mapper",
+                    "config": {
+                        "id.token.claim": "true",
+                        "access.token.claim": "false",
+                        "userinfo.token.claim": "true"
+                    }
+                }
+            ]
+        }
+
+	],
+
+	"components": {
+		"org.keycloak.userprofile.UserProfileProvider": [
+			{
+				"providerId": "declarative-user-profile",
+				"subComponents": {},
+				"config": {
+					"kc.user.profile.config": ["{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"customer_id\",\"displayName\":\"Customer id\",\"validations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"]
+				}
+			}
+		]
+	}
+}

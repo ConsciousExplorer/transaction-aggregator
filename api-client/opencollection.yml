@@ -1,0 +1,28 @@
+opencollection: 1.0.0
+
+info:
+  name: transaction-aggregation
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+    openapi:
+      - sourceUrl: "../apps/api/openapi: '3.0.json"
+        groupBy: tags
+        lastSyncDate: 2026-08-29T16:02:41.568Z
+        specHash: b9464a38ffc5af630b1a10be45045bbd
+        autoCheck: true
+        autoCheckInterval: 5

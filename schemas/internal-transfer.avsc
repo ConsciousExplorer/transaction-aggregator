@@ -1,0 +1,104 @@
+{
+  "type": "record",
+  "name": "InternalTransferTransaction",
+  "namespace": "transactions",
+  "partitionKey": "customerId",
+  "doc": "Movement of funds between two accounts held by the same customer.",
+  "fields": [
+    {
+      "name": "transactionId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "transactionType",
+      "type": { "type": "enum", "name": "TransactionType", "symbols": ["card", "eft", "debit_order", "internal_transfer"] },
+      "doc": "What kind of transaction this is, with the same values as the database's transaction_type.",
+      "arg.properties": { "options": ["internal_transfer"] }
+    },
+    {
+      "name": "customerId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "arg.properties": { "pool": { "size": 5000, "seed": "customers-v1" } }
+    },
+    {
+      "name": "accountId",
+      "type": { "type": "string", "logicalType": "uuid" },
+      "doc": "Customer account the transaction occurred on.",
+      "arg.properties": { "pool": { "size": 3, "per": "customerId", "seed": "accounts-v1" } }
+    },
+    {
+      "name": "fromAccountId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "toAccountId",
+      "type": { "type": "string", "logicalType": "uuid" }
+    },
+    {
+      "name": "fromAccountType",
+      "type": "string",
+      "arg.properties": {
+        "options": ["current", "current", "savings", "credit", "money-market"]
+      }
+    },
+    {
+      "name": "toAccountType",
+      "type": "string",
+      "arg.properties": {
+        "options": ["savings", "savings", "current", "credit", "money-market"]
+      }
+    },
+    {
+      "name": "amount",
+      "type": "long",
+      "doc": "Amount in cents, the minor unit of ZAR. Divide by 100 for rands.",
+      "arg.properties": { "range": { "min": 5000, "max": 2500000 } }
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "arg.properties": { "options": ["ZAR"] }
+    },
+    {
+      "name": "creditDebitIndicator",
+      "type": { "type": "enum", "name": "CreditDebitIndicator", "symbols": ["credit", "debit"] },
+      "doc": "Whether the money came into the customer's account (credit) or left it (debit), as a bank statement shows it. The amount is always positive.",
+      "arg.properties": { "options": ["debit"] }
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "arg.properties": {
+        "template": "Transfer from {fromAccountType} to {toAccountType}"
+      }
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "arg.properties": {
+        "options": [
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "COMPLETED",
+          "PENDING",
+          "PENDING",
+          "PENDING",
+          "REVERSED",
+          "REVERSED",
+          "FAILED"
+        ]
+      }
+    },
+    {
+      "name": "timestamp",
+      "type": { "type": "long", "logicalType": "timestamp-millis" },
+      "arg.properties": { "range": { "min": "-548d", "max": "now" } }
+    }
+  ]
+}

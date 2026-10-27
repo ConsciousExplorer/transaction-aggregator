@@ -1,0 +1,2205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Consumer Flush Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a control strip, then the consumer drawn as a loop of eight stations
+   (Kafka → fetch → buffer → loop → batch → flush queue → Postgres → commit → back to Kafka),
+   a trace of the last few seconds beside the event-loop log, then the notes in one reading column. */
+:root {
+	--paper: #eef2f5;
+	--panel: #fbfcfd;
+	--ink: #15212c;
+	--muted: #586878;
+	--rule: #d3dce4;
+	--track: #e2e8ee;
+	--code-bg: #e6ecf1;
+	--fetch: #3f51c7;
+	--size: #0b7285;
+	--linger: #a8640a;
+	--commit: #2b7a4b;
+	--fail: #c2312f;
+	--poison: #9c2f8f;
+	--font-display: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif;
+	--font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--paper: #0d1318;
+		--panel: #131b22;
+		--ink: #e2e9ef;
+		--muted: #8fa0af;
+		--rule: #26333e;
+		--track: #1b2630;
+		--code-bg: #18222b;
+		--fetch: #8f9cff;
+		--size: #3cb4c9;
+		--linger: #e3a33f;
+		--commit: #5cc488;
+		--fail: #f2706b;
+		--poison: #d47fd0;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--paper: #0d1318;
+	--panel: #131b22;
+	--ink: #e2e9ef;
+	--muted: #8fa0af;
+	--rule: #26333e;
+	--track: #1b2630;
+	--code-bg: #18222b;
+	--fetch: #8f9cff;
+	--size: #3cb4c9;
+	--linger: #e3a33f;
+	--commit: #5cc488;
+	--fail: #f2706b;
+	--poison: #d47fd0;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font: 400 15px/1.55 var(--font-body);
+	padding-block: 32px 72px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	-webkit-text-size-adjust: 100%;
+}
+.page { max-width: 1240px; margin: 0 auto; display: grid; gap: 28px; }
+
+.masthead { display: grid; gap: 10px; max-width: 74ch; }
+.eyebrow {
+	margin: 0;
+	font: 600 12px/1.2 var(--font-mono);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+h1 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-stretch: 82%;
+	font-weight: 800;
+	font-size: clamp(32px, 5.4vw, 52px);
+	line-height: 1;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+.lede { margin: 0; font-size: 16px; max-width: 70ch; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+a { color: var(--fetch); }
+
+/* The lab: controls, status, ruler, board, trace */
+.lab {
+	background: var(--panel);
+	border: 1px solid var(--rule);
+	border-radius: 10px;
+	padding: 18px;
+	display: grid;
+	gap: 18px;
+	min-width: 0;
+}
+.controls { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; }
+.control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.control-label {
+	font: 600 11px/1 var(--font-mono);
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.segmented { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.segmented button {
+	border: 0;
+	border-right: 1px solid var(--rule);
+	background: transparent;
+	color: var(--ink);
+	padding: 7px 12px;
+	font: 500 13px/1.2 var(--font-body);
+	cursor: pointer;
+}
+.segmented button:last-child { border-right: 0; }
+.segmented button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.button, select {
+	border: 1px solid var(--rule);
+	background: var(--panel);
+	color: var(--ink);
+	border-radius: 6px;
+	padding: 7px 12px;
+	font: 500 13px/1.2 var(--font-body);
+	cursor: pointer;
+}
+.button:hover, select:hover, .segmented button:hover { border-color: var(--muted); }
+.button[aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--panel); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--fetch); outline-offset: 2px; }
+.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--tone, var(--muted)); flex: none; }
+.button .swatch { margin-right: 6px; vertical-align: 0; }
+
+.load-note { margin: 0; font-size: 14px; color: var(--muted); max-width: 90ch; }
+
+.status-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 22px;
+	align-items: center;
+	padding-block: 10px;
+	border-block: 1px solid var(--rule);
+}
+.stat { display: flex; gap: 6px; align-items: baseline; font-size: 13px; color: var(--muted); }
+.stat b { font: 600 14px/1 var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.clock { font: 600 14px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.pill {
+	--tone: var(--muted);
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 5px 10px;
+	border-radius: 999px;
+	font: 600 12.5px/1.15 var(--font-body);
+	color: var(--tone);
+	background: color-mix(in srgb, var(--tone) 13%, transparent);
+	width: fit-content;
+	max-width: 100%;
+}
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tone); flex: none; }
+[data-tone="fetch"] { --tone: var(--fetch); }
+[data-tone="size"] { --tone: var(--size); }
+[data-tone="linger"] { --tone: var(--linger); }
+[data-tone="commit"] { --tone: var(--commit); }
+[data-tone="fail"] { --tone: var(--fail); }
+[data-tone="poison"] { --tone: var(--poison); }
+[data-tone="muted"] { --tone: var(--muted); }
+
+/* Uncommitted-offset ruler */
+.ruler { display: grid; gap: 8px; }
+.ruler-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.ruler-head strong { color: var(--ink); font-weight: 600; }
+.ruler-bar { display: flex; height: 20px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.ruler-bar span { height: 100%; flex: none; transition: width 80ms linear; }
+.ruler-bar .segment-flush { background: var(--size); }
+.ruler-bar .segment-batch { background: color-mix(in srgb, var(--fetch) 70%, var(--panel)); }
+.ruler-bar .segment-buffer { background: color-mix(in srgb, var(--fetch) 35%, var(--panel)); }
+.ruler-bar .segment-broker {
+	background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 30%, transparent) 0 4px, transparent 4px 8px);
+	flex: 1 1 auto;
+}
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend b { color: var(--ink); font: 600 12.5px var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* The board: eight stations drawn as a loop */
+.board {
+	display: grid;
+	gap: 30px;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-areas:
+		"kafka fetch buffer loop"
+		"commit postgres queue batch";
+}
+.station {
+	position: relative;
+	border: 1px solid var(--rule);
+	border-radius: 8px;
+	padding: 12px 14px 14px;
+	display: grid;
+	gap: 9px;
+	align-content: start;
+	min-width: 0;
+	background: var(--panel);
+}
+.station h3 {
+	margin: 0;
+	display: flex;
+	gap: 8px;
+	align-items: baseline;
+	font: 700 14px/1.2 var(--font-display);
+	font-stretch: 88%;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+}
+.stage { font: 600 11px/1 var(--font-mono); color: var(--muted); letter-spacing: 0; }
+.where { font: 400 11.5px/1.3 var(--font-mono); color: var(--muted); margin: -4px 0 0; overflow-wrap: anywhere; }
+.figure { font: 600 26px/1 var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.figure small { font: 500 13px var(--font-body); color: var(--muted); letter-spacing: 0; }
+.detail { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.detail code { color: var(--ink); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; text-align: right; font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.station[data-area="kafka"] { grid-area: kafka; }
+.station[data-area="fetch"] { grid-area: fetch; }
+.station[data-area="buffer"] { grid-area: buffer; }
+.station[data-area="loop"] { grid-area: loop; }
+.station[data-area="batch"] { grid-area: batch; }
+.station[data-area="queue"] { grid-area: queue; }
+.station[data-area="postgres"] { grid-area: postgres; }
+.station[data-area="commit"] { grid-area: commit; }
+
+.station::after {
+	position: absolute;
+	font: 600 16px/1 var(--font-mono);
+	color: var(--muted);
+	pointer-events: none;
+}
+.station[data-arrow="right"]::after { content: "→"; right: -23px; top: 50%; transform: translateY(-50%); }
+.station[data-arrow="left"]::after { content: "←"; left: -23px; top: 50%; transform: translateY(-50%); }
+.station[data-arrow="down"]::after { content: "↓"; bottom: -25px; left: 50%; transform: translateX(-50%); }
+.station[data-arrow="up"]::after { content: "↑"; top: -25px; left: 50%; transform: translateX(-50%); }
+
+.station.is-pulsing { animation: pulse 480ms ease-out; }
+@keyframes pulse {
+	from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--fetch) 45%, transparent); border-color: var(--fetch); }
+	to { box-shadow: 0 0 0 10px transparent; }
+}
+
+.meter { position: relative; height: 14px; background: var(--track); border-radius: 3px; }
+.meter-fill { height: 100%; width: 0; background: var(--fetch); border-radius: 3px; }
+.meter-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.meter-scale { display: flex; justify-content: space-between; font: 400 11px var(--font-mono); color: var(--muted); }
+
+.batch-grid { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; }
+.cell { aspect-ratio: 1; max-width: 100%; background: var(--track); border-radius: 1.5px; }
+.cell.is-filled { background: var(--fetch); }
+.cell.is-poison { background: var(--poison); }
+.cell.is-bad { background: var(--fail); }
+.linger { display: grid; gap: 5px; }
+.linger-track { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.linger-fill { height: 100%; width: 0; background: var(--linger); }
+.linger-label { font-size: 12.5px; color: var(--muted); }
+
+.queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.queue-list li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 2px 8px;
+	align-items: baseline;
+	font-size: 12.5px;
+	padding: 6px 8px;
+	border-radius: 5px;
+	background: var(--track);
+}
+.queue-list li[data-status="running"] { background: color-mix(in srgb, var(--tone) 16%, var(--panel)); }
+.queue-list li[data-status="failed"], .queue-list li[data-status="rejected"] { background: color-mix(in srgb, var(--fail) 14%, var(--panel)); }
+.queue-list .swatch { align-self: center; }
+.queue-list .flush-name { font: 600 12.5px var(--font-mono); }
+.queue-list .flush-state { grid-column: 2; color: var(--muted); overflow-wrap: anywhere; }
+.queue-empty { color: var(--muted); font-size: 13px; }
+
+/* Trace + event loop */
+.trace-row { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 18px; }
+.panel-title {
+	margin: 0 0 8px;
+	font: 700 13px/1.2 var(--font-display);
+	font-stretch: 88%;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	align-items: baseline;
+}
+.panel-title span { font: 400 12px var(--font-body); text-transform: none; letter-spacing: 0; color: var(--muted); }
+.timeline { margin: 0; min-width: 0; }
+.timeline canvas { display: block; width: 100%; height: 206px; }
+.event-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.event-log li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 1px 8px;
+	font-size: 12.5px;
+	line-height: 1.4;
+	padding-block: 3px;
+	border-bottom: 1px solid var(--rule);
+}
+.event-log time { grid-row: span 2; font: 500 11.5px/1.4 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.event-log .event-text { display: flex; gap: 7px; align-items: baseline; }
+.event-log .event-text .swatch { transform: translateY(-1px); }
+.event-log .repeats { font: 600 11px var(--font-mono); color: var(--muted); }
+
+/* Notes */
+.notes { display: grid; gap: 34px; max-width: 78ch; }
+.notes section { display: grid; gap: 12px; min-width: 0; }
+.notes h2 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-stretch: 86%;
+	font-weight: 750;
+	font-size: 25px;
+	line-height: 1.15;
+	text-wrap: balance;
+}
+.notes p, .notes li { margin: 0; }
+.notes ul, .notes ol { margin: 0; padding-left: 22px; display: grid; gap: 7px; }
+.source { font: 400 12px var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+pre {
+	margin: 0;
+	background: var(--code-bg);
+	border-radius: 7px;
+	padding: 14px 16px;
+	overflow-x: auto;
+	font: 400 12.5px/1.6 var(--font-mono);
+	tab-size: 2;
+}
+pre .comment { color: var(--muted); }
+pre .mark-size { color: var(--size); font-weight: 600; }
+pre .mark-linger { color: var(--linger); font-weight: 600; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); }
+th { font: 600 11.5px/1.3 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sum { font-family: var(--font-mono); font-size: 13.5px; background: var(--code-bg); border-radius: 7px; padding: 12px 16px; overflow-x: auto; white-space: nowrap; }
+.footnote { font-size: 13px; color: var(--muted); }
+
+@media (max-width: 1100px) {
+	.board {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-areas: "kafka fetch" "buffer loop" "batch queue" "postgres commit";
+		gap: 14px;
+	}
+	.station::after { content: none !important; }
+	.trace-row { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+	.board { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kafka" "fetch" "buffer" "loop" "batch" "queue" "postgres" "commit"; }
+	.lab { padding: 14px; }
+	.figure { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.station.is-pulsing { animation: none; }
+	.ruler-bar span { transition: none; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+	<p class="eyebrow">apps/consumer · startBatchConsumer</p>
+	<h1>Consumer Flush Simulator</h1>
+	<p class="lede">A playable model of the consumer's batching loop. Records come off Kafka in fetches, wait in the stream's buffer, and the <code>for await</code> loop moves them one at a time into a batch. A batch is flushed when it holds 100 records, or 2 s after its first record arrived. A flush inserts the batch in one Postgres transaction, then commits the Kafka offset. Change the load or inject a failure to see each path.</p>
+</header>
+
+<section class="lab" aria-label="Simulation">
+	<div class="controls">
+		<div class="control" role="group" aria-labelledby="load-label">
+			<span class="control-label" id="load-label">Load</span>
+			<div class="segmented">
+				<button type="button" id="load-backlog" data-load="backlog" aria-pressed="true">Backlog</button>
+				<button type="button" id="load-steady" data-load="steady" aria-pressed="false">Steady stream</button>
+				<button type="button" id="load-trickle" data-load="trickle" aria-pressed="false">Trickle</button>
+			</div>
+		</div>
+		<div class="control">
+			<label class="control-label" for="speed">Speed</label>
+			<select id="speed">
+				<option value="0.02">0.02×</option>
+				<option value="0.05" selected>0.05×</option>
+				<option value="0.1">0.1×</option>
+				<option value="0.25">0.25×</option>
+				<option value="0.5">0.5×</option>
+				<option value="1">1×</option>
+				<option value="2">2×</option>
+			</select>
+			<button type="button" class="button" id="play">Pause</button>
+			<button type="button" class="button" id="reset">Reset</button>
+		</div>
+		<div class="control" role="group" aria-labelledby="inject-label">
+			<span class="control-label" id="inject-label">Inject</span>
+			<button type="button" class="button" id="inject-poison"><span class="swatch" data-tone="poison"></span>Poison record</button>
+			<button type="button" class="button" id="inject-bad-row"><span class="swatch" data-tone="fail"></span>Bad row</button>
+			<button type="button" class="button" id="toggle-postgres" aria-pressed="false">Stop Postgres</button>
+		</div>
+	</div>
+	<p class="load-note" id="load-note"></p>
+
+	<div class="status-row">
+		<span class="pill" id="process-chip" data-tone="commit">process running</span>
+		<span class="stat">consumer time <b class="clock" id="clock">0.000 s</b></span>
+		<span class="stat" id="speed-note"></span>
+		<span class="stat"><span class="swatch" data-tone="size"></span>size flushes <b id="count-size">0</b></span>
+		<span class="stat"><span class="swatch" data-tone="linger"></span>linger flushes <b id="count-linger">0</b></span>
+		<span class="stat">rows inserted <b id="count-rows">0</b></span>
+		<span class="stat">dead-lettered <b id="count-dlq">0</b></span>
+		<span class="stat">restarts <b id="count-restarts">0</b></span>
+		<span class="stat">peak buffer <b id="count-peak">0</b></span>
+	</div>
+
+	<div class="ruler">
+		<div class="ruler-head">
+			<span><strong>Uncommitted offsets</strong>, from the committed offset onward. If the process died now, a restart would read all of these again.</span>
+			<span>scale: 4,000 offsets</span>
+		</div>
+		<div class="ruler-bar" aria-hidden="true">
+			<span class="segment-flush" id="ruler-flush"></span>
+			<span class="segment-batch" id="ruler-batch"></span>
+			<span class="segment-buffer" id="ruler-buffer"></span>
+			<span class="segment-broker" id="ruler-broker"></span>
+		</div>
+		<div class="legend">
+			<span><span class="swatch" data-tone="size"></span>in a running flush <b id="legend-flush">0</b></span>
+			<span><span class="swatch" style="background: color-mix(in srgb, var(--fetch) 70%, var(--panel))"></span>in the batch <b id="legend-batch">0</b></span>
+			<span><span class="swatch" style="background: color-mix(in srgb, var(--fetch) 35%, var(--panel))"></span>in the stream buffer <b id="legend-buffer">0</b></span>
+			<span><span class="swatch" data-tone="muted"></span>on the broker, not fetched <b id="legend-broker">0</b></span>
+		</div>
+	</div>
+
+	<div class="board">
+		<article class="station" data-area="kafka" data-arrow="right" id="station-kafka">
+			<h3><span class="stage">1</span>Kafka partition</h3>
+			<p class="where">transactions.card · partition 0</p>
+			<dl class="facts">
+				<dt>log end offset</dt><dd id="kafka-log-end">0</dd>
+				<dt>committed offset</dt><dd id="kafka-committed">0</dd>
+				<dt>lag</dt><dd id="kafka-lag">0</dd>
+			</dl>
+			<p class="detail">The group's committed offset is where a restart resumes. Only a flush moves it.</p>
+		</article>
+
+		<article class="station" data-area="fetch" data-arrow="right" id="station-fetch">
+			<h3><span class="stage">2</span>Fetch</h3>
+			<p class="where">messages-stream.js #fetch()</p>
+			<span class="pill" id="fetch-state" data-tone="fetch">in flight</span>
+			<p class="detail" id="fetch-detail"></p>
+			<dl class="facts">
+				<dt>last fetch</dt><dd id="fetch-last">–</dd>
+				<dt>fetches</dt><dd id="fetch-count">0</dd>
+			</dl>
+		</article>
+
+		<article class="station" data-area="buffer" data-arrow="right" id="station-buffer">
+			<h3><span class="stage">3</span>Stream buffer</h3>
+			<p class="where">Readable, objectMode, highWaterMark 1,024</p>
+			<div class="figure"><span id="buffer-count">0</span> <small>records</small></div>
+			<div class="meter" aria-hidden="true">
+				<div class="meter-fill" id="buffer-fill"></div>
+				<div class="meter-mark" id="buffer-mark"></div>
+			</div>
+			<div class="meter-scale" aria-hidden="true"><span>0</span><span id="buffer-mark-label">1,024</span><span>4,000</span></div>
+			<p class="detail" id="buffer-detail"></p>
+		</article>
+
+		<article class="station" data-area="loop" data-arrow="down" id="station-loop">
+			<h3><span class="stage">4</span>for await loop</h3>
+			<p class="where">kafka.ts:386</p>
+			<span class="pill" id="loop-state" data-tone="fetch">pulling</span>
+			<p class="detail" id="loop-detail"></p>
+		</article>
+
+		<article class="station" data-area="batch" data-arrow="left" id="station-batch">
+			<h3><span class="stage">5</span>Batch</h3>
+			<p class="where">state.messages</p>
+			<div class="figure"><span id="batch-count">0</span> <small>/ 100</small></div>
+			<div class="batch-grid" id="batch-grid" aria-hidden="true"></div>
+			<div class="linger">
+				<div class="linger-track" aria-hidden="true"><div class="linger-fill" id="linger-fill"></div></div>
+				<span class="linger-label" id="linger-label"></span>
+			</div>
+		</article>
+
+		<article class="station" data-area="queue" data-arrow="left" id="station-queue">
+			<h3><span class="stage">6</span>Flush queue</h3>
+			<p class="where">state.inFlight promise chain</p>
+			<ul class="queue-list" id="queue-list"></ul>
+			<p class="detail">One flush at a time. Each waits for the one before it.</p>
+		</article>
+
+		<article class="station" data-area="postgres" data-arrow="left" id="station-postgres">
+			<h3><span class="stage">7</span>Postgres + DLQ</h3>
+			<p class="where">transaction-ingester.ts, kafka.ts dead-letter sender</p>
+			<span class="pill" id="postgres-state" data-tone="commit">up</span>
+			<p class="detail" id="postgres-op">idle</p>
+			<dl class="facts">
+				<dt>rows inserted</dt><dd id="postgres-rows">0</dd>
+				<dt>duplicates skipped</dt><dd id="postgres-duplicates">0</dd>
+				<dt>dead-lettered</dt><dd id="postgres-dlq">0</dd>
+			</dl>
+		</article>
+
+		<article class="station" data-area="commit" data-arrow="up" id="station-commit">
+			<h3><span class="stage">8</span>Commit</h3>
+			<p class="where">commit.ts commitBatch</p>
+			<div class="figure"><span id="commit-offset">0</span> <small>committed</small></div>
+			<p class="detail" id="commit-detail">Commits the highest offset of each partition in the batch, after the insert.</p>
+			<dl class="facts">
+				<dt>commits</dt><dd id="commit-count">0</dd>
+			</dl>
+		</article>
+	</div>
+
+	<div class="trace-row">
+		<figure class="timeline">
+			<h2 class="panel-title">Trace <span id="timeline-caption"></span></h2>
+			<canvas id="timeline" aria-label="Swimlanes of the last few seconds: fetches, buffer size, loop state, flushes and commits"></canvas>
+			<div class="legend" style="margin-top: 8px">
+				<span><span class="swatch" data-tone="fetch"></span>fetch, records</span>
+				<span><span class="swatch" data-tone="size"></span>size flush</span>
+				<span><span class="swatch" data-tone="linger"></span>linger flush</span>
+				<span><span class="swatch" data-tone="poison"></span>DLQ send</span>
+				<span><span class="swatch" data-tone="commit"></span>offset commit</span>
+				<span><span class="swatch" data-tone="fail"></span>failure</span>
+			</div>
+		</figure>
+		<div>
+			<h2 class="panel-title">Event loop <span>callbacks the Node process ran, newest first</span></h2>
+			<ol class="event-log" id="event-log"></ol>
+		</div>
+	</div>
+</section>
+
+<article class="notes">
+	<section>
+		<h2>One loop, two ways to flush</h2>
+		<p>The whole consumer is one <code>for await</code> loop over the message stream. Each pass adds one record to the batch. The first record starts a linger timer. The hundredth record makes the loop <code>await</code> a size flush.</p>
+<pre><code><span class="comment">// apps/consumer/src/integrations/events/kafka.ts:386-407</span>
+for await (const message of messageStream) {
+	state.messages.push(message);
+
+	if (state.messages.length === 1) {
+		state.lingerTimer = setTimeout(() =&gt; {
+			<span class="mark-linger">flushBatch(state, "linger")</span>.catch((error: unknown) =&gt; {
+				messageStream.destroy(
+					error instanceof Error ? error : new Error(String(error))
+				);
+			});
+		}, options.lingerMs);
+	}
+
+	if (state.messages.length &gt;= options.batchSize) {
+		<span class="mark-size">await flushBatch(state, "size")</span>;
+	}
+}
+
+<span class="comment">// The stream ends only on shutdown: the partial batch is read again after the restart</span>
+if (state.lingerTimer) clearTimeout(state.lingerTimer);</code></pre>
+		<ul>
+			<li>The size flush is awaited, so the loop takes nothing more from the stream until the insert and the commit are done. That wait is the consumer's only backpressure. Nothing calls <code>pause()</code>.</li>
+			<li>The linger flush runs from a timer callback, which can't be awaited. The loop keeps filling the next batch while it runs.</li>
+			<li>Both go through <code>flushBatch</code>, which chains every flush onto one promise, so two flushes never run at the same time.</li>
+		</ul>
+<pre><code><span class="comment">// kafka.ts:349-358, comments trimmed</span>
+function flushBatch(state: BatchState, trigger: FlushTrigger) {
+	const flushed = state.inFlight.then(() =&gt; drainBatch(state, trigger));
+	state.inFlight = flushed;
+	return flushed;
+}</code></pre>
+	</section>
+
+	<section>
+		<h2>Which trigger fires</h2>
+		<p>A batch reaches 100 records within 2 s only when records arrive faster than 50 a second. A backlog always does, so catch-up is all size flushes. The live stream is slower, so it is all linger flushes.</p>
+		<div class="table-wrap">
+			<table>
+				<thead><tr><th>Trigger</th><th>Fires when</th><th>Does the loop wait?</th><th>Seen on this stack</th></tr></thead>
+				<tbody>
+					<tr><td><code>size</code></td><td>the 100th record joins the batch</td><td>Yes, until the insert and commit finish</td><td>25,690 flushes, almost all of them while the 5M-row load was read</td></tr>
+					<tr><td><code>linger</code></td><td>2 s after the batch's first record</td><td>No, the loop keeps reading</td><td>2 flushes in the same period. The normal case for <code>make produce-stream</code></td></tr>
+				</tbody>
+			</table>
+		</div>
+		<p class="footnote">Counts from Prometheus, <code>batch_flush_total</code> by trigger across the consumers since they last started, 21 Oct 2026.</p>
+		<p>The stream ends only when shutdown closes the consumer. A partial batch still buffered then is not flushed: a closed consumer can't commit, so the restart reads those records again.</p>
+	</section>
+
+	<section>
+		<h2>What one flush does</h2>
+		<ol>
+			<li>Waits for the flush before it to settle (<code>state.inFlight</code>).</li>
+			<li>Clears the linger timer and swaps <code>state.messages</code> for a new array. The loop can start the next batch straight away.</li>
+			<li>Sorts the batch into valid records, poison records (failed to deserialise) and tombstones.</li>
+			<li>Categorises the valid records and inserts them in one Postgres transaction. <code>ON CONFLICT DO NOTHING</code> skips any it already stored.</li>
+			<li>Sends poison records to the dead-letter topic with their raw bytes and headers.</li>
+			<li>Commits the highest offset of each partition. The group's offset moves only now, after the data is stored.</li>
+		</ol>
+		<p>Measured here: 59 ms per flush on average (p50 41 ms, p95 198 ms), 49 ms of it the insert, for full batches of 100. These were measured with the earlier <code>unnest</code> insert, before it became <code>json_populate_recordset</code>, and haven't been measured again. One consumer works through about 1,700 records a second while catching up.</p>
+		<p class="source">kafka.ts:297-347 drainBatch · transactionBatchHandler.ts · transaction-ingester.ts · commit.ts</p>
+	</section>
+
+	<section>
+		<h2>Why memory stays bounded</h2>
+		<p>When a fetch comes back, the stream deserialises and pushes every record in it, whatever <code>push()</code> returns. The return value only decides whether the next fetch is scheduled. Once the buffer holds 1,024 records or more, fetching stops until the loop has taken it back under 1,024; Node then calls <code>_read()</code>, which fetches again.</p>
+		<p>So the most the stream can hold is just under 1,024 records plus one whole fetch. <code>KAFKA_FETCH_MAX_BYTES</code> caps a fetch at 1 MiB. The client's 50 MB default held about 144,000 card records, about 360 bytes each, and the consumer was OOM-killed working through a backlog. At 1 MiB a fetch holds about 2,900.</p>
+		<p class="sum">1,023 in the buffer + 2,900 from one fetch + 100 in the batch + 100 in the flush ≈ 4,100 records at most</p>
+		<p>Watch the buffer in the Backlog load: it jumps by a fetch, falls by 100 per flush, and fetches again once it drops under the 1,024 mark.</p>
+	</section>
+
+	<section>
+		<h2>When a flush fails</h2>
+		<div class="table-wrap">
+			<table>
+				<thead><tr><th>What went wrong</th><th>What the flush does</th><th>Offset</th></tr></thead>
+				<tbody>
+					<tr><td>Poison record: the bytes don't deserialise</td><td>Inserts the rest, sends the poison record to the DLQ</td><td>Committed</td></tr>
+					<tr><td>Bad row: Postgres rejects it with SQLSTATE class 22 (data) or 23 (constraint)</td><td>Rolls the batch back, inserts the records one at a time, sends the bad one to the DLQ</td><td>Committed</td></tr>
+					<tr><td>Anything else: Postgres down, connection lost, any other SQLSTATE</td><td>Throws a <code>RetryableError</code>. The flush rejects, and so does every flush queued behind it, without inserting or committing.</td><td>Not committed</td></tr>
+				</tbody>
+			</table>
+		</div>
+		<p>A rejected flush ends the process. A size flush rejects the loop's <code>await</code>. A linger flush destroys the stream from its <code>.catch</code>. Either way the loop throws, <code>app.ts</code> closes the consumer so it leaves the group, and the process exits with code 1. Docker restarts it, it rejoins at the committed offset, and it reads the uncommitted records again. While Postgres is still down the boot check fails, so the container restarts over and over until Postgres is back.</p>
+		<p>A Kafka commit that fails after a successful insert is only logged. The next batch's commit moves the offset past it. If the process dies before that, the records are read again and <code>ON CONFLICT DO NOTHING</code> skips them. Delivery is at least once, and the table stores each record once.</p>
+		<p class="source">errors/postgres.ts classifyPostgresError · transactionBatchHandler.ts ingestOneByOne · app.ts shutDownGracefully</p>
+	</section>
+
+	<section>
+		<h2>Node details that shape it</h2>
+		<ul>
+			<li>A fetch response is handled in one callback: every record is deserialised and pushed before anything else runs. The next fetch is then scheduled with <code>process.nextTick</code>, which gives heartbeats and commits a turn between fetches.</li>
+			<li>The broker holds a fetch that finds no records for up to <code>KAFKA_MAX_WAIT_TIME_MS</code> (1 s) and answers as soon as one arrives. At 25 records a second that means fetches of about one record each.</li>
+			<li><code>autocommit</code> is off. Offsets move only through <code>commitBatch</code>, after the batch is stored.</li>
+			<li>Each batch is its own trace, <code>consume.batch</code>, with links to the producers' traces rather than a parent.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>Related</h2>
+		<p><a href="message-flow.html">Transaction message flow</a>: the whole path, from the producer to the row or the dead-letter topic. <a href="keyset-paging.html">Keyset paging</a>: how the API pages through the stored rows.</p>
+	</section>
+
+	<section>
+		<h2>Settings</h2>
+		<div class="table-wrap">
+			<table>
+				<thead><tr><th>Setting</th><th>Value</th><th>What it controls</th></tr></thead>
+				<tbody>
+					<tr><td><code>KAFKA_BATCH_SIZE</code></td><td class="number">100</td><td>records per size flush</td></tr>
+					<tr><td><code>KAFKA_BATCH_LINGER_MS</code></td><td class="number">2,000</td><td>the longest a record waits in a batch</td></tr>
+					<tr><td><code>KAFKA_FETCH_MAX_BYTES</code></td><td class="number">1,048,576</td><td>the largest fetch, and so the memory bound</td></tr>
+					<tr><td><code>KAFKA_MAX_WAIT_TIME_MS</code></td><td class="number">1,000</td><td>how long the broker holds a fetch that found nothing</td></tr>
+					<tr><td><code>highWaterMark</code> (library default)</td><td class="number">1,024</td><td>the buffer size at which the stream stops fetching</td></tr>
+					<tr><td><code>KAFKA_READ_MODE</code></td><td class="number">committed</td><td>where a restarted consumer starts reading</td></tr>
+					<tr><td><code>DATABASE_POOL_MAX</code></td><td class="number">3</td><td>connections; a flush uses one at a time</td></tr>
+				</tbody>
+			</table>
+		</div>
+		<p class="footnote">The model shows one partition. Its timings: fetch round trip 4 ms; insert 10 ms plus 0.39 ms a row, about 49 ms for 100, which matches <code>insert_duration_seconds</code>; offset commit 5 ms; DLQ send 8 ms; a restart 2.9 s. All but the insert are assumptions. Sources: <code>apps/consumer/src/config.ts</code>, <code>infrastructure/docker-compose.yaml</code>, <code>@platformatic/kafka</code> 2.14.0 <code>messages-stream.js</code> and <code>options.js</code>.</p>
+	</section>
+</article>
+</main>
+
+<script>
+/* engine:start */
+// A discrete-event model of startBatchConsumer. Times are milliseconds of
+// consumer time. Nothing in this block touches the DOM.
+const CONFIG = {
+	batchSize: 100,
+	lingerMs: 2000,
+	// What a 1 MiB fetch holds of ~360-byte card records
+	fetchMaxRecords: 2900,
+	maxWaitMs: 1000,
+	highWaterMark: 1024
+};
+
+const TIMING = {
+	fetchRoundTripMs: 4,
+	pullMs: 0.01,
+	insertBaseMs: 10,
+	insertPerRowMs: 0.39,
+	failedInsertMs: 12,
+	singleInsertMs: 3,
+	connectionRefusedMs: 3,
+	deadLetterSendMs: 8,
+	commitMs: 5,
+	closeMs: 250,
+	restartMs: 2500,
+	bootCheckMs: 400
+};
+
+const LOADS = {
+	backlog: { backlog: 15000, ratePerSecond: 25, speed: 0.05 },
+	steady: { backlog: 0, ratePerSecond: 25, speed: 1 },
+	trickle: { backlog: 0, ratePerSecond: 2, speed: 1 }
+};
+
+const PROCESS_EVENTS = new Set(["produce", "processStep"]);
+
+function createRandom(seed) {
+	let state = seed >>> 0;
+	return function nextRandom() {
+		state = (state + 0x6d2b79f5) >>> 0;
+		let value = state;
+		value = Math.imul(value ^ (value >>> 15), value | 1);
+		value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+		return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+function createSimulation(loadKey) {
+	const load = LOADS[loadKey];
+	const simulation = {
+		loadKey,
+		load,
+		random: createRandom(7),
+		now: 0,
+		events: [],
+		eventSequence: 0,
+		generation: 1,
+		logEnd: load.backlog,
+		committed: 0,
+		fetchPosition: 0,
+		highestFetched: 0,
+		highestInserted: -1,
+		bufferFrom: 0,
+		bufferTo: 0,
+		batch: [],
+		fetch: { inFlight: false, waiting: false, paused: false, sentAt: 0, token: 0, lastSize: null },
+		linger: { armed: false, deadline: 0, token: 0, firedFlushId: null },
+		loop: { status: "waiting", awaitingFlushId: null },
+		flushSequence: 0,
+		flushes: [],
+		queue: [],
+		runningFlush: null,
+		queueRejected: false,
+		streamDestroyed: false,
+		poisonOffsets: new Set(),
+		badRowOffsets: new Set(),
+		postgresUp: true,
+		process: { status: "running", nextStepAt: null },
+		counters: {
+			flushes: { size: 0, linger: 0 },
+			fetches: 0,
+			rowsInserted: 0,
+			duplicatesSkipped: 0,
+			deadLettered: 0,
+			commits: 0,
+			restarts: 0,
+			peakBuffer: 0
+		},
+		history: {
+			fetches: [],
+			fetchPauses: [],
+			bufferSamples: [],
+			loopSegments: [{ start: 0, end: null, status: "waiting", flushId: null }],
+			flushPhases: [],
+			commits: [],
+			markers: []
+		},
+		eventLog: [],
+		eventLogVersion: 0,
+		pulses: []
+	};
+
+	if (load.ratePerSecond > 0) scheduleNextProduce(simulation);
+	startFetch(simulation, "boot");
+
+	return simulation;
+}
+
+function schedule(simulation, time, type, payload) {
+	const event = {
+		time,
+		order: simulation.eventSequence,
+		type,
+		payload: payload ?? {},
+		generation: simulation.generation
+	};
+	simulation.eventSequence += 1;
+
+	// Binary insert; equal times keep the order they were scheduled in
+	const events = simulation.events;
+	let low = 0;
+	let high = events.length;
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		if (events[middle].time <= time) low = middle + 1;
+		else high = middle;
+	}
+	events.splice(low, 0, event);
+}
+
+function advanceSimulation(simulation, targetTime) {
+	while (simulation.events.length > 0 && simulation.events[0].time <= targetTime) {
+		const event = simulation.events.shift();
+		simulation.now = event.time;
+		handleEvent(simulation, event);
+	}
+	simulation.now = targetTime;
+}
+
+function handleEvent(simulation, event) {
+	// A restart bumps the generation, which drops every fetch, pull, timer
+	// and flush step the old process had scheduled
+	if (!PROCESS_EVENTS.has(event.type) && event.generation !== simulation.generation) return;
+
+	switch (event.type) {
+		case "produce":
+			produceRecord(simulation);
+			break;
+		case "processStep":
+			runProcessStep(simulation, event.payload.step);
+			break;
+		case "fetchArrive":
+			arriveFetch(simulation, event.payload.token);
+			break;
+		case "fetchDeliver":
+			if (event.payload.token === simulation.fetch.token && simulation.fetch.inFlight) {
+				deliverFetch(simulation, countAvailable(simulation));
+			}
+			break;
+		case "fetchTimeout":
+			if (event.payload.token === simulation.fetch.token && simulation.fetch.inFlight && simulation.fetch.waiting) {
+				deliverFetch(simulation, 0);
+			}
+			break;
+		case "nextTickFetch":
+			startFetch(simulation, "nextTick");
+			break;
+		case "pull":
+			pullRecord(simulation);
+			break;
+		case "linger":
+			fireLinger(simulation, event.payload.token);
+			break;
+		case "flushPhaseEnd":
+			endFlushPhase(simulation, event.payload.flushId, event.payload.index);
+			break;
+	}
+}
+
+function countBuffered(simulation) {
+	return simulation.bufferTo - simulation.bufferFrom;
+}
+
+function countAvailable(simulation) {
+	return Math.min(simulation.logEnd - simulation.fetchPosition, CONFIG.fetchMaxRecords);
+}
+
+function findLast(entries) {
+	return entries[entries.length - 1];
+}
+
+function logEvent(simulation, text, kind, key) {
+	const log = simulation.eventLog;
+	const last = findLast(log);
+	if (key && last && last.key === key) {
+		last.repeats += 1;
+		last.time = simulation.now;
+		last.text = text;
+	} else {
+		log.push({ time: simulation.now, text, kind, key: key ?? null, repeats: 1 });
+		if (log.length > 40) log.shift();
+	}
+	simulation.eventLogVersion += 1;
+}
+
+function sampleBuffer(simulation, force) {
+	const samples = simulation.history.bufferSamples;
+	const length = countBuffered(simulation);
+	const last = findLast(samples);
+	if (!force && last && last.length === length) return;
+	samples.push({ time: simulation.now, length });
+}
+
+// ── Broker ──
+
+function scheduleNextProduce(simulation) {
+	const meanGapMs = 1000 / simulation.load.ratePerSecond;
+	const gapMs = -Math.log(1 - simulation.random()) * meanGapMs;
+	schedule(simulation, simulation.now + gapMs, "produce");
+}
+
+function produceRecord(simulation) {
+	simulation.logEnd += 1;
+	scheduleNextProduce(simulation);
+
+	// A long-polling fetch is answered as soon as a record arrives
+	const fetch = simulation.fetch;
+	if (fetch.inFlight && fetch.waiting) {
+		fetch.waiting = false;
+		schedule(simulation, simulation.now + TIMING.fetchRoundTripMs / 2, "fetchDeliver", { token: fetch.token });
+	}
+}
+
+// ── Fetch and stream buffer ──
+
+function startFetch(simulation, reason) {
+	const fetch = simulation.fetch;
+	if (simulation.process.status !== "running" || simulation.streamDestroyed || fetch.inFlight) return;
+
+	if (fetch.paused) {
+		fetch.paused = false;
+		const pause = findLast(simulation.history.fetchPauses);
+		if (pause && pause.end === null) pause.end = simulation.now;
+	}
+	fetch.inFlight = true;
+	fetch.waiting = false;
+	fetch.sentAt = simulation.now;
+	fetch.token += 1;
+	simulation.history.fetches.push({ start: simulation.now, end: null, waitedFrom: null, size: null });
+	schedule(simulation, simulation.now + TIMING.fetchRoundTripMs, "fetchArrive", { token: fetch.token });
+
+	if (reason === "_read") {
+		logEvent(simulation, "the loop took the buffer under 1,024 → _read() → #fetch()", "fetch");
+	} else if (reason === "boot") {
+		logEvent(simulation, "consume(): first fetch from the committed offset", "fetch");
+	}
+}
+
+function arriveFetch(simulation, token) {
+	const fetch = simulation.fetch;
+	if (token !== fetch.token || !fetch.inFlight) return;
+
+	if (countAvailable(simulation) > 0) {
+		deliverFetch(simulation, countAvailable(simulation));
+		return;
+	}
+
+	fetch.waiting = true;
+	findLast(simulation.history.fetches).waitedFrom = simulation.now;
+	schedule(simulation, fetch.sentAt + CONFIG.maxWaitMs, "fetchTimeout", { token });
+}
+
+function deliverFetch(simulation, count) {
+	const fetch = simulation.fetch;
+	fetch.inFlight = false;
+	fetch.waiting = false;
+	fetch.lastSize = count;
+	simulation.counters.fetches += 1;
+
+	const record = findLast(simulation.history.fetches);
+	record.end = simulation.now;
+	record.size = count;
+
+	sampleBuffer(simulation, true);
+	simulation.fetchPosition += count;
+	simulation.bufferTo += count;
+	simulation.highestFetched = Math.max(simulation.highestFetched, simulation.fetchPosition);
+	sampleBuffer(simulation, true);
+
+	const buffered = countBuffered(simulation);
+	simulation.counters.peakBuffer = Math.max(simulation.counters.peakBuffer, buffered);
+	if (count > 0) simulation.pulses.push("buffer");
+
+	// push() returns false once the buffer is at the high-water mark. Every
+	// record in hand is pushed anyway; false only stops the next fetch.
+	const canPush = buffered < CONFIG.highWaterMark;
+
+	if (count === 0) {
+		logEvent(simulation, "fetch came back empty after the 1 s long poll → nextTick → #fetch()", "fetch", "fetch-empty");
+	} else if (canPush) {
+		const records = count === 1 ? "1 record" : `${formatCount(count)} records`;
+		logEvent(simulation, `fetch response: pushed ${records}, buffer under 1,024 → nextTick → #fetch()`, "fetch", count < 20 ? "fetch-small" : null);
+	} else {
+		logEvent(simulation, `fetch response: pushed ${formatCount(count)} records. push() returned false at ${formatCount(buffered)}: no next fetch`, "fetch");
+	}
+
+	if (canPush) {
+		schedule(simulation, simulation.now + 0.001, "nextTickFetch");
+	} else {
+		fetch.paused = true;
+		simulation.history.fetchPauses.push({ start: simulation.now, end: null });
+	}
+
+	if (simulation.loop.status === "waiting" && buffered > 0) {
+		setLoopStatus(simulation, "pulling");
+		schedule(simulation, simulation.now + TIMING.pullMs, "pull");
+	}
+}
+
+// ── The for await loop ──
+
+function setLoopStatus(simulation, status, flushId) {
+	const loop = simulation.loop;
+	const nextFlushId = flushId ?? null;
+	if (loop.status === status && loop.awaitingFlushId === nextFlushId) return;
+
+	const segments = simulation.history.loopSegments;
+	const current = findLast(segments);
+	if (current && current.end === null) current.end = simulation.now;
+	segments.push({ start: simulation.now, end: null, status, flushId: nextFlushId });
+
+	loop.status = status;
+	loop.awaitingFlushId = nextFlushId;
+}
+
+function pullRecord(simulation) {
+	if (simulation.loop.status !== "pulling") return;
+	if (countBuffered(simulation) === 0) {
+		setLoopStatus(simulation, "waiting");
+		return;
+	}
+
+	const offset = simulation.bufferFrom;
+	simulation.bufferFrom += 1;
+	simulation.batch.push(offset);
+
+	if (simulation.fetch.paused && countBuffered(simulation) < CONFIG.highWaterMark) {
+		sampleBuffer(simulation, true);
+		startFetch(simulation, "_read");
+	}
+
+	if (simulation.batch.length === 1) armLinger(simulation);
+
+	if (simulation.batch.length >= CONFIG.batchSize) {
+		const flush = flushBatch(simulation, "size");
+		setLoopStatus(simulation, "awaiting", flush.id);
+		logEvent(simulation, `batch reached 100 → await flushBatch("size") #${flush.id}; the loop stops reading`, "size");
+		return;
+	}
+
+	if (countBuffered(simulation) > 0) {
+		schedule(simulation, simulation.now + TIMING.pullMs, "pull");
+	} else {
+		setLoopStatus(simulation, "waiting");
+	}
+}
+
+function armLinger(simulation) {
+	const linger = simulation.linger;
+	linger.armed = true;
+	linger.token += 1;
+	linger.deadline = simulation.now + CONFIG.lingerMs;
+	linger.firedFlushId = null;
+	schedule(simulation, linger.deadline, "linger", { token: linger.token });
+	logEvent(simulation, "first record of a new batch → setTimeout(linger, 2,000 ms)", "linger");
+}
+
+function clearLinger(simulation) {
+	simulation.linger.armed = false;
+	simulation.linger.token += 1;
+}
+
+function fireLinger(simulation, token) {
+	const linger = simulation.linger;
+	if (token !== linger.token || !linger.armed) return;
+
+	linger.armed = false;
+	const size = simulation.batch.length;
+	const flush = flushBatch(simulation, "linger");
+	linger.firedFlushId = flush.id;
+	logEvent(simulation, `linger timer fires with ${size} in the batch → flushBatch("linger") #${flush.id}, not awaited`, "linger");
+}
+
+// ── Flushes ──
+
+function flushBatch(simulation, trigger) {
+	simulation.flushSequence += 1;
+	const flush = {
+		id: simulation.flushSequence,
+		trigger,
+		status: "queued",
+		queuedAt: simulation.now,
+		startedAt: null,
+		endedAt: null,
+		offsets: [],
+		phases: [],
+		phaseIndex: -1,
+		note: ""
+	};
+	simulation.flushes.push(flush);
+	if (simulation.flushes.length > 40) simulation.flushes.shift();
+	simulation.history.markers.push({ time: simulation.now, trigger });
+
+	if (simulation.queueRejected) {
+		rejectQueuedFlush(simulation, flush);
+		return flush;
+	}
+
+	simulation.queue.push(flush);
+	if (simulation.runningFlush === null) startNextFlush(simulation);
+	return flush;
+}
+
+function startNextFlush(simulation) {
+	const flush = simulation.queue.shift();
+	if (!flush) return;
+
+	simulation.runningFlush = flush;
+	flush.status = "running";
+	flush.startedAt = simulation.now;
+
+	// drainBatch: clear the timer, then swap the array so the loop can fill
+	// the next batch while this one is stored
+	clearLinger(simulation);
+	flush.offsets = simulation.batch;
+	simulation.batch = [];
+
+	if (flush.offsets.length === 0) {
+		flush.status = "empty";
+		flush.endedAt = simulation.now;
+		simulation.runningFlush = null;
+		logEvent(simulation, `flush #${flush.id} found the batch already taken: nothing to do`, "flush");
+		settleAwaitingLoop(simulation, flush);
+		startNextFlush(simulation);
+		return;
+	}
+
+	simulation.counters.flushes[flush.trigger] += 1;
+	flush.phases = planFlushPhases(simulation, flush.offsets);
+	simulation.pulses.push("queue");
+	runFlushPhase(simulation, flush, 0);
+}
+
+function planFlushPhases(simulation, offsets) {
+	const valid = [];
+	const poison = [];
+	const badRows = [];
+	for (const offset of offsets) {
+		if (simulation.poisonOffsets.has(offset)) {
+			poison.push(offset);
+		} else {
+			valid.push(offset);
+			if (simulation.badRowOffsets.has(offset)) badRows.push(offset);
+		}
+	}
+
+	const phases = [];
+	if (valid.length > 0 && badRows.length > 0) {
+		phases.push({
+			name: "insert",
+			label: `INSERT ${valid.length} rows fails on a bad row → ROLLBACK`,
+			durationMs: TIMING.failedInsertMs,
+			effect: "rollback"
+		});
+		phases.push({
+			name: "isolate",
+			label: `INSERT one by one × ${valid.length}, bad row → DLQ`,
+			durationMs: valid.length * TIMING.singleInsertMs + badRows.length * TIMING.deadLetterSendMs,
+			effect: "insertEach",
+			rows: valid,
+			badRows
+		});
+	} else if (valid.length > 0) {
+		const jitter = 0.8 + simulation.random() * 0.4;
+		phases.push({
+			name: "insert",
+			label: `BEGIN · INSERT ${valid.length} rows · COMMIT`,
+			durationMs: (TIMING.insertBaseMs + TIMING.insertPerRowMs * valid.length) * jitter,
+			effect: "insert",
+			rows: valid
+		});
+	}
+	if (poison.length > 0) {
+		phases.push({
+			name: "deadLetter",
+			label: `DLQ send: ${poison.length} poison record${poison.length === 1 ? "" : "s"}`,
+			durationMs: TIMING.deadLetterSendMs,
+			effect: "deadLetter",
+			count: poison.length
+		});
+	}
+	const nextOffset = offsets[offsets.length - 1] + 1;
+	phases.push({
+		name: "commit",
+		label: `commit offset ${formatCount(nextOffset)}`,
+		durationMs: TIMING.commitMs,
+		effect: "commit",
+		offset: nextOffset
+	});
+	return phases;
+}
+
+function isDatabasePhase(phase) {
+	return phase.name === "insert" || phase.name === "isolate";
+}
+
+function runFlushPhase(simulation, flush, index) {
+	const phase = flush.phases[index];
+	flush.phaseIndex = index;
+
+	if (isDatabasePhase(phase) && !simulation.postgresUp) {
+		phase.refused = true;
+		phase.label = "connect → ECONNREFUSED";
+		phase.durationMs = TIMING.connectionRefusedMs;
+	}
+
+	simulation.history.flushPhases.push({
+		start: simulation.now,
+		end: null,
+		flushId: flush.id,
+		trigger: flush.trigger,
+		name: phase.name,
+		failed: false
+	});
+	if (isDatabasePhase(phase)) simulation.pulses.push("postgres");
+	schedule(simulation, simulation.now + phase.durationMs, "flushPhaseEnd", { flushId: flush.id, index });
+}
+
+function endFlushPhase(simulation, flushId, index) {
+	const flush = simulation.runningFlush;
+	if (!flush || flush.id !== flushId) return;
+
+	const phase = flush.phases[index];
+	const entry = findLast(simulation.history.flushPhases);
+	entry.end = simulation.now;
+
+	if (isDatabasePhase(phase) && (phase.refused || !simulation.postgresUp)) {
+		entry.failed = true;
+		const reason = phase.refused ? "ECONNREFUSED" : "connection terminated";
+		failFlush(simulation, flush, `${reason} → RetryableError`);
+		return;
+	}
+
+	applyPhaseEffect(simulation, phase);
+
+	if (index + 1 < flush.phases.length) {
+		runFlushPhase(simulation, flush, index + 1);
+	} else {
+		finishFlush(simulation, flush);
+	}
+}
+
+function storeRows(simulation, offsets, skipped) {
+	for (const offset of offsets) {
+		if (skipped && skipped.has(offset)) continue;
+		if (offset <= simulation.highestInserted) {
+			simulation.counters.duplicatesSkipped += 1;
+		} else {
+			simulation.counters.rowsInserted += 1;
+			simulation.highestInserted = offset;
+		}
+	}
+}
+
+function applyPhaseEffect(simulation, phase) {
+	switch (phase.effect) {
+		case "insert":
+			storeRows(simulation, phase.rows, null);
+			break;
+		case "rollback":
+			logEvent(simulation, "batch INSERT failed on a bad row (SQLSTATE 23…) → ROLLBACK, retry one at a time", "fail");
+			break;
+		case "insertEach":
+			storeRows(simulation, phase.rows, new Set(phase.badRows));
+			simulation.counters.deadLettered += phase.badRows.length;
+			simulation.pulses.push("postgres");
+			break;
+		case "deadLetter":
+			simulation.counters.deadLettered += phase.count;
+			simulation.pulses.push("postgres");
+			break;
+		case "commit":
+			simulation.committed = Math.max(simulation.committed, phase.offset);
+			simulation.counters.commits += 1;
+			simulation.history.commits.push({ time: simulation.now, offset: phase.offset });
+			simulation.pulses.push("commit", "kafka");
+			break;
+	}
+}
+
+function finishFlush(simulation, flush) {
+	flush.status = "done";
+	flush.endedAt = simulation.now;
+	simulation.runningFlush = null;
+
+	const tone = flush.trigger === "linger" ? "linger" : "size";
+	logEvent(
+		simulation,
+		`flush #${flush.id} (${flush.trigger}, ${flush.offsets.length}) resolved in ${formatDuration(flush.endedAt - flush.startedAt)}: offset committed`,
+		tone
+	);
+
+	settleAwaitingLoop(simulation, flush);
+	startNextFlush(simulation);
+}
+
+function settleAwaitingLoop(simulation, flush) {
+	const loop = simulation.loop;
+	if (loop.status !== "awaiting" || loop.awaitingFlushId !== flush.id) return;
+
+	if (countBuffered(simulation) > 0) {
+		setLoopStatus(simulation, "pulling");
+		schedule(simulation, simulation.now + TIMING.pullMs, "pull");
+	} else {
+		setLoopStatus(simulation, "waiting");
+	}
+}
+
+function rejectQueuedFlush(simulation, flush) {
+	flush.status = "rejected";
+	flush.endedAt = simulation.now;
+	flush.note = "queued behind a failed flush";
+	logEvent(simulation, `flush #${flush.id} rejects with the same error: no insert, no commit`, "fail");
+}
+
+function failFlush(simulation, flush, reason) {
+	flush.status = "failed";
+	flush.endedAt = simulation.now;
+	flush.note = reason;
+	simulation.runningFlush = null;
+	simulation.queueRejected = true;
+	logEvent(simulation, `flush #${flush.id} rejects: ${reason}. Nothing committed.`, "fail");
+
+	for (const queued of simulation.queue) rejectQueuedFlush(simulation, queued);
+	simulation.queue = [];
+
+	if (flush.trigger === "linger") {
+		simulation.streamDestroyed = true;
+		logEvent(simulation, "the linger timer's .catch → messageStream.destroy(error)", "fail");
+	}
+	if (simulation.loop.status === "awaiting") {
+		logEvent(simulation, "the awaited flushBatch rejects → the for await loop throws", "fail");
+	} else {
+		logEvent(simulation, "the stream was destroyed → the for await loop throws", "fail");
+	}
+
+	beginShutdown(simulation);
+}
+
+// ── Process lifecycle ──
+
+function beginShutdown(simulation) {
+	simulation.generation += 1;
+	clearLinger(simulation);
+	simulation.fetch.inFlight = false;
+	simulation.fetch.waiting = false;
+	setLoopStatus(simulation, "stopped");
+	const pause = findLast(simulation.history.fetchPauses);
+	if (pause && pause.end === null) pause.end = simulation.now;
+
+	simulation.process.status = "stopping";
+	simulation.process.nextStepAt = simulation.now + TIMING.closeMs;
+	logEvent(simulation, "app.ts catch → shutDownGracefully(resources, 1): consumer.close(true) leaves the group", "process");
+	schedule(simulation, simulation.process.nextStepAt, "processStep", { step: "exit" });
+}
+
+function runProcessStep(simulation, step) {
+	const process = simulation.process;
+
+	if (step === "exit") {
+		process.status = "exited";
+		process.nextStepAt = simulation.now + TIMING.restartMs;
+		// Everything in memory goes with the process
+		simulation.batch = [];
+		simulation.runningFlush = null;
+		simulation.bufferFrom = simulation.committed;
+		simulation.bufferTo = simulation.committed;
+		simulation.fetchPosition = simulation.committed;
+		sampleBuffer(simulation, true);
+		logEvent(simulation, "process.exit(1). Docker restarts the container", "process");
+		schedule(simulation, process.nextStepAt, "processStep", { step: "boot" });
+		return;
+	}
+
+	if (step === "boot") {
+		process.status = "booting";
+		process.nextStepAt = simulation.now + TIMING.bootCheckMs;
+		simulation.counters.restarts += 1;
+		logEvent(simulation, "boot: checks PostgreSQL (SELECT 1), the ruleset, Schema Registry, Kafka", "process");
+		schedule(simulation, process.nextStepAt, "processStep", { step: "join" });
+		return;
+	}
+
+	if (step === "join") {
+		if (!simulation.postgresUp) {
+			process.status = "exited";
+			process.nextStepAt = simulation.now + TIMING.restartMs;
+			logEvent(simulation, "✗ PostgreSQL: SELECT 1 refused → process.exit(1) before joining", "fail");
+			schedule(simulation, process.nextStepAt, "processStep", { step: "boot" });
+			return;
+		}
+		rejoinGroup(simulation);
+	}
+}
+
+function rejoinGroup(simulation) {
+	const replayed = simulation.highestFetched - simulation.committed;
+
+	simulation.generation += 1;
+	simulation.process.status = "running";
+	simulation.process.nextStepAt = null;
+	simulation.bufferFrom = simulation.committed;
+	simulation.bufferTo = simulation.committed;
+	simulation.fetchPosition = simulation.committed;
+	simulation.batch = [];
+	simulation.queue = [];
+	simulation.runningFlush = null;
+	simulation.queueRejected = false;
+	simulation.streamDestroyed = false;
+	simulation.fetch.inFlight = false;
+	simulation.fetch.waiting = false;
+	simulation.fetch.paused = false;
+	clearLinger(simulation);
+	setLoopStatus(simulation, "waiting");
+
+	logEvent(
+		simulation,
+		`joined the group at committed offset ${formatCount(simulation.committed)}: ${formatCount(replayed)} records fetched before the crash are read again`,
+		"process"
+	);
+	startFetch(simulation, "restart");
+}
+
+// ── Faults ──
+
+function chooseInjectionOffset(simulation) {
+	let offset = countBuffered(simulation) > 0 ? simulation.bufferFrom : simulation.fetchPosition;
+	while (simulation.poisonOffsets.has(offset) || simulation.badRowOffsets.has(offset)) offset += 1;
+	return offset;
+}
+
+function injectRecord(simulation, kind) {
+	const offset = chooseInjectionOffset(simulation);
+	if (kind === "poison") {
+		simulation.poisonOffsets.add(offset);
+		logEvent(simulation, `offset ${formatCount(offset)} is now a poison record: its bytes won't deserialise`, "poison");
+	} else {
+		simulation.badRowOffsets.add(offset);
+		logEvent(simulation, `offset ${formatCount(offset)} is now a bad row: Postgres will reject it`, "fail");
+	}
+}
+
+function togglePostgres(simulation) {
+	simulation.postgresUp = !simulation.postgresUp;
+	if (simulation.postgresUp) {
+		logEvent(simulation, "Postgres is back up", "commit");
+	} else {
+		logEvent(simulation, "Postgres stopped: connections are refused", "fail");
+	}
+}
+
+function pruneHistory(simulation, keepMs) {
+	const cutoff = simulation.now - keepMs;
+	for (const key of ["fetches", "fetchPauses", "loopSegments", "flushPhases"]) {
+		const entries = simulation.history[key];
+		let firstKept = 0;
+		while (firstKept < entries.length - 1 && entries[firstKept].end !== null && entries[firstKept].end < cutoff) {
+			firstKept += 1;
+		}
+		if (firstKept > 0) entries.splice(0, firstKept);
+	}
+	for (const key of ["bufferSamples", "commits", "markers"]) {
+		const entries = simulation.history[key];
+		let firstKept = 0;
+		while (firstKept < entries.length - 1 && entries[firstKept + 1].time < cutoff) firstKept += 1;
+		if (firstKept > 0) entries.splice(0, firstKept);
+	}
+}
+
+function formatCount(value) {
+	return Math.round(value).toLocaleString("en-US");
+}
+
+function formatDuration(milliseconds) {
+	if (milliseconds < 10) return `${milliseconds.toFixed(1)} ms`;
+	if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+	return `${(milliseconds / 1000).toFixed(1)} s`;
+}
+/* engine:end */
+
+// ── Page ──
+
+const TIMELINE_REAL_SECONDS = 8;
+const RULER_SCALE = 4000;
+const BUFFER_SCALE = 4000;
+
+const LOAD_NOTES = {
+	backlog: "15,000 records are waiting on the broker, as after a restart or make produce-load-data. Every fetch comes back full (about 2,900 records), every batch fills at once, and the loop spends its time awaiting size flushes. Played at 0.05× so each 59 ms flush is visible.",
+	steady: "25 records a second, the card producer's rate in make produce-stream. The broker answers each fetch as soon as a record arrives, so batches never reach 100, and the linger timer flushes about 50 records every 2 s.",
+	trickle: "2 records a second. Each fetch waits on the broker for the next record, and the linger timer flushes a handful every 2 s."
+};
+
+const elements = {};
+for (const id of [
+	"load-note", "speed", "play", "reset", "inject-poison", "inject-bad-row", "toggle-postgres",
+	"process-chip", "clock", "speed-note", "count-size", "count-linger", "count-rows", "count-dlq", "count-restarts", "count-peak",
+	"ruler-flush", "ruler-batch", "ruler-buffer", "ruler-broker", "legend-flush", "legend-batch", "legend-buffer", "legend-broker",
+	"kafka-log-end", "kafka-committed", "kafka-lag",
+	"fetch-state", "fetch-detail", "fetch-last", "fetch-count",
+	"buffer-count", "buffer-fill", "buffer-mark", "buffer-mark-label", "buffer-detail",
+	"loop-state", "loop-detail",
+	"batch-count", "batch-grid", "linger-fill", "linger-label",
+	"queue-list",
+	"postgres-state", "postgres-op", "postgres-rows", "postgres-duplicates", "postgres-dlq",
+	"commit-offset", "commit-detail", "commit-count",
+	"timeline", "timeline-caption", "event-log"
+]) {
+	elements[id] = document.getElementById(id);
+}
+
+const stations = {
+	kafka: document.getElementById("station-kafka"),
+	buffer: document.getElementById("station-buffer"),
+	queue: document.getElementById("station-queue"),
+	postgres: document.getElementById("station-postgres"),
+	commit: document.getElementById("station-commit")
+};
+
+const page = {
+	simulation: createSimulation("backlog"),
+	loadKey: "backlog",
+	speed: LOADS.backlog.speed,
+	playing: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+	reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+	lastFrameTime: null,
+	lastPulse: {},
+	renderedLogVersion: -1,
+	renderedQueue: "",
+	framesSincePrune: 0,
+	cells: []
+};
+
+function buildBatchGrid() {
+	for (let index = 0; index < CONFIG.batchSize; index += 1) {
+		const cell = document.createElement("div");
+		cell.className = "cell";
+		elements["batch-grid"].appendChild(cell);
+		page.cells.push(cell);
+	}
+}
+
+function chooseEffectiveSpeed() {
+	// A restart takes seconds; play it at 1× or faster so it doesn't stall the view
+	if (page.simulation.process.status !== "running") return Math.max(page.speed, 1);
+	return page.speed;
+}
+
+function setTone(element, tone) {
+	if (element.dataset.tone !== tone) element.dataset.tone = tone;
+}
+
+function setText(element, text) {
+	if (element.textContent !== text) element.textContent = text;
+}
+
+function startLoad(loadKey) {
+	page.loadKey = loadKey;
+	page.simulation = createSimulation(loadKey);
+	page.speed = LOADS[loadKey].speed;
+	elements.speed.value = String(page.speed);
+	page.renderedLogVersion = -1;
+	page.renderedQueue = "";
+	for (const button of document.querySelectorAll("[data-load]")) {
+		button.setAttribute("aria-pressed", String(button.dataset.load === loadKey));
+	}
+	setText(elements["load-note"], LOAD_NOTES[loadKey]);
+	renderPostgresToggle();
+}
+
+function renderPostgresToggle() {
+	const button = elements["toggle-postgres"];
+	const down = !page.simulation.postgresUp;
+	button.setAttribute("aria-pressed", String(down));
+	setText(button, down ? "Start Postgres" : "Stop Postgres");
+}
+
+function pulseStation(name, frameTime) {
+	if (page.reducedMotion) return;
+	const station = stations[name];
+	if (!station) return;
+	if (frameTime - (page.lastPulse[name] ?? 0) < 240) return;
+	page.lastPulse[name] = frameTime;
+	station.classList.remove("is-pulsing");
+	void station.offsetWidth;
+	station.classList.add("is-pulsing");
+}
+
+function renderStatus(simulation, effectiveSpeed) {
+	const process = simulation.process;
+	const chip = elements["process-chip"];
+	if (process.status === "running") {
+		setTone(chip, "commit");
+		setText(chip, "process running");
+	} else if (process.status === "stopping") {
+		setTone(chip, "fail");
+		setText(chip, "shutting down: leaving the group");
+	} else if (process.status === "exited") {
+		setTone(chip, "fail");
+		setText(chip, `exited with code 1 · restart in ${formatDuration(Math.max(0, process.nextStepAt - simulation.now))}`);
+	} else {
+		setTone(chip, "linger");
+		setText(chip, "booting: dependency checks");
+	}
+
+	setText(elements.clock, `${(simulation.now / 1000).toFixed(3)} s`);
+	setText(
+		elements["speed-note"],
+		effectiveSpeed !== page.speed ? `restart playing at ${effectiveSpeed}×` : ""
+	);
+	setText(elements["count-size"], formatCount(simulation.counters.flushes.size));
+	setText(elements["count-linger"], formatCount(simulation.counters.flushes.linger));
+	setText(elements["count-rows"], formatCount(simulation.counters.rowsInserted));
+	setText(elements["count-dlq"], formatCount(simulation.counters.deadLettered));
+	setText(elements["count-restarts"], formatCount(simulation.counters.restarts));
+	setText(elements["count-peak"], formatCount(simulation.counters.peakBuffer));
+}
+
+function renderRuler(simulation) {
+	const inFlush = simulation.runningFlush ? simulation.runningFlush.offsets.length : 0;
+	const inBatch = simulation.batch.length;
+	const inBuffer = countBuffered(simulation);
+	const onBroker = simulation.logEnd - simulation.fetchPosition;
+
+	let remaining = RULER_SCALE;
+	const parts = [
+		["ruler-flush", inFlush],
+		["ruler-batch", inBatch],
+		["ruler-buffer", inBuffer]
+	];
+	for (const [id, count] of parts) {
+		const shown = Math.min(count, remaining);
+		remaining -= shown;
+		elements[id].style.width = `${(shown / RULER_SCALE) * 100}%`;
+	}
+	elements["ruler-broker"].style.maxWidth = `${(Math.min(onBroker, remaining) / RULER_SCALE) * 100}%`;
+
+	setText(elements["legend-flush"], formatCount(inFlush));
+	setText(elements["legend-batch"], formatCount(inBatch));
+	setText(elements["legend-buffer"], formatCount(inBuffer));
+	setText(elements["legend-broker"], formatCount(onBroker));
+}
+
+function renderKafka(simulation) {
+	setText(elements["kafka-log-end"], formatCount(simulation.logEnd));
+	setText(elements["kafka-committed"], formatCount(simulation.committed));
+	setText(elements["kafka-lag"], formatCount(simulation.logEnd - simulation.committed));
+}
+
+function renderFetch(simulation) {
+	const fetch = simulation.fetch;
+	const state = elements["fetch-state"];
+	const detail = elements["fetch-detail"];
+
+	if (simulation.process.status !== "running" || simulation.streamDestroyed) {
+		setTone(state, "fail");
+		setText(state, "stopped");
+		setText(detail, "No fetches while the consumer is down.");
+	} else if (fetch.inFlight && fetch.waiting) {
+		setTone(state, "fetch");
+		setText(state, "long poll");
+		setText(detail, "Nothing to read yet. The broker holds the request until a record arrives, up to 1 s.");
+	} else if (fetch.inFlight) {
+		setTone(state, "fetch");
+		setText(state, "in flight");
+		setText(detail, `Asking for up to 1 MiB from offset ${formatCount(simulation.fetchPosition)}.`);
+	} else if (fetch.paused) {
+		setTone(state, "muted");
+		setText(state, "paused by backpressure");
+		setText(detail, `push() returned false. The next fetch waits for _read(), when the loop takes the buffer under 1,024.`);
+	} else {
+		setTone(state, "fetch");
+		setText(state, "next fetch on nextTick");
+		setText(detail, "The buffer has room, so the stream fetches again on the next tick.");
+	}
+
+	setText(elements["fetch-last"], fetch.lastSize === null ? "–" : `${formatCount(fetch.lastSize)} records`);
+	setText(elements["fetch-count"], formatCount(simulation.counters.fetches));
+}
+
+function renderBuffer(simulation) {
+	const buffered = countBuffered(simulation);
+	setText(elements["buffer-count"], formatCount(buffered));
+	elements["buffer-fill"].style.width = `${Math.min(buffered / BUFFER_SCALE, 1) * 100}%`;
+
+	let text;
+	if (buffered >= CONFIG.highWaterMark) {
+		text = "At or over the high-water mark. The stream holds these and fetches nothing more.";
+	} else if (buffered > 0) {
+		text = "Under the high-water mark, so the stream keeps fetching.";
+	} else {
+		text = "Empty. The loop is waiting for the next fetch.";
+	}
+	setText(elements["buffer-detail"], text);
+}
+
+function renderLoop(simulation) {
+	const loop = simulation.loop;
+	const state = elements["loop-state"];
+	const detail = elements["loop-detail"];
+
+	if (loop.status === "pulling") {
+		setTone(state, "fetch");
+		setText(state, "reading records");
+		setText(detail, "Each pass takes one record from the buffer and adds it to the batch.");
+	} else if (loop.status === "waiting") {
+		setTone(state, "muted");
+		setText(state, "waiting for records");
+		setText(detail, "The buffer is empty. for await is parked until the next fetch pushes something.");
+	} else if (loop.status === "awaiting") {
+		setTone(state, "size");
+		setText(state, `awaiting flush #${loop.awaitingFlushId}`);
+		setText(detail, "A size flush. The loop reads nothing until the insert and the commit finish. This wait is the backpressure.");
+	} else {
+		setTone(state, "fail");
+		setText(state, "threw");
+		setText(detail, "A flush rejected, so the loop ended and the process is going down.");
+	}
+}
+
+function renderBatch(simulation) {
+	const batch = simulation.batch;
+	setText(elements["batch-count"], formatCount(batch.length));
+
+	for (let index = 0; index < page.cells.length; index += 1) {
+		const offset = batch[index];
+		let className = "cell";
+		if (offset !== undefined) {
+			if (simulation.poisonOffsets.has(offset)) className = "cell is-poison";
+			else if (simulation.badRowOffsets.has(offset)) className = "cell is-bad";
+			else className = "cell is-filled";
+		}
+		if (page.cells[index].className !== className) page.cells[index].className = className;
+	}
+
+	const linger = simulation.linger;
+	let fraction = 0;
+	let label;
+	if (linger.armed) {
+		const remaining = Math.max(0, linger.deadline - simulation.now);
+		fraction = remaining / CONFIG.lingerMs;
+		label = `linger timer: ${formatDuration(remaining)} left`;
+	} else if (linger.firedFlushId !== null && batch.length > 0) {
+		label = `linger fired: flush #${linger.firedFlushId} is queued, and the batch keeps filling until it starts`;
+	} else if (batch.length === 0 && simulation.loop.status === "awaiting") {
+		label = `batch handed to flush #${simulation.loop.awaitingFlushId}`;
+	} else {
+		label = "no timer: the next record starts one";
+	}
+	elements["linger-fill"].style.width = `${fraction * 100}%`;
+	setText(elements["linger-label"], label);
+}
+
+function describeFlush(simulation, flush) {
+	if (flush.status === "queued") {
+		const running = simulation.runningFlush;
+		return running ? `queued behind #${running.id}; takes the batch when it starts` : "queued";
+	}
+	if (flush.status === "running") {
+		const phase = flush.phases[flush.phaseIndex];
+		return phase ? phase.label : "starting";
+	}
+	if (flush.status === "done") return `done in ${formatDuration(flush.endedAt - flush.startedAt)}`;
+	if (flush.status === "empty") return "empty: the batch was already taken";
+	if (flush.status === "failed") return `failed: ${flush.note}`;
+	return "rejected: no insert, no commit";
+}
+
+function renderQueue(simulation) {
+	const items = [];
+	for (let index = simulation.flushes.length - 1; index >= 0 && items.length < 4; index -= 1) {
+		items.push(simulation.flushes[index]);
+	}
+
+	let html = "";
+	for (const flush of items) {
+		const tone = flush.status === "failed" || flush.status === "rejected" ? "fail" : flush.trigger === "linger" ? "linger" : "size";
+		const size = flush.status === "queued" ? "" : ` · ${flush.offsets.length}`;
+		html += `<li data-status="${flush.status}" data-tone="${tone}"><span class="swatch"></span><span class="flush-name">#${flush.id} ${flush.trigger}${size}</span><span class="flush-state">${describeFlush(simulation, flush)}</span></li>`;
+	}
+	if (html === "") html = '<li class="queue-empty">No flushes yet.</li>';
+
+	if (html !== page.renderedQueue) {
+		page.renderedQueue = html;
+		elements["queue-list"].innerHTML = html;
+	}
+}
+
+function renderPostgres(simulation) {
+	const state = elements["postgres-state"];
+	if (simulation.postgresUp) {
+		setTone(state, "commit");
+		setText(state, "up");
+	} else {
+		setTone(state, "fail");
+		setText(state, "down: connections refused");
+	}
+
+	const flush = simulation.runningFlush;
+	const phase = flush ? flush.phases[flush.phaseIndex] : null;
+	let operation = "idle";
+	if (simulation.process.status !== "running") operation = "no connection: the consumer is down";
+	else if (phase && phase.name !== "commit") operation = `flush #${flush.id}: ${phase.label}`;
+	setText(elements["postgres-op"], operation);
+
+	setText(elements["postgres-rows"], formatCount(simulation.counters.rowsInserted));
+	setText(elements["postgres-duplicates"], formatCount(simulation.counters.duplicatesSkipped));
+	setText(elements["postgres-dlq"], formatCount(simulation.counters.deadLettered));
+}
+
+function renderCommit(simulation) {
+	setText(elements["commit-offset"], formatCount(simulation.committed));
+	setText(elements["commit-count"], formatCount(simulation.counters.commits));
+
+	const flush = simulation.runningFlush;
+	const phase = flush ? flush.phases[flush.phaseIndex] : null;
+	let text = "Commits the highest offset of each partition in the batch, after the insert.";
+	if (phase && phase.name === "commit") {
+		text = `Flush #${flush.id}: committing offset ${formatCount(phase.offset)}.`;
+	} else {
+		const last = findLast(simulation.history.commits);
+		if (last) text = `Last commit: offset ${formatCount(last.offset)} at ${(last.time / 1000).toFixed(3)} s.`;
+	}
+	setText(elements["commit-detail"], text);
+}
+
+function escapeHtml(text) {
+	return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderEventLog(simulation) {
+	if (page.renderedLogVersion === simulation.eventLogVersion) return;
+	page.renderedLogVersion = simulation.eventLogVersion;
+
+	let html = "";
+	const log = simulation.eventLog;
+	for (let index = log.length - 1; index >= 0 && index >= log.length - 10; index -= 1) {
+		const entry = log[index];
+		const repeats = entry.repeats > 1 ? ` <span class="repeats">×${entry.repeats}</span>` : "";
+		html += `<li><time>${(entry.time / 1000).toFixed(3)} s</time><span class="event-text"><span class="swatch" data-tone="${toneForKind(entry.kind)}"></span><span>${escapeHtml(entry.text)}${repeats}</span></span></li>`;
+	}
+	elements["event-log"].innerHTML = html;
+}
+
+function toneForKind(kind) {
+	if (kind === "process" || kind === "flush") return "muted";
+	return kind;
+}
+
+// ── Trace ──
+
+function readColors() {
+	const style = getComputedStyle(document.documentElement);
+	const colors = {};
+	for (const name of ["ink", "muted", "rule", "track", "panel", "fetch", "size", "linger", "commit", "fail", "poison"]) {
+		colors[name] = style.getPropertyValue(`--${name}`).trim();
+	}
+	return colors;
+}
+
+function chooseTickStep(windowMs) {
+	const steps = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+	for (const step of steps) {
+		if (windowMs / step <= 6) return step;
+	}
+	return 10000;
+}
+
+function formatTick(offsetMs) {
+	if (offsetMs === 0) return "now";
+	const magnitude = Math.abs(offsetMs);
+	if (magnitude >= 1000) return `−${(magnitude / 1000).toFixed(magnitude % 1000 === 0 ? 0 : 1)} s`;
+	return `−${magnitude} ms`;
+}
+
+function drawSegment(context, view, start, end, top, height, color, alpha) {
+	const left = view.toX(Math.max(start, view.start));
+	const right = view.toX(Math.min(end, view.end));
+	if (right < view.plotLeft || left > view.plotRight) return null;
+	const width = Math.max(right - left, 1.5);
+	context.globalAlpha = alpha;
+	context.fillStyle = color;
+	context.fillRect(left, top, width, height);
+	context.globalAlpha = 1;
+	return { left, width };
+}
+
+function drawLabel(context, text, x, y, color, maxWidth) {
+	if (maxWidth < context.measureText(text).width + 8) return;
+	context.fillStyle = color;
+	context.fillText(text, x + 4, y);
+}
+
+function drawTimeline(simulation, effectiveSpeed) {
+	const canvas = elements.timeline;
+	const width = canvas.clientWidth;
+	const height = canvas.clientHeight;
+	const ratio = window.devicePixelRatio || 1;
+	if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+		canvas.width = Math.round(width * ratio);
+		canvas.height = Math.round(height * ratio);
+	}
+	const context = canvas.getContext("2d");
+	context.setTransform(ratio, 0, 0, ratio, 0, 0);
+	context.clearRect(0, 0, width, height);
+
+	const colors = readColors();
+	const windowMs = TIMELINE_REAL_SECONDS * 1000 * effectiveSpeed;
+	const plotLeft = 78;
+	const plotRight = width - 6;
+	const view = {
+		start: simulation.now - windowMs,
+		end: simulation.now,
+		plotLeft,
+		plotRight,
+		toX(time) {
+			return plotLeft + ((time - (simulation.now - windowMs)) / windowMs) * (plotRight - plotLeft);
+		}
+	};
+
+	const lanes = {
+		fetch: { top: 4, height: 20, label: "fetch" },
+		buffer: { top: 32, height: 46, label: "buffer" },
+		loop: { top: 86, height: 20, label: "for await" },
+		flush: { top: 114, height: 22, label: "flush" },
+		commit: { top: 144, height: 18, label: "commit" }
+	};
+	const axisTop = 172;
+
+	context.font = "500 11px " + getComputedStyle(document.body).getPropertyValue("--font-mono");
+	context.textBaseline = "middle";
+
+	for (const lane of Object.values(lanes)) {
+		context.fillStyle = colors.track;
+		context.globalAlpha = 0.55;
+		context.fillRect(plotLeft, lane.top, plotRight - plotLeft, lane.height);
+		context.globalAlpha = 1;
+		context.fillStyle = colors.muted;
+		context.fillText(lane.label, 0, lane.top + lane.height / 2);
+	}
+
+	// Fetch lane: requests, long polls and backpressure pauses
+	const fetchLane = lanes.fetch;
+	for (const pause of simulation.history.fetchPauses) {
+		const end = pause.end ?? simulation.now;
+		if (end < view.start) continue;
+		const drawn = drawSegment(context, view, pause.start, end, fetchLane.top + 6, fetchLane.height - 12, colors.muted, 0.35);
+		if (drawn) drawLabel(context, "paused", drawn.left, fetchLane.top + fetchLane.height / 2, colors.muted, drawn.width);
+	}
+	for (const fetch of simulation.history.fetches) {
+		const end = fetch.end ?? simulation.now;
+		if (end < view.start) continue;
+		if (fetch.waitedFrom !== null) {
+			drawSegment(context, view, fetch.start, fetch.waitedFrom, fetchLane.top, fetchLane.height, colors.fetch, 0.9);
+			drawSegment(context, view, fetch.waitedFrom, end, fetchLane.top + 5, fetchLane.height - 10, colors.fetch, 0.3);
+		} else {
+			const drawn = drawSegment(context, view, fetch.start, end, fetchLane.top, fetchLane.height, colors.fetch, 0.9);
+			if (drawn && fetch.size) {
+				const label = `+${formatCount(fetch.size)}`;
+				context.fillStyle = colors.fetch;
+				context.fillText(label, Math.min(drawn.left + drawn.width + 4, plotRight - context.measureText(label).width), fetchLane.top + fetchLane.height / 2);
+			}
+		}
+	}
+
+	// Buffer lane: records held, against the high-water mark
+	const bufferLane = lanes.buffer;
+	const bufferToY = (length) => bufferLane.top + bufferLane.height - (Math.min(length, BUFFER_SCALE) / BUFFER_SCALE) * bufferLane.height;
+	const samples = simulation.history.bufferSamples;
+	context.beginPath();
+	let started = false;
+	let lastX = plotLeft;
+	let lastY = bufferToY(0);
+	for (let index = 0; index < samples.length; index += 1) {
+		const sample = samples[index];
+		const next = samples[index + 1];
+		if (next && next.time < view.start) continue;
+		const x = view.toX(Math.max(sample.time, view.start));
+		const y = bufferToY(sample.length);
+		if (!started) {
+			context.moveTo(x, bufferToY(0));
+			context.lineTo(x, y);
+			started = true;
+		} else {
+			context.lineTo(x, y);
+		}
+		lastX = x;
+		lastY = y;
+	}
+	if (started) {
+		context.lineTo(plotRight, lastY);
+		context.lineTo(plotRight, bufferToY(0));
+		context.closePath();
+		context.globalAlpha = 0.22;
+		context.fillStyle = colors.fetch;
+		context.fill();
+		context.globalAlpha = 1;
+		context.beginPath();
+		let first = true;
+		for (let index = 0; index < samples.length; index += 1) {
+			const sample = samples[index];
+			const next = samples[index + 1];
+			if (next && next.time < view.start) continue;
+			const x = view.toX(Math.max(sample.time, view.start));
+			const y = bufferToY(sample.length);
+			if (first) {
+				context.moveTo(x, y);
+				first = false;
+			} else {
+				context.lineTo(x, y);
+			}
+		}
+		context.lineTo(plotRight, lastY);
+		context.strokeStyle = colors.fetch;
+		context.lineWidth = 1.5;
+		context.stroke();
+	}
+	const markY = bufferToY(CONFIG.highWaterMark);
+	context.setLineDash([4, 3]);
+	context.strokeStyle = colors.ink;
+	context.globalAlpha = 0.6;
+	context.lineWidth = 1;
+	context.beginPath();
+	context.moveTo(plotLeft, markY);
+	context.lineTo(plotRight, markY);
+	context.stroke();
+	context.setLineDash([]);
+	context.globalAlpha = 1;
+	context.fillStyle = colors.muted;
+	context.fillText("1,024", 0, markY);
+	context.fillText("4,000", 0, bufferLane.top + 5);
+
+	// Loop lane
+	const loopLane = lanes.loop;
+	const loopColors = { pulling: colors.fetch, waiting: colors.muted, awaiting: colors.size, stopped: colors.fail };
+	const loopAlpha = { pulling: 0.75, waiting: 0.18, awaiting: 0.7, stopped: 0.6 };
+	for (const segment of simulation.history.loopSegments) {
+		const end = segment.end ?? simulation.now;
+		if (end < view.start) continue;
+		const drawn = drawSegment(context, view, segment.start, end, loopLane.top, loopLane.height, loopColors[segment.status], loopAlpha[segment.status]);
+		if (drawn && segment.status === "awaiting") {
+			drawLabel(context, `await #${segment.flushId}`, drawn.left, loopLane.top + loopLane.height / 2, colors.panel, drawn.width);
+		}
+	}
+
+	// Flush lane: the phases of each flush
+	const flushLane = lanes.flush;
+	for (const phase of simulation.history.flushPhases) {
+		const end = phase.end ?? simulation.now;
+		if (end < view.start) continue;
+		let color = phase.trigger === "linger" ? colors.linger : colors.size;
+		if (phase.name === "deadLetter") color = colors.poison;
+		if (phase.name === "commit") color = colors.commit;
+		if (phase.failed) color = colors.fail;
+		const alpha = phase.name === "isolate" ? 0.55 : 0.9;
+		const drawn = drawSegment(context, view, phase.start, end, flushLane.top, flushLane.height, color, alpha);
+		if (drawn && (phase.name === "insert" || phase.name === "isolate")) {
+			drawLabel(context, `#${phase.flushId}`, drawn.left, flushLane.top + flushLane.height / 2, colors.panel, drawn.width);
+		}
+	}
+	for (const marker of simulation.history.markers) {
+		if (marker.time < view.start) continue;
+		const x = view.toX(marker.time);
+		context.fillStyle = marker.trigger === "linger" ? colors.linger : colors.size;
+		context.beginPath();
+		context.moveTo(x - 4, flushLane.top - 7);
+		context.lineTo(x + 4, flushLane.top - 7);
+		context.lineTo(x, flushLane.top - 1);
+		context.closePath();
+		context.fill();
+	}
+
+	// Commit lane
+	const commitLane = lanes.commit;
+	let lastCommit = null;
+	for (const commit of simulation.history.commits) {
+		if (commit.time < view.start) continue;
+		const x = view.toX(commit.time);
+		context.fillStyle = colors.commit;
+		context.fillRect(x - 1, commitLane.top, 2, commitLane.height);
+		lastCommit = { x, offset: commit.offset };
+	}
+	if (lastCommit) {
+		const label = formatCount(lastCommit.offset);
+		const labelWidth = context.measureText(label).width;
+		if (lastCommit.x - labelWidth - 6 > plotLeft) {
+			context.fillStyle = colors.commit;
+			context.fillText(label, lastCommit.x - labelWidth - 5, commitLane.top + commitLane.height / 2);
+		}
+	}
+
+	// Time axis
+	const step = chooseTickStep(windowMs);
+	context.strokeStyle = colors.rule;
+	context.fillStyle = colors.muted;
+	context.lineWidth = 1;
+	context.beginPath();
+	context.moveTo(plotLeft, axisTop);
+	context.lineTo(plotRight, axisTop);
+	context.stroke();
+	context.textBaseline = "top";
+	for (let tick = 0; tick <= windowMs + 0.0001; tick += step) {
+		const x = view.toX(simulation.now - tick);
+		context.beginPath();
+		context.moveTo(x, axisTop);
+		context.lineTo(x, axisTop + 4);
+		context.stroke();
+		const label = formatTick(Math.round(tick * 10) / 10);
+		const labelWidth = context.measureText(label).width;
+		const labelX = Math.min(Math.max(x - labelWidth / 2, plotLeft), plotRight - labelWidth);
+		context.fillText(label, labelX, axisTop + 7);
+	}
+	context.textBaseline = "middle";
+
+	const consumerWindow = windowMs >= 1000 ? `${(windowMs / 1000).toFixed(windowMs % 1000 === 0 ? 0 : 1)} s` : `${Math.round(windowMs)} ms`;
+	setText(elements["timeline-caption"], `last ${TIMELINE_REAL_SECONDS} s on screen = ${consumerWindow} of consumer time at ${effectiveSpeed}×`);
+}
+
+function renderAll(frameTime, effectiveSpeed) {
+	const simulation = page.simulation;
+	for (const name of simulation.pulses) pulseStation(name, frameTime);
+	simulation.pulses = [];
+
+	renderStatus(simulation, effectiveSpeed);
+	renderRuler(simulation);
+	renderKafka(simulation);
+	renderFetch(simulation);
+	renderBuffer(simulation);
+	renderLoop(simulation);
+	renderBatch(simulation);
+	renderQueue(simulation);
+	renderPostgres(simulation);
+	renderCommit(simulation);
+	renderEventLog(simulation);
+	drawTimeline(simulation, effectiveSpeed);
+}
+
+function runFrame(frameTime) {
+	if (page.lastFrameTime === null) page.lastFrameTime = frameTime;
+	const elapsedMs = Math.min(frameTime - page.lastFrameTime, 100);
+	page.lastFrameTime = frameTime;
+
+	const effectiveSpeed = chooseEffectiveSpeed();
+	if (page.playing) {
+		const simulation = page.simulation;
+		advanceSimulation(simulation, simulation.now + elapsedMs * effectiveSpeed);
+		sampleBuffer(simulation, false);
+		page.framesSincePrune += 1;
+		if (page.framesSincePrune >= 30) {
+			page.framesSincePrune = 0;
+			pruneHistory(simulation, TIMELINE_REAL_SECONDS * 1000 * Math.max(effectiveSpeed, 1) * 1.5);
+		}
+	}
+
+	renderAll(frameTime, effectiveSpeed);
+	requestAnimationFrame(runFrame);
+}
+
+function wireControls() {
+	for (const button of document.querySelectorAll("[data-load]")) {
+		button.addEventListener("click", () => startLoad(button.dataset.load));
+	}
+	elements.speed.addEventListener("change", () => {
+		page.speed = Number(elements.speed.value);
+	});
+	elements.play.addEventListener("click", () => {
+		page.playing = !page.playing;
+		setText(elements.play, page.playing ? "Pause" : "Play");
+	});
+	elements.reset.addEventListener("click", () => startLoad(page.loadKey));
+	elements["inject-poison"].addEventListener("click", () => injectRecord(page.simulation, "poison"));
+	elements["inject-bad-row"].addEventListener("click", () => injectRecord(page.simulation, "badRow"));
+	elements["toggle-postgres"].addEventListener("click", () => {
+		togglePostgres(page.simulation);
+		renderPostgresToggle();
+	});
+}
+
+function positionHighWaterMark() {
+	const percent = (CONFIG.highWaterMark / BUFFER_SCALE) * 100;
+	elements["buffer-mark"].style.left = `${percent}%`;
+	elements["buffer-mark-label"].style.marginLeft = `calc(${percent}% - 4ch)`;
+	elements["buffer-mark-label"].style.marginRight = "auto";
+}
+
+buildBatchGrid();
+positionHighWaterMark();
+wireControls();
+startLoad("backlog");
+setText(elements.play, page.playing ? "Pause" : "Play");
+requestAnimationFrame(runFrame);
+</script>
+</body>
+</html>

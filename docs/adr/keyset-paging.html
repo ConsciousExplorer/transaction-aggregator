@@ -1,0 +1,1625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keyset Paging Lab</title>
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a lab bench. The index Postgres walks sits on the left, the offset and keyset clients work side by side on the right, and the reference notes run full width below. */
+:root {
+  --paper: #f2f4f8;
+  --card: #ffffff;
+  --ink: #121a30;
+  --muted: #56617b;
+  --faint: #939cb1;
+  --rule: #d9dfe9;
+  --code: #ebeff6;
+  --keyset: #2442d4;
+  --keyset-soft: #e1e7fc;
+  --offset: #a95a05;
+  --offset-soft: #fbead3;
+  --bad: #be2436;
+  --bad-soft: #fbe2e5;
+  --good: #19744a;
+  --good-soft: #daf1e4;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0c1120; --card: #141b2d; --ink: #e4e8f2; --muted: #98a3be; --faint: #6a7590;
+    --rule: #252f47; --code: #0f1628;
+    --keyset: #8ea5ff; --keyset-soft: #1b2858; --offset: #f0a54d; --offset-soft: #392710;
+    --bad: #ff8190; --bad-soft: #43161e; --good: #66d49f; --good-soft: #0f311f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0c1120; --card: #141b2d; --ink: #e4e8f2; --muted: #98a3be; --faint: #6a7590;
+  --rule: #252f47; --code: #0f1628;
+  --keyset: #8ea5ff; --keyset-soft: #1b2858; --offset: #f0a54d; --offset-soft: #392710;
+  --bad: #ff8190; --bad-soft: #43161e; --good: #66d49f; --good-soft: #0f311f;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+
+.wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-inline: clamp(16px, 3vw, 36px);
+  padding-block: 32px 80px;
+  display: grid;
+  gap: 18px;
+}
+
+/* Header */
+.top { display: grid; gap: 12px; max-width: 920px; padding-bottom: 6px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.03em; color: var(--muted); }
+h1 {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: clamp(34px, 5.4vw, 60px);
+  line-height: 0.98;
+  letter-spacing: -0.015em;
+}
+h1 .k { color: var(--keyset); }
+.lede { font-size: 17px; max-width: 68ch; color: var(--ink); }
+.lede code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+
+/* Buttons and fields */
+button, select {
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 6px 11px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--muted); }
+button:disabled { opacity: 0.42; cursor: not-allowed; }
+button:focus-visible, select:focus-visible, .chip:focus-visible {
+  outline: 2px solid var(--keyset);
+  outline-offset: 2px;
+}
+button.primary, button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+button.quiet { background: transparent; color: var(--muted); }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: end;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.field { display: grid; gap: 5px; min-width: 0; }
+.lbl {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; margin-left: -1px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { font-family: var(--font-mono); font-size: 12px; padding: 5px 9px; }
+.pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px dashed var(--keyset);
+  color: var(--keyset);
+  border-radius: 99px;
+  padding: 3px 9px;
+  align-self: center;
+}
+
+.actions { display: grid; gap: 10px; }
+.groups { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.group-label {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.event {
+  font-size: 14.5px;
+  min-height: 1.6em;
+  max-width: 110ch;
+}
+.event b { font-weight: 600; }
+
+/* Bench */
+.bench {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.65fr);
+  gap: 20px;
+  align-items: start;
+}
+.col-head { display: grid; gap: 6px; margin-bottom: 10px; }
+h2 {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 760;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+}
+.col-head p { color: var(--muted); font-size: 14px; max-width: 62ch; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+.ledger {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.ledger-inner { min-width: 440px; }
+.lrow {
+  display: grid;
+  grid-template-columns: 9px 9px 22px auto minmax(0, 1fr) auto;
+  gap: 0 9px;
+  align-items: center;
+  padding: 5px 12px;
+  border-top: 1px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+.ledger-inner > :first-child { border-top: 0; }
+.lrow .pos { color: var(--faint); text-align: right; }
+.lrow .t { color: var(--muted); white-space: nowrap; }
+.lrow .t i, .prow .t i { font-style: normal; color: var(--faint); }
+.lrow .d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-body); font-size: 13px; }
+.lrow .a { text-align: right; white-space: nowrap; }
+.lrow .key { color: var(--ink); font-weight: 600; }
+.lrow.on .d { font-weight: 600; }
+.lrow.filtered { color: var(--faint); }
+.lrow.filtered .d { text-decoration: line-through; }
+.lrow.filtered .t, .lrow.filtered .key { color: var(--faint); font-weight: 400; }
+.lrow.fresh { animation: arrive 1.4s ease-out; }
+@keyframes arrive { from { background: var(--good-soft); } to { background: transparent; } }
+.credit { color: var(--good); }
+.lrow.filtered .credit { color: var(--faint); }
+.tag-new {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--good);
+  margin-left: 6px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.lane {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+}
+.lane.o.on { background: var(--offset); border-color: var(--offset); }
+.lane.o.gone {
+  border-color: var(--offset);
+  background: repeating-linear-gradient(45deg, var(--offset) 0 1.5px, transparent 1.5px 3.5px);
+}
+.lane.k.on { background: var(--keyset); border-color: var(--keyset); }
+.lane.k.ahead { border: 1px dashed var(--keyset); }
+
+.mark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  border-top: 1px solid var(--rule);
+}
+.mark b { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10.5px; }
+.mark code { font-size: 11.5px; word-break: break-all; }
+.mark.seek { color: var(--keyset); background: var(--keyset-soft); }
+.mark.off { color: var(--offset); background: var(--offset-soft); }
+
+.panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 1081px) and (min-height: 880px) {
+  .panes { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 14px); }
+}
+.pane {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 14px;
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+}
+.pane-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; }
+.tag {
+  font-family: var(--font-display);
+  font-stretch: 118%;
+  font-weight: 800;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.tag::before { content: ""; width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+.tag.offset { color: var(--offset); }
+.tag.keyset { color: var(--keyset); }
+.pane-sub { font-size: 12.5px; color: var(--muted); }
+.req {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  background: var(--code);
+  border-radius: 6px;
+  padding: 8px 10px;
+  word-break: break-all;
+  color: var(--muted);
+}
+.req .cur { color: var(--keyset); font-weight: 500; }
+.req .off { color: var(--offset); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { display: grid; gap: 1px; align-content: start; }
+.stat b {
+  font-family: var(--font-display);
+  font-stretch: 110%;
+  font-weight: 760;
+  font-size: 24px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.stat b small { font-size: 14px; color: var(--muted); font-weight: 600; }
+.stat span { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.offset-pane .stat.hot b { color: var(--offset); }
+.keyset-pane .stat.hot b { color: var(--keyset); }
+
+pre.sql, pre.code, pre.json {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  background: var(--code);
+  padding: 9px 11px;
+  border-radius: 6px;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--ink);
+}
+.kw { color: var(--keyset); font-weight: 600; }
+.offset-pane .kw { color: var(--offset); }
+.cm { color: var(--faint); }
+.jk { color: var(--keyset); }
+.js { color: var(--ink); }
+.jn { color: var(--offset); }
+.jl { color: var(--muted); font-style: italic; }
+
+.note { font-size: 13px; line-height: 1.45; padding: 8px 10px; border-radius: 6px; }
+.note.bad { background: var(--bad-soft); color: var(--bad); }
+.note.good { background: var(--good-soft); color: var(--good); }
+.note b { font-weight: 600; }
+
+.prows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.prow { padding: 7px 8px; border-bottom: 1px solid var(--rule); display: grid; gap: 2px; }
+.prow.repeat { background: var(--bad-soft); }
+.pr-main { display: flex; justify-content: space-between; gap: 10px; font-weight: 500; font-size: 14px; }
+.pr-main .d { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-main .a { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pr-sub { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: 99px;
+}
+.badge.repeat { background: var(--bad); color: var(--card); }
+.badge.new { background: var(--good-soft); color: var(--good); }
+.empty { color: var(--muted); font-size: 13.5px; padding: 12px 0; }
+
+.nav { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.pages { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.pages button { padding: 3px 8px; font-family: var(--font-mono); font-size: 12px; }
+.pages button[aria-current="page"] { background: var(--offset); border-color: var(--offset); color: var(--card); }
+.nav-note { font-size: 12px; color: var(--muted); text-align: center; flex: 1 1 120px; }
+
+/* Reference sections */
+.ref {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--rule);
+  padding-top: 30px;
+  margin-top: 18px;
+}
+.ref > p, .ref .prose { max-width: 72ch; }
+.ref .prose { display: grid; gap: 10px; }
+.ref h3 {
+  font-family: var(--font-display);
+  font-stretch: 108%;
+  font-weight: 700;
+  font-size: 15px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button { font-family: var(--font-mono); font-size: 12.5px; }
+.tabs button[aria-selected="true"] { background: var(--keyset); border-color: var(--keyset); color: var(--card); }
+.url {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 2.15;
+  word-break: break-all;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--faint);
+}
+.chip {
+  padding: 3px 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  color: var(--ink);
+}
+.chip.path { color: var(--muted); }
+.chip.win { background: var(--code); color: var(--muted); }
+.chip.shape { background: var(--code); }
+.chip.filt { border: 1px dashed var(--faint); }
+.chip.cur { background: var(--keyset-soft); color: var(--keyset); }
+.chip.prop { border: 1px dashed var(--keyset); }
+.chip.sel { outline: 2px solid currentColor; outline-offset: 1px; }
+.explain {
+  display: grid;
+  gap: 4px;
+  background: var(--keyset-soft);
+  border-radius: 8px;
+  padding: 12px 14px;
+  max-width: 86ch;
+}
+.explain h3 { font-family: var(--font-mono); font-stretch: 100%; font-size: 13px; color: var(--keyset); }
+.absent { color: var(--muted); font-size: 14px; }
+.explain pre.json { margin-top: 4px; background: var(--card); }
+.explain ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 5px; font-size: 14px; }
+.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.two > div { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.caption { font-size: 13px; color: var(--muted); }
+.callout {
+  border: 1px dashed var(--keyset);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  max-width: 86ch;
+}
+.callout ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+.tokens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tok {
+  display: grid;
+  border: 1px solid var(--rule);
+  background: var(--card);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.tok small { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.tok.look { border-style: dashed; border-color: var(--keyset); color: var(--muted); }
+.tok.look span { text-decoration: line-through; }
+.strip { display: grid; gap: 6px; }
+.strip-label { font-size: 12.5px; color: var(--muted); }
+.val { color: var(--keyset); }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+thead th {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+thead th.o { color: var(--offset); }
+thead th.k { color: var(--keyset); }
+tbody th { font-weight: 600; width: 22%; }
+td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
+.verdict {
+  font-family: var(--font-display);
+  font-stretch: 115%;
+  font-weight: 760;
+  font-size: clamp(20px, 2.4vw, 26px);
+  line-height: 1.2;
+}
+.verdict code { font-size: 0.85em; color: var(--keyset); background: var(--keyset-soft); padding: 1px 6px; border-radius: 5px; }
+
+@media (max-width: 1080px) {
+  .bench { grid-template-columns: minmax(0, 1fr); }
+  .panes { order: -1; }
+}
+@media (max-width: 760px) {
+  .panes { grid-template-columns: minmax(0, 1fr); }
+  .two { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lrow.fresh { animation: none; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">transaction-aggregator · apps/api/src/utils/paging.ts</p>
+    <h1>Keyset Paging <span class="k">Lab</span></h1>
+    <p class="lede">One user's transactions, two clients paging through them. The offset client asks for page numbers. The keyset client follows <code>links.next</code> and <code>links.prev</code>, which is how the API works today. Change the data while they page and watch which one repeats or loses rows.</p>
+  </header>
+
+  <section class="controls" aria-label="The request both clients send">
+    <label class="field" for="sort"><span class="lbl">sort</span>
+      <select id="sort">
+        <option value="-occurredAt">-occurredAt · newest first</option>
+        <option value="occurredAt">occurredAt · oldest first</option>
+        <option value="-amount">-amount · largest first (proposal)</option>
+        <option value="amount">amount · smallest first (proposal)</option>
+      </select>
+    </label>
+    <label class="field" for="limit"><span class="lbl">limit</span>
+      <select id="limit">
+        <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+        <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+      </select>
+    </label>
+    <div class="field"><span class="lbl" id="dirLbl">creditDebitIndicator</span>
+      <div class="seg" role="group" aria-labelledby="dirLbl">
+        <button type="button" id="dir-all" data-dir="all">all</button>
+        <button type="button" id="dir-debit" data-dir="debit">debit</button>
+        <button type="button" id="dir-credit" data-dir="credit">credit</button>
+      </div>
+    </div>
+    <div class="field"><span class="lbl" id="typeLbl">transactionType</span>
+      <div class="chips" role="group" aria-labelledby="typeLbl">
+        <button type="button" id="type-card" data-type="card">card</button>
+        <button type="button" id="type-eft" data-type="eft">eft</button>
+        <button type="button" id="type-debit_order" data-type="debit_order">debit_order</button>
+        <button type="button" id="type-internal_transfer" data-type="internal_transfer">internal_transfer</button>
+      </div>
+    </div>
+    <label class="field" for="amountMin"><span class="lbl">amountMin</span>
+      <select id="amountMin">
+        <option value="0">any amount</option>
+        <option value="10000">R 100 and up</option>
+        <option value="50000">R 500 and up</option>
+        <option value="100000">R 1 000 and up</option>
+      </select>
+    </label>
+    <span class="pill" id="sortPill" hidden>Amount sort is not built</span>
+  </section>
+
+  <section class="actions" aria-label="Actions">
+    <div class="groups">
+      <div class="group">
+        <span class="group-label">Page both</span>
+        <button type="button" id="prevBoth" data-fk="prevBoth">← Prev</button>
+        <button type="button" id="nextBoth" class="primary" data-fk="nextBoth">Next →</button>
+        <button type="button" id="resetWalk" data-fk="resetWalk">Back to page 1</button>
+      </div>
+      <div class="group">
+        <span class="group-label">Change the data</span>
+        <button type="button" id="addNew" data-fk="addNew">New transaction arrives</button>
+        <button type="button" id="addLate" data-fk="addLate">Late transaction lands</button>
+        <button type="button" id="dropRow" data-fk="dropRow">A row on this page leaves</button>
+        <button type="button" id="restore" class="quiet" data-fk="restore">Restore data</button>
+      </div>
+      <div class="group">
+        <span class="group-label">Try it</span>
+        <button type="button" data-scenario="repeat">Show a repeat</button>
+        <button type="button" data-scenario="skip">Show a skip</button>
+        <button type="button" data-scenario="filter">Page through a filter</button>
+        <button type="button" data-scenario="amount">Sort by amount</button>
+      </div>
+    </div>
+    <p class="event" id="eventMsg" aria-live="polite"></p>
+  </section>
+
+  <div class="bench">
+    <section aria-labelledby="ledgerTitle">
+      <div class="col-head">
+        <h2 id="ledgerTitle">The index</h2>
+        <p>Every row in the window, in sort order, the way Postgres walks it. Filters are plain <code>WHERE</code> conditions next to the seek, so struck-through rows are walked past but never returned. The numbers count only rows that match.</p>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="lane o on"></i>on the offset page</span>
+        <span><i class="lane o gone"></i>read, then thrown away by OFFSET</span>
+        <span><i class="lane k on"></i>on the keyset page</span>
+        <span><i class="lane k ahead"></i>look-ahead row (limit + 1)</span>
+      </div>
+      <div class="ledger"><div class="ledger-inner" id="ledger"></div></div>
+    </section>
+
+    <div class="panes">
+      <section class="pane offset-pane" id="paneOffset" aria-label="Offset client"></section>
+      <section class="pane keyset-pane" id="paneKeyset" aria-label="Keyset client"></section>
+    </div>
+  </div>
+
+  <section class="ref" id="anatomy" aria-labelledby="anatomyTitle">
+    <h2 id="anatomyTitle">What a cursor looks like</h2>
+    <p>The keyset client never builds a request. Every response carries <code>links.self</code>, <code>links.next</code> and <code>links.prev</code>: the request's own path and query, with the window and the cursor set. Tap any part of the link to see why it is there.</p>
+    <div class="tabs" role="tablist" aria-label="Link" id="linkTabs"></div>
+    <div id="urlBox"></div>
+    <div class="explain" id="explainBox" aria-live="polite"></div>
+    <div class="two">
+      <div>
+        <h3 id="sqlTitle">What links.next asks Postgres</h3>
+        <pre class="sql" id="sqlBox"></pre>
+      </div>
+      <div>
+        <h3>The response this page came in</h3>
+        <pre class="json" id="jsonBox"></pre>
+        <p class="caption" id="jsonCaption"></p>
+      </div>
+    </div>
+    <div class="callout" id="amountBox"></div>
+  </section>
+
+  <section class="ref" id="stepper" aria-labelledby="stepperTitle">
+    <h2 id="stepperTitle">buildKeysetPage, line by line</h2>
+    <p>The keyset pane's current page, run through the real function in <code>paging.ts</code>. The repository reads <code>limit + 1</code> rows; the extra row only proves another page exists in the direction read.</p>
+    <div id="stepBox" class="prose"></div>
+  </section>
+
+  <section class="ref" aria-labelledby="compareTitle">
+    <h2 id="compareTitle">Offset or keyset</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col"></th><th scope="col" class="o">Offset</th><th scope="col" class="k">Keyset (what the API does)</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Page 5 at limit 50</th><td><code>LIMIT 51 OFFSET 200</code></td><td><code>WHERE (occurred_at, transaction_id) &lt; (…) LIMIT 51</code></td></tr>
+          <tr><th scope="row">Rows Postgres reads</th><td>offset + limit + 1. Grows with every page.</td><td>limit + 1 at any depth, plus any rows the filters walk past.</td></tr>
+          <tr><th scope="row">A row arrives above you</th><td>The next page repeats a row.</td><td>No effect. The new row shows up when you page back.</td></tr>
+          <tr><th scope="row">A row above you leaves</th><td>The next page loses a row.</td><td>No effect. The cursor is a value, not a row, so it still works when its own row is gone.</td></tr>
+          <tr><th scope="row">Jump to page 7</th><td>Yes.</td><td>No. Only next and prev from a boundary row.</td></tr>
+          <tr><th scope="row">Page count</th><td>Needs a <code>COUNT(*)</code> over the window on every request.</td><td>None. An opt-in <code>includeTotal</code> is the way back in.</td></tr>
+          <tr><th scope="row">Sorting by another column</th><td>Change <code>ORDER BY</code>.</td><td>The cursor must carry that column plus the tiebreak, for example <code>amountMinor</code> in the cursor's position.</td></tr>
+          <tr><th scope="row">What the client keeps</th><td>A page number.</td><td>Nothing. It follows the links.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ref" aria-labelledby="namingTitle">
+    <h2 id="namingTitle">buildKeysetPage or buildCursorPage?</h2>
+    <p class="verdict">Keep <code>buildKeysetPage</code>. It returns rows, and the cursor is made from them one layer up.</p>
+    <div class="prose">
+      <p>Keyset is the technique: seek past the last row's sort key instead of counting rows. A cursor is what the client holds: a position it sends back. The code already uses each word for its own layer:</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Layer</th><th scope="col">What it holds</th><th scope="col">Names today</th><th scope="col">Word</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Repository</th><td>The seek on the sort key</td><td><code>cursorBound</code>, <code>cursorSeek</code></td><td>keyset, fed by the cursor's position</td></tr>
+          <tr><th scope="row"><code>paging.ts</code></th><td>Up to limit rows, plus the boundary rows <code>nextFrom</code> and <code>prevFrom</code></td><td><code>buildKeysetPage</code></td><td>keyset: it holds rows, not cursors</td></tr>
+          <tr><th scope="row">Route</th><td>A boundary row turned into a position, and back</td><td><code>buildPageCursor</code>, <code>encodeCursor</code>, <code>decodeCursor</code>, <code>transactionPageCursorSchema</code></td><td>cursor</td></tr>
+          <tr><th scope="row">Wire</th><td>One opaque query value a client sends back</td><td><code>cursor</code>: base64url of <code>{ direction, position }</code></td><td>cursor: what clients know it as</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <h3>Why not buildCursorPage</h3>
+      <p>It would say the page carries cursors when it carries rows. The route turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word should change.</p>
+      <p>In Postgres, a cursor is <code>DECLARE … CURSOR</code>: a server-side position held open between fetches. Keyset paging holds nothing between requests, and that is its whole point. Keeping "keyset" on the database side avoids an interviewer asking whether a cursor stays open between page requests.</p>
+      <p><code>buildKeysetPage(fetched, limit, cursorDirection, hasCursor)</code> takes cursor words as inputs. That is correct: they are facts about the request, not about the page.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const USER_ID = "7c1e9a52-3f04-4d8b-9a61-2e5b8c0d4f17";
+  const PATH = `/api/v1/users/${USER_ID}/transactions`;
+  const WINDOW = { from: "2026-09-01T00:00:00Z", to: "2026-10-08T00:00:00Z" };
+  const TYPES = ["card", "eft", "debit_order", "internal_transfer"];
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const COLUMN = { at: "occurred_at", id: "transaction_id", amount: "amount_minor" };
+  const SORTS = {
+    "-occurredAt": { keys: ["at", "id"], desc: true },
+    occurredAt: { keys: ["at", "id"], desc: false },
+    "-amount": { keys: ["amount", "at", "id"], desc: true },
+    amount: { keys: ["amount", "at", "id"], desc: false }
+  };
+
+  // [occurred_at, short description, transaction type, direction, amount in cents, category]
+  const SEED = [
+    ["2026-09-01T00:00:00.000000Z", "Discovery Health", "debit_order", "debit", 312450, "medical"],
+    ["2026-09-01T00:00:00.000000Z", "Vodacom contract", "debit_order", "debit", 59900, "utilities"],
+    ["2026-09-01T00:00:00.000000Z", "Netflix", "debit_order", "debit", 19900, "entertainment"],
+    ["2026-09-03T07:41:12.204518Z", "Woolworths Food", "card", "debit", 84237, "groceries"],
+    ["2026-09-05T12:03:55.918004Z", "Engen Rosebank", "card", "debit", 95000, "fuel"],
+    ["2026-09-08T18:22:41.000731Z", "Uber Eats", "card", "debit", 23450, "dining"],
+    ["2026-09-10T09:15:02.663120Z", "Rent, 14 Oak Ave", "eft", "debit", 1250000, "recurring_payments"],
+    ["2026-09-12T13:47:19.330981Z", "Checkers Sixty60", "card", "debit", 61289, "groceries"],
+    ["2026-09-15T08:00:00.112934Z", "Transfer to savings", "internal_transfer", "debit", 200000, "transfers"],
+    ["2026-09-15T08:00:00.112935Z", "Transfer from cheque", "internal_transfer", "credit", 200000, "transfers"],
+    ["2026-09-18T20:11:37.845210Z", "Ster-Kinekor", "card", "debit", 19900, "entertainment"],
+    ["2026-09-21T11:29:50.507663Z", "Dis-Chem", "card", "debit", 34875, "medical"],
+    ["2026-09-24T16:05:08.091447Z", "Gautrain", "card", "debit", 5000, "transport"],
+    ["2026-09-25T06:30:00.000000Z", "Salary, Acme (Pty) Ltd", "eft", "credit", 3845000, "income"],
+    ["2026-09-26T19:44:13.276590Z", "Spur Steak Ranches", "card", "debit", 48600, "dining"],
+    ["2026-09-28T10:02:47.918332Z", "Takealot refund", "eft", "credit", 129900, "retail"],
+    ["2026-09-29T15:51:20.640075Z", "Gautrain", "card", "debit", 5000, "transport"],
+    ["2026-10-01T00:00:00.000000Z", "Discovery Health", "debit_order", "debit", 312450, "medical"],
+    ["2026-10-01T00:00:00.000000Z", "Vodacom contract", "debit_order", "debit", 59900, "utilities"],
+    ["2026-10-01T00:00:00.000000Z", "Netflix", "debit_order", "debit", 19900, "entertainment"],
+    ["2026-10-02T08:14:39.501226Z", "Woolworths Food", "card", "debit", 102344, "groceries"],
+    ["2026-10-03T14:22:07.481203Z", "Bond repayment", "debit_order", "debit", 985000, "loan_repayment"],
+    ["2026-10-05T17:36:58.023418Z", "Mugg & Bean", "card", "debit", 8650, "dining"],
+    ["2026-10-06T09:58:31.774051Z", "Takealot", "card", "debit", 129900, "retail"]
+  ];
+  const ARRIVALS = [
+    ["2026-10-07T12:10:44.390117Z", "Pick n Pay", "card", "debit", 45612, "groceries"],
+    ["2026-10-07T13:02:19.884502Z", "Bolt", "card", "debit", 7400, "transport"],
+    ["2026-10-07T16:47:55.120938Z", "Steers", "card", "debit", 11290, "dining"],
+    ["2026-10-07T19:31:08.665014Z", "Showmax", "card", "debit", 9900, "entertainment"],
+    ["2026-10-07T21:05:42.017733Z", "Uber", "card", "debit", 13850, "transport"]
+  ];
+  const LATE = [
+    ["2026-10-04T10:26:51.448790Z", "Shell Garage", "card", "debit", 88000, "fuel"],
+    ["2026-09-30T07:59:59.999999Z", "OUTsurance", "debit_order", "debit", 104500, "insurance"],
+    ["2026-09-27T14:40:02.300418Z", "Clicks", "card", "debit", 21995, "medical"],
+    ["2026-09-20T09:12:33.555201Z", "City of Joburg rates", "eft", "debit", 187300, "utilities"],
+    ["2026-09-09T11:18:26.902255Z", "Interest earned", "eft", "credit", 1843, "income"]
+  ];
+
+  function mulberry32(seed) {
+    return function next() {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(47);
+
+  function makeUuid() {
+    let hex = "";
+    for (let i = 0; i < 32; i++) hex += Math.floor(rand() * 16).toString(16);
+    const variant = "89ab"[Math.floor(rand() * 4)];
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  }
+
+  function makeRow(t) {
+    return { id: makeUuid(), at: t[0], desc: t[1], type: t[2], dir: t[3], amount: t[4], cat: t[5] };
+  }
+
+  const SEED_ROWS = SEED.map(makeRow);
+  const NEW_ROWS = ARRIVALS.map(makeRow);
+  const LATE_ROWS = LATE.map(makeRow);
+
+  const state = { sort: "-occurredAt", limit: 5, direction: "all", types: new Set(), amountMin: 0 };
+  let db = [];
+  let newQueue = [];
+  let lateQueue = [];
+  const fresh = new Map();
+  let justArrived = null;
+  const offsetPane = { res: null, stack: [], notes: { repeats: [], skipped: [] } };
+  const keysetPane = { res: null, stack: [], notes: { repeats: [], skipped: [] } };
+  let anatomyTab = "next";
+  let anatomyKey = "cursor";
+
+  // ---------- formatting ----------
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
+  function shortId(id) { return `${id.slice(0, 8)}…`; }
+  function timeParts(at) {
+    return { day: `${at.slice(8, 10)} ${MONTHS[Number(at.slice(5, 7)) - 1]}`, hms: at.slice(11, 19), micro: at.slice(19, 26) };
+  }
+  function timeHtml(at) {
+    const t = timeParts(at);
+    return `${t.day} ${t.hms}<i>${t.micro}</i>`;
+  }
+  function money(minor) {
+    const rands = Math.floor(minor / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return `R ${rands}.${String(minor % 100).padStart(2, "0")}`;
+  }
+  function signedMoney(r) { return r.dir === "credit" ? `+${money(r.amount)}` : money(r.amount); }
+  function keyLabel(r) {
+    if (isAmountSort()) return money(r.amount);
+    const t = timeParts(r.at);
+    return `${t.day} ${t.hms.slice(0, 5)}`;
+  }
+  function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
+  function nameList(rows) {
+    const names = rows.map((r) => `<b>${esc(r.desc)}</b>`);
+    if (names.length <= 1) return names.join("");
+    return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  }
+  function encodeValue(v) {
+    return encodeURIComponent(v).replaceAll("%3A", ":").replaceAll("%E2%80%A6", "…");
+  }
+
+  // ---------- ordering and filters ----------
+  function isAmountSort() { return state.sort.endsWith("amount"); }
+  function compareKeys(a, b, keys) {
+    for (const k of keys) {
+      if (a[k] < b[k]) return -1;
+      if (a[k] > b[k]) return 1;
+    }
+    return 0;
+  }
+  // Negative when a comes before b in the chosen sort order
+  function orderCmp(a, b) {
+    const s = SORTS[state.sort];
+    return s.desc ? compareKeys(b, a, s.keys) : compareKeys(a, b, s.keys);
+  }
+  function sortedDb() { return db.slice().sort(orderCmp); }
+  function matches(r) {
+    if (state.direction !== "all" && r.dir !== state.direction) return false;
+    if (state.types.size > 0 && !state.types.has(r.type)) return false;
+    if (r.amount < state.amountMin) return false;
+    return true;
+  }
+  function isAscendingRead(dir) {
+    const sortAscending = !SORTS[state.sort].desc;
+    return dir === "next" ? sortAscending : !sortAscending;
+  }
+  function buildPageCursor(r) { return { id: r.id, at: r.at, amount: r.amount }; }
+
+  // ---------- the function under study, as in paging.ts ----------
+  function buildKeysetPage(fetched, limit, cursorDirection, hasCursor) {
+    const hasMore = fetched.length > limit;
+    const kept = hasMore ? fetched.slice(0, limit) : fetched;
+    const rows = cursorDirection === "prev" ? kept.slice().reverse() : kept;
+    const hasNext = cursorDirection === "next" ? hasMore : hasCursor;
+    const hasPrev = cursorDirection === "prev" ? hasMore : hasCursor;
+    return {
+      rows,
+      nextFrom: hasNext ? (rows.at(-1) ?? null) : null,
+      prevFrom: hasPrev ? (rows.at(0) ?? null) : null,
+      trace: { hasMore, kept, hasNext, hasPrev }
+    };
+  }
+
+  // ---------- reads ----------
+  function readKeyset(cursor, dir) {
+    const ordered = sortedDb();
+    let candidates = ordered;
+    if (cursor && dir === "next") candidates = ordered.filter((r) => orderCmp(r, cursor) > 0);
+    if (cursor && dir === "prev") candidates = ordered.filter((r) => orderCmp(r, cursor) < 0).reverse();
+    const fetched = [];
+    let walked = 0;
+    for (const r of candidates) {
+      walked++;
+      if (matches(r)) {
+        fetched.push(r);
+        if (fetched.length === state.limit + 1) break;
+      }
+    }
+    return {
+      cursor,
+      dir,
+      fetched,
+      page: buildKeysetPage(fetched, state.limit, dir, cursor !== null),
+      walked: isAmountSort() ? db.length : walked
+    };
+  }
+
+  function readOffset(pageIndex) {
+    const ordered = sortedDb();
+    const offset = pageIndex * state.limit;
+    const need = offset + state.limit + 1;
+    const matched = [];
+    let walked = 0;
+    for (const r of ordered) {
+      walked++;
+      if (matches(r)) {
+        matched.push(r);
+        if (matched.length === need) break;
+      }
+    }
+    return {
+      pageIndex,
+      offset,
+      rows: matched.slice(offset, offset + state.limit),
+      hasMore: matched.length > offset + state.limit,
+      total: ordered.filter(matches).length,
+      walked: isAmountSort() ? db.length : walked
+    };
+  }
+
+  // ---------- what each client noticed ----------
+  function recordPage(pane, rows, mode, prevRows) {
+    pane.notes = { repeats: [], skipped: [] };
+    const ids = rows.map((r) => r.id);
+    if (mode === "reset" || mode === "jump") {
+      pane.stack = [ids];
+      return;
+    }
+    if (mode === "prev") {
+      pane.stack.pop();
+      if (pane.stack.length === 0) pane.stack.push(ids);
+      else pane.stack[pane.stack.length - 1] = ids;
+      return;
+    }
+    const seenOnPage = new Map();
+    pane.stack.forEach((pageIds, i) => {
+      for (const id of pageIds) if (!seenOnPage.has(id)) seenOnPage.set(id, i + 1);
+    });
+    for (const r of rows) {
+      if (seenOnPage.has(r.id)) pane.notes.repeats.push({ row: r, page: seenOnPage.get(r.id) });
+    }
+    const last = prevRows && prevRows.length ? prevRows[prevRows.length - 1] : null;
+    const first = rows[0];
+    if (last && first) {
+      pane.notes.skipped = sortedDb().filter(
+        (r) => matches(r) && !seenOnPage.has(r.id) && orderCmp(r, last) > 0 && orderCmp(r, first) < 0
+      );
+    }
+    pane.stack.push(ids);
+  }
+
+  function offsetGo(pageIndex, mode) {
+    const before = offsetPane.res ? offsetPane.res.rows : null;
+    const res = readOffset(pageIndex);
+    recordPage(offsetPane, res.rows, mode, before);
+    offsetPane.res = res;
+  }
+  function keysetGo(cursor, dir, mode) {
+    const before = keysetPane.res ? keysetPane.res.page.rows : null;
+    const res = readKeyset(cursor, dir);
+    recordPage(keysetPane, res.page.rows, mode, before);
+    keysetPane.res = res;
+  }
+  const canOffsetNext = () => offsetPane.res.hasMore;
+  const canOffsetPrev = () => offsetPane.res.pageIndex > 0;
+  const canKeysetNext = () => keysetPane.res.page.nextFrom !== null;
+  const canKeysetPrev = () => keysetPane.res.page.prevFrom !== null;
+  function offsetNext() { if (canOffsetNext()) offsetGo(offsetPane.res.pageIndex + 1, "next"); }
+  function offsetPrev() { if (canOffsetPrev()) offsetGo(offsetPane.res.pageIndex - 1, "prev"); }
+  function keysetNext() { if (canKeysetNext()) keysetGo(buildPageCursor(keysetPane.res.page.nextFrom), "next", "next"); }
+  function keysetPrev() { if (canKeysetPrev()) keysetGo(buildPageCursor(keysetPane.res.page.prevFrom), "prev", "prev"); }
+
+  function resetWalk() {
+    justArrived = null;
+    offsetGo(0, "reset");
+    keysetGo(null, "next", "reset");
+  }
+
+  function describeNext() {
+    const o = offsetPane.notes;
+    const k = keysetPane.notes;
+    const parts = [];
+    if (o.repeats.length) {
+      parts.push(`Offset showed ${nameList(o.repeats.map((x) => x.row))} again. Rows above it moved down, so OFFSET ${offsetPane.res.offset} now lands ${plural(o.repeats.length, "row")} too early.`);
+    }
+    if (o.skipped.length) {
+      parts.push(`Offset never showed ${nameList(o.skipped)}. A row above it left, everything moved up, and OFFSET ${offsetPane.res.offset} jumped past it.`);
+    }
+    if (parts.length && !k.repeats.length && !k.skipped.length) {
+      parts.push("Keyset carried on from the cursor value with nothing repeated and nothing missed.");
+    }
+    if (!parts.length) {
+      return `Offset is on page ${offsetPane.res.pageIndex + 1}. Keyset followed <code>links.next</code>. Change the data, then press Next again.`;
+    }
+    return parts.join(" ");
+  }
+
+  function setMsg(html) { document.getElementById("eventMsg").innerHTML = html; }
+
+  // ---------- data changes ----------
+  function restoreData() {
+    db = SEED_ROWS.slice();
+    newQueue = NEW_ROWS.slice();
+    lateQueue = LATE_ROWS.slice();
+    fresh.clear();
+    justArrived = null;
+  }
+
+  function arrivalMessage(r, kind) {
+    if (!matches(r)) {
+      return `<b>${esc(r.desc)}</b> ${kind === "new" ? "arrived" : "landed"}, but it fails the current filters, so neither client will ever see it.`;
+    }
+    const pos = sortedDb().filter(matches).findIndex((x) => x.id === r.id) + 1;
+    const clientsAt = offsetPane.res.offset + offsetPane.res.rows.length;
+    const when = kind === "new" ? "arrived" : `landed late (it happened on ${timeParts(r.at).day})`;
+    const where = pos <= clientsAt
+      ? "That is above where both clients are, so every row below it moved down one place. Press Next on both."
+      : "That is ahead of both clients, so both will show it when they get there.";
+    return `<b>${esc(r.desc)}</b> ${when} and sorts at position ${pos}. ${where}`;
+  }
+
+  function addFrom(queue, kind) {
+    const r = queue.shift();
+    if (!r) return null;
+    db.push(r);
+    fresh.set(r.id, kind);
+    justArrived = r.id;
+    return r;
+  }
+
+  function dropCandidate() {
+    const onPage = offsetPane.res.rows.concat(keysetPane.res.page.rows);
+    return onPage.find((r) => db.includes(r)) ?? null;
+  }
+  function dropRow() {
+    const target = dropCandidate();
+    if (!target) return null;
+    db = db.filter((r) => r !== target);
+    return target;
+  }
+
+  // ---------- links ----------
+  function baseParams(withWindow) {
+    const p = [];
+    if (withWindow) p.push(["fromDateTime", WINDOW.from], ["toDateTime", WINDOW.to]);
+    p.push(["sort", state.sort], ["limit", String(state.limit)]);
+    if (state.direction !== "all") p.push(["creditDebitIndicator", state.direction]);
+    for (const t of TYPES) if (state.types.has(t)) p.push(["transactionType", t]);
+    if (state.amountMin > 0) p.push(["amountMin", String(state.amountMin)]);
+    return p;
+  }
+  // What the API puts in a cursor: which way to read, and the boundary row's position
+  function cursorPayload(cursor, dir) {
+    const position = {};
+    if (isAmountSort()) position.amountMinor = cursor.amount;
+    position.occurredAt = cursor.at;
+    position.transactionId = cursor.id;
+    return { direction: dir, position };
+  }
+  // JSON, then base64url, as encodeCursor in paging.ts does
+  function encodeCursor(payload) {
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  }
+  function cursorParams(cursor, dir) {
+    return [["cursor", encodeCursor(cursorPayload(cursor, dir))]];
+  }
+  function cursorDecodedHtml(cursor, dir) {
+    const notes = [
+      `<li><code>direction</code>: next continues in sort order from the position. prev reads against the sort order, so that LIMIT keeps the rows nearest the position, and buildKeysetPage flips them back.</li>`,
+      `<li><code>position.occurredAt</code>: the boundary row's occurred_at, exact to the microsecond, in UTC. SQL formats it with to_char(… 'US'). data[].occurredAt is only exact to the millisecond, so a cursor built from it would repeat or lose rows that differ only in microseconds, like the two transfers on 15 Sep at 08:00:00.112934 and .112935.</li>`,
+      `<li><code>position.transactionId</code>: the tiebreak. Debit orders all land at 00:00:00.000000 on the 1st of the month, so occurred_at alone can't put them in order. With transaction_id the sort key is unique, and every row has exactly one place.</li>`
+    ];
+    if (isAmountSort()) {
+      notes.unshift(`<li><code>position.amountMinor</code> (not built): with an amount sort the keyset becomes (amount_minor, occurred_at, transaction_id), so the position carries the amount too. Keeping occurred_at in the middle puts rows with the same amount in time order.</li>`);
+    }
+    return `<p><b>Decoded:</b></p><pre class="json">${jsonHtml(JSON.stringify(cursorPayload(cursor, dir), null, 2))}</pre><ul>${notes.join("")}</ul>`;
+  }
+  function toUrl(params) {
+    return `${PATH}?${params.map(([k, v]) => `${k}=${encodeValue(v)}`).join("&")}`;
+  }
+  function currentLinks() {
+    const res = keysetPane.res;
+    const base = baseParams(true);
+    return {
+      self: res.cursor ? base.concat(cursorParams(res.cursor, res.dir)) : base,
+      next: res.page.nextFrom ? base.concat(cursorParams(buildPageCursor(res.page.nextFrom), "next")) : null,
+      prev: res.page.prevFrom ? base.concat(cursorParams(buildPageCursor(res.page.prevFrom), "prev")) : null
+    };
+  }
+  function linkCursor(tab) {
+    const res = keysetPane.res;
+    if (tab === "next") return res.page.nextFrom ? { cursor: buildPageCursor(res.page.nextFrom), dir: "next" } : null;
+    if (tab === "prev") return res.page.prevFrom ? { cursor: buildPageCursor(res.page.prevFrom), dir: "prev" } : null;
+    return { cursor: res.cursor, dir: res.dir };
+  }
+  function queryHtml(params) {
+    return params.map(([k, v]) => {
+      const shown = k === "cursor" ? `${v.slice(0, 16)}…` : v;
+      const cls = k === "cursor" ? "cur" : k === "offset" ? "off" : "";
+      return `<span class="${cls}">${esc(k)}=${esc(encodeValue(shown))}</span>`;
+    }).join("&amp;");
+  }
+
+  // ---------- SQL ----------
+  function filterSqlLines() {
+    const lines = [];
+    if (state.direction !== "all") lines.push(`  AND credit_debit_indicator = '${state.direction}'`);
+    const types = TYPES.filter((t) => state.types.has(t));
+    if (types.length === 1) lines.push(`  AND transaction_type = '${types[0]}'`);
+    if (types.length > 1) lines.push(`  AND transaction_type IN (${types.map((t) => `'${t}'`).join(", ")})`);
+    if (state.amountMin > 0) lines.push(`  AND amount_minor >= ${state.amountMin}`);
+    return lines;
+  }
+  function orderSql(ascending) {
+    const cols = SORTS[state.sort].keys.map((k) => `${COLUMN[k]} ${ascending ? "ASC" : "DESC"}`);
+    return `ORDER BY ${cols.join(", ")}`;
+  }
+  function seekSqlLines(cursor, dir, full) {
+    if (!cursor) return ["  -- first page: no cursor, so no seek"];
+    const ascending = isAscendingRead(dir);
+    const keys = SORTS[state.sort].keys;
+    function value(k) {
+      if (k === "amount") return String(cursor.amount);
+      if (k === "at") return full ? `'${cursor.at}'::timestamptz` : `'${cursor.at}'`;
+      return full ? `'${cursor.id}'::uuid` : `'${shortId(cursor.id)}'`;
+    }
+    const lines = [];
+    if (full) {
+      lines.push(`  AND ${COLUMN[keys[0]]} ${ascending ? ">=" : "<="} ${value(keys[0])}  -- bound: the index scan starts here`);
+    }
+    lines.push(`  AND (${keys.map((k) => COLUMN[k]).join(", ")}) ${ascending ? ">" : "<"} (${keys.map(value).join(", ")})${full ? "  -- seek" : ""}`);
+    return lines;
+  }
+  function keysetSql(cursor, dir) {
+    return [
+      "SELECT transaction_id, occurred_at, amount_minor, …",
+      "FROM transactions",
+      "WHERE user_id = $1",
+      ...seekSqlLines(cursor, dir, true),
+      `  AND occurred_at >= '${WINDOW.from}'`,
+      `  AND occurred_at < '${WINDOW.to}'`,
+      ...filterSqlLines(),
+      orderSql(isAscendingRead(dir)),
+      `LIMIT ${state.limit + 1}  -- limit + 1: the extra row proves another page exists`
+    ].join("\n");
+  }
+  function sqlHtml(text) {
+    return text.split("\n").map((line) => {
+      const i = line.indexOf("--");
+      const code = i === -1 ? line : line.slice(0, i);
+      const comment = i === -1 ? "" : line.slice(i);
+      const codeHtml = esc(code).replace(/\b(SELECT|FROM|WHERE|AND|IN|ORDER BY|LIMIT|OFFSET|ASC|DESC)\b/g, '<span class="kw">$1</span>');
+      return codeHtml + (comment ? `<span class="cm">${esc(comment)}</span>` : "");
+    }).join("\n");
+  }
+  function jsonHtml(text) {
+    return esc(text).replace(
+      /(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|(-?\b\d+\b)|\b(true|false|null)\b/g,
+      (m, str, colon, num, lit) => {
+        if (str) return colon ? `<span class="jk">${str}</span>${colon}` : `<span class="js">${str}</span>`;
+        if (num) return `<span class="jn">${num}</span>`;
+        return `<span class="jl">${lit}</span>`;
+      }
+    );
+  }
+
+  // ---------- rendering ----------
+  function renderLedger() {
+    const ordered = sortedDb();
+    const kRes = keysetPane.res;
+    const oRes = offsetPane.res;
+    const kOn = new Set(kRes.page.rows.map((r) => r.id));
+    const kAhead = kRes.fetched.length > state.limit ? kRes.fetched[state.limit].id : null;
+    const oOn = new Set(oRes.rows.map((r) => r.id));
+    const amountKey = isAmountSort();
+
+    let seekAt = -1;
+    if (kRes.cursor) {
+      seekAt = kRes.dir === "next"
+        ? ordered.filter((r) => orderCmp(r, kRes.cursor) <= 0).length
+        : ordered.filter((r) => orderCmp(r, kRes.cursor) < 0).length;
+    }
+
+    const out = [];
+    let matchPos = 0;
+    for (let i = 0; i <= ordered.length; i++) {
+      if (i === seekAt) out.push(seekMarker(kRes));
+      if (i === ordered.length) break;
+      const r = ordered[i];
+      const m = matches(r);
+      if (m && oRes.offset > 0 && matchPos === oRes.offset) {
+        out.push(`<div class="mark off"><b>offset ${oRes.offset}</b><span>Postgres read the ${plural(oRes.offset, "matching row")} above and threw them away</span></div>`);
+      }
+      let oLane = "";
+      if (oOn.has(r.id)) oLane = " on";
+      else if (m && matchPos < oRes.offset) oLane = " gone";
+      let kLane = "";
+      if (kOn.has(r.id)) kLane = " on";
+      else if (r.id === kAhead) kLane = " ahead";
+      const classes = ["lrow"];
+      if (!m) classes.push("filtered");
+      if (kOn.has(r.id) || oOn.has(r.id)) classes.push("on");
+      if (r.id === justArrived) classes.push("fresh");
+      const tag = fresh.has(r.id) ? `<span class="tag-new">${fresh.get(r.id)}</span>` : "";
+      out.push(`<div class="${classes.join(" ")}">
+        <span class="lane o${oLane}"></span><span class="lane k${kLane}"></span>
+        <span class="pos">${m ? matchPos + 1 : ""}</span>
+        <span class="t${amountKey ? "" : " key"}">${timeHtml(r.at)}</span>
+        <span class="d">${esc(r.desc)}${tag}</span>
+        <span class="a${r.dir === "credit" ? " credit" : ""}${amountKey ? " key" : ""}">${signedMoney(r)}</span>
+      </div>`);
+      if (m) matchPos++;
+    }
+    document.getElementById("ledger").innerHTML = out.join("");
+  }
+
+  function seekMarker(res) {
+    const keys = SORTS[state.sort].keys;
+    const op = isAscendingRead(res.dir) ? ">" : "<";
+    const vals = keys.map((k) => {
+      if (k === "amount") return res.cursor.amount;
+      if (k === "at") return `'${res.cursor.at}'`;
+      return `'${shortId(res.cursor.id)}'`;
+    }).join(", ");
+    const reads = res.dir === "next" ? "next: reads down ↓" : "prev: reads up ↑";
+    return `<div class="mark seek"><b>seek, ${reads}</b><code>(${keys.map((k) => COLUMN[k]).join(", ")}) ${op} (${esc(vals)})</code></div>`;
+  }
+
+  function rowsHtml(rows, notes, pageLabel) {
+    if (rows.length === 0) return `<p class="empty">No transactions on this page.</p>`;
+    const repeated = new Map(notes.repeats.map((x) => [x.row.id, x.page]));
+    return `<ol class="prows">${rows.map((r) => {
+      const seenOn = repeated.get(r.id);
+      const badge = seenOn !== undefined
+        ? `<span class="badge repeat">repeat · seen on ${pageLabel} ${seenOn}</span>`
+        : fresh.has(r.id) ? `<span class="badge new">${fresh.get(r.id)}</span>` : "";
+      return `<li class="prow${seenOn !== undefined ? " repeat" : ""}">
+        <div class="pr-main"><span class="d">${esc(r.desc)}</span><span class="a${r.dir === "credit" ? " credit" : ""}">${signedMoney(r)}</span></div>
+        <div class="pr-sub"><span class="t">${timeHtml(r.at)}</span><span>${esc(r.type)}</span>${badge}</div>
+      </li>`;
+    }).join("")}</ol>`;
+  }
+
+  function offsetNotesHtml() {
+    const n = offsetPane.notes;
+    const out = [];
+    if (n.repeats.length) {
+      out.push(`<p class="note bad"><b>Repeated ${plural(n.repeats.length, "row")}.</b> Rows above moved down, so OFFSET ${offsetPane.res.offset} landed on rows this client already showed.</p>`);
+    }
+    if (n.skipped.length) {
+      out.push(`<p class="note bad"><b>Lost ${plural(n.skipped.length, "row")}:</b> ${nameList(n.skipped)}. A row above left, so the rest moved up past OFFSET ${offsetPane.res.offset}.</p>`);
+    }
+    return out.join("");
+  }
+
+  function keysetNotesHtml() {
+    const o = offsetPane.notes;
+    const k = keysetPane.notes;
+    if ((o.repeats.length || o.skipped.length) && !k.repeats.length && !k.skipped.length) {
+      return `<p class="note good"><b>Nothing repeated, nothing lost.</b> This page starts right after the cursor value, wherever the rows above have moved.</p>`;
+    }
+    return "";
+  }
+
+  function renderOffset() {
+    const res = offsetPane.res;
+    const pages = Math.max(1, Math.ceil(res.total / state.limit));
+    const query = baseParams(false).concat([["offset", String(res.offset)]]);
+    const pageButtons = [];
+    for (let i = 0; i < pages; i++) {
+      pageButtons.push(`<button type="button" data-act="o-jump" data-page="${i}" data-fk="o-jump-${i}"${i === res.pageIndex ? ' aria-current="page"' : ""}>${i + 1}</button>`);
+    }
+    const sql = [
+      "  AND occurred_at >= … AND occurred_at < …",
+      orderSql(!SORTS[state.sort].desc),
+      `LIMIT ${state.limit + 1} OFFSET ${res.offset}`
+    ].join("\n");
+    document.getElementById("paneOffset").innerHTML = `
+      <div class="pane-head"><span class="tag offset">Offset</span><span class="pane-sub">The client keeps a page number</span></div>
+      <div class="req">GET …/transactions?${queryHtml(query)}</div>
+      <div class="stats">
+        <div class="stat"><b>${res.pageIndex + 1}<small> / ${pages}</small></b><span>page; the total needs a COUNT(*)</span></div>
+        <div class="stat hot"><b>${res.walked}</b><span>${isAmountSort() ? "rows read: the whole window, then sorted" : "index entries read"}</span></div>
+        <div class="stat"><b>${res.offset}</b><span>matching rows read and thrown away</span></div>
+      </div>
+      <pre class="sql">${sqlHtml(sql)}</pre>
+      ${offsetNotesHtml()}
+      ${rowsHtml(res.rows, offsetPane.notes, "page")}
+      <div class="nav">
+        <button type="button" data-act="o-prev" data-fk="o-prev"${canOffsetPrev() ? "" : " disabled"}>← Prev</button>
+        <div class="pages" aria-label="Jump to page">${pageButtons.join("")}</div>
+        <button type="button" data-act="o-next" data-fk="o-next"${canOffsetNext() ? "" : " disabled"}>Next →</button>
+      </div>`;
+  }
+
+  function renderKeyset() {
+    const res = keysetPane.res;
+    const query = baseParams(false).concat(res.cursor ? cursorParams(res.cursor, res.dir) : []);
+    const sql = [
+      ...seekSqlLines(res.cursor, res.dir, false),
+      orderSql(isAscendingRead(res.dir)),
+      `LIMIT ${state.limit + 1}`
+    ].join("\n");
+    const followed = res.cursor ? `followed links.${res.dir}` : "first request";
+    document.getElementById("paneKeyset").innerHTML = `
+      <div class="pane-head"><span class="tag keyset">Keyset</span><span class="pane-sub">The client follows links</span></div>
+      <div class="req">GET …/transactions?${queryHtml(query)}</div>
+      <div class="stats">
+        <div class="stat"><b>${keysetPane.stack.length}</b><span>pages into the walk; keyset has no page numbers</span></div>
+        <div class="stat hot"><b>${res.walked}</b><span>${isAmountSort() ? "rows read: the whole window, then sorted" : "index entries read"}</span></div>
+        <div class="stat"><b>${res.fetched.length}</b><span>rows fetched (limit + 1 at most)</span></div>
+      </div>
+      <pre class="sql">${sqlHtml(sql)}</pre>
+      ${keysetNotesHtml()}
+      ${rowsHtml(res.page.rows, keysetPane.notes, "step")}
+      <div class="nav">
+        <button type="button" data-act="k-prev" data-fk="k-prev"${canKeysetPrev() ? "" : " disabled"}>← links.prev</button>
+        <span class="nav-note">${followed}</span>
+        <button type="button" data-act="k-next" data-fk="k-next"${canKeysetNext() ? "" : " disabled"}>links.next →</button>
+      </div>`;
+  }
+
+  const EXPLAIN = {
+    path: ["Path", "Relative. The API never needs to know the host, scheme or gateway prefix it is reached through: it builds every link from the request it received."],
+    fromDateTime: ["fromDateTime", "Start of the window, inclusive. Every link carries the window as it was parsed, so a walk reads one window from the first page to the last."],
+    toDateTime: ["toDateTime", "End of the window, exclusive, at most 366 days after fromDateTime. A future value is replaced by now before the first page, and the links carry that value, so the end of the window doesn't drift while you page."],
+    sort: ["sort", "Echoed so every page reads the same order. -occurredAt and occurredAt walk the same keyset in opposite directions, so they share one cursor shape."],
+    limit: ["limit", "Rows per page, 1 to 100. The repository reads limit + 1 rows. The extra row is never returned: it only proves that another page exists."],
+    filter: ["A filter", "Copied from the request exactly as sent, repeated params included. Filters are plain WHERE conditions beside the seek, so a walk never changes its filter halfway. The cursor is a position in the sort order, so rows that fail the filter are walked past, not counted."],
+    cursor: ["cursor", "One opaque value: the direction to read and the boundary row's position, as JSON in base64url. A client follows the link and never builds or reads a cursor, so its shape is not part of the contract and can change. The API decodes it and checks it against a schema; anything that fails is a 400 invalid-cursor."]
+  };
+
+  function chipClass(k) {
+    if (k === "fromDateTime" || k === "toDateTime") return "win";
+    if (k === "sort" || k === "limit") return "shape";
+    if (k === "cursor") return "cur";
+    return "filt";
+  }
+
+  function renderAnatomy() {
+    const links = currentLinks();
+    const tabs = ["next", "prev", "self"].map((t) =>
+      `<button type="button" role="tab" data-tab="${t}" data-fk="tab-${t}" aria-selected="${anatomyTab === t}">links.${t}${links[t] ? "" : " (left out)"}</button>`
+    );
+    document.getElementById("linkTabs").innerHTML = tabs.join("");
+
+    const params = links[anatomyTab];
+    const shown = params ?? links.self;
+    const keysShown = new Set(["path", ...shown.map(([k]) => k)]);
+    if (!keysShown.has(anatomyKey)) anatomyKey = keysShown.has("cursor") ? "cursor" : "path";
+
+    const chips = shown.map(([k, v]) =>
+      `<span class="chip ${chipClass(k)}${anatomyKey === k ? " sel" : ""}" role="button" tabindex="0" data-key="${k}" data-fk="chip-${k}">${esc(k)}=${esc(encodeValue(v))}</span>`
+    );
+    const absent = params
+      ? ""
+      : `<p class="absent">links.${anatomyTab} is left out of this response: there is no ${anatomyTab === "next" ? "page after" : "page before"} this one. The API never sends a null link. Showing links.self instead.</p>`;
+    document.getElementById("urlBox").innerHTML = `${absent}<div class="url"><span class="chip path${anatomyKey === "path" ? " sel" : ""}" role="button" tabindex="0" data-key="path" data-fk="chip-path">${esc(PATH)}</span>?${chips.join("&amp;")}</div>`;
+
+    const [title, body] = EXPLAIN[anatomyKey] ?? EXPLAIN.filter;
+    const decodedFrom = linkCursor(params ? anatomyTab : "self");
+    const decoded = anatomyKey === "cursor" && decodedFrom.cursor ? cursorDecodedHtml(decodedFrom.cursor, decodedFrom.dir) : "";
+    document.getElementById("explainBox").innerHTML = `<h3>${esc(title)}</h3><p>${esc(body)}</p>${decoded}`;
+
+    const tabForSql = params ? anatomyTab : "self";
+    const lc = linkCursor(tabForSql);
+    document.getElementById("sqlTitle").textContent = `What links.${tabForSql} asks Postgres`;
+    document.getElementById("sqlBox").innerHTML = sqlHtml(keysetSql(lc.cursor, lc.dir));
+
+    renderEnvelope(links);
+    renderAmountBox();
+  }
+
+  function renderEnvelope(links) {
+    const rows = keysetPane.res.page.rows;
+    const first = rows[0];
+    const data = [];
+    if (first) {
+      data.push({
+        transactionId: first.id,
+        occurredAt: `${first.at.slice(0, 23)}Z`,
+        transactionType: first.type,
+        creditDebitIndicator: first.dir,
+        status: "completed",
+        amount: { amountMinor: first.amount, currency: "ZAR" },
+        category: first.cat,
+        shortDescription: first.desc
+      });
+      if (rows.length > 1) data.push("__MORE__");
+    }
+    const linkObj = { self: toUrl(links.self) };
+    if (links.next) linkObj.next = toUrl(links.next);
+    if (links.prev) linkObj.prev = toUrl(links.prev);
+    const body = {
+      data,
+      links: linkObj,
+      meta: { count: rows.length, limit: state.limit, sort: state.sort, fromDateTime: WINDOW.from, toDateTime: WINDOW.to }
+    };
+    const html = jsonHtml(JSON.stringify(body, null, 2)).replace(
+      '<span class="js">&quot;__MORE__&quot;</span>',
+      `<span class="cm">… ${plural(rows.length - 1, "more row")}</span>`
+    );
+    document.getElementById("jsonBox").innerHTML = html;
+    const caption = document.getElementById("jsonCaption");
+    if (first && keysetPane.res.page.nextFrom) {
+      const last = keysetPane.res.page.nextFrom;
+      caption.innerHTML = `<code>data[].occurredAt</code> is exact to the millisecond (<code>${esc(last.at.slice(0, 23))}Z</code>), but the position inside <code>links.next</code>'s cursor is <code>${esc(last.at)}</code>. That is why the cursor is formatted in SQL and never taken from the response body. There is no total in <code>meta</code>: counting the window on every page is the scan keyset avoids.`;
+    } else {
+      caption.innerHTML = "There is no total in <code>meta</code>: counting the window on every page is the scan keyset avoids.";
+    }
+  }
+
+  function renderAmountBox() {
+    const box = document.getElementById("amountBox");
+    if (!isAmountSort()) {
+      box.innerHTML = `<h3>A cursor for an amount sort</h3>
+        <p>Amount sorting isn't built. Switch the sort to see how the cursor and the seek would change.</p>
+        <div><button type="button" data-scenario="amount">Sort by largest amount</button></div>`;
+      return;
+    }
+    const next = keysetPane.res.page.nextFrom;
+    const sample = next
+      ? jsonHtml(JSON.stringify(cursorPayload(buildPageCursor(next), "next"), null, 2))
+      : "There is no next page in this window.";
+    box.innerHTML = `<h3>The next cursor for an amount sort (not built), decoded</h3>
+      <pre class="json">${sample}</pre>
+      <ul>
+        <li>Amounts aren't unique: the three R 199.00 rows tie, and so do both Gautrain trips and both Takealot rows. The cursor carries the full key, <code>(amount_minor, occurred_at, transaction_id)</code>, so ties have one fixed order.</li>
+        <li>Every column in the key has to run the same way for one row comparison to do the seek. If amounts ran largest first but ties ran oldest first, the predicate has to be written out: <code>amount_minor &lt; $1 OR (amount_minor = $1 AND (occurred_at, transaction_id) &gt; ($2, $3))</code>.</li>
+        <li>Without an index on <code>(user_id, amount_minor, occurred_at, transaction_id)</code>, every page reads and sorts the whole window. That is the "rows read" figure in both panes. The 366-day window cap bounds that cost, which is why the proposal adds no index.</li>
+      </ul>`;
+  }
+
+  function tokenList(rows, lookIndex) {
+    if (rows.length === 0) return `<p class="empty">No rows.</p>`;
+    return `<ol class="tokens">${rows.map((r, i) =>
+      `<li class="tok${i === lookIndex ? " look" : ""}"><span>${esc(r.desc)}</span><small>${esc(keyLabel(r))}${i === lookIndex ? " · look-ahead" : ""}</small></li>`
+    ).join("")}</ol>`;
+  }
+
+  function renderStepper() {
+    const res = keysetPane.res;
+    const limit = state.limit;
+    const dir = res.dir;
+    const hasCursor = res.cursor !== null;
+    const t = res.page.trace;
+    const order = dir === "prev" ? "against the sort order, nearest the cursor first" : "in sort order";
+    const nameOf = (r) => (r ? `${r.desc} · ${keyLabel(r)}` : "null");
+    const c = (s) => `<span class="cm">// ${esc(s)}</span>`;
+    const lines = [
+      `const hasMore = fetched.length &gt; limit;                          ${c(`${res.fetched.length} > ${limit} → ${t.hasMore}`)}`,
+      `const kept = hasMore ? fetched.slice(0, limit) : fetched;        ${c(t.hasMore ? "drops the look-ahead row" : "nothing to drop")}`,
+      `const rows = cursorDirection === "prev" ? kept.slice().reverse() : kept;  ${c(dir === "prev" ? "prev: flipped back into sort order" : "next: kept as read")}`,
+      `const hasNext = cursorDirection === "next" ? hasMore : hasCursor;  ${c(dir === "next" ? `next, so hasMore → ${t.hasNext}` : `prev, so hasCursor → ${t.hasNext}`)}`,
+      `const hasPrev = cursorDirection === "prev" ? hasMore : hasCursor;  ${c(dir === "prev" ? `prev, so hasMore → ${t.hasPrev}` : `next, so hasCursor → ${t.hasPrev}${hasCursor ? "" : " (first page)"}`)}`,
+      `nextFrom: hasNext ? rows.at(-1) : null                          ${c(nameOf(res.page.nextFrom))}`,
+      `prevFrom: hasPrev ? rows.at(0) : null                           ${c(nameOf(res.page.prevFrom))}`
+    ];
+    document.getElementById("stepBox").innerHTML = `
+      <div class="strip">
+        <p class="strip-label"><b>fetched</b>: ${res.fetched.length} of at most ${limit + 1} rows, read ${order} (cursorDirection = "${dir}", hasCursor = ${hasCursor})</p>
+        ${tokenList(res.fetched, t.hasMore ? limit : -1)}
+      </div>
+      <pre class="code">${lines.join("\n")}</pre>
+      <div class="strip">
+        <p class="strip-label"><b>rows</b>: what the page returns, in sort order</p>
+        ${tokenList(res.page.rows, -1)}
+      </div>
+      <p class="caption">Why read prev pages backwards? Asking for the rows before the cursor in sort order with LIMIT ${limit + 1} would return the first ${limit + 1} rows of the whole list, not the ones just above the cursor. Reading against the order keeps the nearest rows, and the flip puts them back.</p>`;
+  }
+
+  function syncControls() {
+    document.getElementById("sort").value = state.sort;
+    document.getElementById("limit").value = String(state.limit);
+    document.getElementById("amountMin").value = String(state.amountMin);
+    for (const b of document.querySelectorAll("[data-dir]")) b.setAttribute("aria-pressed", String(b.dataset.dir === state.direction));
+    for (const b of document.querySelectorAll("[data-type]")) b.setAttribute("aria-pressed", String(state.types.has(b.dataset.type)));
+    document.getElementById("sortPill").hidden = !isAmountSort();
+  }
+
+  function updateButtons() {
+    document.getElementById("nextBoth").disabled = !canOffsetNext() && !canKeysetNext();
+    document.getElementById("prevBoth").disabled = !canOffsetPrev() && !canKeysetPrev();
+    document.getElementById("addNew").disabled = newQueue.length === 0;
+    document.getElementById("addLate").disabled = lateQueue.length === 0;
+    document.getElementById("dropRow").disabled = dropCandidate() === null;
+  }
+
+  function renderAll() {
+    const focusKey = document.activeElement?.getAttribute("data-fk");
+    renderLedger();
+    renderOffset();
+    renderKeyset();
+    renderAnatomy();
+    renderStepper();
+    updateButtons();
+    if (focusKey) {
+      const el = document.querySelector(`[data-fk="${focusKey}"]`);
+      if (el && !el.disabled) el.focus();
+    }
+  }
+
+  // ---------- scenarios ----------
+  function applyDefaults() {
+    state.sort = "-occurredAt";
+    state.limit = 5;
+    state.direction = "all";
+    state.types.clear();
+    state.amountMin = 0;
+    syncControls();
+  }
+  function nextBoth() { offsetNext(); keysetNext(); }
+
+  function runScenario(name) {
+    restoreData();
+    applyDefaults();
+    resetWalk();
+    if (name === "repeat") {
+      nextBoth();
+      const r = addFrom(newQueue, "new");
+      nextBoth();
+      setMsg(`<b>${esc(r.desc)}</b> arrived while both clients were on page 2. ${describeNext()}`);
+    }
+    if (name === "skip") {
+      nextBoth();
+      const gone = dropRow();
+      nextBoth();
+      setMsg(`<b>${esc(gone.desc)}</b> left the result while both clients were on page 2 (in this API, re-categorising a row under a category filter does that). ${describeNext()}`);
+    }
+    if (name === "filter") {
+      state.direction = "debit";
+      state.amountMin = 50000;
+      syncControls();
+      resetWalk();
+      nextBoth();
+      setMsg("Debits of R 500 and up. The index strikes through rows the filters remove. Keyset walks past them on its way to limit + 1 matches, so its rows-read count includes them, but it still never reads the pages behind it.");
+    }
+    if (name === "amount") {
+      state.sort = "-amount";
+      syncControls();
+      resetWalk();
+      nextBoth();
+      setMsg("Largest amount first. The cursor's position gains <code>amountMinor</code>, and without an index on amount both clients read the whole window on every page. See the cursor below.");
+    }
+    renderAll();
+    if (name === "amount") {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.getElementById("anatomy").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    }
+  }
+
+  // ---------- events ----------
+  function onControlsChanged() {
+    syncControls();
+    resetWalk();
+    setMsg("New request: both clients went back to page 1. Links carry every filter, so changing one always starts a new walk.");
+    renderAll();
+  }
+
+  document.getElementById("sort").addEventListener("change", (e) => { state.sort = e.target.value; onControlsChanged(); });
+  document.getElementById("limit").addEventListener("change", (e) => { state.limit = Number(e.target.value); onControlsChanged(); });
+  document.getElementById("amountMin").addEventListener("change", (e) => { state.amountMin = Number(e.target.value); onControlsChanged(); });
+  for (const b of document.querySelectorAll("[data-dir]")) {
+    b.addEventListener("click", () => { state.direction = b.dataset.dir; onControlsChanged(); });
+  }
+  for (const b of document.querySelectorAll("[data-type]")) {
+    b.addEventListener("click", () => {
+      if (state.types.has(b.dataset.type)) state.types.delete(b.dataset.type);
+      else state.types.add(b.dataset.type);
+      onControlsChanged();
+    });
+  }
+
+  document.getElementById("nextBoth").addEventListener("click", () => {
+    justArrived = null;
+    nextBoth();
+    setMsg(describeNext());
+    renderAll();
+  });
+  document.getElementById("prevBoth").addEventListener("click", () => {
+    justArrived = null;
+    offsetPrev();
+    keysetPrev();
+    setMsg("Both clients went back a page. Offset subtracted a page from its number; keyset followed <code>links.prev</code>, reading backwards from the first row it had shown.");
+    renderAll();
+  });
+  document.getElementById("resetWalk").addEventListener("click", () => {
+    resetWalk();
+    setMsg("Both clients are back on page 1. Rows that arrived while they paged are at the top now.");
+    renderAll();
+  });
+  document.getElementById("addNew").addEventListener("click", () => {
+    const r = addFrom(newQueue, "new");
+    if (r) setMsg(arrivalMessage(r, "new"));
+    renderAll();
+  });
+  document.getElementById("addLate").addEventListener("click", () => {
+    const r = addFrom(lateQueue, "late");
+    if (r) setMsg(arrivalMessage(r, "late"));
+    renderAll();
+  });
+  document.getElementById("dropRow").addEventListener("click", () => {
+    const r = dropRow();
+    if (r) setMsg(`<b>${esc(r.desc)}</b> left the result. In this API that happens when you re-categorise a row while a category filter is on. Rows below it moved up one place. Press Next on both.`);
+    renderAll();
+  });
+  document.getElementById("restore").addEventListener("click", () => {
+    restoreData();
+    resetWalk();
+    setMsg("Data restored to the original 24 transactions. Both clients are back on page 1.");
+    renderAll();
+  });
+
+  document.addEventListener("click", (e) => {
+    const scenario = e.target.closest("[data-scenario]");
+    if (scenario) { runScenario(scenario.dataset.scenario); return; }
+    const act = e.target.closest("[data-act]");
+    if (act && !act.disabled) {
+      justArrived = null;
+      const a = act.dataset.act;
+      if (a === "o-next") offsetNext();
+      if (a === "o-prev") offsetPrev();
+      if (a === "o-jump") offsetGo(Number(act.dataset.page), "jump");
+      if (a === "k-next") keysetNext();
+      if (a === "k-prev") keysetPrev();
+      if (a === "o-jump") setMsg("Offset can jump straight to any page. Keyset can't: it only knows the rows next to the page it is on.");
+      renderAll();
+      return;
+    }
+    const tab = e.target.closest("[data-tab]");
+    if (tab) { anatomyTab = tab.dataset.tab; renderAll(); return; }
+    const chip = e.target.closest(".chip[data-key]");
+    if (chip) { anatomyKey = chip.dataset.key; renderAll(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    const chip = e.target.closest?.(".chip[data-key]");
+    if (chip && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      anatomyKey = chip.dataset.key;
+      renderAll();
+    }
+  });
+
+  // Open on page 2, so the cursor, the seek and both links are all in play
+  restoreData();
+  syncControls();
+  resetWalk();
+  nextBoth();
+  setMsg("Both clients are on page 2. Change the data, then press Next on both, or pick a Try it.");
+  renderAll();
+})();
+</script>
+
+</body></html>

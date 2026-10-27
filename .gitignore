@@ -141,3 +141,170 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+research/*
+*/research/*
+**/research/*
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+# Python's lib/ above would also swallow the portal's TypeScript source
+!apps/portal/src/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+# Usually these files are written by a python script from a template
+# before distributing them as an executable.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.toml
+.cache
+.pytest_cache/
+.nofuture
+.coverage
+.coverage.*
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the Python version is individual.
+#   For an application or deployment, you might want to check these files in.
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#118, it is recommended to include Pipfile.lock in version control.
+#   However, if you're building a library, you should ignore it.
+#Pipfile.lock
+
+# poetry
+#   Similar to Pipenv, poetry lock file should be tracked in applications, but can be ignored in libraries.
+#poetry.lock
+
+# pdm
+#   Similar to Pipenv and Poetry, pdm lock file should be tracked in applications, but can be ignored in libraries.
+#pdm.lock
+
+# PEP 582 project packages
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+.claude
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# IDEs and editors
+.idea/
+# .vscode/
+*.swp
+*.swo
+
+# macOS Finder metadata
+.DS_Store
+
+# Secrets should never be comitted. However, this is a demo file so we are keeping them
+# /secrets
+*best-practices/
+
+# k6 load test: the customer ids make load exports before each run. The
+# reports in loadtests/results/ are committed.
+loadtests/users.txt

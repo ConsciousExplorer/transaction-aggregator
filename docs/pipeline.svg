@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680" role="img" aria-labelledby="title description">
+	<title id="title">transaction-aggregator end to end</title>
+	<desc id="description">Write path: four Python producers publish Avro records to the Kafka topics transactions.&lt;type&gt;; four Node consumers read them in batches, categorise them and insert them into PostgreSQL, dead-lettering records they can't store; both look their schemas up in Schema Registry. Read path: a client gets a token from Keycloak and calls the API, which verifies the token against Keycloak's JWKS and queries PostgreSQL. The optional obs profile adds Prometheus, Grafana and Tempo.</desc>
+	<defs>
+		<style>
+			.lane-title { font: 700 17px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #f2f2f2; }
+			.lane-subtitle { font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #9a9ca3; }
+			.box-title { font: 600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: #f2f2f2; }
+			.box-detail { font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #a9abb3; }
+			.edge-label { font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; fill: #a9abb3; paint-order: stroke; stroke: #1d1e22; stroke-width: 5px; stroke-linejoin: round; }
+			.box { fill: #1d1e22; stroke: #e4e4e7; stroke-width: 1.6; }
+			.stack { fill: #1d1e22; stroke: #6b6d74; stroke-width: 1.2; }
+			.edge { fill: none; stroke: #d4d4d8; stroke-width: 1.6; }
+
+			.teal-box { fill: #203432; stroke: #4fb3a9; stroke-width: 2; }
+			.teal-edge { fill: none; stroke: #4fb3a9; stroke-width: 2; }
+			.teal-text { fill: #5cc6bb; }
+
+			.amber-box { fill: #3a3122; stroke: #d9a43f; stroke-width: 1.6; }
+			.amber-edge { fill: none; stroke: #d9a43f; stroke-width: 1.6; }
+			.amber-text { fill: #e8b04b; }
+
+			.lookup-edge { fill: none; stroke: #8b8d94; stroke-width: 1.4; stroke-dasharray: 3 4; }
+			.optional-box { fill: #1d1e22; stroke: #8b8d94; stroke-width: 1.4; stroke-dasharray: 6 5; }
+			.lane-divider { stroke: #34353b; stroke-width: 1; stroke-dasharray: 4 6; }
+		</style>
+		<marker id="arrow-neutral" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d4d4d8"/></marker>
+		<marker id="arrow-teal" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4fb3a9"/></marker>
+		<marker id="arrow-amber" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d9a43f"/></marker>
+		<marker id="arrow-lookup" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8b8d94"/></marker>
+	</defs>
+
+	<rect x="1" y="1" width="1198" height="678" rx="14" fill="#1d1e22" stroke="#34353b"/>
+
+	<!-- ───────────────────────────── Write path ───────────────────────────── -->
+	<text class="lane-title" x="40" y="46">WRITE PATH</text>
+	<text class="lane-subtitle" x="40" y="68">Avro events in, categorised rows out</text>
+
+	<!-- Producers: one image, four containers -->
+	<rect class="stack" x="50" y="90" width="220" height="80" rx="8"/>
+	<rect class="stack" x="45" y="95" width="220" height="80" rx="8"/>
+	<rect class="box" x="40" y="100" width="220" height="80" rx="8"/>
+	<text class="box-title" x="150" y="128" text-anchor="middle">producer-&lt;type&gt; ×4</text>
+	<text class="box-detail" x="150" y="150" text-anchor="middle">Python · avro-datagen</text>
+	<text class="box-detail" x="150" y="168" text-anchor="middle">one-shot or stream</text>
+
+	<!-- Kafka -->
+	<rect class="box" x="340" y="100" width="220" height="80" rx="8"/>
+	<text class="box-title" x="450" y="128" text-anchor="middle">Kafka</text>
+	<text class="box-detail" x="450" y="150" text-anchor="middle">transactions.&lt;type&gt;</text>
+	<text class="box-detail" x="450" y="168" text-anchor="middle">12 partitions each</text>
+
+	<rect class="amber-box" x="340" y="215" width="220" height="60" rx="8"/>
+	<text class="box-title amber-text" x="450" y="240" text-anchor="middle">dead-letter topics</text>
+	<text class="box-detail amber-text" x="450" y="262" text-anchor="middle">transactions.&lt;type&gt;.dlq</text>
+
+	<rect class="box" x="340" y="305" width="220" height="60" rx="8"/>
+	<text class="box-title" x="450" y="330" text-anchor="middle">Schema Registry</text>
+	<text class="box-detail" x="450" y="352" text-anchor="middle">schemas/*.avsc</text>
+
+	<!-- Consumers: one image, four containers -->
+	<rect class="stack" x="650" y="90" width="220" height="80" rx="8"/>
+	<rect class="stack" x="645" y="95" width="220" height="80" rx="8"/>
+	<rect class="box" x="640" y="100" width="220" height="80" rx="8"/>
+	<text class="box-title" x="750" y="128" text-anchor="middle">consumer-&lt;type&gt; ×4</text>
+	<text class="box-detail" x="750" y="150" text-anchor="middle">normalise · categorise</text>
+	<text class="box-detail" x="750" y="168" text-anchor="middle">one INSERT per batch</text>
+
+	<!-- PostgreSQL -->
+	<path d="M960,106 L960,172 A100,14 0 0 0 1160,172 L1160,106" fill="#1d1e22" stroke="#e4e4e7" stroke-width="1.6"/>
+	<ellipse cx="1060" cy="106" rx="100" ry="14" fill="#1d1e22" stroke="#e4e4e7" stroke-width="1.6"/>
+	<text class="box-title" x="1060" y="146" text-anchor="middle">PostgreSQL</text>
+	<text class="box-detail" x="1060" y="166" text-anchor="middle">txn_agg schema</text>
+
+	<!-- Main flow -->
+	<line class="edge" x1="270" y1="140" x2="340" y2="140" marker-end="url(#arrow-neutral)"/>
+	<text class="edge-label" x="305" y="131" text-anchor="middle">Avro</text>
+	<line class="edge" x1="560" y1="140" x2="640" y2="140" marker-end="url(#arrow-neutral)"/>
+	<text class="edge-label" x="600" y="131" text-anchor="middle">batches</text>
+	<line class="edge" x1="870" y1="140" x2="960" y2="140" marker-end="url(#arrow-neutral)"/>
+	<text class="edge-label" x="915" y="131" text-anchor="middle">insert</text>
+
+	<!-- Records the consumer can't store -->
+	<path class="amber-edge" d="M680,180 V245 H560" marker-end="url(#arrow-amber)"/>
+	<text class="edge-label amber-text" x="620" y="236" text-anchor="middle">poison</text>
+
+	<!-- Schema lookups -->
+	<path class="lookup-edge" d="M150,180 V335 H340" marker-end="url(#arrow-lookup)"/>
+	<text class="edge-label" x="245" y="326" text-anchor="middle">pin latest schema</text>
+	<path class="lookup-edge" d="M800,180 V335 H560" marker-end="url(#arrow-lookup)"/>
+	<text class="edge-label" x="680" y="326" text-anchor="middle">load all versions at boot</text>
+
+	<line class="lane-divider" x1="40" y1="395" x2="1160" y2="395"/>
+
+	<!-- ───────────────────────────── Read path ────────────────────────────── -->
+	<text class="lane-title" x="40" y="430">READ PATH</text>
+	<text class="lane-subtitle" x="40" y="452">Keycloak token, then the API</text>
+
+	<rect class="box" x="40" y="480" width="220" height="70" rx="8"/>
+	<text class="box-title" x="150" y="508" text-anchor="middle">API clients</text>
+	<text class="box-detail" x="150" y="530" text-anchor="middle">portal · Bruno · curl</text>
+
+	<rect class="box" x="640" y="480" width="220" height="70" rx="8"/>
+	<text class="box-title" x="750" y="508" text-anchor="middle">API :8083</text>
+	<text class="box-detail" x="750" y="530" text-anchor="middle">Fastify · Zod · Drizzle</text>
+
+	<rect class="teal-box" x="340" y="580" width="220" height="60" rx="8"/>
+	<text class="box-title teal-text" x="450" y="605" text-anchor="middle">Keycloak :8086</text>
+	<text class="box-detail teal-text" x="450" y="627" text-anchor="middle">realm txn-api</text>
+
+	<rect class="optional-box" x="960" y="570" width="200" height="80" rx="8"/>
+	<text class="box-title" x="1060" y="595" text-anchor="middle" style="fill: #a9abb3">obs profile</text>
+	<text class="box-detail" x="1060" y="617" text-anchor="middle">Prometheus · Grafana</text>
+	<text class="box-detail" x="1060" y="635" text-anchor="middle">Tempo · make up-all</text>
+
+	<line class="teal-edge" x1="260" y1="515" x2="640" y2="515" marker-end="url(#arrow-teal)"/>
+	<text class="edge-label teal-text" x="450" y="506" text-anchor="middle">GET /api/v1/… · Bearer JWT</text>
+	<path class="teal-edge" d="M150,550 V610 H340" marker-end="url(#arrow-teal)"/>
+	<text class="edge-label teal-text" x="245" y="601" text-anchor="middle">client credentials</text>
+	<path class="teal-edge" d="M750,550 V610 H560" marker-end="url(#arrow-teal)"/>
+	<text class="edge-label teal-text" x="655" y="601" text-anchor="middle">verify via JWKS</text>
+
+	<path class="edge" d="M1060,186 V515 H860" marker-start="url(#arrow-neutral)" marker-end="url(#arrow-neutral)"/>
+	<text class="edge-label" x="960" y="506" text-anchor="middle">queries · overrides</text>
+</svg>

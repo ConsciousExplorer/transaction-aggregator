@@ -1,0 +1,91 @@
+# Audit, type-check, lint and test the producers, only when they or the schemas
+# their tests generate from changed. See api.yml for why the changes job always
+# runs.
+name: producers
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: producers changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.app.outputs.app }}
+      versioned: ${{ steps.versioned.outputs.versioned }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: app
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            app:
+              - 'apps/producers/**'
+              - 'schemas/*.avsc'
+              - '.github/workflows/producers.yml'
+      - id: versioned
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          base: ${{ github.ref_name }}
+          predicate-quantifier: every
+          filters: |
+            versioned:
+              - 'apps/producers/**'
+              - '!apps/producers/**/*.md'
+
+  verify:
+    name: producers verify
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/producers
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # uv installs the Python in apps/producers/.python-version
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/producers/uv.lock
+      - name: Install, failing if uv.lock is out of date
+        run: uv sync --locked
+      - name: Audit dependencies
+        run: bash scripts/audit.sh
+      - name: Type-check
+        run: uv run pyright src
+      - name: Lint
+        run: uv run ruff check src
+      - name: Format
+        run: uv run ruff format --check src
+      - name: Tests
+        run: uv run pytest
+
+  version:
+    name: producers version
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.versioned == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24.20.0
+      - name: Version is higher than the target branch's
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node scripts/check-version-bump.ts apps/producers/pyproject.toml "$BASE_REF"

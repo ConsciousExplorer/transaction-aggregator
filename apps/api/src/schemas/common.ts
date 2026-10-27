@@ -1,0 +1,72 @@
+import z from "zod";
+
+// category_id is a smallint column. An id beyond its range can name no
+// category, and Postgres refuses it as a parameter (22003, numeric value out
+// of range) instead of finding nothing, so it is a 400 here, not a 500 there.
+const SMALLINT_MAX = 32_767;
+
+export const categoryIdSchema = z.number().int().positive().max(SMALLINT_MAX);
+
+// A path parameter arrives as text
+export const categoryIdParamSchema = z.coerce
+	.number()
+	.int()
+	.positive()
+	.max(SMALLINT_MAX);
+
+export const problemSchema = z.object({
+	type: z.string(),
+	title: z.string(),
+	status: z.number(),
+	detail: z.string().optional(),
+	errors: z.array(z.unknown()).optional(),
+	trace_id: z.string().optional()
+});
+
+// Every collection response is { data, links, meta }. links.self is the
+// request as received; next and prev are relative links to the neighbouring
+// pages, left out when there is no such page (always, on unpaginated
+// collections).
+export const linksSchema = z.object({
+	self: z.string(),
+	next: z.string().optional(),
+	prev: z.string().optional()
+});
+
+export type Links = z.infer<typeof linksSchema>;
+
+// next continues in the sort order from the cursor, prev goes back against it
+export const cursorDirectionSchema = z.enum(["next", "prev"]);
+export type CursorDirection = z.infer<typeof cursorDirectionSchema>;
+
+/** There are no future transactions to read, so a future instant means now. */
+function clampToNow(isoDateTime: string) {
+	const now = new Date();
+	if (Date.parse(isoDateTime) > now.getTime()) {
+		return now.toISOString();
+	}
+	return isoDateTime;
+}
+
+// fromDateTime / toDateTime on every date-range query. Clamped while parsing,
+// so handlers and the window check only ever see past or present instants.
+export const windowDateTimeSchema = z.iso.datetime().transform(clampToNow);
+
+export const collectionMetaSchema = z.object({
+	// Rows in data
+	count: z.number().int()
+});
+
+// Money always travels with its currency, so an amount can never be read
+// against another value's currency. amountMinor is in the currency's minor
+// units (cents for ZAR).
+export const amountSchema = z.object({
+	amountMinor: z.number().int().describe("Always positive, in minor units"),
+	currency: z.string().length(3)
+});
+
+// The one signed shape: a difference between two amounts, e.g. credit − debit
+export const signedAmountSchema = z.object({
+	amountMinor: z.number().int().describe("Signed, in minor units"),
+	currency: z.string().length(3)
+});

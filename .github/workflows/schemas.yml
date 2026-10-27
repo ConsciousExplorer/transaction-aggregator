@@ -1,0 +1,62 @@
+# main's guard on the Avro schemas: every schema must still read the records
+# written with the version it replaces, as the registry's BACKWARD setting
+# requires. The consumer's workflow already checks its generated types on every
+# push.
+name: schemas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: schemas changes
+    runs-on: ubuntu-latest
+    outputs:
+      schemas: ${{ steps.filter.outputs.schemas }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: filter
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            schemas:
+              - 'schemas/**'
+              - 'apps/consumer/scripts/check-schema-compatibility.ts'
+              - '.github/workflows/schemas.yml'
+
+  compatible:
+    name: schemas compatible
+    needs: changes
+    if: needs.changes.outputs.schemas == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/consumer
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24.20.0
+          cache: npm
+          cache-dependency-path: apps/consumer/package-lock.json
+      - run: npm ci
+      # A pull request compares with its target branch; a push to main with the
+      # commit before the push
+      - name: Each schema reads the records of the version it replaces
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: npm run schema:check -- "$BASE_REF"

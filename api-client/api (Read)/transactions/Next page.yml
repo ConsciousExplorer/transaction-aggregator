@@ -1,0 +1,34 @@
+info:
+  name: Next page
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{api}}{{nextPage}}"
+  auth: inherit
+
+runtime:
+  actions:
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.links.next
+        method: jsonq
+      variable:
+        name: nextPage
+        scope: runtime
+    - type: set-variable
+      phase: after-response
+      selector:
+        expression: res.body.links.prev
+        method: jsonq
+      variable:
+        name: previousPage
+        scope: runtime
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

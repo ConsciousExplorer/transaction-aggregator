@@ -1,0 +1,706 @@
+# Transaction Aggregation platform — docker compose
+#
+# Run it through the Makefile at the repo root (`make up`, `make produce`,
+# `make down`, `make clean`); paths below are relative to this infrastructure/
+# folder. Core services have NO profile: `make up` brings the whole system up.
+#
+# Optional profiles: ui (kafbat-ui, avro-datagen-ui, portal — on by default in
+# `make up`, `make up UI=` leaves them out), obs, cache. The Makefile passes
+# them as --profile flags; compose does not read the repo-root .env from here.
+#
+# Broker topology:
+# DEV: ONE combined KRaft node locally (RF 1).
+# PROD: 3 KRaft nodes, RF 3, min.insync.replicas=2, SCRAM over TLS (MSK).
+#
+# Apps and ports. Host = published on localhost; "-" = in-network only.
+# Third-party apps keep their vendor default container port.
+#
+#   Service           Profile  Host   Container  Notes
+#   kafka1            core     9092   9092       EXTERNAL SASL listener (host tools)
+#                                     29092      INTERNAL plaintext (SR, kafbat-ui, kafka-init)
+#                                     9093       KRaft controller
+#                                     9094       CLIENT SASL listener (producers, consumers)
+#   schema-registry   core     8081   8081
+#   postgres          core     5432   5432
+#   keycloak          core     8086   8080       host 8080 belongs to kafbat-ui; health on 9000
+#   api               core     8083   8083       REST API, /ready
+#   consumer-* (x4)   core     -      8080      health + metrics; one image, one port, like
+#                                                replicas on k8s/ECS. Prometheus scrapes in-network
+#   kafbat-ui         ui       8080   8080
+#   avro-datagen-ui   ui       8501   8501       Streamlit default
+#   portal            ui       8084   8084       demo banking portal + BFF (Next.js)
+#   grafana          obs      3000   3000
+#   prometheus        obs      9090   9090
+#   tempo             obs      -      3200       HTTP query API (Grafana); OTLP gRPC in on 4317
+#   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
+#   postgres-exporter obs      -      9187       Postgres statistics as metrics; Prometheus scrapes
+#   redis             cache    -      6379
+#
+#   No ports (one-shots): kafka-init, schemas-register, migrate, producer-*
+
+# The name the project had at the repo root: container, image, network and
+# volume names stay transaction-aggregator-*, not infrastructure-*.
+name: transaction-aggregator
+
+# The four consumers run one image with the same settings, and differ only in
+# the source they read. Only what differs from the consumer's own defaults
+# (apps/consumer/src/config.ts) is set here.
+x-consumer: &consumer
+  build:
+    context: ../apps/consumer
+  pull_policy: build
+  restart: unless-stopped
+  depends_on:
+    migrate: { condition: service_completed_successfully }
+    schemas-register: { condition: service_completed_successfully }
+    kafka-init: { condition: service_completed_successfully }
+  volumes:
+    - ../secrets:/secrets:ro
+  networks: [txn-network]
+
+x-consumer-environment: &consumer-environment
+  # Container port 8080, unpublished; Prometheus scrapes it in-network
+  PORT: 8080
+  DATABASE_HOST: postgres
+  DATABASE_USER: kafka_consumer
+  DATABASE_PASSWORD_SECRET_NAME: consumer_database_password
+  DATABASE_POOL_MIN: 2
+  DATABASE_POOL_MAX: 3
+  SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  # CLIENT listener (in-network SASL)
+  KAFKA_BROKERS: kafka1:9094
+  KAFKA_USERNAME: consumer
+  KAFKA_PASSWORD_SECRET_NAME: consumer_kafka_password
+  # Tracing is off unless an obs run opts in (OTEL_SDK_DISABLED=false). The
+  # OTel SDK reads the endpoint and sampler itself.
+  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_TRACES_SAMPLER: always_on
+
+services:
+  # ──────────────────────────────── Kafka ────────────────────────────────
+  kafka1:
+    image: apache/kafka:4.0.0
+    hostname: kafka1
+    container_name: kafka-01
+    ports:
+      - "9092:9092" # EXTERNAL (host clients, SASL)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:9093
+      # Listeners:
+      #   INTERNAL  29092 — inter-broker, PLAINTEXT (private network)
+      #   CONTROLLER 9093 — KRaft quorum
+      #   CLIENT    9094 — SASL/SCRAM for services INSIDE the compose network
+      #                    (the listener our apps actually use — mirrors MSK auth)
+      #   EXTERNAL  9092 — SASL/SCRAM for host tools, advertised as localhost
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,CLIENT://0.0.0.0:9094,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:29092,CLIENT://kafka1:9094,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,CLIENT:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_NAME_CLIENT_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
+      KAFKA_LISTENER_NAME_EXTERNAL_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/jaas/kafka_server_jaas.conf"
+
+      # AuthZ: default-deny for SASL principals without ACLs (kafka-init grants them).
+      # Super users: admin (SASL) + ANONYMOUS = the PLAINTEXT INTERNAL/CONTROLLER
+      # listeners (inter-broker, healthcheck, schema-registry, kafbat-ui, kafka-init)
+      # — those listeners never leave the private compose network. Prod (MSK) uses
+      # SCRAM over TLS everywhere instead.
+      KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+      KAFKA_SUPER_USERS: User:admin;User:ANONYMOUS
+
+      # Single node → RF 1 for internal topics
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # Governance: topics are created explicitly by kafka-init (12 partitions);
+      # a typo'd topic name must FAIL, not materialize a default-partitioned orphan.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+      - ./kafka/kafka_server_jaas.conf:/etc/kafka/jaas/kafka_server_jaas.conf:ro
+      # File input of the apache/kafka image: broker defaults + topic guardrails.
+      # KAFKA_* env vars above override entries in this file.
+      - ./kafka/server.properties:/mnt/shared/config/server.properties:ro
+    healthcheck:
+      test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 > /dev/null 2>&1
+      start_period: 30s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks: [txn-network]
+
+  # One-shot: SCRAM credentials (app-worker, app-generator, host-admin) + the four
+  # application topics (transactions.<source>, 12 partitions) and their
+  # dead-letter topics (transactions.<source>.dlq, 3 partitions).
+  kafka-init:
+    image: apache/kafka:4.0.0
+    container_name: kafka-init
+    depends_on:
+      kafka1: { condition: service_healthy }
+    entrypoint: ["/bin/bash", "/infrastructure/kafka/init-kafka.sh"]
+    restart: "no"
+    volumes:
+      - ./kafka/:/infrastructure/kafka:ro
+    networks: [txn-network]
+
+  # ─────────────────────────── Schema Registry ───────────────────────────
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.0.0
+    container_name: schema-registry
+    depends_on:
+      kafka1: { condition: service_healthy }
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka1:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: curl -fs http://localhost:8081/subjects > /dev/null
+      # SR is a JVM booting alongside Kafka's JVM; cold starts can exceed a
+      # tight window, and an "unhealthy" verdict aborts every dependent
+      # (schemas-register → producers). Failures during start_period are free.
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [txn-network]
+
+  # One-shot: strip generator annotations (arg.properties / avro-datagen keys),
+  # set subject compatibility BACKWARD, register the producers' *.avsc under
+  # TopicNameStrategy subjects (<topic>-value).
+  schemas-register:
+    build: 
+      context: ./schema-registry
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: schemas-register
+    depends_on:
+      schema-registry: { condition: service_healthy }
+    environment:
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    restart: "no"
+    volumes:
+      - ../schemas/:/schemas:ro
+    networks: [txn-network]
+
+  # ────────────────────────────── Postgres ───────────────────────────────
+  # Custom build = postgres:18 base (pinned) + pg_cron + pg_stat_statements.
+  # initdb/ holds superuser bootstrap ONLY (CREATE EXTENSION ...); it runs solely
+  # on an EMPTY volume — all schema lives in the migrations (drift trap otherwise).
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    command: >
+      postgres
+      -c shared_preload_libraries='pg_stat_statements,pg_cron'
+      -c pg_stat_statements.track=all
+      -c pg_stat_statements.track_planning=on
+      -c cron.database_name=txn_agg
+      -c cron.use_background_workers=on
+      -c max_worker_processes=16
+    volumes:
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: pg_isready -U postgres -d postgres
+      start_period: 10s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [txn-network]
+
+  # drizzle-kit migrations (database/migrations), applied once each in journal
+  # order: 0000 the txn_agg schema, its tables + grants, 0001 the category/rule
+  # seed, 0002 the hourly pg_cron jobs (partman maintenance: premake monthly
+  # partitions / drop >18 months; ANALYZE of the partitioned tables), 0003 the
+  # monitoring schema's views for the Grafana Database dashboard.
+  migrate:
+    build:
+      context: ../database
+    pull_policy: build
+    container_name: migrate
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: txn_agg
+      DATABASE_USER: admin
+      DATABASE_PASSWORD_SECRET_NAME: admin_password
+      SECRET_DIR: /secrets
+    volumes:
+      - ../secrets:/secrets:ro
+    restart: "no"
+    networks: [txn-network]
+
+  # ─────────────────────────── Applications ──────────────────────────────
+  # One-shot: generates GENERATOR_COUNT card transactions (Avro, schema from the
+  # registry) onto KAFKA_TOPIC via the in-network CLIENT listener, then exits.
+  # Re-run alone with: make produce-card
+  producer-card:
+    build: 
+      context: ../apps/producers
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: producer-card
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ../schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.card
+      PRODUCER_NAME: producer-card
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/card.avsc
+      GENERATOR_COUNT: ${CARD_COUNT:-120000}
+      # Empty = a random seed per run (make produce). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
+      # oneshot sends GENERATOR_COUNT records and exits; stream (make produce-stream) sends PRODUCER_RATE/s until stopped
+      PRODUCER_MODE: ${PRODUCER_MODE:-oneshot}
+      PRODUCER_RATE: ${CARD_RATE:-25}
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+  
+  producer-eft:
+    build: 
+      context: ../apps/producers
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: producer-eft
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ../schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.eft
+      PRODUCER_NAME: producer-eft
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/eft.avsc
+      GENERATOR_COUNT: ${EFT_COUNT:-40000}
+      # Empty = a random seed per run (make produce). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
+      # oneshot sends GENERATOR_COUNT records and exits; stream (make produce-stream) sends PRODUCER_RATE/s until stopped
+      PRODUCER_MODE: ${PRODUCER_MODE:-oneshot}
+      PRODUCER_RATE: ${EFT_RATE:-8}
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
+  producer-internal-transfer:
+    build: 
+      context: ../apps/producers
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: producer-internal-transfer
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ../schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.internal-transfer
+      PRODUCER_NAME: producer-internal-transfer
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/internal-transfer.avsc
+      GENERATOR_COUNT: ${INTERNAL_TRANSFER_COUNT:-40000}
+      # Empty = a random seed per run (make produce). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
+      # oneshot sends GENERATOR_COUNT records and exits; stream (make produce-stream) sends PRODUCER_RATE/s until stopped
+      PRODUCER_MODE: ${PRODUCER_MODE:-oneshot}
+      PRODUCER_RATE: ${INTERNAL_TRANSFER_RATE:-2}
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
+  producer-debit-order:
+    build: 
+      context: ../apps/producers
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: producer-debit-order
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      # The producer pins its serializer to the subject's latest registry
+      # version at startup — the subject must exist before it boots.
+      schemas-register: { condition: service_completed_successfully }
+    restart: "no"
+    volumes:
+      - ../schemas:/schemas:ro
+    environment:
+      KAFKA_BROKERS: kafka1:9094 # CLIENT listener (in-network SASL)
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: producer
+      KAFKA_PASSWORD: producer-password # dev only; secret store in real use
+      KAFKA_TOPIC: transactions.debit-order
+      PRODUCER_NAME: producer-debit-order
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      GENERATOR_SCHEMA_PATH: /schemas/debit-order.avsc
+      GENERATOR_COUNT: ${DEBIT_ORDER_COUNT:-40000}
+      # Empty = a random seed per run (make produce). make up passes a pinned one
+      # (SEED in the Makefile), so it sends the same records every time.
+      GENERATOR_SEED: ${GENERATOR_SEED:-}
+      # Day the 18 months of history end on (00:00 UTC); empty = today.
+      # make up pins it (ANCHOR_DATE in the Makefile).
+      GENERATOR_ANCHOR_DATE: ${GENERATOR_ANCHOR_DATE:-}
+      # oneshot sends GENERATOR_COUNT records and exits; stream (make produce-stream) sends PRODUCER_RATE/s until stopped
+      PRODUCER_MODE: ${PRODUCER_MODE:-oneshot}
+      PRODUCER_RATE: ${DEBIT_ORDER_RATE:-4}
+      LOG_LEVEL: INFO
+    networks: [txn-network]
+
+  # One consumer per source: the same image, told which source it reads.
+  # Everything else they share comes from x-consumer above.
+  consumer-card:
+    <<: *consumer
+    container_name: consumer-card
+    environment:
+      <<: *consumer-environment
+      TRANSACTION_TYPE: card
+      KAFKA_TOPIC: transactions.card
+      OTEL_SERVICE_NAME: consumer-card
+
+  consumer-eft:
+    <<: *consumer
+    container_name: consumer-eft
+    environment:
+      <<: *consumer-environment
+      TRANSACTION_TYPE: eft
+      KAFKA_TOPIC: transactions.eft
+      OTEL_SERVICE_NAME: consumer-eft
+
+  consumer-internal-transfer:
+    <<: *consumer
+    container_name: consumer-internal-transfer
+    environment:
+      <<: *consumer-environment
+      TRANSACTION_TYPE: internal_transfer
+      KAFKA_TOPIC: transactions.internal-transfer
+      OTEL_SERVICE_NAME: consumer-internal-transfer
+
+  consumer-debit-order:
+    <<: *consumer
+    container_name: consumer-debit-order
+    environment:
+      <<: *consumer-environment
+      TRANSACTION_TYPE: debit_order
+      KAFKA_TOPIC: transactions.debit-order
+      OTEL_SERVICE_NAME: consumer-debit-order
+
+  api:
+    build: { context: ../apps/api }
+    pull_policy: build
+    container_name: api
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      # Tokens are verified against Keycloak's JWKS; no answers before that works
+      keycloak: { condition: service_healthy }
+    ports:
+      - "8083:8083"
+    volumes:
+      - ../secrets:/secrets:ro
+    environment:
+      HTTP_PORT: 8083
+      ENABLE_SWAGGER: true
+      # make load runs it at info: debug logs every pool acquire and release
+      LOG_LEVEL: ${API_LOG_LEVEL:-debug}
+
+      SECRET_DIR: "/secrets"
+
+      # Postgres configuration
+      DATABASE_HOST: postgres
+      DATABASE_NAME: txn_agg
+      DATABASE_PORT: 5432
+      DATABASE_POOL_MIN: 2
+      DATABASE_POOL_MAX: 10
+      DATABASE_USER: "api_write"
+
+      # Secrets
+      DATABASE_PASSWORD_SECRET_NAME: "api_write_password"
+
+      # Auth
+      AUTH_JWKS_URI: "http://keycloak:8080/realms/txn-api/protocol/openid-connect/certs"
+      AUTH_ISSUER: "http://localhost:8086/realms/txn-api"
+      AUTH_AUDIENCE: 'txn-api'
+
+      # Widest fromDateTime → toDateTime span for the list and summary, in days
+      WINDOW_MAX_DAYS: 366
+
+      # Tracing: the Dockerfile loads the OTel auto-instrumentation, configured
+      # entirely from these. Off unless an obs run opts in (OTEL_SDK_DISABLED=false).
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_TRACES_SAMPLER: always_on
+      OTEL_SERVICE_NAME: api
+      # The collector carries traces only: metrics are Prometheus pull from
+      # /metrics, logs go to stdout. Both exporters default to otlp otherwise.
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      # Incoming requests and their queries; everything else is noise
+      OTEL_NODE_ENABLED_INSTRUMENTATIONS: http,pg
+
+    # Readiness, not liveness: /ready runs SELECT 1, so "healthy" means the API
+    # can answer queries. Docker never restarts an unhealthy container, so a
+    # database outage cannot restart-loop a working process.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8083/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+
+    networks: [txn-network]
+
+  # ─────────────────────── Optional: cache profile ───────────────────────
+  redis:
+    profiles: ["cache"]
+    image: redis:7.4-alpine
+    container_name: redis
+    networks: [txn-network]
+
+  # ──────────────────────── Optional: obs profile ────────────────────────
+  otel-collector:
+    profiles: ["obs"]
+    # 0.116.0's arm64 image ships a dynamically linked binary with no loader:
+    # "exec /otelcol-contrib: no such file or directory" on Apple silicon
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    networks: [txn-network]
+
+  tempo:
+    profiles: ["obs"]
+    image: grafana/tempo:2.6.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks: [txn-network]
+
+  # Postgres's own statistics (pg_stat_*, pg_stat_statements) as Prometheus
+  # metrics. Logs in as postgres_exporter: pg_monitor, no table data.
+  postgres-exporter:
+    profiles: ["obs"]
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    container_name: postgres-exporter
+    command:
+      - --collector.stat_statements
+      - --collector.stat_statements.include_query
+      - --collector.stat_statements.query_length=200
+      - --collector.stat_statements.limit=50
+      # Its own scrape queries would otherwise rank among the slowest statements
+      - --collector.stat_statements.exclude_users=postgres_exporter
+      - --collector.long_running_transactions
+      - --collector.stat_checkpointer
+    environment:
+      DATA_SOURCE_URI: postgres:5432/txn_agg?sslmode=disable
+      DATA_SOURCE_USER: postgres_exporter
+      DATA_SOURCE_PASS_FILE: /secrets/postgres_exporter_password
+    volumes:
+      # Only its own password, not the whole secrets folder the apps mount
+      - ../secrets/postgres_exporter_password:/secrets/postgres_exporter_password:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [txn-network]
+
+  prometheus:
+    profiles: ["obs"]
+    image: prom/prometheus:v3.1.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+    networks: [txn-network]
+
+  grafana:
+    profiles: ["obs"]
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Only its own password, not the whole secrets folder the apps mount
+      - ../secrets/grafana_read_password:/secrets/grafana_read_password:ro
+    networks: [txn-network]
+
+  kafbat-ui:
+    profiles: ["ui"]
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    container_name: kafbat-ui
+    ports:
+      - "8080:8080"
+    environment:
+      # 1. Kafka clusters for the UI to connect to (PLAINTEXT internal listener)
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:29092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+
+      # 2. Auth against Keycloak (OIDC/OAuth2)
+      AUTH_TYPE: OAUTH2
+
+      # 3. RBAC: Keycloak groups -> Kafbat roles mapping (see rbac.yml + oauth2.yml).
+      SPRING_CONFIG_ADDITIONAL_LOCATION: /etc/kafkaui/rbac.yml,/etc/kafkaui/oauth2.yml
+
+      SERVER_REACTIVE_SESSION_TIMEOUT: 12h
+      SERVER_REACTIVE_SESSION_COOKIE_MAX_AGE: 12h
+    volumes:
+      - ./kafbat/rbac.yml:/etc/kafkaui/rbac.yml:ro
+      - ./kafbat/oauth2.yml:/etc/kafkaui/oauth2.yml:ro
+    depends_on:
+      kafka1: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    networks: [txn-network]
+
+  # Schema sample preview: avro-datagen's Streamlit UI over /schemas — generate
+  # example records to copy/paste while writing normalizers/tests. Kafka producer
+  # section is NOT enabled (no --kafka flag, no broker access needed); the mount
+  # is read-only, so contract changes still go through git review, never the UI.
+  # Starts with `make up` (ui profile)  →  http://localhost:8501
+  avro-datagen-ui:
+    profiles: ["ui"]
+    build: { context: ./avro-datagen-ui }
+    pull_policy: build
+    container_name: avro-datagen-ui
+    environment:
+      PORT: "8501" # Streamlit's default; compose owns the port
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../schemas/:/schemas:ro
+    networks: [txn-network]
+
+  # Demo banking portal (apps/portal): a Next.js app whose server side is a BFF. A customer
+  # signs in through Keycloak; the BFF calls the API as banking-portal, so the browser never
+  # holds a token the API accepts. Starts with `make up` (ui profile)  →  http://localhost:8084
+  portal:
+    profiles: ["ui"]
+    build: { context: ../apps/portal }
+    pull_policy: build
+    container_name: portal
+    depends_on:
+      api: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    ports:
+      - "8084:8084"
+    environment:
+      # Where the browser reaches the portal; redirects and the Origin check use it
+      PUBLIC_BASE_URL: http://localhost:8084
+      API_BASE_URL: http://api:8083
+      # The browser is sent to Keycloak's public address, which is also the token issuer
+      # (KC_HOSTNAME); the BFF's own calls go over the compose network, as the API's do
+      KEYCLOAK_PUBLIC_URL: http://localhost:8086
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KEYCLOAK_REALM: txn-api
+      # Dev-only values, like kafbat's oauth2.yml; a secret store in real use
+      PORTAL_CLIENT_ID: banking-portal-web
+      PORTAL_CLIENT_SECRET: banking-portal-web-secret
+      SERVICE_CLIENT_ID: banking-portal
+      SERVICE_CLIENT_SECRET: banking-portal-secret
+      SESSION_SECRET: portal-dev-session-secret-change-me-0123456789
+    networks: [txn-network]
+
+  # Core, not ui: the API verifies every bearer token against this realm's JWKS.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    container_name: keycloak_server
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    # --import-realm loads every realm-export JSON under /opt/keycloak/data/import/
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak/txn-api-realm.json:/opt/keycloak/data/import/txn-api-realm.json:ro
+    environment:
+      # Database Configuration
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password
+      
+      # Initial Admin User Credentials
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      
+      # Dev Features
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+
+      KC_HOSTNAME: http://localhost:8086
+    ports:
+      - "8086:8080"
+    # KC_HEALTH_ENABLED exposes /health/ready on the management port (9000 by
+    # default, separate listener from the main 8080 HTTP port) — kafbat-ui's
+    # depends_on: {condition: service_healthy} needs this to exist at all.
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q 'UP' <&3"]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [txn-network]
+
+networks:
+  txn-network:
+    driver: bridge
+
+volumes:
+  kafka1-data:
+  postgres-data:
+  tempo-data:

@@ -1,0 +1,20 @@
+{
+  "transactionId": "f4bea973-dcf4-4f2a-b656-17720e7a269f",
+  "transactionType": "card",
+  "customerId": "e55b3ae3-1aba-4392-b52b-9b63944a7809",
+  "accountId": "e385c337-c6e4-4625-ab23-efb28350206e",
+  "category": "DINING",
+  "merchantName": "KFC",
+  "mccCode": "5814",
+  "amount": 30315,
+  "currency": "ZAR",
+  "creditDebitIndicator": "debit",
+  "cardLast4": "0115",
+  "cardNetwork": "visa",
+  "posEntryMode": "contactless",
+  "authCode": "244939",
+  "description": "Purchase at KFC",
+  "status": "PENDING",
+  "timestamp": "2025-11-20T15:43:49.797Z",
+  "merchantCountry": "US"
+}

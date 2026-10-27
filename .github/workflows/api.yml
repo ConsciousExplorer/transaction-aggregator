@@ -1,0 +1,104 @@
+# Audit, type-check, lint and test the API, only when something it depends on
+# changed. The changes job always runs, so a required check on main never waits
+# on a workflow a path filter skipped: a job skipped by `if:` counts as passed.
+name: api
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  # paths-filter reads a pull request's changed files through the API
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: api changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.app.outputs.app }}
+      versioned: ${{ steps.versioned.outputs.versioned }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: app
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          # On a push, compare with the branch before the push, not with main
+          base: ${{ github.ref_name }}
+          filters: |
+            app:
+              - 'apps/api/**'
+              - 'database/migrations/**'
+              - 'infrastructure/postgres/**'
+              - 'secrets/**'
+              - '.github/workflows/api.yml'
+      - id: versioned
+        uses: dorny/paths-filter@v4.0.3
+        with:
+          base: ${{ github.ref_name }}
+          # every: a file must match all patterns, so docs alone need no bump
+          predicate-quantifier: every
+          filters: |
+            versioned:
+              - 'apps/api/**'
+              - '!apps/api/**/*.md'
+
+  verify:
+    name: api verify
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      # test.env points DOCKER_HOST at a local Rancher socket. A variable that is
+      # already set wins over --env-file, so the integration tests use the
+      # runner's Docker here.
+      DOCKER_HOST: unix:///var/run/docker.sock
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24.20.0
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - name: Audit dependencies
+        run: npm run lib:audit
+      - name: Type-check
+        run: npm run check
+      - name: No circular imports
+        run: npm run precheck
+      - name: Lint and format
+        run: npx @biomejs/biome ci .
+      - name: Spelling
+        run: npm run spell
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Integration tests
+        run: npm run test:integration
+
+  version:
+    name: api version
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.versioned == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24.20.0
+      - name: Version is higher than the target branch's
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node scripts/check-version-bump.ts apps/api/package.json "$BASE_REF"

@@ -1,0 +1,21 @@
+info:
+  name: Recategorise as fitness
+  type: http
+  seq: 2
+
+http:
+  method: PUT
+  url: "{{api}}/api/v1/users/{{userId}}/transaction-overrides/{{transactionId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "categoryId": 14
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

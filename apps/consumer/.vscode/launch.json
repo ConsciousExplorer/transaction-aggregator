@@ -1,0 +1,52 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "consumer: card",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "card", "PORT": "3001" },
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "consumer: debit-order",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "debit-order", "PORT": "3003" },
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "consumer: eft",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "eft", "PORT": "3004" },
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "consumer: internal-transfer",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/app.ts",
+			"runtimeArgs": ["--env-file=.env"],
+			"env": { "SOURCE": "internal-transfer", "PORT": "3005" },
+			"cwd": "${workspaceFolder}"
+		}
+	],
+	"compounds": [
+		{
+			"name": "card + eft + internal-transfer + debit-order consumers",
+			"configurations": [
+				"consumer: card",
+				"consumer: eft",
+				"consumer: internal-transfer",
+				"consumer: debit-order"
+			]
+		}
+	]
+}

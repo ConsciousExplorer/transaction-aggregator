@@ -1,0 +1,29 @@
+apiVersion: 1
+datasources:
+  # Prometheus and Tempo are the main observability data sources.
+  # Prometheus is used for metrics
+  # Tempo is used for traces.
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+  # Postgres to check table values for smaller recons.
+  - name: Postgres
+    uid: postgres
+    type: grafana-postgresql-datasource
+    url: postgres:5432
+    user: grafana_read
+    jsonData:
+      database: txn_agg
+      sslmode: disable
+      postgresVersion: 1500
+      maxOpenConns: 5
+    secureJsonData:
+      password: $__file{/secrets/grafana_read_password}

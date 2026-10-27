@@ -1,0 +1,230 @@
+import assert from "node:assert/strict";
+import { request } from "node:http";
+import type { AddressInfo } from "node:net";
+import {
+	after,
+	before,
+	beforeEach,
+	type Mock,
+	mock,
+	suite,
+	test
+} from "node:test";
+import { setTimeout as wait } from "node:timers/promises";
+import type { FastifyInstance } from "fastify";
+import { pino } from "pino";
+import z from "zod";
+import { buildTestSigningKeys, signTestToken } from "#src/auth/test-tokens.ts";
+import { buildServer } from "#src/server.ts";
+import auditPlugin from "./audit.ts";
+import authPlugin from "./auth.ts";
+
+const USER_ID = "7b1e4c2a-9d3f-4a5b-8c6d-0e1f2a3b4c5d";
+
+// Every line the server logs, parsed
+const logLines: Record<string, unknown>[] = [];
+const captureStream = {
+	write(line: string) {
+		logLines.push(JSON.parse(line));
+	}
+};
+
+/** The audit lines logged so far. onResponse runs once the response is sent. */
+async function readAuditLines() {
+	await new Promise((resolve) => setImmediate(resolve));
+	return logLines.filter((line) => line.event === "audit");
+}
+
+// The client is the one hanging up, so its socket error is expected
+function ignoreClientError() {}
+
+async function waitForCalls(handler: Mock<() => Promise<unknown>>) {
+	while (handler.mock.callCount() === 0) {
+		await wait(1);
+	}
+}
+
+suite("audit line", () => {
+	let app: FastifyInstance;
+	let readTokenHeaders: { authorization: string };
+
+	before(async () => {
+		// Signed with a key made for this run, and verified for real
+		const { privateKey, tokenVerification } = await buildTestSigningKeys();
+		const readToken = await signTestToken(privateKey, {
+			sub: "4fc8a801-206d-48ec-b511-d1f97e2f057b",
+			azp: "banking-service",
+			scope: "tx:read"
+		});
+		readTokenHeaders = { authorization: `Bearer ${readToken}` };
+
+		app = buildServer({ logger: pino({ level: "info" }, captureStream) });
+		await app.register(authPlugin, { tokenVerification });
+		await app.register(auditPlugin);
+
+		app.get(
+			"/users/:userId/things",
+			{
+				config: { authConfig: { requiredScope: ["tx:read"] } },
+				schema: { querystring: z.object({ limit: z.coerce.number().int() }) }
+			},
+			async () => ({ ok: true })
+		);
+		app.get(
+			"/write-only",
+			{ config: { authConfig: { requiredScope: ["tx:write"] } } },
+			async () => ({ ok: true })
+		);
+		app.get(
+			"/open",
+			{ config: { authConfig: { public: true } } },
+			async () => ({ ok: true })
+		);
+
+		await app.ready();
+	});
+	after(async () => {
+		await app.close();
+	});
+	beforeEach(() => {
+		logLines.length = 0;
+	});
+
+	test("an authenticated request logs one line naming the calling app", async () => {
+		const response = await app.inject({
+			method: "GET",
+			url: `/users/${USER_ID}/things?limit=5`,
+			headers: readTokenHeaders
+		});
+		assert.strictEqual(response.statusCode, 200);
+
+		const lines = await readAuditLines();
+		assert.strictEqual(lines.length, 1);
+		const line = lines[0];
+		assert.strictEqual(line?.client_id, "banking-service");
+		assert.strictEqual(line?.user_id, USER_ID);
+		assert.strictEqual(line?.method, "GET");
+		assert.strictEqual(line?.route, "/users/:userId/things");
+		assert.strictEqual(line?.status, 200);
+		assert.strictEqual(typeof line?.trace_id, "string");
+	});
+
+	test("a known caller refused by scope is audited with its 403", async () => {
+		const response = await app.inject({
+			method: "GET",
+			url: "/write-only",
+			headers: readTokenHeaders
+		});
+		assert.strictEqual(response.statusCode, 403);
+
+		const lines = await readAuditLines();
+		assert.strictEqual(lines.length, 1);
+		assert.strictEqual(lines[0]?.status, 403);
+		assert.strictEqual(lines[0]?.user_id, null);
+	});
+
+	test("a known caller's invalid request is audited with its 400", async () => {
+		const response = await app.inject({
+			method: "GET",
+			url: `/users/${USER_ID}/things?limit=many`,
+			headers: readTokenHeaders
+		});
+		assert.strictEqual(response.statusCode, 400);
+
+		const lines = await readAuditLines();
+		assert.strictEqual(lines.length, 1);
+		assert.strictEqual(lines[0]?.status, 400);
+	});
+
+	test("a request without a valid token gets 401 and no audit line", async () => {
+		const response = await app.inject({
+			method: "GET",
+			url: `/users/${USER_ID}/things?limit=many`
+		});
+		// 401, not the 400 its query would earn: auth runs before validation
+		assert.strictEqual(response.statusCode, 401);
+		assert.strictEqual((await readAuditLines()).length, 0);
+	});
+
+	test("a public route is not audited", async () => {
+		const response = await app.inject({ method: "GET", url: "/open" });
+		assert.strictEqual(response.statusCode, 200);
+		assert.strictEqual((await readAuditLines()).length, 0);
+	});
+
+	test("no built-in request lines: the audit line is the only one", async () => {
+		await app.inject({
+			method: "GET",
+			url: `/users/${USER_ID}/things?limit=5`,
+			headers: readTokenHeaders
+		});
+		await readAuditLines();
+		const messages = [];
+		for (const line of logLines) {
+			messages.push(line.msg);
+		}
+		assert.deepStrictEqual(messages, ["audit"]);
+	});
+});
+
+suite("audit line for a request whose client hangs up", () => {
+	let app: FastifyInstance;
+	let port: number;
+	let writeToken: string;
+	// Slow enough that the client hangs up while the handler is still running
+	const writeSlowly = mock.fn(async () => {
+		await wait(100);
+		return { ok: true };
+	});
+
+	before(async () => {
+		const { privateKey, tokenVerification } = await buildTestSigningKeys();
+		writeToken = await signTestToken(privateKey, {
+			sub: "7d2e9b40-3c1a-4f5e-a6b7-8c9d0e1f2a3b",
+			azp: "banking-portal",
+			scope: "tx:write"
+		});
+
+		app = buildServer({ logger: pino({ level: "info" }, captureStream) });
+		await app.register(authPlugin, { tokenVerification });
+		await app.register(auditPlugin);
+		app.put(
+			"/users/:userId/things",
+			{ config: { authConfig: { requiredScope: ["tx:write"] } } },
+			writeSlowly
+		);
+
+		await app.listen({ host: "127.0.0.1", port: 0 });
+		port = (app.server.address() as AddressInfo).port;
+	});
+	after(async () => {
+		await app.close();
+	});
+	beforeEach(() => {
+		logLines.length = 0;
+	});
+
+	// Its handler still runs, so the write can land: the caller must be on record
+	test("is written with 499, though its response is never sent", async () => {
+		const outgoing = request({
+			host: "127.0.0.1",
+			port,
+			method: "PUT",
+			path: `/users/${USER_ID}/things`,
+			headers: { authorization: `Bearer ${writeToken}` }
+		});
+		outgoing.on("error", ignoreClientError);
+		outgoing.end();
+		await waitForCalls(writeSlowly);
+		outgoing.destroy();
+		// Past the end of the handler, which still runs to completion
+		await wait(150);
+
+		const lines = await readAuditLines();
+		assert.strictEqual(lines.length, 1);
+		assert.strictEqual(lines[0]?.status, 499);
+		assert.strictEqual(lines[0]?.client_id, "banking-portal");
+		assert.strictEqual(lines[0]?.user_id, USER_ID);
+		assert.strictEqual(lines[0]?.method, "PUT");
+	});
+});

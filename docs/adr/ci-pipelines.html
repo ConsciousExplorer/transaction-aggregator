@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CI Pipelines</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: the six workflows side by side, then what each one watches and runs,
+   when a version bump is needed, and what each of the two contract checks lets through. */
+:root {
+	--paper: #eef2f5;
+	--panel: #fbfcfd;
+	--ink: #15212c;
+	--muted: #586878;
+	--rule: #d3dce4;
+	--track: #e2e8ee;
+	--code-bg: #e6ecf1;
+	--push: #3f51c7;
+	--pull: #9c2f8f;
+	--pass: #2b7a4b;
+	--fail: #c2312f;
+	--gap: #a3620a;
+	--font-display: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif;
+	--font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--paper: #0d1318;
+		--panel: #131b22;
+		--ink: #e2e9ef;
+		--muted: #8fa0af;
+		--rule: #26333e;
+		--track: #1b2630;
+		--code-bg: #18222b;
+		--push: #8f9cff;
+		--pull: #d47fd0;
+		--pass: #5cc488;
+		--fail: #f2706b;
+		--gap: #e0a54a;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--paper: #0d1318;
+	--panel: #131b22;
+	--ink: #e2e9ef;
+	--muted: #8fa0af;
+	--rule: #26333e;
+	--track: #1b2630;
+	--code-bg: #18222b;
+	--push: #8f9cff;
+	--pull: #d47fd0;
+	--pass: #5cc488;
+	--fail: #f2706b;
+	--gap: #e0a54a;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font: 400 15px/1.55 var(--font-body);
+	padding-block: 32px 72px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	-webkit-text-size-adjust: 100%;
+}
+.page { max-width: 1080px; margin: 0 auto; display: grid; gap: 34px; }
+.masthead { display: grid; gap: 10px; max-width: 74ch; }
+.eyebrow {
+	margin: 0;
+	font: 600 12px/1.2 var(--font-mono);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+h1 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-stretch: 82%;
+	font-weight: 800;
+	font-size: clamp(32px, 5.4vw, 52px);
+	line-height: 1;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+h2 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-stretch: 86%;
+	font-weight: 750;
+	font-size: 25px;
+	line-height: 1.15;
+	text-wrap: balance;
+}
+.lede { margin: 0; font-size: 16px; max-width: 70ch; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+p { margin: 0; }
+a { color: var(--push); }
+
+figure { margin: 0; display: grid; gap: 10px; }
+.figure-scroll {
+	overflow-x: auto;
+	background: var(--panel);
+	border: 1px solid var(--rule);
+	border-radius: 10px;
+}
+.figure-scroll svg { display: block; width: 100%; min-width: 760px; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 78ch; }
+
+/* The diagrams, styled from here so both themes apply */
+.flow text { fill: var(--ink); font-family: var(--font-body); }
+.flow .title { font-size: 13.5px; font-weight: 600; }
+.flow .sub { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.flow .label { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); }
+.flow .zone-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; fill: var(--muted); }
+.flow .zone { fill: var(--track); opacity: 0.6; }
+.flow .box { fill: var(--panel); stroke: var(--ink); stroke-width: 1.2; }
+.flow .box-push { fill: color-mix(in srgb, var(--push) 8%, var(--panel)); stroke: var(--push); stroke-width: 1.4; }
+.flow .box-pull { fill: color-mix(in srgb, var(--pull) 9%, var(--panel)); stroke: var(--pull); stroke-width: 1.4; }
+.flow .box-pass { fill: color-mix(in srgb, var(--pass) 10%, var(--panel)); stroke: var(--pass); stroke-width: 1.4; }
+.flow .box-fail { fill: color-mix(in srgb, var(--fail) 8%, var(--panel)); stroke: var(--fail); stroke-width: 1.4; }
+.flow .box-skip { fill: var(--panel); stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.flow .edge { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+.flow .edge-push { stroke: var(--push); stroke-width: 1.4; fill: none; }
+.flow .edge-pull { stroke: var(--pull); stroke-width: 1.4; stroke-dasharray: 6 4; fill: none; }
+.flow .edge-pass { stroke: var(--pass); stroke-width: 1.5; fill: none; }
+.flow .edge-fail { stroke: var(--fail); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
+.flow .edge-skip { stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 4 3; fill: none; }
+.flow .head-ink { fill: var(--ink); }
+.flow .head-push { fill: var(--push); }
+.flow .head-pull { fill: var(--pull); }
+.flow .head-pass { fill: var(--pass); }
+.flow .head-fail { fill: var(--fail); }
+.flow .head-skip { fill: var(--muted); }
+.flow .push-text { fill: var(--push); }
+.flow .pull-text { fill: var(--pull); }
+.flow .pass-text { fill: var(--pass); }
+.flow .fail-text { fill: var(--fail); }
+
+section { display: grid; gap: 12px; min-width: 0; max-width: 80ch; }
+section.wide { max-width: none; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule); }
+th { font: 600 11.5px/1.3 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+td code { overflow-wrap: anywhere; }
+.verdict { white-space: nowrap; font-weight: 600; }
+.verdict.pass { color: var(--pass); }
+.verdict.fail { color: var(--fail); }
+.verdict.gap { color: var(--gap); }
+.verdict.skip { color: var(--muted); }
+.muted { color: var(--muted); }
+.matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; padding-right: 10px; }
+.matrix .yes { color: var(--pass); font-weight: 600; }
+.matrix .no { color: var(--muted); }
+
+ul.points { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+ul.points b { font-weight: 600; }
+.callout {
+	border-left: 3px solid var(--gap);
+	background: color-mix(in srgb, var(--gap) 8%, var(--panel));
+	border-radius: 0 8px 8px 0;
+	padding: 12px 16px;
+	display: grid;
+	gap: 6px;
+}
+.callout-title { font-weight: 600; color: var(--gap); }
+.source { display: block; margin-top: 2px; font: 400 12px var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+pre {
+	margin: 0;
+	background: var(--code-bg);
+	border-radius: 7px;
+	padding: 14px 16px;
+	overflow-x: auto;
+	font: 400 12.5px/1.6 var(--font-mono);
+}
+pre .comment { color: var(--muted); }
+.related { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+	<p class="eyebrow">.github/workflows · six workflows</p>
+	<h1>CI Pipelines</h1>
+	<p class="lede">Six GitHub Actions workflows guard the repo: one per app (api, consumer, portal, producers) and one for each contract the apps share with the outside (the API's OpenAPI document and the Avro schemas). Each workflow first works out whether anything it cares about changed, and skips its checks if nothing did. A pull request into main gets three more checks: the app's version went up, the API still serves the clients it served before, and the schemas can still read the records already on Kafka.</p>
+</header>
+
+<figure>
+	<div class="figure-scroll">
+		<svg class="flow" viewBox="0 0 1000 672" role="img" aria-label="Six workflows, one per row. Each starts with a changes job that always runs. The api, consumer, portal and producers workflows then run a verify job on every push and pull request, and a version job only on a pull request into main. api-contract runs matches code on every push and no breaking changes on a pull request into main. schemas runs compatible on pushes to main and pull requests into main.">
+			<defs>
+				<marker id="head-push" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-push" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-pull" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-pull" d="M0,0 L10,5 L0,10 z"/></marker>
+			</defs>
+
+			<!-- Columns: when each job runs -->
+			<text class="zone-label" x="20" y="34">WORKFLOW</text>
+			<rect class="zone" x="180" y="60" width="250" height="596" rx="8"/>
+			<rect class="zone" x="460" y="60" width="250" height="596" rx="8"/>
+			<rect class="zone" x="740" y="60" width="250" height="596" rx="8"/>
+			<text class="zone-label" x="305" y="34" text-anchor="middle">ALWAYS RUNS</text>
+			<text class="sub" x="305" y="50" text-anchor="middle">works out what changed</text>
+			<text class="zone-label push-text" x="585" y="34" text-anchor="middle">EVERY PUSH AND PR</text>
+			<text class="sub" x="585" y="50" text-anchor="middle">if its paths changed</text>
+			<text class="zone-label pull-text" x="865" y="34" text-anchor="middle">PR INTO MAIN ONLY</text>
+			<text class="sub" x="865" y="50" text-anchor="middle">compared with main</text>
+
+			<!-- api -->
+			<text class="title" x="20" y="100">api</text>
+			<text class="sub" x="20" y="118">api.yml</text>
+			<rect class="box" x="190" y="76" width="230" height="52" rx="6"/>
+			<text class="title" x="305" y="98" text-anchor="middle">changes</text>
+			<text class="sub" x="305" y="116" text-anchor="middle">api · migrations · secrets</text>
+			<rect class="box-push" x="470" y="76" width="230" height="52" rx="6"/>
+			<text class="title push-text" x="585" y="98" text-anchor="middle">verify</text>
+			<text class="sub" x="585" y="116" text-anchor="middle">audit · types · lint · tests</text>
+			<rect class="box-pull" x="750" y="76" width="230" height="52" rx="6"/>
+			<text class="title pull-text" x="865" y="98" text-anchor="middle">version</text>
+			<text class="sub" x="865" y="116" text-anchor="middle">package.json above main's</text>
+			<line class="edge-push" x1="420" y1="102" x2="466" y2="102" marker-end="url(#head-push)"/>
+			<polyline class="edge-pull" points="305,128 305,156 865,156 865,132" marker-end="url(#head-pull)"/>
+			<text class="label pull-text" x="585" y="150" text-anchor="middle">a non-Markdown file in apps/api changed</text>
+
+			<!-- consumer -->
+			<text class="title" x="20" y="200">consumer</text>
+			<text class="sub" x="20" y="218">consumer.yml</text>
+			<rect class="box" x="190" y="176" width="230" height="52" rx="6"/>
+			<text class="title" x="305" y="198" text-anchor="middle">changes</text>
+			<text class="sub" x="305" y="216" text-anchor="middle">consumer · schemas · migrations</text>
+			<rect class="box-push" x="470" y="176" width="230" height="52" rx="6"/>
+			<text class="title push-text" x="585" y="198" text-anchor="middle">verify</text>
+			<text class="sub" x="585" y="216" text-anchor="middle">+ generated schema types</text>
+			<rect class="box-pull" x="750" y="176" width="230" height="52" rx="6"/>
+			<text class="title pull-text" x="865" y="198" text-anchor="middle">version</text>
+			<text class="sub" x="865" y="216" text-anchor="middle">package.json above main's</text>
+			<line class="edge-push" x1="420" y1="202" x2="466" y2="202" marker-end="url(#head-push)"/>
+			<polyline class="edge-pull" points="305,228 305,256 865,256 865,232" marker-end="url(#head-pull)"/>
+			<text class="label pull-text" x="585" y="250" text-anchor="middle">a non-Markdown file in apps/consumer changed</text>
+
+			<!-- portal -->
+			<text class="title" x="20" y="300">portal</text>
+			<text class="sub" x="20" y="318">portal.yml</text>
+			<rect class="box" x="190" y="276" width="230" height="52" rx="6"/>
+			<text class="title" x="305" y="298" text-anchor="middle">changes</text>
+			<text class="sub" x="305" y="316" text-anchor="middle">portal</text>
+			<rect class="box-push" x="470" y="276" width="230" height="52" rx="6"/>
+			<text class="title push-text" x="585" y="298" text-anchor="middle">verify</text>
+			<text class="sub" x="585" y="316" text-anchor="middle">audit · types · build · tests</text>
+			<rect class="box-pull" x="750" y="276" width="230" height="52" rx="6"/>
+			<text class="title pull-text" x="865" y="298" text-anchor="middle">version</text>
+			<text class="sub" x="865" y="316" text-anchor="middle">package.json above main's</text>
+			<line class="edge-push" x1="420" y1="302" x2="466" y2="302" marker-end="url(#head-push)"/>
+			<polyline class="edge-pull" points="305,328 305,356 865,356 865,332" marker-end="url(#head-pull)"/>
+			<text class="label pull-text" x="585" y="350" text-anchor="middle">a non-Markdown file in apps/portal changed</text>
+
+			<!-- producers -->
+			<text class="title" x="20" y="400">producers</text>
+			<text class="sub" x="20" y="418">producers.yml</text>
+			<rect class="box" x="190" y="376" width="230" height="52" rx="6"/>
+			<text class="title" x="305" y="398" text-anchor="middle">changes</text>
+			<text class="sub" x="305" y="416" text-anchor="middle">producers · schemas</text>
+			<rect class="box-push" x="470" y="376" width="230" height="52" rx="6"/>
+			<text class="title push-text" x="585" y="398" text-anchor="middle">verify</text>
+			<text class="sub" x="585" y="416" text-anchor="middle">audit · pyright · ruff · pytest</text>
+			<rect class="box-pull" x="750" y="376" width="230" height="52" rx="6"/>
+			<text class="title pull-text" x="865" y="398" text-anchor="middle">version</text>
+			<text class="sub" x="865" y="416" text-anchor="middle">pyproject.toml above main's</text>
+			<line class="edge-push" x1="420" y1="402" x2="466" y2="402" marker-end="url(#head-push)"/>
+			<polyline class="edge-pull" points="305,428 305,456 865,456 865,432" marker-end="url(#head-pull)"/>
+			<text class="label pull-text" x="585" y="450" text-anchor="middle">a non-Markdown file in apps/producers changed</text>
+
+			<!-- api-contract -->
+			<text class="title" x="20" y="500">api-contract</text>
+			<text class="sub" x="20" y="518">api-contract.yml</text>
+			<rect class="box" x="190" y="476" width="230" height="52" rx="6"/>
+			<text class="title" x="305" y="498" text-anchor="middle">changes</text>
+			<text class="sub" x="305" y="516" text-anchor="middle">api src · openapi · packages</text>
+			<rect class="box-push" x="470" y="476" width="230" height="52" rx="6"/>
+			<text class="title push-text" x="585" y="498" text-anchor="middle">matches code</text>
+			<text class="sub" x="585" y="516" text-anchor="middle">generate → git diff</text>
+			<rect class="box-pull" x="750" y="476" width="230" height="52" rx="6"/>
+			<text class="title pull-text" x="865" y="498" text-anchor="middle">no breaking changes</text>
+			<text class="sub" x="865" y="516" text-anchor="middle">oasdiff against main's</text>
+			<line class="edge-push" x1="420" y1="502" x2="466" y2="502" marker-end="url(#head-push)"/>
+			<polyline class="edge-pull" points="305,528 305,556 865,556 865,532" marker-end="url(#head-pull)"/>
+			<text class="label pull-text" x="585" y="550" text-anchor="middle">the same paths changed</text>
+
+			<!-- schemas -->
+			<text class="title" x="20" y="600">schemas</text>
+			<text class="sub" x="20" y="618">schemas.yml</text>
+			<rect class="box" x="190" y="576" width="230" height="52" rx="6"/>
+			<text class="title" x="305" y="598" text-anchor="middle">changes</text>
+			<text class="sub" x="305" y="616" text-anchor="middle">schemas · the check script</text>
+			<rect class="box-push" x="470" y="576" width="230" height="52" rx="6"/>
+			<text class="title push-text" x="585" y="598" text-anchor="middle">compatible</text>
+			<text class="sub" x="585" y="616" text-anchor="middle">push to main, PR into main</text>
+			<line class="edge-push" x1="420" y1="602" x2="466" y2="602" marker-end="url(#head-push)"/>
+		</svg>
+	</div>
+	<figcaption>Each row is one workflow file. The <code>changes</code> job always runs and decides which of the others run. Blue jobs run on every push to any branch and on every pull request into main, when the workflow's paths changed. Magenta jobs run only on a pull request into main, and compare the branch with main. <code>schemas</code> is the one exception: it ignores pushes to other branches, because the consumer workflow already checks the generated schema types on every push.</figcaption>
+</figure>
+
+<section>
+	<h2>What starts a run</h2>
+	<ul class="points">
+		<li><b>Events.</b> Every workflow runs on a pull request into main. Five also run on a push to any branch; <code>schemas</code> runs on a push to main only.</li>
+		<li><b>The changes job always runs.</b> It uses <code>dorny/paths-filter</code> to decide whether the workflow's files changed. On a push it compares with the commit before the push; on a pull request it reads the pull request's changed files through the GitHub API, which is why each workflow asks for <code>pull-requests: read</code>.</li>
+		<li><b>Skipped is passed.</b> When nothing relevant changed, the other jobs are skipped by their <code>if:</code>, and GitHub counts a skipped job as passed. That is why the changes job exists rather than a path filter on the workflow's trigger: with a trigger filter the workflow would never start, and a required check on main would wait for it forever.</li>
+		<li><b>One run per branch.</b> Each workflow sets <code>concurrency</code> per branch with <code>cancel-in-progress</code>, so a new push cancels the run still going for the one before it.</li>
+		<li><b>Pinned tools.</b> Node 24.20.0 for the Node apps, the Python in <code>apps/producers/.python-version</code> through uv, and the oasdiff release binary checked against a SHA-256.</li>
+	</ul>
+</section>
+
+<section class="wide">
+	<h2>What each workflow watches</h2>
+	<div class="table-wrap">
+		<table>
+			<thead><tr><th>Workflow</th><th>Runs its checks when one of these changed</th><th>Needs a version bump when</th></tr></thead>
+			<tbody>
+				<tr><td><code>api</code></td><td><code>apps/api/**</code>, <code>database/migrations/**</code>, <code>infrastructure/postgres/**</code>, <code>secrets/**</code>, <code>api.yml</code></td><td>a file in <code>apps/api/</code> changed that isn't <code>.md</code></td></tr>
+				<tr><td><code>consumer</code></td><td><code>apps/consumer/**</code>, <code>schemas/*.avsc</code>, <code>database/migrations/**</code>, <code>infrastructure/postgres/**</code>, <code>secrets/**</code>, <code>consumer.yml</code></td><td>a file in <code>apps/consumer/</code> changed that isn't <code>.md</code></td></tr>
+				<tr><td><code>portal</code></td><td><code>apps/portal/**</code>, <code>portal.yml</code></td><td>a file in <code>apps/portal/</code> changed that isn't <code>.md</code></td></tr>
+				<tr><td><code>producers</code></td><td><code>apps/producers/**</code>, <code>schemas/*.avsc</code>, <code>producers.yml</code></td><td>a file in <code>apps/producers/</code> changed that isn't <code>.md</code></td></tr>
+				<tr><td><code>api-contract</code></td><td><code>apps/api/src/**</code>, <code>apps/api/openapi/**</code>, <code>apps/api/scripts/generate-openapi.ts</code>, <code>apps/api/package.json</code>, <code>apps/api/package-lock.json</code>, <code>api-contract.yml</code></td><td class="muted">never; the api workflow covers it</td></tr>
+				<tr><td><code>schemas</code></td><td><code>schemas/**</code>, <code>apps/consumer/scripts/check-schema-compatibility.ts</code>, <code>schemas.yml</code></td><td class="muted">never</td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>The migrations, the Postgres setup and the secrets sit outside the apps, but the API's and the consumer's integration tests run against them, so a change there runs those tests too.</p>
+</section>
+
+<section class="wide">
+	<h2>What verify runs</h2>
+	<div class="table-wrap">
+		<table class="matrix">
+			<thead><tr><th>Step, in order</th><th>api</th><th>consumer</th><th>portal</th><th>producers</th></tr></thead>
+			<tbody>
+				<tr><td>Install exactly what the lockfile says (<code>npm ci</code>, <code>uv sync --locked</code>)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+				<tr><td>Audit dependencies: <code>audit-ci</code> fails on high and critical; <code>pip-audit</code> on any known advisory</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+				<tr><td>Type-check (<code>tsc</code>, <code>pyright</code>)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+				<tr><td>No circular imports (<code>madge</code>)</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">–</td><td class="no">–</td></tr>
+				<tr><td>Build (<code>next build</code>)</td><td class="no">–</td><td class="no">–</td><td class="yes">✓</td><td class="no">–</td></tr>
+				<tr><td>Lint and format, without writing (<code>biome ci</code>, <code>ruff check</code>, <code>ruff format --check</code>)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+				<tr><td>Spelling (<code>cspell</code>)</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">–</td><td class="no">–</td></tr>
+				<tr><td>Unit tests (<code>node --test</code>, <code>pytest</code>)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+				<tr><td>Generated schema types match <code>schemas/</code></td><td class="no">–</td><td class="yes">✓</td><td class="no">–</td><td class="no">–</td></tr>
+				<tr><td>Integration tests, against Postgres in Docker (Testcontainers)</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">–</td><td class="no">–</td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>An advisory the team has accepted goes in the app's allow list: <code>allowlist</code> in <code>audit-ci.json</code> for the Node apps, <code>ALLOWED_ADVISORIES</code> in <code>apps/producers/scripts/audit.sh</code> for the producers. Upgrading the package is the first choice; an exception is for when no fix exists yet. The portal's end-to-end script needs the whole stack running, so it stays a local check.</p>
+</section>
+
+<figure>
+	<div class="figure-scroll">
+		<svg class="flow" viewBox="0 0 1000 580" role="img" aria-label="When a version bump is needed. A push to a branch is never checked. On a pull request into main, if no non-Markdown file under the app's folder changed, there is no check. If main doesn't have the app's manifest yet, the check passes. Otherwise the version must be higher than main's, or the check fails.">
+			<defs>
+				<marker id="head-ink-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-skip-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-skip" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-pass-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-pass" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-fail-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+			</defs>
+
+			<!-- Questions, top to bottom -->
+			<rect class="box" x="150" y="20" width="380" height="56" rx="6"/>
+			<text class="title" x="340" y="44" text-anchor="middle">A push or a pull request</text>
+			<text class="sub" x="340" y="63" text-anchor="middle">the app's changes job has run</text>
+
+			<rect class="box" x="150" y="116" width="380" height="56" rx="6"/>
+			<text class="title" x="340" y="140" text-anchor="middle">Is it a pull request into main?</text>
+			<text class="sub" x="340" y="159" text-anchor="middle">github.event_name == 'pull_request'</text>
+
+			<rect class="box" x="150" y="212" width="380" height="56" rx="6"/>
+			<text class="title" x="340" y="236" text-anchor="middle">Did a non-Markdown file in apps/&lt;app&gt;/ change?</text>
+			<text class="sub" x="340" y="255" text-anchor="middle">anywhere in the pull request's diff</text>
+
+			<rect class="box" x="150" y="308" width="380" height="56" rx="6"/>
+			<text class="title" x="340" y="332" text-anchor="middle">Does main have the app's manifest?</text>
+			<text class="sub" x="340" y="351" text-anchor="middle">package.json · pyproject.toml</text>
+
+			<rect class="box" x="150" y="404" width="380" height="56" rx="6"/>
+			<text class="title" x="340" y="428" text-anchor="middle">Is the version higher than main's?</text>
+			<text class="sub" x="340" y="447" text-anchor="middle">major, then minor, then patch</text>
+
+			<rect class="box-pass" x="150" y="500" width="380" height="56" rx="6"/>
+			<text class="title pass-text" x="340" y="524" text-anchor="middle">Passes</text>
+			<text class="sub" x="340" y="543" text-anchor="middle">any higher version will do</text>
+
+			<!-- Yes: down the spine -->
+			<line class="edge" x1="340" y1="76" x2="340" y2="112" marker-end="url(#head-ink-2)"/>
+			<line class="edge" x1="340" y1="172" x2="340" y2="208" marker-end="url(#head-ink-2)"/>
+			<text class="label" x="348" y="194">yes</text>
+			<line class="edge" x1="340" y1="268" x2="340" y2="304" marker-end="url(#head-ink-2)"/>
+			<text class="label" x="348" y="290">yes</text>
+			<line class="edge" x1="340" y1="364" x2="340" y2="400" marker-end="url(#head-ink-2)"/>
+			<text class="label" x="348" y="386">yes</text>
+			<line class="edge-pass" x1="340" y1="460" x2="340" y2="496" marker-end="url(#head-pass-2)"/>
+			<text class="label pass-text" x="348" y="482">yes</text>
+
+			<!-- No: out to the right -->
+			<rect class="box-skip" x="620" y="116" width="360" height="56" rx="6"/>
+			<text class="title" x="800" y="140" text-anchor="middle">No version check</text>
+			<text class="sub" x="800" y="159" text-anchor="middle">a push to a branch is never checked</text>
+			<line class="edge-skip" x1="530" y1="144" x2="616" y2="144" marker-end="url(#head-skip-2)"/>
+			<text class="label" x="573" y="136" text-anchor="middle">no</text>
+
+			<rect class="box-skip" x="620" y="204" width="360" height="72" rx="6"/>
+			<text class="title" x="800" y="228" text-anchor="middle">No version check</text>
+			<text class="sub" x="800" y="247" text-anchor="middle">docs, migrations, schemas, secrets,</text>
+			<text class="sub" x="800" y="263" text-anchor="middle">infrastructure and workflows need none</text>
+			<line class="edge-skip" x1="530" y1="240" x2="616" y2="240" marker-end="url(#head-skip-2)"/>
+			<text class="label" x="573" y="232" text-anchor="middle">no</text>
+
+			<rect class="box-pass" x="620" y="308" width="360" height="56" rx="6"/>
+			<text class="title pass-text" x="800" y="332" text-anchor="middle">Passes: a new app</text>
+			<text class="sub" x="800" y="351" text-anchor="middle">nothing on main to be higher than</text>
+			<line class="edge-pass" x1="530" y1="336" x2="616" y2="336" marker-end="url(#head-pass-2)"/>
+			<text class="label" x="573" y="328" text-anchor="middle">no</text>
+
+			<rect class="box-fail" x="620" y="404" width="360" height="56" rx="6"/>
+			<text class="title fail-text" x="800" y="428" text-anchor="middle">Fails</text>
+			<text class="sub" x="800" y="447" text-anchor="middle">bump the version in this pull request</text>
+			<line class="edge-fail" x1="530" y1="432" x2="616" y2="432" marker-end="url(#head-fail-2)"/>
+			<text class="label fail-text" x="573" y="424" text-anchor="middle">no</text>
+		</svg>
+	</div>
+	<figcaption>The version job, the same in all four app workflows. It runs <code>scripts/check-version-bump.ts</code> with the app's manifest and <code>origin/main</code>. Grey dashed boxes are a skipped job, which GitHub counts as passed.</figcaption>
+</figure>
+
+<section>
+	<h2>When the version must go up</h2>
+	<p>Once per pull request into main, not once per commit: the check compares the branch's version with main's, so one bump covers every commit in the pull request. It only asks for a higher number. Whether that is a patch, minor or major bump is your call; a breaking API change is blocked by the contract check whatever the version says.</p>
+	<div class="table-wrap">
+		<table>
+			<thead><tr><th>The pull request changes</th><th>Version bump</th></tr></thead>
+			<tbody>
+				<tr><td>Code, tests or config in <code>apps/api/</code></td><td>api</td></tr>
+				<tr><td><code>apps/api/src/</code>, so <code>openapi.json</code> is regenerated too</td><td>api (one bump covers both)</td></tr>
+				<tr><td>Only <code>apps/api/README.md</code></td><td class="muted">none</td></tr>
+				<tr><td>A lockfile, like the producers' <code>uv.lock</code> after a security upgrade</td><td>producers</td></tr>
+				<tr><td>A migration in <code>database/migrations/</code></td><td class="muted">none, though the api and consumer tests run</td></tr>
+				<tr><td>A schema in <code>schemas/</code></td><td class="muted">none by itself; regenerating the consumer's types changes <code>apps/consumer/src/schemas/</code>, which needs a consumer bump</td></tr>
+				<tr><td>A workflow in <code>.github/workflows/</code></td><td class="muted">none</td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>Today main holds only a README and <code>.gitignore</code>, so every app is new to it, and the first pull request passes the version, contract and schema comparisons with nothing to compare against. From the second one on, each is checked against what the first one merged.</p>
+	<span class="source">scripts/check-version-bump.ts · the version job in api.yml, consumer.yml, portal.yml, producers.yml</span>
+</section>
+
+<figure>
+	<div class="figure-scroll">
+		<svg class="flow" viewBox="0 0 1000 350" role="img" aria-label="The API contract check, two jobs. Matches code, on every push: generate openapi.json from the code, then git diff against the committed file; a difference fails. No breaking changes, on a pull request into main: read main's openapi.json, skip if there is none, otherwise run oasdiff breaking from main's contract to this branch's and fail on any error-level change.">
+			<defs>
+				<marker id="head-ink-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-skip-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-skip" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-pass-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-pass" d="M0,0 L10,5 L0,10 z"/></marker>
+				<marker id="head-fail-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+			</defs>
+
+			<rect class="zone" x="12" y="12" width="476" height="324" rx="8"/>
+			<rect class="zone" x="512" y="12" width="476" height="324" rx="8"/>
+			<text class="zone-label push-text" x="28" y="38">MATCHES CODE</text>
+			<text class="sub" x="28" y="56">every push and pull request</text>
+			<text class="zone-label pull-text" x="528" y="38">NO BREAKING CHANGES</text>
+			<text class="sub" x="528" y="56">pull requests into main only</text>
+
+			<!-- Matches code -->
+			<rect class="box" x="28" y="76" width="230" height="56" rx="6"/>
+			<text class="title" x="143" y="100" text-anchor="middle">Generate the contract</text>
+			<text class="sub" x="143" y="119" text-anchor="middle">npm run generate-contract</text>
+
+			<rect class="box" x="28" y="172" width="230" height="56" rx="6"/>
+			<text class="title" x="143" y="196" text-anchor="middle">Compare with the commit</text>
+			<text class="sub" x="143" y="215" text-anchor="middle">git diff --exit-code openapi/</text>
+
+			<rect class="box-pass" x="28" y="268" width="230" height="56" rx="6"/>
+			<text class="title pass-text" x="143" y="292" text-anchor="middle">Passes</text>
+			<text class="sub" x="143" y="311" text-anchor="middle">the file is what the code makes</text>
+
+			<rect class="box-fail" x="320" y="172" width="156" height="56" rx="6"/>
+			<text class="title fail-text" x="398" y="196" text-anchor="middle">Fails</text>
+			<text class="sub" x="398" y="215" text-anchor="middle">regenerate, commit</text>
+
+			<line class="edge" x1="143" y1="132" x2="143" y2="168" marker-end="url(#head-ink-3)"/>
+			<line class="edge-pass" x1="143" y1="228" x2="143" y2="264" marker-end="url(#head-pass-3)"/>
+			<text class="label pass-text" x="151" y="250">same</text>
+			<line class="edge-fail" x1="258" y1="200" x2="316" y2="200" marker-end="url(#head-fail-3)"/>
+			<text class="label fail-text" x="287" y="192" text-anchor="middle">differs</text>
+
+			<!-- No breaking changes -->
+			<rect class="box" x="528" y="76" width="230" height="56" rx="6"/>
+			<text class="title" x="643" y="100" text-anchor="middle">Read main's openapi.json</text>
+			<text class="sub" x="643" y="119" text-anchor="middle">git show origin/main:…</text>
+
+			<rect class="box" x="528" y="172" width="230" height="56" rx="6"/>
+			<text class="title" x="643" y="196" text-anchor="middle">oasdiff breaking</text>
+			<text class="sub" x="643" y="215" text-anchor="middle">main's → this branch's</text>
+
+			<rect class="box-pass" x="528" y="268" width="230" height="56" rx="6"/>
+			<text class="title pass-text" x="643" y="292" text-anchor="middle">Passes</text>
+			<text class="sub" x="643" y="311" text-anchor="middle">existing clients keep working</text>
+
+			<rect class="box-skip" x="820" y="76" width="156" height="56" rx="6"/>
+			<text class="title" x="898" y="100" text-anchor="middle">Skipped</text>
+			<text class="sub" x="898" y="119" text-anchor="middle">nothing to break</text>
+
+			<rect class="box-fail" x="820" y="172" width="156" height="56" rx="6"/>
+			<text class="title fail-text" x="898" y="196" text-anchor="middle">Fails</text>
+			<text class="sub" x="898" y="215" text-anchor="middle">a client breaks</text>
+
+			<line class="edge" x1="643" y1="132" x2="643" y2="168" marker-end="url(#head-ink-3)"/>
+			<text class="label" x="651" y="154">found</text>
+			<line class="edge-pass" x1="643" y1="228" x2="643" y2="264" marker-end="url(#head-pass-3)"/>
+			<text class="label pass-text" x="651" y="250">no error</text>
+			<line class="edge-skip" x1="758" y1="104" x2="816" y2="104" marker-end="url(#head-skip-3)"/>
+			<text class="label" x="787" y="96" text-anchor="middle">none</text>
+			<line class="edge-fail" x1="758" y1="200" x2="816" y2="200" marker-end="url(#head-fail-3)"/>
+			<text class="label fail-text" x="787" y="192" text-anchor="middle">error</text>
+		</svg>
+	</div>
+	<figcaption>The <code>api-contract</code> workflow. The left job keeps the committed <code>openapi/openapi.json</code> honest: it is generated from the routes' Zod schemas, and must be committed whenever they change. The right job compares main's contract with the branch's, with <code>oasdiff breaking --fail-on ERR</code>: warnings are reported, and only an error fails the job.</figcaption>
+</figure>
+
+<section class="wide">
+	<h2>What breaks the API contract</h2>
+	<p>The rule is the client's: anything a client built against main's contract does today must keep working. So responses may gain, and requests may loosen. A response may not lose or change a field, and a request may not demand more. Each row below was tried on the committed <code>openapi.json</code> with oasdiff 1.32.1, the version CI pins.</p>
+	<div class="table-wrap">
+		<table>
+			<thead><tr><th>Change</th><th>Tried as</th><th>Result</th><th>oasdiff rule</th></tr></thead>
+			<tbody>
+				<tr><td>Add an endpoint</td><td>a copy of the list route at <code>/merchants</code></td><td class="verdict pass">passes</td><td></td></tr>
+				<tr><td>Add a response field, optional or required</td><td><code>merchantName</code> on a transaction</td><td class="verdict pass">passes</td><td></td></tr>
+				<tr><td>Add an optional query parameter</td><td><code>?merchant=</code> on the list</td><td class="verdict pass">passes</td><td></td></tr>
+				<tr><td>Add an optional request body field</td><td><code>reason</code> on a transaction override</td><td class="verdict pass">passes</td><td></td></tr>
+				<tr><td>Add a value to a filter's enum</td><td><code>transactionType</code> gains <code>crypto</code></td><td class="verdict pass">passes</td><td></td></tr>
+				<tr><td>Remove an optional response field</td><td>drop <code>mappedTo</code> from a user's categories; a client already copes with it missing</td><td class="verdict pass">passes</td><td></td></tr>
+				<tr><td>Remove a required response field</td><td>drop <code>status</code> from a transaction</td><td class="verdict fail">fails</td><td><code>response-required-property-removed</code></td></tr>
+				<tr><td>Rename a response field</td><td><code>status</code> → <code>state</code></td><td class="verdict fail">fails</td><td><code>response-required-property-removed</code></td></tr>
+				<tr><td>Make a required response field optional</td><td><code>status</code> no longer required</td><td class="verdict fail">fails</td><td><code>response-property-became-optional</code></td></tr>
+				<tr><td>Change a response field's type</td><td><code>status</code> string → integer</td><td class="verdict fail">fails</td><td><code>response-property-type-changed</code></td></tr>
+				<tr><td>Add a value to a response enum</td><td><code>creditDebitIndicator</code> gains <code>reversal</code></td><td class="verdict fail">fails</td><td><code>response-property-enum-value-added</code></td></tr>
+				<tr><td>Add a required query parameter</td><td><code>?merchant=</code>, required</td><td class="verdict fail">fails</td><td><code>new-required-request-parameter</code></td></tr>
+				<tr><td>Add a required request body field</td><td><code>reason</code>, required</td><td class="verdict fail">fails</td><td><code>new-required-request-property</code></td></tr>
+				<tr><td>Tighten a limit</td><td><code>limit</code> maximum 100 → 50</td><td class="verdict fail">fails</td><td><code>request-parameter-max-decreased</code></td></tr>
+				<tr><td>Remove a value from a single-value enum parameter</td><td><code>interval</code> without <code>week</code></td><td class="verdict fail">fails</td><td><code>request-parameter-enum-value-removed</code></td></tr>
+				<tr><td>Remove an endpoint</td><td>drop the transaction detail route</td><td class="verdict fail">fails</td><td><code>api-path-removed-without-deprecation</code></td></tr>
+				<tr><td>Remove a value from a one-or-many filter</td><td><code>transactionType</code> without <code>card</code></td><td class="verdict gap">passes: a gap</td><td>none reported</td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>Adding a response enum value fails because a client may switch on the values it knows, and would meet one it doesn't. To change a field, add the new one beside the old one; removing the old one later is a breaking change, and this check stops it.</p>
+	<div class="callout">
+		<p class="callout-title">The one gap: filters that take one value or a list</p>
+		<p><code>transactionType</code> and <code>creditDebitIndicator</code> accept one value or an array, so their schema is <code>anyOf: [enum, array of enum]</code>. oasdiff 1.32.1 doesn't compare enums inside an <code>anyOf</code>: removing a value there reports nothing, yet a client still sending it now gets a 400. Removing <code>loan</code> from <code>transactionType</code> was this kind of change. Until the check covers it, a reviewer has to catch it.</p>
+	</div>
+	<span class="source">.github/workflows/api-contract.yml · apps/api/scripts/generate-openapi.ts · apps/api/openapi/openapi.json</span>
+</section>
+
+<section class="wide">
+	<h2>What breaks an Avro schema</h2>
+	<p>The schemas face the other way. The registry is set to BACKWARD: a new version must be able to read the records written with the version it replaces, because those records are still on Kafka. The registry refuses a version that can't, so CI runs the same check first, without a registry, using <code>avsc</code>'s resolver. It checks each <code>schemas/&lt;name&gt;.avsc</code> against the same file on main, and each <code>schemas/v&lt;N&gt;/&lt;name&gt;.avsc</code> against the top-level schema it evolves from. Each row below was tried on <code>schemas/card.avsc</code> with that resolver.</p>
+	<div class="table-wrap">
+		<table>
+			<thead><tr><th>Change</th><th>Tried as</th><th>Result</th><th>Why</th></tr></thead>
+			<tbody>
+				<tr><td>Add a field with a default</td><td><code>merchantCity</code>, <code>["null", "string"]</code>, default <code>null</code></td><td class="verdict pass">passes</td><td>old records get the default</td></tr>
+				<tr><td>Remove a field</td><td>drop <code>posEntryMode</code></td><td class="verdict pass">passes</td><td>the new schema skips it in old records</td></tr>
+				<tr><td>Rename a field, keeping the old name as an alias</td><td><code>entryMode</code> with <code>"aliases": ["posEntryMode"]</code></td><td class="verdict pass">passes</td><td>the alias matches the old name</td></tr>
+				<tr><td>Add an enum symbol</td><td><code>CreditDebitIndicator</code> gains <code>reversal</code></td><td class="verdict pass">passes</td><td>old records only hold the old symbols</td></tr>
+				<tr><td>Widen a type</td><td><code>amount</code> long → double</td><td class="verdict pass">passes</td><td>Avro promotes long to double</td></tr>
+				<tr><td>Add a field without a default</td><td><code>merchantCity</code>, <code>"string"</code></td><td class="verdict fail">fails</td><td>old records have no value for it</td></tr>
+				<tr><td>Rename a field</td><td><code>posEntryMode</code> → <code>entryMode</code></td><td class="verdict fail">fails</td><td>a new field without a default, as above</td></tr>
+				<tr><td>Remove an enum symbol</td><td><code>TransactionType</code> without <code>eft</code></td><td class="verdict fail">fails</td><td>an old record may hold it</td></tr>
+				<tr><td>Change a type</td><td><code>status</code> string → int</td><td class="verdict fail">fails</td><td>a string can't be read as an int</td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>So removing a field breaks the API contract but not an Avro schema, and adding one is the reverse: free in an API response, but an Avro field needs a default. Removing a field the consumer reads still gets caught: the consumer workflow regenerates its types from <code>schemas/</code> and fails if the committed ones differ, and the type-check then fails wherever the code reads the field.</p>
+	<span class="source">.github/workflows/schemas.yml · apps/consumer/scripts/check-schema-compatibility.ts</span>
+</section>
+
+<section class="wide">
+	<h2>Run a check before you push</h2>
+	<div class="table-wrap">
+		<table>
+			<thead><tr><th>Check</th><th>Where</th><th>Command</th></tr></thead>
+			<tbody>
+				<tr><td>Audit, type-check, imports, lint, spelling, tests</td><td><code>apps/api</code>, <code>apps/consumer</code></td><td><code>npm run lib:audit</code> · <code>npm run check</code> · <code>npm run precheck</code> · <code>npx @biomejs/biome ci .</code> · <code>npm run spell</code> · <code>npm run test:unit</code> · <code>npm run test:integration</code></td></tr>
+				<tr><td>Audit, type-check, build, lint, tests</td><td><code>apps/portal</code></td><td><code>npm run lib:audit</code> · <code>npm run check</code> · <code>npm run build</code> · <code>npx @biomejs/biome ci .</code> · <code>npm run test:unit</code></td></tr>
+				<tr><td>Audit, type-check, lint, format, tests</td><td><code>apps/producers</code></td><td><code>bash scripts/audit.sh</code> · <code>uv run pyright src</code> · <code>uv run ruff check src</code> · <code>uv run ruff format --check src</code> · <code>uv run pytest</code></td></tr>
+				<tr><td>Generated schema types match</td><td><code>apps/consumer</code></td><td><code>npm run schema:generate</code>, then <code>npx @biomejs/biome format --write src/schemas</code> and <code>git diff --exit-code src/schemas</code></td></tr>
+				<tr><td>Contract matches the code</td><td><code>apps/api</code></td><td><code>npm run generate-contract</code>, then <code>git diff --exit-code openapi/</code></td></tr>
+				<tr><td>No breaking changes</td><td>repo root</td><td><code>git show origin/main:apps/api/openapi/openapi.json &gt; /tmp/base.json</code>, then <code>oasdiff breaking /tmp/base.json apps/api/openapi/openapi.json --fail-on ERR</code></td></tr>
+				<tr><td>Schemas compatible</td><td><code>apps/consumer</code></td><td><code>npm run schema:check -- origin/main</code></td></tr>
+				<tr><td>Version bumped</td><td>repo root</td><td><code>node scripts/check-version-bump.ts apps/api/package.json origin/main</code>, or the app's <code>package.json</code> or <code>pyproject.toml</code></td></tr>
+			</tbody>
+		</table>
+	</div>
+	<p>Run <code>git fetch origin</code> first, so <code>origin/main</code> is what CI compares with.</p>
+</section>
+
+<section>
+	<h2>Related</h2>
+	<div class="related">
+		<a href="message-flow.html">Message flow: from producer to row or dead-letter topic</a>
+		<a href="0001-avro-schema-registry-contract.md">ADR 0001: Avro and Schema Registry are the contract</a>
+		<a href="0007-routes-and-repositories.md">ADR 0007: Zod is the one contract source</a>
+	</div>
+</section>
+
+</main>
+</body>
+</html>
