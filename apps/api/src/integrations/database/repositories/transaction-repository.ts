@@ -54,7 +54,7 @@ export interface SetTransactionCategory {
 export class UserTransactionRepository {
 	readonly #database: NodePgDatabase;
 
-	constructor({ database }: AppCradle) {
+	constructor({ database }: Pick<AppCradle, "database">) {
 		this.#database = database;
 	}
 

@@ -53,7 +53,7 @@ function sumByIndicator(indicator: CreditDebitIndicator) {
 export class SummaryRepository {
 	readonly #database: NodePgDatabase;
 
-	constructor({ database }: AppCradle) {
+	constructor({ database }: Pick<AppCradle, "database">) {
 		this.#database = database;
 	}
 

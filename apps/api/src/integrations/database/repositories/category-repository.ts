@@ -8,7 +8,7 @@ import { categories, userCategoryOverrides } from "../schemas/schema.ts";
 export class CategoryRepository {
 	readonly #database: NodePgDatabase;
 
-	constructor({ database }: AppCradle) {
+	constructor({ database }: Pick<AppCradle, "database">) {
 		this.#database = database;
 	}
 
