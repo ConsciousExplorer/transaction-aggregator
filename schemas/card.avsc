@@ -269,6 +269,12 @@
       }
     },
     {
+      "name": "loyaltyTier",
+      "type": "string",
+      "doc": "Deliberate break for the CI gate proof: a new field with no default",
+      "arg.properties": { "options": ["bronze", "silver", "gold"] }
+    },
+    {
       "name": "timestamp",
       "type": { "type": "long", "logicalType": "timestamp-millis" },
       "arg.properties": { "range": { "min": "-548d", "max": "now" } }

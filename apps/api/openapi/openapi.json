@@ -37,15 +37,11 @@
                             "maximum": 9007199254740991,
                             "minimum": -9007199254740991,
                             "type": "integer"
-                          },
-                          "label": {
-                            "type": "string"
                           }
                         },
                         "required": [
                           "categoryId",
-                          "category",
-                          "label"
+                          "category"
                         ],
                         "type": "object"
                       },
