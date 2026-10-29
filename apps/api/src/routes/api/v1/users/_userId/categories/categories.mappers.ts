@@ -7,7 +7,7 @@ type UserCategoryRow = Awaited<
 
 export function buildUserCategoryResponse(row: UserCategoryRow) {
 	const userCategory: UserCategory = {
-		id: row.categoryId,
+		categoryId: row.categoryId,
 		category: row.category,
 		label: row.label
 	};
@@ -19,7 +19,7 @@ export function buildUserCategoryResponse(row: UserCategoryRow) {
 		row.updatedAt !== null
 	) {
 		userCategory.mappedTo = {
-			id: row.toCategoryId,
+			categoryId: row.toCategoryId,
 			category: row.toCategory,
 			label: row.toLabel,
 			updatedAt: new Date(row.updatedAt).toISOString()

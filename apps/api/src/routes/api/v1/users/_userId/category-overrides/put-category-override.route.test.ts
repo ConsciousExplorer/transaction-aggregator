@@ -55,7 +55,7 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 		updateUserCategory.mock.mockImplementation(async () => OVERRIDE);
 	});
 
-	test('200: same shape as GET "", id/category/label plus the new mappedTo', async () => {
+	test('200: same shape as GET "", categoryId/category/label plus the new mappedTo', async () => {
 		const response = await app.inject({
 			method: "PUT",
 			url: buildOverrideUrl(1),
@@ -63,11 +63,11 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 		});
 		assert.strictEqual(response.statusCode, 200);
 		assert.deepStrictEqual(response.json(), {
-			id: 1,
+			categoryId: 1,
 			category: "groceries",
 			label: "Groceries",
 			mappedTo: {
-				id: 5,
+				categoryId: 5,
 				category: "dining",
 				label: "Dining",
 				updatedAt: "2026-09-03T08:00:00.000Z"

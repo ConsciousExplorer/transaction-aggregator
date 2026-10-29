@@ -66,11 +66,11 @@ suite("GET /api/v1/users/:userId/category-overrides", () => {
 		assert.deepStrictEqual(response.json(), {
 			data: [
 				{
-					id: 1,
+					categoryId: 1,
 					category: "groceries",
 					label: "Groceries",
 					mappedTo: {
-						id: 5,
+						categoryId: 5,
 						category: "dining",
 						label: "Dining",
 						updatedAt: "2026-09-03T08:00:00.000Z"

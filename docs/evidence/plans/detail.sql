@@ -1,0 +1,345 @@
+-- Captured 2026-10-28 from the API's query log (DATABASE_QUERY_LOG_SQL and
+-- DATABASE_QUERY_LOG_PLAN), second of two identical requests, on 7,349,463 rows.
+-- The plan is EXPLAIN (ANALYZE, BUFFERS) of the statement below it.
+
+select "txn_agg"."transactions"."transaction_id", "txn_agg"."transactions"."account_id", "txn_agg"."transactions"."external_id", "txn_agg"."transactions"."occurred_at", "txn_agg"."transactions"."credit_debit_indicator", "txn_agg"."transactions"."status", "txn_agg"."transactions"."long_description", "txn_agg"."transactions"."amount_minor", "txn_agg"."transactions"."transaction_type", "txn_agg"."transactions"."currency", "txn_agg"."categories"."category", "txn_agg"."transactions"."short_description", "txn_agg"."transactions"."metadata" from "txn_agg"."transactions" left join "txn_agg"."user_transaction_overrides" on ("txn_agg"."user_transaction_overrides"."transaction_id" = "txn_agg"."transactions"."transaction_id" and "txn_agg"."user_transaction_overrides"."occurred_at" = "txn_agg"."transactions"."occurred_at" and "txn_agg"."user_transaction_overrides"."archived_at" is null) left join "txn_agg"."user_category_overrides" on ("txn_agg"."user_category_overrides"."user_id" = "txn_agg"."transactions"."user_id" and "txn_agg"."user_category_overrides"."from_category_id" = "txn_agg"."transactions"."category_id" and "txn_agg"."user_category_overrides"."archived_at" is null) inner join "txn_agg"."categories" on "txn_agg"."categories"."category_id" = coalesce("txn_agg"."user_transaction_overrides"."category_id", "txn_agg"."user_category_overrides"."to_category_id", "txn_agg"."transactions"."category_id") where ("txn_agg"."transactions"."user_id" = '756ca152-e789-4a6c-81bc-5029b7da1b57' and "txn_agg"."transactions"."transaction_id" = '01a182ae-15eb-7e68-84f6-d2e736c78c3f');
+
+-- Hash Join  (cost=228.55..537.81 rows=23 width=311) (actual time=0.120..0.129 rows=1.00 loops=1)
+--   Hash Cond: (COALESCE(user_transaction_overrides.category_id, user_category_overrides.to_category_id, transactions.category_id) = categories.category_id)
+--   Buffers: shared hit=117
+--   ->  Nested Loop Left Join  (cost=201.90..511.10 rows=23 width=285) (actual time=0.106..0.114 rows=1.00 loops=1)
+--         Join Filter: (user_category_overrides.from_category_id = transactions.category_id)
+--         Buffers: shared hit=116
+--         ->  Hash Right Join  (cost=197.70..497.08 rows=23 width=299) (actual time=0.103..0.111 rows=1.00 loops=1)
+--               Hash Cond: (user_transaction_overrides.occurred_at = transactions.occurred_at)
+--               Buffers: shared hit=114
+--               ->  Append  (cost=4.18..303.50 rows=24 width=26) (actual time=0.042..0.047 rows=0.00 loops=1)
+--                     Buffers: shared hit=48
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250301 user_transaction_overrides_1  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250301_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250401 user_transaction_overrides_2  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250401_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250501 user_transaction_overrides_3  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250501_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250601 user_transaction_overrides_4  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250601_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250701 user_transaction_overrides_5  (cost=4.18..12.64 rows=1 width=26) (actual time=0.003..0.003 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250701_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250801 user_transaction_overrides_6  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250801_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20250901 user_transaction_overrides_7  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20250901_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20251001 user_transaction_overrides_8  (cost=4.18..12.64 rows=1 width=26) (actual time=0.004..0.004 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20251001_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.003..0.003 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20251101 user_transaction_overrides_9  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20251101_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20251201 user_transaction_overrides_10  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20251201_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260101 user_transaction_overrides_11  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260101_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260201 user_transaction_overrides_12  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260201_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260301 user_transaction_overrides_13  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260301_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260401 user_transaction_overrides_14  (cost=4.18..12.64 rows=1 width=26) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260401_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260501 user_transaction_overrides_15  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260501_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260601 user_transaction_overrides_16  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260601_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260701 user_transaction_overrides_17  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260701_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260801 user_transaction_overrides_18  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260801_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20260901 user_transaction_overrides_19  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.002 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20260901_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.000..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20261001 user_transaction_overrides_20  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20261001_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20261101 user_transaction_overrides_21  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20261101_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20261201 user_transaction_overrides_22  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20261201_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_p20270101 user_transaction_overrides_23  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_p20270101_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                     ->  Bitmap Heap Scan on user_transaction_overrides_default user_transaction_overrides_24  (cost=4.18..12.64 rows=1 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                           Recheck Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                           Filter: (archived_at IS NULL)
+--                           Buffers: shared hit=2
+--                           ->  Bitmap Index Scan on user_transaction_overrides_default_pkey  (cost=0.00..4.18 rows=4 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--               ->  Hash  (cost=193.23..193.23 rows=23 width=297) (actual time=0.057..0.059 rows=1.00 loops=1)
+--                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+--                     Buffers: shared hit=66
+--                     ->  Append  (cost=0.15..193.23 rows=23 width=297) (actual time=0.050..0.058 rows=1.00 loops=1)
+--                           Buffers: shared hit=66
+--                           ->  Index Scan Backward using transactions_p20250301_user_id_occurred_at_transaction_id_t_idx on transactions_p20250301 transactions_1  (cost=0.15..8.18 rows=1 width=222) (actual time=0.004..0.004 rows=0.00 loops=1)
+--                                 Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid))
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                           ->  Index Scan using transactions_p20250401_pkey on transactions_p20250401 transactions_2  (cost=0.42..8.44 rows=1 width=313) (actual time=0.004..0.004 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20250501_pkey on transactions_p20250501 transactions_3  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20250601_pkey on transactions_p20250601 transactions_4  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20250701_pkey on transactions_p20250701 transactions_5  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20250801_pkey on transactions_p20250801 transactions_6  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20250901_pkey on transactions_p20250901 transactions_7  (cost=0.42..8.44 rows=1 width=313) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20251001_pkey on transactions_p20251001 transactions_8  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20251101_pkey on transactions_p20251101 transactions_9  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20251201_pkey on transactions_p20251201 transactions_10  (cost=0.42..8.44 rows=1 width=312) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260101_pkey on transactions_p20260101 transactions_11  (cost=0.42..8.44 rows=1 width=312) (actual time=0.003..0.003 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260201_pkey on transactions_p20260201 transactions_12  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260301_pkey on transactions_p20260301 transactions_13  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260401_pkey on transactions_p20260401 transactions_14  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260501_pkey on transactions_p20260501 transactions_15  (cost=0.42..8.44 rows=1 width=313) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260601_pkey on transactions_p20260601 transactions_16  (cost=0.42..8.44 rows=1 width=312) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260701_pkey on transactions_p20260701 transactions_17  (cost=0.42..8.44 rows=1 width=312) (actual time=0.005..0.005 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260801_pkey on transactions_p20260801 transactions_18  (cost=0.42..8.44 rows=1 width=312) (actual time=0.002..0.003 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20260901_pkey on transactions_p20260901 transactions_19  (cost=0.42..8.44 rows=1 width=312) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=3
+--                           ->  Index Scan using transactions_p20261001_pkey on transactions_p20261001 transactions_20  (cost=0.43..8.45 rows=1 width=312) (actual time=0.004..0.004 rows=1.00 loops=1)
+--                                 Index Cond: (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid)
+--                                 Filter: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=4
+--                           ->  Index Scan Backward using transactions_p20261101_user_id_occurred_at_transaction_id_t_idx on transactions_p20261101 transactions_21  (cost=0.15..8.18 rows=1 width=222) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid))
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                           ->  Index Scan Backward using transactions_p20261201_user_id_occurred_at_transaction_id_t_idx on transactions_p20261201 transactions_22  (cost=0.15..8.18 rows=1 width=222) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                 Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid))
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--                           ->  Index Scan Backward using transactions_default_user_id_occurred_at_transaction_id_tra_idx on transactions_default transactions_23  (cost=0.15..8.18 rows=1 width=222) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                 Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (transaction_id = '01a182ae-15eb-7e68-84f6-d2e736c78c3f'::uuid))
+--                                 Index Searches: 1
+--                                 Buffers: shared hit=2
+--         ->  Materialize  (cost=4.20..13.67 rows=1 width=20) (actual time=0.002..0.003 rows=0.00 loops=1)
+--               Storage: Memory  Maximum Storage: 17kB
+--               Buffers: shared hit=2
+--               ->  Bitmap Heap Scan on user_category_overrides  (cost=4.20..13.67 rows=1 width=20) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                     Recheck Cond: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                     Filter: (archived_at IS NULL)
+--                     Buffers: shared hit=2
+--                     ->  Bitmap Index Scan on user_category_overrides_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.000..0.000 rows=0.00 loops=1)
+--                           Index Cond: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                           Index Searches: 1
+--                           Buffers: shared hit=2
+--   ->  Hash  (cost=17.40..17.40 rows=740 width=34) (actual time=0.010..0.010 rows=16.00 loops=1)
+--         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+--         Buffers: shared hit=1
+--         ->  Seq Scan on categories  (cost=0.00..17.40 rows=740 width=34) (actual time=0.004..0.005 rows=16.00 loops=1)
+--               Buffers: shared hit=1
+-- Planning:
+--   Buffers: shared hit=37
+-- Planning Time: 1.094 ms
+-- Execution Time: 0.287 ms

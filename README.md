@@ -157,6 +157,62 @@ The routes under `/api/v1/users/{userId}` are listed in Swagger. To find a user 
 docker exec postgres psql -U postgres -d txn_agg -c "SELECT user_id, account_id FROM txn_agg.transactions LIMIT 1"
 ```
 
+### Trace one transaction
+
+Follow one transaction from the producer to the API response and its trace. Start the stack with `make up-all`, so tracing is on, and wait until the producers have exited. Each step uses only what the step before printed. The example values come from a real run.
+
+**1. Send one card transaction.** The producer logs the partition and offset it landed on. The key is the customer id.
+
+```sh
+docker compose -f infrastructure/docker-compose.yaml run --rm --no-deps \
+  -e GENERATOR_COUNT=1 -e LOG_LEVEL=DEBUG producer-card 2>&1 | grep -E "Delivered|produced"
+# Delivered to transactions.card [10] @ offset 10601: key=8f2e5e43-2deb-42b2-be2c-40506e2f26e8 (199 bytes)
+```
+
+**2. Read it from Kafka.** The headers carry the producer's name and a W3C `traceparent`; its middle part is the trace id. The value is Avro: to see it decoded, open kafbat-ui at http://localhost:8080 (Topics, `transactions.card`, Messages, then that partition and offset).
+
+```sh
+docker exec kafka-01 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:29092 \
+  --topic transactions.card --partition 10 --offset 10601 --max-messages 1 \
+  --property print.headers=true --property print.value=false
+# x-producer:producer-card/0.1.0,traceparent:00-5c5e0aab3f070cbeeef712fd23bb914d-9d233cc1e94b0602-01
+```
+
+**3. See that the consumer committed it.** On partition 10 the group's committed offset is one past the record, and the lag is 0, so the record was stored before its offset was committed.
+
+```sh
+docker exec kafka-01 /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:29092 \
+  --describe --group transaction-consumer-card
+# transaction-consumer-card transactions.card 10   10602   10602   0   …
+```
+
+**4. Find the row.** While nothing else is producing, the newest card row is the one just sent. Its `user_id` is the message key, and `rule_version` and `rule_priority` name the rule that categorised it.
+
+```sh
+docker exec postgres psql -U postgres -d txn_agg -x -c "
+  SELECT t.transaction_id, t.user_id, t.external_id, c.category, t.rule_version, t.rule_priority, t.ingested_at
+  FROM txn_agg.transactions t JOIN txn_agg.categories c USING (category_id)
+  WHERE t.transaction_type = 'card' ORDER BY t.ingested_at DESC LIMIT 1"
+# transaction_id | 01a18284-c8a6-7d7e-a14c-5e4967322212
+# user_id        | 8f2e5e43-2deb-42b2-be2c-40506e2f26e8
+# category       | retail   (rule_version 1, rule_priority 111)
+```
+
+**5. Read it through the API.** With the token from [Call the API](#call-the-api), send the message's trace id in a `traceparent` header. The API continues that trace, and its audit log line carries the same id.
+
+```sh
+curl -s "http://localhost:8083/api/v1/users/8f2e5e43-2deb-42b2-be2c-40506e2f26e8/transactions/01a18284-c8a6-7d7e-a14c-5e4967322212" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "traceparent: 00-5c5e0aab3f070cbeeef712fd23bb914d-1111111111111111-01" | jq
+docker logs api 2>&1 | grep '"event":"audit"' | tail -1
+# {… "route":"/api/v1/users/:userId/transactions/:transactionId","status":200,"trace_id":"5c5e0aab3f070cbeeef712fd23bb914d" …}
+```
+
+**6. Open the traces.** In Grafana (http://localhost:3000), go to Explore, pick Tempo, and run each query:
+
+- `{ link:traceID = "5c5e0aab3f070cbeeef712fd23bb914d" }` finds the consumer's `consume.batch transactions.card` span. It links to every message in its batch, this one included.
+- The trace id itself opens the API's request span and the database query under it. The producer exports no span of its own, so the trace starts at the API.
+
 ### Load test the API
 
 Needs [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) on the host. The API's latency target (p95 under 200 ms at 50 req/s) assumes a database of 5M rows or more, so with the stack up and the producers finished, first send about 5M more transactions through the pipeline. Wait until the consumers have stored them before you run `make load`.
@@ -173,6 +229,8 @@ make load LOAD_PROFILE=breakpoint    # steps the rate up for 12 minutes to find 
 `make load` exports the customer ids from Postgres and recreates the API at log level `info` with tracing off. The API stays like that until the next `make up`. While it runs, k6's dashboard is at http://127.0.0.1:5665, and the report is saved to `loadtests/results/`. With `make up-all`, Grafana's API dashboard shows the same run from the server's side.
 
 On macOS with Rancher Desktop, the breakpoint profile can stop early because of the Mac, not the API. Rancher Desktop forwards every published port, and the Docker socket, through one `ssh` process. macOS limits that process to 256 open files (`launchctl limit maxfiles`). Each k6 session keeps its connection open while the user pauses, so at about 300 concurrent sessions (around 270 req/s) the forwarder dies. k6 then reports `connection refused`, and `docker` can no longer reach the daemon, while every container keeps running inside the VM. Restart Rancher Desktop to recover. Read the result from Grafana or Prometheus, which run inside the VM and record the API's side up to that point.
+
+The latest results are in [docs/evidence](docs/evidence/README.md). The `load` profile ran at p95 17.6 ms on 7.3M rows, with 0 failures. The page also has the write throughput and the ingest lag measured on the same database, and the query plans behind the latency.
 
 ## Make targets
 

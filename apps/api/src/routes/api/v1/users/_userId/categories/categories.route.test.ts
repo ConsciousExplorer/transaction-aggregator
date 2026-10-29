@@ -66,17 +66,17 @@ suite("GET /api/v1/users/:userId/categories", () => {
 		assert.deepStrictEqual(response.json(), {
 			data: [
 				{
-					id: 1,
+					categoryId: 1,
 					category: "groceries",
 					label: "Groceries",
 					mappedTo: {
-						id: 5,
+						categoryId: 5,
 						category: "dining",
 						label: "Dining",
 						updatedAt: "2026-09-03T08:00:00.000Z"
 					}
 				},
-				{ id: 5, category: "dining", label: "Dining" }
+				{ categoryId: 5, category: "dining", label: "Dining" }
 			],
 			links: { self: CATEGORIES_URL },
 			meta: { count: 2 }

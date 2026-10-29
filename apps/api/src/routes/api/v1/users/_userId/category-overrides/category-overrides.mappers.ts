@@ -7,11 +7,11 @@ type CategoryOverrideRow = NonNullable<
 /** The just-written category with its new mappedTo, as GET "" shows it */
 export function buildRemappedUserCategory(override: CategoryOverrideRow) {
 	return {
-		id: override.fromCategoryId,
+		categoryId: override.fromCategoryId,
 		category: override.category,
 		label: override.label,
 		mappedTo: {
-			id: override.toCategoryId,
+			categoryId: override.toCategoryId,
 			category: override.toCategory,
 			label: override.toLabel,
 			updatedAt: new Date(override.updatedAt).toISOString()

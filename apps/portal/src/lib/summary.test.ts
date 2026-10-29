@@ -53,8 +53,8 @@ test("lists spending by category, largest first, leaving out categories with no 
 		buildSummaryRow({ category: "dining" }, 500, 0)
 	];
 	const labels = buildCategoryLabels([
-		{ id: 1, category: "groceries", label: "Groceries" },
-		{ id: 2, category: "dining", label: "Dining out" }
+		{ categoryId: 1, category: "groceries", label: "Groceries" },
+		{ categoryId: 2, category: "dining", label: "Dining out" }
 	]);
 	assert.deepEqual(buildCategorySpending(rows, labels), [
 		{ category: "dining", label: "Dining out", amountMinor: 500, count: 1 },

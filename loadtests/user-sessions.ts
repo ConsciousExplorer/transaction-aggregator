@@ -84,7 +84,7 @@ type Window = { fromDateTime: string; toDateTime: string };
 
 type Session = { accessToken: string; userId: string; window: Window };
 
-type UserCategory = { id: number; category: string; label: string };
+type UserCategory = { categoryId: number; category: string; label: string };
 
 type TransactionRow = { transactionId: string; category: string };
 
@@ -347,12 +347,12 @@ function recategoriseTransaction(
 	const newCategory = pickOtherCategory(categories, transaction.category);
 	const response = http.put(
 		buildTransactionOverrideUrl(session, transaction.transactionId),
-		JSON.stringify({ categoryId: newCategory.id }),
+		JSON.stringify({ categoryId: newCategory.categoryId }),
 		buildJsonRequestParams(session, ROUTES.putTransactionOverride)
 	);
 	check(response, {
 		"transaction recategorised": (response) =>
-			response.status === 200 && response.json("categoryId") === newCategory.id
+			response.status === 200 && response.json("categoryId") === newCategory.categoryId
 	});
 
 	const reread = http.get(
@@ -423,13 +423,13 @@ function remapCategory(
 ) {
 	const toCategory = pickOtherCategory(categories, fromCategory.category);
 	const response = http.put(
-		buildCategoryOverrideUrl(session, fromCategory.id),
-		JSON.stringify({ toCategoryId: toCategory.id }),
+		buildCategoryOverrideUrl(session, fromCategory.categoryId),
+		JSON.stringify({ toCategoryId: toCategory.categoryId }),
 		buildJsonRequestParams(session, ROUTES.putCategoryOverride)
 	);
 	check(response, {
 		"category remapped": (response) =>
-			response.status === 200 && response.json("mappedTo.id") === toCategory.id
+			response.status === 200 && response.json("mappedTo.categoryId") === toCategory.categoryId
 	});
 	readUserCategories(
 		http.get(
@@ -442,7 +442,7 @@ function remapCategory(
 // Delete the mapping, then read the list again
 function undoRemap(session: Session, fromCategory: UserCategory) {
 	const response = http.del(
-		buildCategoryOverrideUrl(session, fromCategory.id),
+		buildCategoryOverrideUrl(session, fromCategory.categoryId),
 		null,
 		buildRequestParams(session, ROUTES.deleteCategoryOverride)
 	);

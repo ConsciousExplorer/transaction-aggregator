@@ -1,6 +1,6 @@
 {
 	"name": "Transaction API",
-	"version": "1.0.0",
+	"version": "2.0.0",
 	"description": "Transaction API for client transactions",
 	"license": "ISC",
 	"author": "transaction@fakemail.com",
