@@ -34,7 +34,6 @@
 #   tempo             obs      -      3200       HTTP query API (Grafana); OTLP gRPC in on 4317
 #   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
 #   postgres-exporter obs      -      9187       Postgres statistics as metrics; Prometheus scrapes
-#   redis             cache    -      6379
 #
 #   No ports (one-shots): kafka-init, schemas-register, migrate, producer-*
 
@@ -499,13 +498,6 @@ services:
       interval: 10s
       timeout: 5s
 
-    networks: [txn-network]
-
-  # ─────────────────────── Optional: cache profile ───────────────────────
-  redis:
-    profiles: ["cache"]
-    image: redis:7.4-alpine
-    container_name: redis
     networks: [txn-network]
 
   # ──────────────────────── Optional: obs profile ────────────────────────

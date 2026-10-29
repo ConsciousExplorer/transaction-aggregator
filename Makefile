@@ -8,7 +8,7 @@ UI ?= 1
 PROFILES := $(if $(UI),--profile ui)
 
 # down and clean name every profile, so no profiled container is left behind
-ALL_PROFILES := --profile ui --profile obs --profile cache
+ALL_PROFILES := --profile ui --profile obs
 
 # make up always sends the same records: a fixed seed, and history ending on a
 # fixed day. Change them for one run: make up SEED=7 ANCHOR_DATE=2026-12-01
