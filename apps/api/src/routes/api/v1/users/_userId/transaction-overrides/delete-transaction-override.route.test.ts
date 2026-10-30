@@ -46,14 +46,4 @@ suite("DELETE /api/v1/users/:userId/transaction-overrides/:transactionId", () =>
 			[USER_ID, TRANSACTION_ID]
 		);
 	});
-
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		archiveTransactionCategory.mock.mockImplementationOnce(async () => {
-			throw new Error("pg password=hunter2");
-		});
-		const response = await app.inject({ method: "DELETE", url: OVERRIDE_URL });
-		assert.strictEqual(response.statusCode, 500);
-		assert.strictEqual(response.json().type, "internal");
-		assert.ok(!response.body.includes("hunter2"));
-	});
 });

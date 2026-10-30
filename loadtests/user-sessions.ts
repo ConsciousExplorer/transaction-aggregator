@@ -352,7 +352,8 @@ function recategoriseTransaction(
 	);
 	check(response, {
 		"transaction recategorised": (response) =>
-			response.status === 200 && response.json("categoryId") === newCategory.categoryId
+			(response.status === 200 || response.status === 201) &&
+			response.json("categoryId") === newCategory.categoryId
 	});
 
 	const reread = http.get(
@@ -429,7 +430,8 @@ function remapCategory(
 	);
 	check(response, {
 		"category remapped": (response) =>
-			response.status === 200 && response.json("mappedTo.categoryId") === toCategory.categoryId
+			(response.status === 200 || response.status === 201) &&
+			response.json("mappedTo.categoryId") === toCategory.categoryId
 	});
 	readUserCategories(
 		http.get(

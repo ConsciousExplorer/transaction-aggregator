@@ -1,6 +1,6 @@
 {
 	"name": "consumer",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "A consumer that is responsible for categorizing transactions and persisting them to postgres",
 	"license": "ISC",
 	"author": "Edwin Stoltz",

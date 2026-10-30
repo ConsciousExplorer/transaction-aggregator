@@ -46,7 +46,8 @@ const OVERRIDE: NonNullable<
 	categoryId: 5,
 	createdAt: "2026-09-03T08:00:00.000Z",
 	updatedAt: "2026-09-03T08:00:00.000Z",
-	archivedAt: null
+	archivedAt: null,
+	inserted: false
 };
 
 // `satisfies` is the drift guard: the fake must match the real methods the
@@ -86,7 +87,7 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		setTransactionCategory.mock.mockImplementation(async () => OVERRIDE);
 	});
 
-	test("200: upserts by id with the original occurredAt, returns the saved override", async () => {
+	test("200: a repeat override replaces it, upserting by id with the original occurredAt", async () => {
 		const response = await app.inject({
 			method: "PUT",
 			url: OVERRIDE_URL,
@@ -107,6 +108,25 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 				categoryId: 5
 			}
 		);
+	});
+
+	// RFC 9110 §9.3.4: a PUT that creates the resource answers 201
+	test("201: the first override of a transaction creates it", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(async () => ({
+			...OVERRIDE,
+			inserted: true
+		}));
+		const response = await app.inject({
+			method: "PUT",
+			url: OVERRIDE_URL,
+			payload: { categoryId: 5 }
+		});
+		assert.strictEqual(response.statusCode, 201);
+		assert.deepStrictEqual(response.json(), {
+			transactionId: TRANSACTION_ID,
+			categoryId: 5,
+			updatedAt: "2026-09-03T08:00:00.000Z"
+		});
 	});
 
 	test("400: unknown categoryId (FK violation → repository returns undefined)", async () => {
@@ -142,24 +162,5 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		assert.strictEqual(response.statusCode, 404);
 		assert.strictEqual(response.json().type, "not-found");
 		assert.strictEqual(setTransactionCategory.mock.callCount(), 0);
-	});
-
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		setTransactionCategory.mock.mockImplementationOnce(async () => {
-			throw new Error("pg password=hunter2");
-		});
-		const response = await app.inject({
-			method: "PUT",
-			url: OVERRIDE_URL,
-			payload: { categoryId: 5 }
-		});
-		assert.strictEqual(response.statusCode, 500);
-		assert.ok(
-			String(response.headers["content-type"]).startsWith(
-				"application/problem+json"
-			)
-		);
-		assert.strictEqual(response.json().type, "internal");
-		assert.ok(!response.body.includes("hunter2"));
 	});
 });

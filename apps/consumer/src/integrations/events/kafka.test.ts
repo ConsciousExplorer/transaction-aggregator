@@ -103,6 +103,16 @@ function readCommittedOffsets(
 	return offsets;
 }
 
+/** A message whose commit fails as the broker would fail it. */
+function buildCommitFailingMessage(offset: number, failure: Error) {
+	return {
+		...buildMessage(offset),
+		async commit() {
+			throw failure;
+		}
+	};
+}
+
 /**
  * Slow enough that the next batch is queued before the first one fails. Only
  * the batch holding offset 1 fails.
@@ -273,6 +283,23 @@ suite("startBatchConsumer", () => {
 		await assert.rejects(consuming, /database unavailable/);
 		assert.deepEqual(readHandledOffsets(onBatch), [1n]);
 		assert.deepEqual(readCommittedOffsets(messages), []);
+	});
+
+	// The rows are stored, so the restart re-reads them and the insert skips
+	// them as duplicates. Carrying on instead would keep inserting with the
+	// group's offsets frozen, and nothing on a dashboard would say so.
+	test("a failed commit ends the consumer with that error", async () => {
+		const failure = new Error("coordinator not available");
+
+		await assert.rejects(
+			startBatchConsumer(
+				buildConsumer(Readable.from([buildCommitFailingMessage(1, failure)])),
+				mock.fn(async (_messages: ClassifiedMessage[]) => {}),
+				continueAfterDeserialisationError,
+				buildOptions({ batchSize: 1, lingerMs: 10_000 })
+			),
+			failure
+		);
 	});
 });
 

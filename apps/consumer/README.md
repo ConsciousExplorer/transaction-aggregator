@@ -47,11 +47,11 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 | Tombstone or empty payload | `classifyMessages` → `tombstone` | Skipped; counted in `tombstones_skipped_total` |
 | Bytes that don't decode as Avro | `handleDeserialisationError` → `CONTINUE` → `poison` | Dead-lettered with `x-dlq-reason: deserialisation` |
 | Schema id not loaded at startup | `handleDeserialisationError` → `FAIL` | Exits without committing; the restart loads the new schema and reads the message again |
-| Record that doesn't map to a valid row | `normaliseTransaction` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
+| Record that doesn't map to a valid row | `normaliseTransaction` → `NonRetryableError` | Dead-lettered with `x-dlq-reason: processing` before the batch is inserted; the rest of the batch still goes in one statement |
 | Row Postgres rejects (SQLSTATE class 22 or 23: a bad value or a constraint) | `classifyPostgresError` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
 | Any other Postgres failure (down, timed out, deadlock, read-only standby, bad password, missing grant) | `classifyPostgresError` → `RetryableError` | Exits without committing; the restart replays the batch |
 | Dead-letter publish fails | `sendToDeadLetterQueue` throws | Exits without committing; the restart replays the batch |
-| Offset commit fails after a good flush | `drainBatch` | Logged as a warning. The next commit on that partition covers these offsets. |
+| Offset commit fails after a good flush | `drainBatch` | Exits without committing. The rows are stored, so the restart reads them again and `ON CONFLICT` skips them |
 
 A dead-letter record carries the message exactly as it arrived: the original key, bytes and headers, so it can be produced to the source topic again unchanged, onto the same partition. The consumer adds these headers:
 - `x-dlq-reason`: `deserialisation` or `processing`
@@ -67,7 +67,7 @@ The dead-letter producer waits for `acks=all`, so a record counts as sent only o
 1. **Config**: `runtime.ts` parses the environment with Zod, which also checks the Kafka timeouts against each other. It then freezes the config and reads the secrets from files in `SECRET_DIR`. Bad config fails before anything connects.
 2. **Tracing**: starts only when `OTEL_SDK_DISABLED=false`.
 3. **PostgreSQL**: creates the pool and runs `SELECT 1`.
-4. **Ruleset**: loads the active categorisation rules. The ingester compiles them once, so a batch only looks rules up.
+4. **Ruleset**: loads the active categorisation rules. The batch handler compiles them once, so a record only looks rules up.
 5. **Schema registry**: loads every registered version of `<topic>-value`. Deserialisers are synchronous, so nothing is fetched while a message is being read.
 6. **Kafka**: creates the consumer and the dead-letter producer, and fetches metadata with both to prove that the brokers are reachable and the SASL credentials work.
 7. **HTTP server**: serves `/health` and `/metrics` on `PORT`.
@@ -131,7 +131,7 @@ apps/consumer
     │   ├── transaction-normaliser.ts      each source shape → one canonical row
     │   └── rule-categoriser.ts            compiled rules: five matcher tiers, then a fallback
     ├── services/                  the use case that does the I/O; knows nothing about Kafka
-    │   └── transaction-ingester.ts        normalise → categorise → insert
+    │   └── transaction-ingester.ts        per record: normalise → categorise; per batch: insert
     ├── schemas/                   Zod: four generated source schemas and the canonical row
     ├── telemetry/
     │   ├── metrics.ts                     Prometheus registry and the consumer's own metrics
@@ -170,7 +170,7 @@ The same registry also exports two other sets of metrics:
 
 Tracing is off unless `OTEL_SDK_DISABLED=false`. When it is on, each batch is its own trace:
 - **`consume.batch <topic>`**: the root span. It links to each producer's trace through the message's `traceparent` header.
-- **`categorize`** and **`db.insert`**: child spans for the two ingest steps.
+- **`db.insert`**: a child span for the batch insert.
 - **`dlq.publish`**: a span for each dead-letter send.
 
 ## Configuration

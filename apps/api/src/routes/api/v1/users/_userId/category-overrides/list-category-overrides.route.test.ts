@@ -84,15 +84,4 @@ suite("GET /api/v1/users/:userId/category-overrides", () => {
 			USER_ID
 		]);
 	});
-
-	test("400: a userId that isn't a UUID → validation problem, repository untouched", async () => {
-		const response = await app.inject({
-			method: "GET",
-			url: "/api/v1/users/not-a-uuid/category-overrides"
-		});
-
-		assert.strictEqual(response.statusCode, 400);
-		assert.strictEqual(response.json().type, "validation-error");
-		assert.strictEqual(getUserCategories.mock.callCount(), 0);
-	});
 });

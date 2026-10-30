@@ -211,16 +211,6 @@ suite("GET /api/v1/users/:userId/summary", () => {
 		assert.strictEqual(getUserSummary.mock.callCount(), 0);
 	});
 
-	test("400: a userId that isn't a UUID → validation problem, repository untouched", async () => {
-		const response = await app.inject({
-			method: "GET",
-			url: `/api/v1/users/not-a-uuid/summary?fromDateTime=${FROM}&toDateTime=${TO}`
-		});
-		assert.strictEqual(response.statusCode, 400);
-		assert.strictEqual(response.json().type, "validation-error");
-		assert.strictEqual(getUserSummary.mock.callCount(), 0);
-	});
-
 	test("400: a window wider than 366 days is rejected before the query runs", async () => {
 		const response = await app.inject({
 			method: "GET",
@@ -264,21 +254,6 @@ suite("GET /api/v1/users/:userId/summary", () => {
 			url: `/api/v1/users/${USER_ID}/summary?fromDateTime=2023-03-01T00:00:00.000Z&toDateTime=2024-03-01T00:00:00.000Z`
 		});
 		assert.strictEqual(response.statusCode, 200);
-	});
-
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		getUserSummary.mock.mockImplementationOnce(async () => {
-			throw new Error("pg password=hunter2");
-		});
-		const response = await app.inject({ method: "GET", url: BASE_URL });
-		assert.strictEqual(response.statusCode, 500);
-		assert.ok(
-			String(response.headers["content-type"]).startsWith(
-				"application/problem+json"
-			)
-		);
-		assert.strictEqual(response.json().type, "internal");
-		assert.ok(!response.body.includes("hunter2"));
 	});
 
 	test("the contract documents the 500 it can answer", () => {

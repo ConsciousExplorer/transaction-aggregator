@@ -330,15 +330,10 @@ async function drainBatch(state: BatchState, trigger: FlushTrigger) {
 			},
 			async () => {
 				await state.onBatch(classifyMessages(batch));
-
-				try {
-					await commitBatch(batch);
-				} catch (error) {
-					logger.warn(
-						{ err: error, size: batch.length },
-						"Commit failed after a successful flush."
-					);
-				}
+				// A commit that fails rejects the flush and ends the consumer. The
+				// rows are stored, so the restart reads them again and the insert
+				// skips them as duplicates.
+				await commitBatch(batch);
 			}
 		);
 	} finally {

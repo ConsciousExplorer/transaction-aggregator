@@ -19,7 +19,6 @@ import {
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
 import type { DomainTransactionSchema } from "./schemas/transaction.ts";
-import { createTransactionIngester } from "./services/transaction-ingester.ts";
 import { registry } from "./telemetry/metrics.ts";
 import { startTracing } from "./telemetry/tracing.ts";
 
@@ -197,7 +196,9 @@ process.on("SIGINT", () => void shutDownGracefully(resources, 0));
 
 // #region: Consume
 const handleTransactionBatch = createTransactionBatchHandler(
-	createTransactionIngester(config.transactionType, ruleset, writerPool),
+	config.transactionType,
+	ruleset,
+	writerPool,
 	createDeadLetterSender(deadLetterProducer, config.kafka.topics.deadLetter)
 );
 

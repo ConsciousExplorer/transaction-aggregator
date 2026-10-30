@@ -27,6 +27,27 @@ function addAuthResponses(schema: FastifySchema, route: RouteOptions) {
 	return { ...schema, response };
 }
 
+/**
+ * The server sends every error as RFC 9457 problem+json, and a response schema
+ * on its own is documented as application/json, so each error response is
+ * wrapped in its media type here. This shapes the document only; the
+ * serialiser keeps using the route's own schema.
+ */
+function documentErrorsAsProblems(
+	response: Record<string, unknown> | undefined
+) {
+	if (response === undefined) return response;
+
+	const documented: Record<string, unknown> = {};
+	for (const [status, schema] of Object.entries(response)) {
+		documented[status] =
+			Number(status) >= 400
+				? { content: { "application/problem+json": { schema } } }
+				: schema;
+	}
+	return documented;
+}
+
 // Every route requires a bearer token unless its own schema says otherwise
 // (e.g. security: [] on /ready, /health).
 function documentRoute(transformOptions: Parameters<SwaggerTransform>[0]) {
@@ -37,7 +58,13 @@ function documentRoute(transformOptions: Parameters<SwaggerTransform>[0]) {
 
 	return {
 		url,
-		schema: { security: [{ bearerAuth: [] }], ...schema }
+		schema: {
+			security: [{ bearerAuth: [] }],
+			...schema,
+			response: documentErrorsAsProblems(
+				schema.response as Record<string, unknown> | undefined
+			)
+		}
 	};
 }
 

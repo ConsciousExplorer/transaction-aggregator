@@ -12,7 +12,6 @@ import {
 	createTransactionBatchHandler,
 	type DeadLetterFailure
 } from "#src/integrations/events/handlers/transactionBatchHandler.ts";
-import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
 import {
 	closeTestDatabasePools,
 	startTestDatabase,
@@ -68,7 +67,9 @@ suite("a database outage", () => {
 			// against whichever test or hook opened it.
 			const ruleset = await loadRuleset(createDatabase(database.adminPool));
 			handleTransactionBatch = createTransactionBatchHandler(
-				createTransactionIngester("card", ruleset, database.consumerPool),
+				"card",
+				ruleset,
+				database.consumerPool,
 				createRecordingDeadLetterSender(deadLetters)
 			);
 		},

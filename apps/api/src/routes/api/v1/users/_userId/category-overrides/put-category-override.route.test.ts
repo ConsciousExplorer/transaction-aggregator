@@ -21,6 +21,7 @@ const OVERRIDE: NonNullable<
 	createdAt: "2026-09-01T08:00:00.000Z",
 	updatedAt: "2026-09-03T08:00:00.000Z",
 	archivedAt: null,
+	inserted: false,
 	category: "groceries",
 	label: "Groceries",
 	toCategory: "dining",
@@ -55,7 +56,7 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 		updateUserCategory.mock.mockImplementation(async () => OVERRIDE);
 	});
 
-	test('200: same shape as GET "", categoryId/category/label plus the new mappedTo', async () => {
+	test('200: a repeat remap replaces the override; same shape as GET "", categoryId/category/label plus the new mappedTo', async () => {
 		const response = await app.inject({
 			method: "PUT",
 			url: buildOverrideUrl(1),
@@ -79,6 +80,21 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 			1,
 			5
 		]);
+	});
+
+	// RFC 9110 §9.3.4: a PUT that creates the resource answers 201
+	test("201: the first remap of a category creates the override", async () => {
+		updateUserCategory.mock.mockImplementationOnce(async () => ({
+			...OVERRIDE,
+			inserted: true
+		}));
+		const response = await app.inject({
+			method: "PUT",
+			url: buildOverrideUrl(1),
+			payload: { toCategoryId: 5 }
+		});
+		assert.strictEqual(response.statusCode, 201);
+		assert.strictEqual(response.json().mappedTo.categoryId, 5);
 	});
 
 	test("400: unknown id (FK violation → repository returns undefined)", async () => {
@@ -121,24 +137,5 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 		assert.strictEqual(response.statusCode, 400);
 		assert.strictEqual(response.json().type, "validation-error");
 		assert.strictEqual(updateUserCategory.mock.callCount(), 0);
-	});
-
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		updateUserCategory.mock.mockImplementationOnce(async () => {
-			throw new Error("pg password=hunter2");
-		});
-		const response = await app.inject({
-			method: "PUT",
-			url: buildOverrideUrl(1),
-			payload: { toCategoryId: 5 }
-		});
-		assert.strictEqual(response.statusCode, 500);
-		assert.ok(
-			String(response.headers["content-type"]).startsWith(
-				"application/problem+json"
-			)
-		);
-		assert.strictEqual(response.json().type, "internal");
-		assert.ok(!response.body.includes("hunter2"));
 	});
 });

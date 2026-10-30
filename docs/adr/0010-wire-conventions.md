@@ -28,6 +28,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 - Responses carry the stable slug (`category`, such as `"groceries"`). The slug never changes; a new display name changes `label`.
 - The list's `category` filter takes slugs, and an unknown slug is a 400 `validation-error`.
 - **Writes send the numeric id.** The seed pins every id, so ids are the same in every environment and are never reused.
+- **A PUT answers 201 when it creates the override and 200 when it replaces one,** as RFC 9110 §9.3.4 requires. The upsert tells the two apart in its own `RETURNING`: an insert writes `created_at` and `updated_at` from the same `now()`, the conflict branch writes `updated_at` alone. (`xmax = 0` would be exact, but Postgres refuses system columns in `RETURNING` on a partitioned table.)
   - The database's foreign key is the validator: Postgres's error 23503 becomes a 400 `validation-error`.
   - The handler checks `from ≠ to` before the database's CHECK does.
 

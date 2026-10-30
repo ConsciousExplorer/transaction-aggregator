@@ -1,8 +1,17 @@
 import { trace } from "@opentelemetry/api";
+import type { Pool } from "pg";
+import { compileRules, type RuleSet } from "#src/domain/rule-categoriser.ts";
 import { RetryableError } from "#src/errors/consumer-errors.ts";
 import { createFileLogger } from "#src/logger.ts";
-import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import type { BatchOutcome } from "#src/services/transaction-ingester.ts";
+import type {
+	DomainTransactionSchema,
+	TransactionType
+} from "#src/schemas/transaction.ts";
+import {
+	insertTransactions,
+	type PreparedTransaction,
+	prepareTransaction
+} from "#src/services/transaction-ingester.ts";
 import {
 	ingestLagSeconds,
 	tombstonesSkippedTotal
@@ -36,36 +45,54 @@ export interface DeadLetterFailure {
 	error: unknown;
 }
 
+/**
+ * A valid message with its row, kept together so a row the insert refuses is
+ * dead-lettered as the message it came from.
+ */
+interface PreparedMessage {
+	message: ValidMessage;
+	row: PreparedTransaction;
+}
+
 export type BatchHandler = (messages: ClassifiedMessage[]) => Promise<void>;
-export type IngestTransactions = (
-	transactions: DomainTransactionSchema[]
-) => Promise<BatchOutcome>;
 export type SendToDeadLetterQueue = (
 	failures: DeadLetterFailure[]
 ) => Promise<void>;
 
 /**
- * Resolves every message in a batch: valid ones are ingested, poison ones are
- * dead-lettered, tombstones are skipped. Ingesting and dead-lettering come in
- * as functions, so the policy here is tested without Kafka or Postgres.
+ * Resolves every message in a batch: valid ones are prepared and inserted,
+ * ones that can't be stored are dead-lettered, tombstones are skipped. The
+ * rules are compiled once, here, so each record only looks them up. The
+ * dead-letter sender comes in as a function, so the policy here is tested
+ * with a fake pool and no Kafka.
  */
 export function createTransactionBatchHandler(
-	ingestTransactions: IngestTransactions,
+	transactionType: TransactionType,
+	ruleset: RuleSet,
+	pool: Pool,
 	sendToDeadLetterQueue: SendToDeadLetterQueue
 ) {
+	const rules = compileRules(ruleset);
+
 	return async function handleTransactionBatch(messages: ClassifiedMessage[]) {
-		const validMessages: ValidMessage[] = [];
-		const transactions: DomainTransactionSchema[] = [];
+		const preparedMessages: PreparedMessage[] = [];
 		const poisonFailures: DeadLetterFailure[] = [];
 		let tombstones = 0;
 
 		for (const message of messages) {
-			// Both: the batch insert takes the values, while the one-by-one
-			// fallback needs the whole message to dead-letter the row that failed.
 			switch (message.kind) {
 				case "valid":
-					validMessages.push(message);
-					transactions.push(message.value);
+					// A record that can't become a row is known before any SQL
+					// runs, so it is dead-lettered alone and the rest of the
+					// batch still goes in one statement.
+					try {
+						preparedMessages.push({
+							message,
+							row: prepareTransaction(message.value, transactionType, rules)
+						});
+					} catch (error) {
+						poisonFailures.push({ message, error });
+					}
 					break;
 				case "poison":
 					poisonFailures.push({ message, error: message.error });
@@ -80,7 +107,7 @@ export function createTransactionBatchHandler(
 
 		// Outcome counts on the batch span (no-op when tracing is off)
 		trace.getActiveSpan()?.setAttributes({
-			"batch.valid": validMessages.length,
+			"batch.valid": preparedMessages.length,
 			"batch.poison": poisonFailures.length,
 			"batch.tombstones": tombstones
 		});
@@ -90,24 +117,20 @@ export function createTransactionBatchHandler(
 			logger.debug({ tombstones }, "Tombstones in batch — no-op by design");
 		}
 
-		if (validMessages.length > 0) {
+		if (preparedMessages.length > 0) {
 			try {
-				await ingestTransactions(transactions);
-				observeIngestLag(validMessages);
+				await insertTransactions(collectRows(preparedMessages), pool);
+				observeIngestLag(preparedMessages);
 			} catch (error) {
 				// "The world is broken": rethrow uncommitted so the whole batch
 				// replays from the source topic. Never DLQ good data.
 				if (error instanceof RetryableError) throw error;
 
 				logger.warn(
-					{ err: error, size: validMessages.length },
-					"Batch ingest failed — isolating messages one by one"
+					{ err: error, size: preparedMessages.length },
+					"Batch insert failed — isolating rows one by one"
 				);
-				await ingestOneByOne(
-					validMessages,
-					ingestTransactions,
-					sendToDeadLetterQueue
-				);
+				await insertOneByOne(preparedMessages, pool, sendToDeadLetterQueue);
 			}
 		}
 
@@ -115,37 +138,49 @@ export function createTransactionBatchHandler(
 			await sendToDeadLetterQueue(poisonFailures);
 			logger.warn(
 				{ size: poisonFailures.length },
-				"Dead-lettered undeserialisable messages"
+				"Dead-lettered messages that can't be stored"
 			);
 		}
 	};
 }
 
+function collectRows(preparedMessages: PreparedMessage[]) {
+	const rows: PreparedTransaction[] = [];
+	for (const preparedMessage of preparedMessages) {
+		rows.push(preparedMessage.row);
+	}
+	return rows;
+}
+
 /**
- * Fallback after a batch insert fails for a non-retryable reason: one bad row
- * should cost only itself, not the rest of the batch. Each message gets its own
- * insert, and the ones that still fail are dead-lettered individually.
+ * Fallback after the batch insert fails for a non-retryable reason: one bad
+ * row should cost only itself, not the rest of the batch. Each row gets its own
+ * insert, and the ones that still fail are dead-lettered as their message.
  */
-async function ingestOneByOne(
-	validMessages: ValidMessage[],
-	ingestTransactions: IngestTransactions,
+async function insertOneByOne(
+	preparedMessages: PreparedMessage[],
+	pool: Pool,
 	sendToDeadLetterQueue: SendToDeadLetterQueue
 ) {
-	for (const message of validMessages) {
+	for (const preparedMessage of preparedMessages) {
 		try {
-			await ingestTransactions([message.value]);
-			observeIngestLag([message]);
+			await insertTransactions([preparedMessage.row], pool);
+			observeIngestLag([preparedMessage]);
 		} catch (error) {
 			if (error instanceof RetryableError) throw error;
-			await sendToDeadLetterQueue([{ message, error }]);
+			await sendToDeadLetterQueue([
+				{ message: preparedMessage.message, error }
+			]);
 		}
 	}
 }
 
-function observeIngestLag(messages: ValidMessage[]) {
+function observeIngestLag(preparedMessages: PreparedMessage[]) {
 	const now = Date.now();
 
-	for (const message of messages) {
-		ingestLagSeconds.observe((now - message.recordTimestamp) / 1000);
+	for (const preparedMessage of preparedMessages) {
+		ingestLagSeconds.observe(
+			(now - preparedMessage.message.recordTimestamp) / 1000
+		);
 	}
 }
