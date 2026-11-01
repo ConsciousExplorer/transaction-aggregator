@@ -1,6 +1,7 @@
-// Fails unless an app's version is higher than the same file's version on a
-// base ref. CI runs it on a pull request into main for every app that changed,
-// so main never receives a change under a version it has already seen.
+// Fails unless an app's version is a patch or minor bump over the same file's
+// version on a base ref: higher, and under the same major. CI runs it on a pull
+// request into main for every app that changed, so main never receives a change
+// under a version it has already seen, and never a new major.
 //
 // Usage: node scripts/check-version-bump.ts <manifest> [base ref]
 //   manifest: apps/<app>/package.json or apps/producers/pyproject.toml
@@ -69,6 +70,12 @@ function isHigherVersion(current: string, base: string) {
 	return false;
 }
 
+function hasSameMajor(current: string, base: string) {
+	const [currentMajor] = parseVersion(current);
+	const [baseMajor] = parseVersion(base);
+	return currentMajor === baseMajor;
+}
+
 // undefined when the manifest doesn't exist on the base ref: a new app has no
 // earlier version to beat.
 function readBaseContent(manifest: string, baseRef: string) {
@@ -96,15 +103,21 @@ function checkVersionBump(manifest: string, baseRef: string) {
 	}
 
 	const base = readVersion(manifest, baseContent);
-	if (isHigherVersion(current, base)) {
-		console.log(`${manifest}: ${base} → ${current}`);
-		return true;
+	if (!isHigherVersion(current, base)) {
+		console.error(
+			`${manifest}: version ${current} must be higher than ${baseRef}'s ${base}. Bump it in this change.`
+		);
+		return false;
+	}
+	if (!hasSameMajor(current, base)) {
+		console.error(
+			`${manifest}: version ${current} is a new major over ${baseRef}'s ${base}. Only a patch or minor bump can merge into ${baseRef}.`
+		);
+		return false;
 	}
 
-	console.error(
-		`${manifest}: version ${current} must be higher than ${baseRef}'s ${base}. Bump it in this change.`
-	);
-	return false;
+	console.log(`${manifest}: ${base} → ${current}`);
+	return true;
 }
 
 const [manifest, baseRef = "origin/main"] = process.argv.slice(2);
