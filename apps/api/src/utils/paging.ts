@@ -66,7 +66,7 @@ export function decodeCursor<Cursor>(text: string, schema: ZodType<Cursor>) {
  * filter carries over exactly as sent. Relative, so the API never has to know
  * the public host it is reached through.
  *
- * ":" is left unencoded: it is legal in a query (RFC 3986 §3.4), and a client
+ * ":" is left unencoded: it is legal in a query string as it is, and a client
  * that encodes a pasted link again would turn "%3A" into "%253A" and break
  * every datetime in it.
  */

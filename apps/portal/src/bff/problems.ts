@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// RFC 9457 problem details, the shape the API answers with, so the browser handles one error format
+// Problem details, the shape the API answers errors with, so the browser handles one error format
 type ProblemPayload = {
 	type: string;
 	title: string;

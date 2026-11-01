@@ -1,0 +1,187 @@
+-- Captured 2026-10-28 from the API's query log (DATABASE_QUERY_LOG_SQL and
+-- DATABASE_QUERY_LOG_PLAN), second of two identical requests, on 7,349,463 rows.
+-- The plan is EXPLAIN (ANALYZE, BUFFERS) of the statement below it.
+
+select to_char("txn_agg"."transactions"."occurred_at" at time zone 'UTC', 'YYYY-MM'), "txn_agg"."categories"."category", "txn_agg"."transactions"."currency", count("txn_agg"."transactions"."transaction_id"), count(*) filter (where "txn_agg"."transactions"."credit_debit_indicator" = 'debit'), count(*) filter (where "txn_agg"."transactions"."credit_debit_indicator" = 'credit'), coalesce(sum("txn_agg"."transactions"."amount_minor") filter (where "txn_agg"."transactions"."credit_debit_indicator" = 'debit'), 0), coalesce(sum("txn_agg"."transactions"."amount_minor") filter (where "txn_agg"."transactions"."credit_debit_indicator" = 'credit'), 0) from "txn_agg"."transactions" left join "txn_agg"."user_transaction_overrides" on ("txn_agg"."user_transaction_overrides"."transaction_id" = "txn_agg"."transactions"."transaction_id" and "txn_agg"."user_transaction_overrides"."occurred_at" = "txn_agg"."transactions"."occurred_at" and "txn_agg"."user_transaction_overrides"."archived_at" is null) left join "txn_agg"."user_category_overrides" on ("txn_agg"."user_category_overrides"."user_id" = "txn_agg"."transactions"."user_id" and "txn_agg"."user_category_overrides"."from_category_id" = "txn_agg"."transactions"."category_id" and "txn_agg"."user_category_overrides"."archived_at" is null) inner join "txn_agg"."categories" on "txn_agg"."categories"."category_id" = coalesce("txn_agg"."user_transaction_overrides"."category_id", "txn_agg"."user_category_overrides"."to_category_id", "txn_agg"."transactions"."category_id") where ("txn_agg"."transactions"."user_id" = '756ca152-e789-4a6c-81bc-5029b7da1b57' and "txn_agg"."transactions"."status" = 'completed' and "txn_agg"."transactions"."occurred_at" >= '2025-10-28T00:00:00Z' and "txn_agg"."transactions"."occurred_at" < '2026-10-28T13:47:12.688Z') group by to_char("txn_agg"."transactions"."occurred_at" at time zone 'UTC', 'YYYY-MM'), "txn_agg"."categories"."category", "txn_agg"."transactions"."currency" order by to_char("txn_agg"."transactions"."occurred_at" at time zone 'UTC', 'YYYY-MM'), coalesce(sum("txn_agg"."transactions"."amount_minor") filter (where "txn_agg"."transactions"."credit_debit_indicator" = 'debit'), 0) desc, "txn_agg"."categories"."category";
+
+-- Sort  (cost=960.35..962.02 rows=667 width=156) (actual time=1.241..1.250 rows=123.00 loops=1)
+--   Sort Key: (to_char((transactions.occurred_at AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text)), (COALESCE(sum(transactions.amount_minor) FILTER (WHERE (transactions.credit_debit_indicator = 'debit'::txn_agg.credit_debit_indicator)), '0'::numeric)) DESC, categories.category
+--   Sort Method: quicksort  Memory: 34kB
+--   Buffers: shared hit=172
+--   ->  HashAggregate  (cost=915.72..929.06 rows=667 width=156) (actual time=1.109..1.142 rows=123.00 loops=1)
+--         Group Key: to_char((transactions.occurred_at AT TIME ZONE 'UTC'::text), 'YYYY-MM'::text), categories.category, transactions.currency
+--         Batches: 1  Memory Usage: 65kB
+--         Buffers: shared hit=172
+--         ->  Hash Join  (cost=489.07..895.71 rows=667 width=96) (actual time=0.063..0.909 rows=732.00 loops=1)
+--               Hash Cond: (COALESCE(user_transaction_overrides.category_id, user_category_overrides.to_category_id, transactions.category_id) = categories.category_id)
+--               Buffers: shared hit=172
+--               ->  Hash Left Join  (cost=462.42..863.96 rows=667 width=46) (actual time=0.042..0.553 rows=732.00 loops=1)
+--                     Hash Cond: ((transactions.transaction_id = user_transaction_overrides.transaction_id) AND (transactions.occurred_at = user_transaction_overrides.occurred_at))
+--                     Buffers: shared hit=171
+--                     ->  Hash Left Join  (cost=14.10..412.14 rows=667 width=44) (actual time=0.022..0.443 rows=732.00 loops=1)
+--                           Hash Cond: (transactions.category_id = user_category_overrides.from_category_id)
+--                           Buffers: shared hit=171
+--                           ->  Append  (cost=0.42..396.68 rows=667 width=58) (actual time=0.017..0.364 rows=732.00 loops=1)
+--                                 Buffers: shared hit=169
+--                                 ->  Index Only Scan Backward using transactions_p20251001_user_id_occurred_at_transaction_id_t_idx on transactions_p20251001 transactions_1  (cost=0.42..8.60 rows=4 width=58) (actual time=0.017..0.018 rows=3.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 2
+--                                       Heap Fetches: 0
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=4
+--                                 ->  Index Only Scan Backward using transactions_p20251101_user_id_occurred_at_transaction_id_t_idx on transactions_p20251101 transactions_2  (cost=0.42..21.82 rows=34 width=58) (actual time=0.010..0.028 rows=29.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 25
+--                                       Heap Fetches: 7
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=12
+--                                 ->  Index Only Scan Backward using transactions_p20251201_user_id_occurred_at_transaction_id_t_idx on transactions_p20251201 transactions_3  (cost=0.42..21.87 rows=35 width=58) (actual time=0.009..0.027 rows=31.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 17
+--                                       Heap Fetches: 8
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=13
+--                                 ->  Index Only Scan Backward using transactions_p20260101_user_id_occurred_at_transaction_id_t_idx on transactions_p20260101 transactions_4  (cost=0.42..41.85 rows=35 width=58) (actual time=0.006..0.022 rows=41.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 27
+--                                       Heap Fetches: 13
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=18
+--                                 ->  Index Only Scan Backward using transactions_p20260201_user_id_occurred_at_transaction_id_t_idx on transactions_p20260201 transactions_5  (cost=0.42..37.72 rows=31 width=58) (actual time=0.006..0.018 rows=38.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 20
+--                                       Heap Fetches: 9
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=14
+--                                 ->  Index Only Scan Backward using transactions_p20260301_user_id_occurred_at_transaction_id_t_idx on transactions_p20260301 transactions_6  (cost=0.42..29.85 rows=35 width=58) (actual time=0.005..0.021 rows=47.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 25
+--                                       Heap Fetches: 13
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=18
+--                                 ->  Index Only Scan Backward using transactions_p20260401_user_id_occurred_at_transaction_id_t_idx on transactions_p20260401 transactions_7  (cost=0.42..29.80 rows=33 width=58) (actual time=0.005..0.015 rows=36.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 23
+--                                       Heap Fetches: 8
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=13
+--                                 ->  Index Only Scan Backward using transactions_p20260501_user_id_occurred_at_transaction_id_t_idx on transactions_p20260501 transactions_8  (cost=0.42..33.87 rows=35 width=58) (actual time=0.005..0.014 rows=33.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 20
+--                                       Heap Fetches: 7
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=12
+--                                 ->  Index Only Scan Backward using transactions_p20260601_user_id_occurred_at_transaction_id_t_idx on transactions_p20260601 transactions_9  (cost=0.42..29.82 rows=33 width=58) (actual time=0.005..0.016 rows=42.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 17
+--                                       Heap Fetches: 9
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=14
+--                                 ->  Index Only Scan Backward using transactions_p20260701_user_id_occurred_at_transaction_id_t_idx on transactions_p20260701 transactions_10  (cost=0.42..29.85 rows=35 width=58) (actual time=0.020..0.030 rows=33.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 25
+--                                       Heap Fetches: 7
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=12
+--                                 ->  Index Only Scan Backward using transactions_p20260801_user_id_occurred_at_transaction_id_t_idx on transactions_p20260801 transactions_11  (cost=0.42..21.87 rows=35 width=58) (actual time=0.006..0.014 rows=33.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 23
+--                                       Heap Fetches: 5
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=9
+--                                 ->  Index Only Scan Backward using transactions_p20260901_user_id_occurred_at_transaction_id_t_idx on transactions_p20260901 transactions_12  (cost=0.42..21.82 rows=34 width=58) (actual time=0.006..0.013 rows=42.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 24
+--                                       Heap Fetches: 2
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=6
+--                                 ->  Index Only Scan Backward using transactions_p20261001_user_id_occurred_at_transaction_id_t_idx on transactions_p20261001 transactions_13  (cost=0.56..64.61 rows=288 width=58) (actual time=0.005..0.076 rows=324.00 loops=1)
+--                                       Index Cond: ((user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid) AND (occurred_at >= '2025-10-28 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2026-10-28 13:47:12.688+00'::timestamp with time zone))
+--                                       Filter: (status = 'completed'::txn_agg.transaction_status)
+--                                       Rows Removed by Filter: 234
+--                                       Heap Fetches: 0
+--                                       Index Searches: 1
+--                                       Buffers: shared hit=24
+--                           ->  Hash  (cost=13.67..13.67 rows=1 width=20) (actual time=0.003..0.004 rows=0.00 loops=1)
+--                                 Buckets: 1024  Batches: 1  Memory Usage: 8kB
+--                                 Buffers: shared hit=2
+--                                 ->  Bitmap Heap Scan on user_category_overrides  (cost=4.20..13.67 rows=1 width=20) (actual time=0.003..0.003 rows=0.00 loops=1)
+--                                       Recheck Cond: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                       Filter: (archived_at IS NULL)
+--                                       Buffers: shared hit=2
+--                                       ->  Bitmap Index Scan on user_category_overrides_pkey  (cost=0.00..4.20 rows=6 width=0) (actual time=0.002..0.002 rows=0.00 loops=1)
+--                                             Index Cond: (user_id = '756ca152-e789-4a6c-81bc-5029b7da1b57'::uuid)
+--                                             Index Searches: 1
+--                                             Buffers: shared hit=2
+--                     ->  Hash  (cost=446.88..446.88 rows=96 width=26) (actual time=0.018..0.020 rows=0.00 loops=1)
+--                           Buckets: 1024  Batches: 1  Memory Usage: 8kB
+--                           ->  Append  (cost=0.00..446.88 rows=96 width=26) (actual time=0.017..0.020 rows=0.00 loops=1)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250301 user_transaction_overrides_1  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250401 user_transaction_overrides_2  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250501 user_transaction_overrides_3  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250601 user_transaction_overrides_4  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250701 user_transaction_overrides_5  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250801 user_transaction_overrides_6  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20250901 user_transaction_overrides_7  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20251001 user_transaction_overrides_8  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20251101 user_transaction_overrides_9  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20251201 user_transaction_overrides_10  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260101 user_transaction_overrides_11  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260201 user_transaction_overrides_12  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260301 user_transaction_overrides_13  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260401 user_transaction_overrides_14  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260501 user_transaction_overrides_15  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260601 user_transaction_overrides_16  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260701 user_transaction_overrides_17  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260801 user_transaction_overrides_18  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20260901 user_transaction_overrides_19  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20261001 user_transaction_overrides_20  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20261101 user_transaction_overrides_21  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20261201 user_transaction_overrides_22  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_p20270101 user_transaction_overrides_23  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--                                 ->  Seq Scan on user_transaction_overrides_default user_transaction_overrides_24  (cost=0.00..18.60 rows=4 width=26) (actual time=0.001..0.001 rows=0.00 loops=1)
+--                                       Filter: (archived_at IS NULL)
+--               ->  Hash  (cost=17.40..17.40 rows=740 width=34) (actual time=0.014..0.014 rows=16.00 loops=1)
+--                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+--                     Buffers: shared hit=1
+--                     ->  Seq Scan on categories  (cost=0.00..17.40 rows=740 width=34) (actual time=0.008..0.010 rows=16.00 loops=1)
+--                           Buffers: shared hit=1
+-- Planning:
+--   Buffers: shared hit=25
+-- Planning Time: 1.072 ms
+-- Execution Time: 1.374 ms

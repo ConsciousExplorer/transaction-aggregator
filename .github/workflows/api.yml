@@ -98,7 +98,7 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24.20.0
-      - name: Version is higher than the target branch's
+      - name: Version is a patch or minor bump over the target branch's
         env:
           BASE_REF: origin/${{ github.base_ref }}
         run: node scripts/check-version-bump.ts apps/api/package.json "$BASE_REF"

@@ -34,6 +34,7 @@ export default async function registerPutCategoryOverrideRoute(
 			body: z.object({ toCategoryId: categoryIdSchema }),
 			response: {
 				200: userCategorySchema,
+				201: userCategorySchema,
 				400: problemSchema,
 				500: problemSchema
 			}
@@ -63,7 +64,10 @@ export default async function registerPutCategoryOverrideRoute(
 					}
 				]);
 
-			return reply.send(buildRemappedUserCategory(override));
+			// 201 when this PUT created the override, 200 when it replaced one
+			return reply
+				.code(override.inserted ? 201 : 200)
+				.send(buildRemappedUserCategory(override));
 		}
 	});
 }

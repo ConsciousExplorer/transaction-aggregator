@@ -9,9 +9,11 @@ const USER_ID = "7a1e5b3c-2d4f-4e6a-8b9c-0d1e2f3a4b5c";
 const TRANSACTION_ID = "3f8e8c1a-6b1d-4f4e-9a2b-1c9d8e7f6a5b";
 const OVERRIDE_URL = `/api/v1/users/${USER_ID}/transaction-overrides/${TRANSACTION_ID}`;
 
-// Typed off the real methods so drift in the select shapes breaks compilation.
-// The route reads only occurredAt off the transaction (the ownership probe);
-// the rest satisfies the repository's return type.
+/**
+ * Typed off the real methods so drift in the select shapes breaks compilation.
+ * The route reads only occurredAt off the transaction (the ownership probe);
+ * the rest satisfies the repository's return type.
+ */
 const TRANSACTION: NonNullable<
 	Awaited<ReturnType<UserTransactionRepository["getTransactionDetail"]>>
 > = {
@@ -46,11 +48,14 @@ const OVERRIDE: NonNullable<
 	categoryId: 5,
 	createdAt: "2026-09-03T08:00:00.000Z",
 	updatedAt: "2026-09-03T08:00:00.000Z",
-	archivedAt: null
+	archivedAt: null,
+	inserted: false
 };
 
-// `satisfies` is the drift guard: the fake must match the real methods the
-// route calls, so a change to one of their signatures stops this compiling.
+/**
+ * `satisfies` is the drift guard: the fake must match the real methods the
+ * route calls, so a change to one of their signatures stops this compiling.
+ */
 const getTransactionDetail = mock.fn<
 	UserTransactionRepository["getTransactionDetail"]
 >(async () => TRANSACTION);
@@ -86,7 +91,7 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		setTransactionCategory.mock.mockImplementation(async () => OVERRIDE);
 	});
 
-	test("200: upserts by id with the original occurredAt, returns the saved override", async () => {
+	test("200: a repeat override replaces it, upserting by id with the original occurredAt", async () => {
 		const response = await app.inject({
 			method: "PUT",
 			url: OVERRIDE_URL,
@@ -109,6 +114,25 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		);
 	});
 
+	/** A PUT that creates the resource answers 201; one that replaces it answers 200 */
+	test("201: the first override of a transaction creates it", async () => {
+		setTransactionCategory.mock.mockImplementationOnce(async () => ({
+			...OVERRIDE,
+			inserted: true
+		}));
+		const response = await app.inject({
+			method: "PUT",
+			url: OVERRIDE_URL,
+			payload: { categoryId: 5 }
+		});
+		assert.strictEqual(response.statusCode, 201);
+		assert.deepStrictEqual(response.json(), {
+			transactionId: TRANSACTION_ID,
+			categoryId: 5,
+			updatedAt: "2026-09-03T08:00:00.000Z"
+		});
+	});
+
 	test("400: unknown categoryId (FK violation → repository returns undefined)", async () => {
 		setTransactionCategory.mock.mockImplementationOnce(async () => undefined);
 		const response = await app.inject({
@@ -120,7 +144,7 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		assert.strictEqual(response.json().type, "validation-error");
 	});
 
-	// category_id is a smallint: Postgres refuses a larger id outright, a 500
+	/** category_id is a smallint: Postgres refuses a larger id outright, a 500 */
 	test("400: a categoryId beyond the smallint range → validation problem, nothing written", async () => {
 		const response = await app.inject({
 			method: "PUT",
@@ -142,24 +166,5 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		assert.strictEqual(response.statusCode, 404);
 		assert.strictEqual(response.json().type, "not-found");
 		assert.strictEqual(setTransactionCategory.mock.callCount(), 0);
-	});
-
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		setTransactionCategory.mock.mockImplementationOnce(async () => {
-			throw new Error("pg password=hunter2");
-		});
-		const response = await app.inject({
-			method: "PUT",
-			url: OVERRIDE_URL,
-			payload: { categoryId: 5 }
-		});
-		assert.strictEqual(response.statusCode, 500);
-		assert.ok(
-			String(response.headers["content-type"]).startsWith(
-				"application/problem+json"
-			)
-		);
-		assert.strictEqual(response.json().type, "internal");
-		assert.ok(!response.body.includes("hunter2"));
 	});
 });

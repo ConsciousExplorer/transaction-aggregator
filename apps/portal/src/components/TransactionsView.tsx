@@ -117,7 +117,7 @@ function buildCategoryFilterOptions(categories: Category[]) {
 function buildCategoryChoiceOptions(categories: Category[]) {
 	const options: SelectOption[] = [];
 	for (const category of categories) {
-		options.push({ value: String(category.id), label: category.label });
+		options.push({ value: String(category.categoryId), label: category.label });
 	}
 	return options;
 }
@@ -161,7 +161,7 @@ function TransactionRow({
 					<div className="category-edit">
 						<select
 							aria-label={`Category for ${transaction.shortDescription}`}
-							value={String(category.id)}
+							value={String(category.categoryId)}
 							disabled={saving}
 							onChange={(event) => {
 								setSaving(true);

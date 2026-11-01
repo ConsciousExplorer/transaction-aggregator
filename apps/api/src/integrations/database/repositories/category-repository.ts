@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { alias } from "drizzle-orm/pg-core";
 import type { AppCradle } from "#src/container.ts";
@@ -94,7 +94,14 @@ export class CategoryRepository {
 						archivedAt: null
 					}
 				})
-				.returning();
+				// An insert writes created_at and updated_at from the same now();
+				// the conflict branch writes updated_at alone. (xmax = 0) would be
+				// exact, but Postgres refuses system columns in RETURNING on a
+				// partitioned table.
+				.returning({
+					...getTableColumns(userCategoryOverrides),
+					inserted: sql<boolean>`(created_at = updated_at)`
+				});
 			if (!override) return undefined;
 
 			const toCategories = alias(categories, "to_categories");

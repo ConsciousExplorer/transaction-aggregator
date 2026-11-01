@@ -1,4 +1,5 @@
-// RFC 9457 (titled Problem Details for HTTP APIs)
+// Problem Details for HTTP APIs: the one shape every error body takes, sent
+// as application/problem+json
 
 export class HttpProblem extends Error {
 	payload: {

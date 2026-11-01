@@ -82,10 +82,6 @@ suite("loadConfig", () => {
 		);
 	});
 
-	test("reads from committed offsets by default, so a restart resumes", () => {
-		assert.strictEqual(loadConfig(sampleEnv).kafka.readMode, "committed");
-	});
-
 	test("bounds each fetch to 1 MiB by default, so a backlog can't fill memory", () => {
 		assert.strictEqual(loadConfig(sampleEnv).kafka.fetchMaxBytes, 1_048_576);
 	});

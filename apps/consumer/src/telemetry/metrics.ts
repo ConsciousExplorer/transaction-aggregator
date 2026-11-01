@@ -17,13 +17,13 @@ collectDefaultMetrics({ register: registry });
 export const batchSize = new Histogram({
 	name: "batch_size",
 	help: "Messages per flush",
-	buckets: [1, 10, 50, 100, 250, 500],
+	buckets: [1, 10, 50, 100, 250, 500, 1000],
 	registers: [registry]
 });
 
 export const batchFlushTotal = new Counter({
 	name: "batch_flush_total",
-	help: "Flushes by what triggered them: size or linger",
+	help: "Flushes by what closed the batch: size, or the fetch it came from was used up (fetch)",
 	labelNames: ["trigger"] as const,
 	registers: [registry]
 });

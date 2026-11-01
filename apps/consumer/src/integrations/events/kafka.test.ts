@@ -4,7 +4,10 @@ import { type Mock, mock, suite, test } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
 import { NonRetryableError } from "#src/errors/consumer-errors.ts";
 import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
-import { batchFlushDurationSeconds } from "#src/telemetry/metrics.ts";
+import {
+	batchFlushDurationSeconds,
+	batchFlushTotal
+} from "#src/telemetry/metrics.ts";
 import type {
 	BatchHandler,
 	ClassifiedMessage,
@@ -34,6 +37,34 @@ function buildMessage(offset: number) {
 	} as unknown as KafkaMessage;
 }
 
+function buildMessages(count: number) {
+	const messages: KafkaMessage[] = [];
+	for (let offset = 1; offset <= count; offset += 1) {
+		messages.push(buildMessage(offset));
+	}
+	return messages;
+}
+
+function readOffsets(messages: KafkaMessage[]) {
+	const offsets: bigint[] = [];
+	for (const message of messages) {
+		offsets.push(message.offset);
+	}
+	return offsets;
+}
+
+/**
+ * A stream holding one fetch. The client pushes every record of a fetch before
+ * the consume loop sees any of them, so the test pushes them all at once.
+ */
+function buildFetchedStream(messages: KafkaMessage[]) {
+	const stream = new Readable({ objectMode: true, read() {} });
+	for (const message of messages) {
+		stream.push(message);
+	}
+	return stream;
+}
+
 /** A consumer that reads the given stream: a fixed one, or one a test pushes into. */
 function buildConsumer(stream: Readable) {
 	return {
@@ -43,13 +74,19 @@ function buildConsumer(stream: Readable) {
 	} as unknown as KafkaConsumer;
 }
 
+interface RecordedConsumeOptions {
+	minBytes?: number;
+	maxBytes?: number;
+	maxWaitTime?: number;
+}
+
 /** A consumer that keeps the options each consume() call was given. */
 function buildRecordingConsumer(
 	stream: Readable,
-	consumeCalls: Array<{ maxBytes?: number }>
+	consumeCalls: RecordedConsumeOptions[]
 ) {
 	return {
-		async consume(options: { maxBytes?: number }) {
+		async consume(options: RecordedConsumeOptions) {
 			consumeCalls.push(options);
 			return stream;
 		}
@@ -63,11 +100,9 @@ function buildOptions(
 		topics: ["transactions"],
 		mode: "latest",
 		maxWaitTime: 100,
+		fetchMinBytes: 1,
 		fetchMaxBytes: 1_048_576,
-		batchSize: 3,
-		// Shorter than the handler's work, so the linger timer fires while a
-		// size-triggered flush is still awaiting — the race window.
-		lingerMs: 1,
+		batchSize: 100,
 		...over
 	};
 }
@@ -88,6 +123,15 @@ function readHandledOffsets(onBatch: Mock<BatchHandler>) {
 	return offsets;
 }
 
+/** How many messages each handler call was given, in call order. */
+function readBatchSizes(onBatch: Mock<BatchHandler>) {
+	const sizes: number[] = [];
+	for (const call of onBatch.mock.calls) {
+		sizes.push(call.arguments[0].length);
+	}
+	return sizes;
+}
+
 /** A message whose commit is recorded, so a test can read what was committed. */
 function buildCommitRecordingMessage(offset: number) {
 	return { ...buildMessage(offset), commit: mock.fn(async () => {}) };
@@ -103,20 +147,31 @@ function readCommittedOffsets(
 	return offsets;
 }
 
-/**
- * Slow enough that the next batch is queued before the first one fails. Only
- * the batch holding offset 1 fails.
- */
-async function failFirstBatchSlowly(messages: ClassifiedMessage[]) {
-	await wait(20);
-	if (messages[0]?.offset === 1n) throw new Error("database unavailable");
+/** A message whose commit fails as the broker would fail it. */
+function buildCommitFailingMessage(offset: number, failure: Error) {
+	return {
+		...buildMessage(offset),
+		async commit() {
+			throw failure;
+		}
+	};
 }
 
-/** The histogram is a process-wide singleton, so tests compare before/after. */
+/** The metrics are process-wide singletons, so tests compare before and after. */
 async function countFlushDurationObservations() {
 	const metric = await batchFlushDurationSeconds.get();
 	for (const value of metric.values) {
 		if (value.metricName === "batch_flush_duration_seconds_count") {
+			return value.value;
+		}
+	}
+	return 0;
+}
+
+async function countFlushes(trigger: string) {
+	const metric = await batchFlushTotal.get();
+	for (const value of metric.values) {
+		if (value.labels.trigger === trigger) {
 			return value.value;
 		}
 	}
@@ -129,112 +184,114 @@ async function waitForHandlerCalls(onBatch: Mock<BatchHandler>, count: number) {
 	}
 }
 
-async function waitForHandledOffsets(
-	onBatch: Mock<BatchHandler>,
-	count: number
-) {
-	while (readHandledOffsets(onBatch).length < count) {
-		await wait(1);
-	}
-}
-
 suite("startBatchConsumer", () => {
-	test("never runs two flushes concurrently", async () => {
+	// The client pushes a whole fetch into the stream before the loop sees any
+	// of it, so an empty stream means the fetch is used up. A batch closes
+	// there, or at batchSize, whichever comes first; nothing waits on a timer.
+	test("a batch is what one fetch delivered, capped at batchSize", async () => {
+		const messages = buildMessages(250);
+		const stream = buildFetchedStream(messages);
+		stream.push(null);
+		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {});
+		const sizeFlushesBefore = await countFlushes("size");
+		const fetchFlushesBefore = await countFlushes("fetch");
+
+		await startBatchConsumer(
+			buildConsumer(stream),
+			onBatch,
+			continueAfterDeserialisationError,
+			buildOptions({ batchSize: 100 })
+		);
+
+		assert.deepEqual(readBatchSizes(onBatch), [100, 100, 50]);
+		assert.deepEqual(
+			readHandledOffsets(onBatch),
+			readOffsets(messages),
+			"every message is handled exactly once, in order"
+		);
+		assert.equal(await countFlushes("size"), sizeFlushesBefore + 2);
+		assert.equal(await countFlushes("fetch"), fetchFlushesBefore + 1);
+	});
+
+	// At a trickle each fetch brings a record or two. Each is flushed and
+	// committed as it comes, instead of being held until a batch fills.
+	test("a trickle is flushed as it arrives, not held for a full batch", async () => {
 		const stream = new Readable({ objectMode: true, read() {} });
-		let active = 0;
-		let maxActive = 0;
-		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {
-			active += 1;
-			maxActive = Math.max(maxActive, active);
-			await wait(20);
-			active -= 1;
-		});
+		const messages = [
+			buildCommitRecordingMessage(1),
+			buildCommitRecordingMessage(2)
+		];
+		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {});
 
 		const consuming = startBatchConsumer(
 			buildConsumer(stream),
 			onBatch,
 			continueAfterDeserialisationError,
-			buildOptions()
+			buildOptions({ batchSize: 100 })
 		);
 
-		// A real gap between messages: pushed all at once, they arrive in one
-		// microtask burst, the linger timer never fires mid-flush, and the race
-		// stays hidden
-		for (let offset = 1; offset <= 7; offset += 1) {
-			await wait(5);
-			stream.push(buildMessage(offset));
-		}
-		// Ended only once every message is handled: a batch still buffered when
-		// the stream ends is left for the restart
-		await waitForHandledOffsets(onBatch, 7);
+		stream.push(messages[0]);
+		await waitForHandlerCalls(onBatch, 1);
+		stream.push(messages[1]);
+		await waitForHandlerCalls(onBatch, 2);
 		stream.push(null);
 		await consuming;
 
-		assert.equal(maxActive, 1, "flushes must not overlap");
-		assert.deepEqual(
-			readHandledOffsets(onBatch),
-			[1n, 2n, 3n, 4n, 5n, 6n, 7n],
-			"every message is handled exactly once, in order"
-		);
+		assert.deepEqual(readBatchSizes(onBatch), [1, 1]);
+		assert.deepEqual(readCommittedOffsets(messages), [1n, 2n]);
 	});
 
-	// The client pushes a whole fetch into its buffer before backpressure
-	// applies, so the fetch size is what bounds the consumer's memory under a
-	// backlog. Left to the client's 50 MB default, one fetch held about 144,000
-	// card records and the consumer was OOM-killed.
-	test("asks for at most fetchMaxBytes in each fetch", async () => {
-		const consumeCalls: Array<{ maxBytes?: number }> = [];
+	// The fetch settings are the broker's. minBytes and maxWaitTime are Kafka's
+	// own linger: the broker holds a fetch until one of them is met. maxBytes
+	// bounds what one fetch holds in memory; at the client's 50 MB default, one
+	// fetch held about 144,000 card records and the consumer was OOM-killed.
+	test("asks the broker for minBytes, maxWaitTime and at most fetchMaxBytes", async () => {
+		const consumeCalls: RecordedConsumeOptions[] = [];
 
 		await startBatchConsumer(
 			buildRecordingConsumer(Readable.from([buildMessage(1)]), consumeCalls),
 			mock.fn(async (_messages: ClassifiedMessage[]) => {}),
 			continueAfterDeserialisationError,
-			buildOptions({ fetchMaxBytes: 262_144 })
+			buildOptions({
+				fetchMinBytes: 32_768,
+				maxWaitTime: 2_000,
+				fetchMaxBytes: 262_144
+			})
 		);
 
-		assert.strictEqual(consumeCalls[0]?.maxBytes, 262_144);
+		assert.equal(consumeCalls[0]?.minBytes, 32_768);
+		assert.equal(consumeCalls[0]?.maxWaitTime, 2_000);
+		assert.equal(consumeCalls[0]?.maxBytes, 262_144);
 	});
 
-	// The stream ends only when shutdown closes the consumer, which can no longer
-	// commit. A flush then would store rows whose offsets are never committed, so
-	// the partial batch is left for the restart to read again.
-	test("leaves a trailing partial batch for the restart when the stream ends", async () => {
-		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {});
-		const messages = [
-			buildMessage(1),
-			buildMessage(2),
-			buildMessage(3),
-			buildMessage(4)
-		];
-
-		// 4 messages with batchSize 3 leave one buffered when the stream ends
-		await startBatchConsumer(
-			buildConsumer(Readable.from(messages)),
-			onBatch,
-			continueAfterDeserialisationError,
-			buildOptions({ lingerMs: 10_000 })
-		);
-
-		assert.deepEqual(readHandledOffsets(onBatch), [1n, 2n, 3n]);
-	});
-
-	test("a failed linger flush ends the consumer with that error", async () => {
-		const stream = new Readable({ objectMode: true, read() {} });
+	// A failed batch was never stored, so nothing may be handled or committed
+	// after it: a later commit would move the group's offset past it, and its
+	// messages would be skipped for good. The loop ends with the error, and
+	// the restart reads the batch again.
+	test("a failed flush ends the consumer with that error, and nothing after it is handled or committed", async () => {
 		const failure = new Error("database unavailable");
+		const messages = [
+			buildCommitRecordingMessage(1),
+			buildCommitRecordingMessage(2),
+			buildCommitRecordingMessage(3)
+		];
+		const onBatch = mock.fn(async (_messages: ClassifiedMessage[]) => {
+			throw failure;
+		});
 		const flushesTimedBefore = await countFlushDurationObservations();
 
-		const consuming = startBatchConsumer(
-			buildConsumer(stream),
-			async () => {
-				throw failure;
-			},
-			continueAfterDeserialisationError,
-			buildOptions({ batchSize: 10, lingerMs: 1 })
+		await assert.rejects(
+			startBatchConsumer(
+				buildConsumer(buildFetchedStream(messages)),
+				onBatch,
+				continueAfterDeserialisationError,
+				buildOptions({ batchSize: 1 })
+			),
+			failure
 		);
 
-		stream.push(buildMessage(1));
-
-		await assert.rejects(consuming, failure);
+		assert.deepEqual(readHandledOffsets(onBatch), [1n]);
+		assert.deepEqual(readCommittedOffsets(messages), []);
 		// A slow failure shows in the flush duration too
 		assert.equal(
 			await countFlushDurationObservations(),
@@ -242,37 +299,21 @@ suite("startBatchConsumer", () => {
 		);
 	});
 
-	// A failed batch was never stored, so nothing may commit past it: the
-	// restart must read it again. Committing a later batch moves the group's
-	// offset beyond it, and its messages are skipped for good.
-	test("a flush queued behind a failed linger flush neither handles nor commits its batch", async () => {
-		const stream = new Readable({ objectMode: true, read() {} });
-		const messages = [
-			buildCommitRecordingMessage(1),
-			buildCommitRecordingMessage(2),
-			buildCommitRecordingMessage(3),
-			buildCommitRecordingMessage(4)
-		];
-		const onBatch = mock.fn(failFirstBatchSlowly);
+	// The rows are stored, so the restart re-reads them and the insert skips
+	// them as duplicates. Carrying on instead would keep inserting with the
+	// group's offsets frozen, and nothing on a dashboard would say so.
+	test("a failed commit ends the consumer with that error", async () => {
+		const failure = new Error("coordinator not available");
 
-		const consuming = startBatchConsumer(
-			buildConsumer(stream),
-			onBatch,
-			continueAfterDeserialisationError,
-			buildOptions({ batchSize: 3, lingerMs: 1 })
+		await assert.rejects(
+			startBatchConsumer(
+				buildConsumer(Readable.from([buildCommitFailingMessage(1, failure)])),
+				mock.fn(async (_messages: ClassifiedMessage[]) => {}),
+				continueAfterDeserialisationError,
+				buildOptions({ batchSize: 1 })
+			),
+			failure
 		);
-
-		// Offset 1 alone: the linger timer flushes it, and the handler is slow
-		stream.push(messages[0]);
-		await waitForHandlerCalls(onBatch, 1);
-		// A full batch while that flush runs, so a size flush queues behind it
-		stream.push(messages[1]);
-		stream.push(messages[2]);
-		stream.push(messages[3]);
-
-		await assert.rejects(consuming, /database unavailable/);
-		assert.deepEqual(readHandledOffsets(onBatch), [1n]);
-		assert.deepEqual(readCommittedOffsets(messages), []);
 	});
 });
 

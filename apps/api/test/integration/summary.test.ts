@@ -136,7 +136,7 @@ suite("summary against the hand-computed samples", () => {
 			`/api/v1/users/${SAMPLE_USER_ID}/category-overrides/${CATEGORY_IDS.transport}`,
 			{ toCategoryId: CATEGORY_IDS.retail }
 		);
-		assert.strictEqual(remap.statusCode, 200, remap.body);
+		assert.strictEqual(remap.statusCode, 201, remap.body);
 		// Row 4 is transport, so the remap covers it too: the override must win
 		const override = await sendAs(
 			server,
@@ -145,7 +145,7 @@ suite("summary against the hand-computed samples", () => {
 			`/api/v1/users/${SAMPLE_USER_ID}/transaction-overrides/${sampleTransactionIds[4]}`,
 			{ categoryId: CATEGORY_IDS.dining }
 		);
-		assert.strictEqual(override.statusCode, 200, override.body);
+		assert.strictEqual(override.statusCode, 201, override.body);
 
 		const withOverrides = await readAs(server, writeToken, SUMMARY_URL);
 		assert.deepStrictEqual(

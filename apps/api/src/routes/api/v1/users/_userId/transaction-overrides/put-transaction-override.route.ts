@@ -30,6 +30,7 @@ export default async function registerPutTransactionOverrideRoute(
 			body: z.object({ categoryId: categoryIdSchema }),
 			response: {
 				200: transactionOverrideSchema,
+				201: transactionOverrideSchema,
 				400: problemSchema,
 				404: problemSchema,
 				500: problemSchema
@@ -58,7 +59,10 @@ export default async function registerPutTransactionOverrideRoute(
 					{ path: ["categoryId"], message: `unknown categoryId ${categoryId}` }
 				]);
 
-			return reply.send(buildTransactionOverride(override));
+			// 201 when this PUT created the override, 200 when it replaced one
+			return reply
+				.code(override.inserted ? 201 : 200)
+				.send(buildTransactionOverride(override));
 		}
 	});
 }

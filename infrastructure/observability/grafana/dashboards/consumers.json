@@ -2190,7 +2190,7 @@
     {
       "type": "timeseries",
       "title": "Flushes by trigger",
-      "description": "Why each batch was flushed. Mostly linger: batches don't fill (low load). Mostly size: saturated. Pick one consumer in the job picker to see its own mix.",
+      "description": "Why each batch was flushed. Mostly fetch: a batch is what one fetch brought (low load). Mostly size: saturated. Pick one consumer in the job picker to see its own mix.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2246,7 +2246,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "linger"
+              "options": "fetch"
             },
             "properties": [
               {

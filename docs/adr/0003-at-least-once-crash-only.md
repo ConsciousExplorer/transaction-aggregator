@@ -1,7 +1,7 @@
 # 0003. At-least-once delivery into an idempotent table; crash rather than retry
 
 - **Status:** Accepted
-- **Where it lives:** [`kafka.ts`](../../apps/consumer/src/integrations/events/kafka.ts), [`transactionBatchHandler.ts`](../../apps/consumer/src/integrations/events/handlers/transactionBatchHandler.ts), [`postgres.ts`](../../apps/consumer/src/errors/postgres.ts), [`transaction-repository.ts`](../../apps/consumer/src/integrations/database/repositories/transaction-repository.ts), [`app.ts`](../../apps/consumer/src/app.ts)
+- **Where it lives:** [`kafka.ts`](../../apps/consumer/src/integrations/events/kafka.ts), [`transactionBatchHandler.ts`](../../apps/consumer/src/integrations/events/handlers/transactionBatchHandler.ts), [`transaction-ingester.ts`](../../apps/consumer/src/services/transaction-ingester.ts), [`postgres.ts`](../../apps/consumer/src/errors/postgres.ts), [`transaction-repository.ts`](../../apps/consumer/src/integrations/database/repositories/transaction-repository.ts), [`app.ts`](../../apps/consumer/src/app.ts)
 - **See it:** [message-flow.html](message-flow.html) (every branch a record can take), [consumer-batching.html](consumer-batching.html) (fetches, flushes and a failed flush)
 
 ## Context
@@ -30,14 +30,17 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 
 - Auto-commit is off. A batch's offsets are committed after its insert has committed and every dead-letter send has been acknowledged (`acks: all`).
 - The commit takes the highest offset per partition.
+- A commit that fails ends the consumer like any other failure. The rows are stored, so the restart reads the batch again and the insert skips them as duplicates.
+
+**Prepare each record, then insert the batch.** Every valid record is normalised, validated and categorised on its own first. One that can't become a row is set aside for the dead-letter topic before any SQL runs, and the rest of the batch still goes in one statement. Only a row Postgres itself refuses costs a row-by-row retry.
 
 **Two classes of failure, two outcomes.**
 
 | Failure | Outcome |
 | --- | --- |
 | Bytes that won't decode | Dead-lettered as `deserialisation`, and the batch continues |
-| A message that fails normalising or validation | Dead-lettered as `processing`, and the batch continues |
-| A row Postgres rejects (a `DatabaseError` with SQLSTATE class 22 or 23) | The batch is retried one message at a time, so only the bad row is dead-lettered |
+| A message that fails normalising or validation | Dead-lettered as `processing` before the insert runs; the rest of the batch still goes in one statement |
+| A row Postgres rejects (a `DatabaseError` with SQLSTATE class 22 or 23) | The batch is retried one row at a time, so only the bad row is dead-lettered |
 | Any other database error, a dropped connection, or a statement past its timeout (`DATABASE_STATEMENT_TIMEOUT_MS`) | `RetryableError`: the process exits with code 1 and nothing is committed |
 | A schema id the consumer didn't load at startup | The process exits, and the restart loads the new schema version |
 
@@ -50,9 +53,8 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 
 **Batches and backpressure:**
 
-- A batch closes at 100 messages, or 2 s after its first message.
-- The `for await` loop waits on each size flush, so it pulls nothing more until that flush and its commit are done.
-- Every flush is chained on the one before it, so two never overlap. A failed flush fails every flush queued behind it.
+- A batch is what one fetch delivered, capped at 1,000 messages. The broker holds a fetch until 32 KiB are ready or 2 s have passed (`fetch.min.bytes`, `fetch.max.wait.ms`), which is where messages gather at low rates; the consumer has no timer of its own.
+- The `for await` loop waits on each flush, so only one ever runs, and it pulls nothing more until that flush and its commit are done. A failed flush ends the loop.
 - Memory is bounded by one 1 MiB fetch.
 
 ## Alternatives rejected
@@ -67,6 +69,7 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 | Fetching an unknown schema from the registry on a miss | It's a second way to load schemas, with its own rules for a 404 versus an outage, for a case a restart already covers. |
 | Dead-lettering a message with an unknown schema id | Every producer rollout would turn into a redrive. |
 | `pause()` and `resume()` for backpressure | The loop already stops pulling while it waits on a flush. |
+| A linger timer in the consumer, flushing a partial batch 2 s after its first message (how it was built until 2026-10-31) | The broker already holds a fetch until `fetch.min.bytes` are ready or `fetch.max.wait.ms` has passed, so it gathers the batch. A timer that fires outside the loop needed a promise chain to stop two flushes overlapping, and a failed flush had to poison that chain so nothing committed past it. Flushing when the batch is full or the stream is empty needs none of that. |
 
 ## Consequences
 
@@ -83,4 +86,5 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 
 - Restarts and rebalances measurably hurt at real load: bring back an in-process retry with jittered backoff.
 - Schema rollouts become frequent enough that a restart each time hurts.
+- Fetch flushes are too small to be worth an insert each, or a 100-message batch stops fitting in one fetch: tune `KAFKA_FETCH_MIN_BYTES`, `KAFKA_MAX_WAIT_TIME_MS` and `KAFKA_FETCH_MAX_BYTES` before putting any timer in the consumer.
 - Another system needs an event for every stored row: see [0011](0011-egress.md).

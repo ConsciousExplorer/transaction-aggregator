@@ -28,9 +28,9 @@ async function removeRemap(categoryId: number) {
 function buildTargetOptions(categories: Category[], source: Category) {
 	const options: ReactNode[] = [];
 	for (const category of categories) {
-		if (category.id === source.id) continue;
+		if (category.categoryId === source.categoryId) continue;
 		options.push(
-			<option key={category.id} value={category.id}>
+			<option key={category.categoryId} value={category.categoryId}>
 				{category.label}
 			</option>
 		);
@@ -52,7 +52,7 @@ function CategoryRow({
 	onFailed
 }: CategoryRowProps) {
 	const [saving, setSaving] = useState(false);
-	const selectId = `remap-${category.id}`;
+	const selectId = `remap-${category.categoryId}`;
 
 	return (
 		<li className="category-row" aria-busy={saving}>
@@ -73,11 +73,11 @@ function CategoryRow({
 			</label>
 			<select
 				id={selectId}
-				value={category.mappedTo ? String(category.mappedTo.id) : ""}
+				value={category.mappedTo ? String(category.mappedTo.categoryId) : ""}
 				disabled={saving}
 				onChange={(event) => {
 					setSaving(true);
-					remapCategory(category.id, Number(event.target.value))
+					remapCategory(category.categoryId, Number(event.target.value))
 						.then(onChanged, onFailed)
 						.finally(() => setSaving(false));
 				}}
@@ -94,7 +94,7 @@ function CategoryRow({
 					disabled={saving}
 					onClick={() => {
 						setSaving(true);
-						removeRemap(category.id)
+						removeRemap(category.categoryId)
 							.then(onChanged, onFailed)
 							.finally(() => setSaving(false));
 					}}
@@ -138,7 +138,7 @@ export function CategoriesView() {
 		for (const category of state.categories) {
 			rows.push(
 				<CategoryRow
-					key={category.id}
+					key={category.categoryId}
 					category={category}
 					categories={state.categories}
 					onChanged={() => {

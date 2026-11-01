@@ -66,10 +66,15 @@ export type Summary = {
 };
 
 export type Category = {
-	id: number;
+	categoryId: number;
 	category: string;
 	label: string;
-	mappedTo?: { id: number; category: string; label: string; updatedAt: string };
+	mappedTo?: {
+		categoryId: number;
+		category: string;
+		label: string;
+		updatedAt: string;
+	};
 };
 
 export type ApiCategoryList = {
@@ -77,5 +82,3 @@ export type ApiCategoryList = {
 	links: Links;
 	meta: { count: number };
 };
-
-export type Customer = { customerId: string; displayName: string };

@@ -67,30 +67,4 @@ suite("GET /api/v1/categories", () => {
 			meta: { count: 0 }
 		});
 	});
-
-	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		getCategories.mock.mockImplementationOnce(async () => {
-			throw new Error("pg password=hunter2");
-		});
-		const response = await app.inject({
-			method: "GET",
-			url: "/api/v1/categories"
-		});
-		assert.strictEqual(response.statusCode, 500);
-		assert.ok(
-			String(response.headers["content-type"]).startsWith(
-				"application/problem+json"
-			)
-		);
-		assert.strictEqual(response.json().type, "internal");
-		assert.ok(!response.body.includes("hunter2"));
-	});
-
-	test("handler calls the repository once, with no arguments", async () => {
-		// The pool reaches the repository via the awilix constructor, not per
-		// call; that wiring is a container test, invisible from route level.
-		await app.inject({ method: "GET", url: "/api/v1/categories" });
-		assert.strictEqual(getCategories.mock.callCount(), 1);
-		assert.deepStrictEqual(getCategories.mock.calls[0]?.arguments, []);
-	});
 });

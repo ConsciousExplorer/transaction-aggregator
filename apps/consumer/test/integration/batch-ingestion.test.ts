@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, suite, test } from "node:test";
 import type { Pool } from "pg";
-import type { RuleSet } from "#src/domain/rule-categoriser.ts";
+import { compileRules, type RuleSet } from "#src/domain/rule-categoriser.ts";
 import {
 	buildCardRecord,
 	buildDebitOrderRecord
@@ -14,7 +14,10 @@ import {
 	createTransactionBatchHandler,
 	type DeadLetterFailure
 } from "#src/integrations/events/handlers/transactionBatchHandler.ts";
-import { createTransactionIngester } from "#src/services/transaction-ingester.ts";
+import {
+	insertTransactions,
+	prepareTransaction
+} from "#src/services/transaction-ingester.ts";
 import {
 	startTestDatabase,
 	stopTestDatabase,
@@ -72,7 +75,9 @@ suite("batch ingestion into Postgres", () => {
 		const userId = randomUUID();
 		const deadLetters: DeadLetterFailure[] = [];
 		const handleTransactionBatch = createTransactionBatchHandler(
-			createTransactionIngester("card", ruleset, database.consumerPool),
+			"card",
+			ruleset,
+			database.consumerPool,
 			createRecordingDeadLetterSender(deadLetters)
 		);
 		// amount_minor > 0 is a CHECK in the DDL that the canonical schema does
@@ -120,28 +125,35 @@ suite("batch ingestion into Postgres", () => {
 	// than the debit-order default, recurring_payments
 	test("the seeded rules categorise a debit order to a lender by its keyword rule and any other by the default", async () => {
 		const userId = randomUUID();
-		const ingestTransactions = createTransactionIngester(
-			"debit_order",
-			ruleset,
+		const rules = compileRules(ruleset);
+
+		await insertTransactions(
+			[
+				prepareTransaction(
+					buildDebitOrderRecord({
+						transactionId: "lender",
+						customerId: userId,
+						creditorName: "Wesbank",
+						creditorAbbrevName: "Wesbank",
+						description: "Debit order: Wesbank"
+					}),
+					"debit_order",
+					rules
+				),
+				prepareTransaction(
+					buildDebitOrderRecord({
+						transactionId: "other",
+						customerId: userId,
+						creditorName: "Acme Storage",
+						creditorAbbrevName: "Acme Storage",
+						description: "Debit order: Acme Storage"
+					}),
+					"debit_order",
+					rules
+				)
+			],
 			database.consumerPool
 		);
-
-		await ingestTransactions([
-			buildDebitOrderRecord({
-				transactionId: "lender",
-				customerId: userId,
-				creditorName: "Wesbank",
-				creditorAbbrevName: "Wesbank",
-				description: "Debit order: Wesbank"
-			}),
-			buildDebitOrderRecord({
-				transactionId: "other",
-				customerId: userId,
-				creditorName: "Acme Storage",
-				creditorAbbrevName: "Acme Storage",
-				description: "Debit order: Acme Storage"
-			})
-		]);
 
 		assert.deepStrictEqual(
 			await readStoredCategories(database.adminPool, userId),

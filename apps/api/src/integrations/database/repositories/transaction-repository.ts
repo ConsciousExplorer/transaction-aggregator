@@ -3,6 +3,7 @@ import {
 	asc,
 	desc,
 	eq,
+	getTableColumns,
 	gte,
 	isNull,
 	lt,
@@ -168,7 +169,14 @@ export class UserTransactionRepository {
 						archivedAt: null
 					}
 				})
-				.returning();
+				// An insert writes created_at and updated_at from the same now();
+				// the conflict branch writes updated_at alone. (xmax = 0) would be
+				// exact, but Postgres refuses system columns in RETURNING on a
+				// partitioned table.
+				.returning({
+					...getTableColumns(userTransactionOverrides),
+					inserted: sql<boolean>`(created_at = updated_at)`
+				});
 
 			return result;
 		} catch (error) {

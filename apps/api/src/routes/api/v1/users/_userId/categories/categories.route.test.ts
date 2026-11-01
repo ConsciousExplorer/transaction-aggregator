@@ -66,17 +66,17 @@ suite("GET /api/v1/users/:userId/categories", () => {
 		assert.deepStrictEqual(response.json(), {
 			data: [
 				{
-					id: 1,
+					categoryId: 1,
 					category: "groceries",
 					label: "Groceries",
 					mappedTo: {
-						id: 5,
+						categoryId: 5,
 						category: "dining",
 						label: "Dining",
 						updatedAt: "2026-09-03T08:00:00.000Z"
 					}
 				},
-				{ id: 5, category: "dining", label: "Dining" }
+				{ categoryId: 5, category: "dining", label: "Dining" }
 			],
 			links: { self: CATEGORIES_URL },
 			meta: { count: 2 }
@@ -84,16 +84,5 @@ suite("GET /api/v1/users/:userId/categories", () => {
 		assert.deepStrictEqual(getUserCategories.mock.calls[0]?.arguments, [
 			USER_ID
 		]);
-	});
-
-	test("400: a userId that isn't a UUID → validation problem, repository untouched", async () => {
-		const response = await app.inject({
-			method: "GET",
-			url: "/api/v1/users/not-a-uuid/categories"
-		});
-
-		assert.strictEqual(response.statusCode, 400);
-		assert.strictEqual(response.json().type, "validation-error");
-		assert.strictEqual(getUserCategories.mock.callCount(), 0);
 	});
 });

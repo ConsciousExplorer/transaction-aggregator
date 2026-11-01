@@ -2,7 +2,7 @@ import z from "zod";
 import { collectionMetaSchema, linksSchema } from "#src/schemas/common.ts";
 
 const categoryReferenceSchema = z.object({
-	id: z.number().int(),
+	categoryId: z.number().int(),
 	category: z.string(),
 	label: z.string()
 });
@@ -12,7 +12,7 @@ const mappedToSchema = categoryReferenceSchema.extend({
 });
 
 export const userCategorySchema = z.object({
-	id: z.number().int(),
+	categoryId: z.number().int(),
 	category: z.string(),
 	label: z.string(),
 	mappedTo: mappedToSchema.optional()
