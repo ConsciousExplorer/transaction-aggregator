@@ -33,9 +33,11 @@ export async function batchInsertTransactions(
 		});
 	}
 
-	// The column list is written twice because the record set also has the
-	// columns the table fills itself (transaction_id, ingested_at), which must
-	// be left to their defaults rather than inserted as null.
+	/**
+	 * The column list is written twice because the record set also has the
+	 * columns the table fills itself (transaction_id, ingested_at), which must
+	 * be left to their defaults rather than inserted as null.
+	 */
 	const result = await pool.query(
 		`
 		INSERT INTO txn_agg.transactions (
@@ -75,6 +77,6 @@ export async function batchInsertTransactions(
 		ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`,
 		[JSON.stringify(rows)]
 	);
-	// An INSERT's row count leaves out the rows ON CONFLICT skipped
+	/** An INSERT's row count leaves out the rows ON CONFLICT skipped */
 	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };
 }

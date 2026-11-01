@@ -12,7 +12,7 @@
 		"lib:update": "npx npm-check-updates --interactive --format group",
 		"lib:audit": "npx audit-ci --config ./audit-ci.json",
 		"start": "node --env-file=.env src/app.ts | pino-pretty --colorize",
-		"fms": "npm run biome:migrate && npm run lint && npm run format && npm run check",
+		"fms": "npm run spell && npm run biome:migrate && npm run lint && npm run format && npm run check",
 		"format": "npx @biomejs/biome format src/",
 		"lint": "npx @biomejs/biome check --write . && npm run spell",
 		"spell": "cspell \"**/*.{ts,js}\"",
@@ -41,7 +41,7 @@
 		}
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.15",
+		"@biomejs/biome": "2.6.4",
 		"@types/node": "24.x",
 		"@types/pg": "^8.23.1",
 		"audit-ci": "7.1.0",
@@ -52,7 +52,7 @@
 		"typescript": "7.0.2"
 	},
 	"dependencies": {
-		"@opentelemetry/api": "1.9.1",
+		"@opentelemetry/api": "1.10.0",
 		"@opentelemetry/exporter-trace-otlp-http": "0.223.0",
 		"@opentelemetry/resources": "2.12.0",
 		"@opentelemetry/sdk-trace-node": "2.12.0",
