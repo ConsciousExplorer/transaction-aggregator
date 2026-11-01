@@ -226,9 +226,9 @@ try {
 			topics: [config.kafka.topics.main],
 			mode: config.kafka.readMode,
 			maxWaitTime: config.kafka.maxWaitTime,
+			fetchMinBytes: config.kafka.fetchMinBytes,
 			fetchMaxBytes: config.kafka.fetchMaxBytes,
-			batchSize: config.kafka.batchSize,
-			lingerMs: config.kafka.lingerMs
+			batchSize: config.kafka.batchSize
 		}
 	);
 } catch (error) {

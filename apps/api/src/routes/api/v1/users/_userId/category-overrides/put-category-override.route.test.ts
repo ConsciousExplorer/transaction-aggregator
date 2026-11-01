@@ -82,7 +82,7 @@ suite("PUT /api/v1/users/:userId/category-overrides/:categoryId", () => {
 		]);
 	});
 
-	// RFC 9110 §9.3.4: a PUT that creates the resource answers 201
+	// A PUT that creates the resource answers 201; one that replaces it answers 200
 	test("201: the first remap of a category creates the override", async () => {
 		updateUserCategory.mock.mockImplementationOnce(async () => ({
 			...OVERRIDE,

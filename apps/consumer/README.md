@@ -25,7 +25,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 
 ## How it works
 
-- **Batches.** Messages are buffered and flushed as one batch once 100 have arrived (`KAFKA_BATCH_SIZE`) or 2 seconds after the first one arrived (`KAFKA_BATCH_LINGER_MS`), whichever happens first. Only one flush runs at a time.
+- **Batches.** A batch is what one fetch delivered, capped at 1,000 messages (`KAFKA_BATCH_SIZE`). The broker holds a fetch until 32 KiB are ready (`KAFKA_FETCH_MIN_BYTES`) or 2 seconds have passed (`KAFKA_MAX_WAIT_TIME_MS`), so at low rates that is where messages gather; the consumer has no timer of its own. The loop waits on each flush, so only one runs at a time.
 - **One insert per batch.** Valid messages are normalised and categorised, then written by a single `INSERT … SELECT FROM json_populate_recordset(…)` statement, which is atomic without a transaction. The batch goes over as one JSON array of rows.
 - **Idempotent writes.** The insert uses `ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`. Kafka may deliver a message more than once, but each row is stored once, so replaying a batch is safe.
 - **Commit last.** Offsets are committed by hand (`autocommit: false`), after the batch handler returns. The handler returns only once every message in the batch has been inserted, dead-lettered or skipped.
@@ -154,7 +154,7 @@ The consumer's own metrics measure the work the Kafka client can't see:
 | Metric | Type | What it measures |
 | --- | --- | --- |
 | `batch_size` | histogram | Messages per flush |
-| `batch_flush_total{trigger}` | counter | Flushes by trigger: `size` or `linger` |
+| `batch_flush_total{trigger}` | counter | Flushes by what closed the batch: `size`, or `fetch` when the fetch it came from was used up |
 | `batch_flush_duration_seconds` | histogram | The whole flush: handling the batch, then committing it |
 | `insert_duration_seconds` | histogram | The batch INSERT only |
 | `rows_inserted_total` | counter | Rows actually inserted |
@@ -182,9 +182,9 @@ All configuration comes from environment variables, validated at startup by [`sr
 | `TRANSACTION_TYPE` | `card` | Picks the normaliser and the consumer group (`transaction-consumer-<type>`) |
 | `KAFKA_TOPIC` | required | Source topic; the dead-letter topic is `<KAFKA_TOPIC>.dlq` |
 | `KAFKA_BROKERS` | required | Comma-separated broker list |
-| `KAFKA_BATCH_SIZE` | `100` | Flush once this many messages are buffered |
-| `KAFKA_BATCH_LINGER_MS` | `2000` | …or this long after the first one arrives |
-| `KAFKA_MAX_WAIT_TIME_MS` | `1000` | Longest a fetch waits at the broker |
+| `KAFKA_BATCH_SIZE` | `1000` | The most messages in one flush, so the most rows in one insert; a fetch holding more is flushed in several |
+| `KAFKA_FETCH_MIN_BYTES` | `32768` | The broker holds a fetch until this many bytes are ready… |
+| `KAFKA_MAX_WAIT_TIME_MS` | `2000` | …or this long has passed. Together they are Kafka's own linger, and where a batch gathers at low rates |
 | `KAFKA_FETCH_MAX_BYTES` | `1048576` | The most one fetch returns. The client holds a whole fetch in memory, so this bounds memory when the consumer is far behind |
 | `KAFKA_READ_MODE` | `committed` | Resume from the group's committed offsets, or from `earliest` if it has none |
 | `KAFKA_SESSION_TIMEOUT_MS` | `15000` | Group membership; the four timeouts are checked against each other |

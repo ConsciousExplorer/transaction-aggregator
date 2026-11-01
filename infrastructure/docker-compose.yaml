@@ -216,6 +216,8 @@ services:
       -c cron.database_name=txn_agg
       -c cron.use_background_workers=on
       -c max_worker_processes=16
+      -c shared_buffers=1GB
+      -c max_wal_size=8GB
     volumes:
       - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql

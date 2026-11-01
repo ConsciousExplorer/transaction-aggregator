@@ -28,7 +28,7 @@ function addAuthResponses(schema: FastifySchema, route: RouteOptions) {
 }
 
 /**
- * The server sends every error as RFC 9457 problem+json, and a response schema
+ * The server sends every error as problem+json, and a response schema
  * on its own is documented as application/json, so each error response is
  * wrapped in its media type here. This shapes the document only; the
  * serialiser keeps using the route's own schema.

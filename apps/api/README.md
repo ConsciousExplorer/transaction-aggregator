@@ -55,7 +55,7 @@ With `ENABLE_SWAGGER=true`, as in compose, the routes are listed in Swagger at `
 - **Cursor paging.** A page holds up to `limit` rows (1–100, 50 by default).
   - `links.next` and `links.prev` carry an opaque cursor and every filter, so a client follows the link rather than building one.
   - Pages are keyed on time and id, so paging stays as fast however deep it goes.
-- **Errors.** Every error is `application/problem+json` (RFC 9457).
+- **Errors.** Every error is a problem-details body, `application/problem+json`.
   - Its `type` is one of `validation-error`, `invalid-cursor`, `window-too-large`, `unauthorized`, `forbidden`, `not-found` or `auth-unavailable`.
   - A 500 carries the `trace_id` to look up.
 - **Observability.**

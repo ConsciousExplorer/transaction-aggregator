@@ -1,12 +1,12 @@
 # Evidence
 
-Measurements behind the service targets, taken on 2026-10-28 against the full stack in compose. The machine was a MacBook Pro (M1 Pro, 16 GB), with Docker in a 4-CPU, 7.7 GB VM.
+Measurements behind the service targets, taken on 2026-10-28 against the full stack in compose, with the batch-size and Postgres-setting runs added on 2026-10-31. The machine was a MacBook Pro (M1 Pro, 16 GB), with Docker in a 4-CPU, 7.7 GB VM.
 
 | Target | Measure | Result | Evidence |
 | --- | --- | --- | --- |
 | S1 | API latency, p95 under 200 ms at 50 req/s on at least 5M rows | **Met:** p95 17.6 ms at 54.5 req/s on 7,349,463 rows, 0 failures | k6 report [`load-20261028-161600.html`](../../loadtests/results/load-20261028-161600.html) and [query-plans.md](query-plans.md) |
 | S2 | Ingest lag, p95 under 5 s at 250 messages a second | **Met:** p95 1.74 s | [write-throughput.md](write-throughput.md) |
-| S6 | Write throughput, measured | A backlog drains at about 4,200 rows a second (peak 7,300), and a live stream holds about 4,000 a second | [write-throughput.md](write-throughput.md) |
+| S6 | Write throughput, measured | 2026-10-28: a backlog drains at about 4,200 rows a second (peak 7,300), and a live stream holds about 4,000 a second. 2026-10-31, with 1,000-row batches and 1 GB of shared buffers: a live stream holds 9,000 a second with p95 lag about 1 s | [write-throughput.md](write-throughput.md) |
 
 S3 and S4 (duplicates and poison messages) are covered by the consumer's integration tests in CI, not measured here. For S5 (under 1% uncategorised), the same database had 0 of its 7,349,463 rows on the fallback category: every row matched a rule.
 

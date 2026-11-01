@@ -251,12 +251,13 @@ export interface BatchConsumerOptions {
 	topics: string[];
 	mode: MessagesStreamModeValue;
 	maxWaitTime: number;
+	fetchMinBytes: number;
 	fetchMaxBytes: number;
 	batchSize: number;
-	lingerMs: number;
 }
 
-type FlushTrigger = "size" | "linger";
+/** What closed the batch: it reached `batchSize`, or the fetch it came from was used up. */
+type FlushTrigger = "size" | "fetch";
 
 /**
  * One link per message that carries a W3C traceparent header, pointing at the
@@ -278,35 +279,15 @@ function buildSpanLinks(batch: KafkaMessage[]) {
 }
 
 /**
- * The batch being filled, and what a flush needs to hand it on. `startBatchConsumer`
- * owns it; `drainBatch` and `flushBatch` take it as a parameter.
+ * Hands the batch to the handler, then commits its offsets. The consume loop
+ * awaits every flush, so one runs at a time and a rejection ends the loop.
  */
-interface BatchState {
-	messages: KafkaMessage[];
-	lingerTimer: NodeJS.Timeout | null;
-	// Orders flushes one after another. The linger timer cannot await, so
-	// without this a timer-triggered flush can run while a size-triggered one is
-	// still inserting — two concurrent transactions, two commits, and
-	// `messages` mutated in between. Every flush chains onto the previous, and
-	// once one fails every later flush fails with it (see `flushBatch`).
-	inFlight: Promise<void>;
-	onBatch: BatchHandler;
-	topic: string;
-}
-
-async function drainBatch(state: BatchState, trigger: FlushTrigger) {
-	if (state.lingerTimer) {
-		clearTimeout(state.lingerTimer);
-		state.lingerTimer = null;
-	}
-
-	// Swapped for a new array, never emptied in place: `batch` keeps these
-	// messages while the loop fills the next batch.
-	const batch = state.messages;
-	state.messages = [];
-
-	if (batch.length === 0) return;
-
+async function flushBatch(
+	batch: KafkaMessage[],
+	onBatch: BatchHandler,
+	topic: string,
+	trigger: FlushTrigger
+) {
 	const endFlushTimer = batchFlushDurationSeconds.startTimer();
 	batchFlushTotal.inc({ trigger });
 	batchSize.observe(batch.length);
@@ -314,7 +295,7 @@ async function drainBatch(state: BatchState, trigger: FlushTrigger) {
 	// Timed whether it succeeds or not, so a slow failure shows up too
 	try {
 		await runInSpan(
-			`consume.batch ${state.topic}`,
+			`consume.batch ${topic}`,
 			{
 				// Each batch is its own trace. The producers' traces are links,
 				// not parents: one span cannot have a parent per message.
@@ -323,13 +304,13 @@ async function drainBatch(state: BatchState, trigger: FlushTrigger) {
 				links: buildSpanLinks(batch),
 				attributes: {
 					"messaging.system": "kafka",
-					"messaging.destination.name": state.topic,
+					"messaging.destination.name": topic,
 					"messaging.batch.message_count": batch.length,
 					"batch.trigger": trigger
 				}
 			},
 			async () => {
-				await state.onBatch(classifyMessages(batch));
+				await onBatch(classifyMessages(batch));
 				// A commit that fails rejects the flush and ends the consumer. The
 				// rows are stored, so the restart reads them again and the insert
 				// skips them as duplicates.
@@ -339,17 +320,6 @@ async function drainBatch(state: BatchState, trigger: FlushTrigger) {
 	} finally {
 		endFlushTimer();
 	}
-}
-
-function flushBatch(state: BatchState, trigger: FlushTrigger) {
-	const flushed = state.inFlight.then(() => drainBatch(state, trigger));
-	// The queue keeps the rejection. A flush queued behind a failed one then
-	// fails with the same error before it inserts or commits anything: its
-	// commit would move the group's offset past the batch that was never
-	// stored. Every caller handles the rejection by ending the consumer, and
-	// the restart reads the failed batch again.
-	state.inFlight = flushed;
-	return flushed;
 }
 
 export async function startBatchConsumer(
@@ -362,6 +332,9 @@ export async function startBatchConsumer(
 		topics: options.topics,
 		mode: options.mode,
 		fallbackMode: MessagesStreamFallbackModes.EARLIEST,
+		// The broker holds a fetch until minBytes are ready or maxWaitTime has
+		// passed: Kafka's own linger, and where a batch gathers at low rates
+		minBytes: options.fetchMinBytes,
 		maxWaitTime: options.maxWaitTime,
 		// The stream takes in a whole fetch before it applies backpressure, so
 		// the fetch size is the bound on the records held in memory
@@ -369,35 +342,23 @@ export async function startBatchConsumer(
 		autocommit: false,
 		onDeserializationError: onDeserialisationFailure
 	});
+	const topic = options.topics.join(",");
 
-	const state: BatchState = {
-		messages: [],
-		lingerTimer: null,
-		inFlight: Promise.resolve(),
-		onBatch,
-		topic: options.topics.join(",")
-	};
-
+	let batch: KafkaMessage[] = [];
 	for await (const message of messageStream) {
-		state.messages.push(message);
+		batch.push(message);
 
-		if (state.messages.length === 1) {
-			state.lingerTimer = setTimeout(() => {
-				flushBatch(state, "linger").catch((error: unknown) => {
-					messageStream.destroy(
-						error instanceof Error ? error : new Error(String(error))
-					);
-				});
-			}, options.lingerMs);
-		}
+		// The client pushes a whole fetch into the stream before the loop sees
+		// any of it, so an empty stream means this fetch is used up. The batch
+		// is flushed then rather than held open for the next fetch, and the
+		// loop pulls nothing more until the flush and its commit are done.
+		const isFull = batch.length >= options.batchSize;
+		if (!isFull && messageStream.readableLength > 0) continue;
 
-		if (state.messages.length >= options.batchSize) {
-			await flushBatch(state, "size");
-		}
+		await flushBatch(batch, onBatch, topic, isFull ? "size" : "fetch");
+		batch = [];
 	}
-
 	// The stream ends only when shutdown closes the consumer, and a closed
-	// consumer can't commit. A partial batch still buffered is read again after
-	// the restart, so it is not flushed.
-	if (state.lingerTimer) clearTimeout(state.lingerTimer);
+	// consumer can't commit. Whatever it still held is read again after the
+	// restart.
 }

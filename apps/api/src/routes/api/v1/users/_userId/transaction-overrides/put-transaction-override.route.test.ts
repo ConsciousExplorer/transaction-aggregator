@@ -110,7 +110,7 @@ suite("PUT /api/v1/users/:userId/transaction-overrides/:transactionId", () => {
 		);
 	});
 
-	// RFC 9110 §9.3.4: a PUT that creates the resource answers 201
+	// A PUT that creates the resource answers 201; one that replaces it answers 200
 	test("201: the first override of a transaction creates it", async () => {
 		setTransactionCategory.mock.mockImplementationOnce(async () => ({
 			...OVERRIDE,

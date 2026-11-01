@@ -109,8 +109,14 @@ const configSchema = z
 			.positive()
 			.default(40_000),
 
-		// Fetch and batching.
-		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(1_000),
+		// Fetch and batching. A batch is what one fetch delivered, capped at
+		// KAFKA_BATCH_SIZE, so the broker's fetch settings decide how records
+		// gather at low rates: it holds a fetch until KAFKA_FETCH_MIN_BYTES are
+		// ready or KAFKA_MAX_WAIT_TIME_MS has passed (Kafka's fetch.min.bytes and
+		// fetch.max.wait.ms). 32 KiB is about 90 card records, and 2 s is the
+		// longest a record waits at the broker.
+		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(2_000),
+		KAFKA_FETCH_MIN_BYTES: z.coerce.number().int().positive().default(32_768),
 		// The most one fetch returns (Kafka's fetch.max.bytes). The client pushes
 		// a whole fetch into its buffer before backpressure applies, so this is
 		// what bounds memory under a backlog. At the client's 50 MB default, one
@@ -121,8 +127,14 @@ const configSchema = z
 			.int()
 			.positive()
 			.default(1_048_576),
-		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(100),
-		KAFKA_BATCH_LINGER_MS: z.coerce.number().int().positive().default(2_000),
+		// The most records in one flush, and so the most rows in one INSERT. Most
+		// of a flush is fixed cost (the statement, its commit, the offset commit),
+		// so 1,000 rows pay it once where ten batches of 100 would pay it ten
+		// times, and a 1 MiB fetch still holds almost three such batches. The
+		// fetch answers at 32 KiB, so while the consumer keeps up a flush holds
+		// the ~90 records that arrived during the last one and lag stays low;
+		// under a backlog every fetch is full and inserts go out 1,000 at a time.
+		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(1_000),
 		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("committed"),
 
 		// How often the client measures lag for kafka_consumers_lags. Match the
@@ -209,9 +221,9 @@ const configSchema = z
 				rebalanceTimeout: environment.KAFKA_REBALANCE_TIMEOUT_MS,
 				requestTimeout: environment.KAFKA_REQUEST_TIMEOUT_MS,
 				maxWaitTime: environment.KAFKA_MAX_WAIT_TIME_MS,
+				fetchMinBytes: environment.KAFKA_FETCH_MIN_BYTES,
 				fetchMaxBytes: environment.KAFKA_FETCH_MAX_BYTES,
 				batchSize: environment.KAFKA_BATCH_SIZE,
-				lingerMs: environment.KAFKA_BATCH_LINGER_MS,
 				readMode: environment.KAFKA_READ_MODE,
 				lagMonitoringInterval: environment.KAFKA_LAG_MONITORING_INTERVAL_MS
 			}),

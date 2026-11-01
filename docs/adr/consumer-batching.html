@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: a control strip, then the consumer drawn as a loop of eight stations
-   (Kafka → fetch → buffer → loop → batch → flush queue → Postgres → commit → back to Kafka),
+   (Kafka → fetch → buffer → loop → batch → flush → Postgres → commit → back to Kafka),
    a trace of the last few seconds beside the event-loop log, then the notes in one reading column. */
 :root {
 	--paper: #eef2f5;
@@ -22,7 +22,7 @@
 	--code-bg: #e6ecf1;
 	--fetch: #3f51c7;
 	--size: #0b7285;
-	--linger: #a8640a;
+	--flush-fetch: #a8640a;
 	--commit: #2b7a4b;
 	--fail: #c2312f;
 	--poison: #9c2f8f;
@@ -42,7 +42,7 @@
 		--code-bg: #18222b;
 		--fetch: #8f9cff;
 		--size: #3cb4c9;
-		--linger: #e3a33f;
+		--flush-fetch: #e3a33f;
 		--commit: #5cc488;
 		--fail: #f2706b;
 		--poison: #d47fd0;
@@ -59,7 +59,7 @@
 	--code-bg: #18222b;
 	--fetch: #8f9cff;
 	--size: #3cb4c9;
-	--linger: #e3a33f;
+	--flush-fetch: #e3a33f;
 	--commit: #5cc488;
 	--fail: #f2706b;
 	--poison: #d47fd0;
@@ -177,7 +177,7 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--fetch); ou
 .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tone); flex: none; }
 [data-tone="fetch"] { --tone: var(--fetch); }
 [data-tone="size"] { --tone: var(--size); }
-[data-tone="linger"] { --tone: var(--linger); }
+[data-tone="flush-fetch"] { --tone: var(--flush-fetch); }
 [data-tone="commit"] { --tone: var(--commit); }
 [data-tone="fail"] { --tone: var(--fail); }
 [data-tone="poison"] { --tone: var(--poison); }
@@ -207,7 +207,7 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--fetch); ou
 	grid-template-columns: repeat(4, minmax(0, 1fr));
 	grid-template-areas:
 		"kafka fetch buffer loop"
-		"commit postgres queue batch";
+		"commit postgres flush batch";
 }
 .station {
 	position: relative;
@@ -245,7 +245,7 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--fetch); ou
 .station[data-area="buffer"] { grid-area: buffer; }
 .station[data-area="loop"] { grid-area: loop; }
 .station[data-area="batch"] { grid-area: batch; }
-.station[data-area="queue"] { grid-area: queue; }
+.station[data-area="flush"] { grid-area: flush; }
 .station[data-area="postgres"] { grid-area: postgres; }
 .station[data-area="commit"] { grid-area: commit; }
 
@@ -271,18 +271,15 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--fetch); ou
 .meter-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
 .meter-scale { display: flex; justify-content: space-between; font: 400 11px var(--font-mono); color: var(--muted); }
 
-.batch-grid { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; }
+.batch-grid { display: grid; grid-template-columns: repeat(40, minmax(0, 1fr)); gap: 1px; }
 .cell { aspect-ratio: 1; max-width: 100%; background: var(--track); border-radius: 1.5px; }
 .cell.is-filled { background: var(--fetch); }
 .cell.is-poison { background: var(--poison); }
 .cell.is-bad { background: var(--fail); }
-.linger { display: grid; gap: 5px; }
-.linger-track { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
-.linger-fill { height: 100%; width: 0; background: var(--linger); }
-.linger-label { font-size: 12.5px; color: var(--muted); }
+.batch-note { margin: 0; font-size: 12.5px; color: var(--muted); }
 
-.queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
-.queue-list li {
+.flush-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.flush-list li {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
 	gap: 2px 8px;
@@ -292,12 +289,12 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--fetch); ou
 	border-radius: 5px;
 	background: var(--track);
 }
-.queue-list li[data-status="running"] { background: color-mix(in srgb, var(--tone) 16%, var(--panel)); }
-.queue-list li[data-status="failed"], .queue-list li[data-status="rejected"] { background: color-mix(in srgb, var(--fail) 14%, var(--panel)); }
-.queue-list .swatch { align-self: center; }
-.queue-list .flush-name { font: 600 12.5px var(--font-mono); }
-.queue-list .flush-state { grid-column: 2; color: var(--muted); overflow-wrap: anywhere; }
-.queue-empty { color: var(--muted); font-size: 13px; }
+.flush-list li[data-status="running"] { background: color-mix(in srgb, var(--tone) 16%, var(--panel)); }
+.flush-list li[data-status="failed"] { background: color-mix(in srgb, var(--fail) 14%, var(--panel)); }
+.flush-list .swatch { align-self: center; }
+.flush-list .flush-name { font: 600 12.5px var(--font-mono); }
+.flush-list .flush-state { grid-column: 2; color: var(--muted); overflow-wrap: anywhere; }
+.flush-empty { color: var(--muted); font-size: 13px; }
 
 /* Trace + event loop */
 .trace-row { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 18px; }
@@ -356,7 +353,7 @@ pre {
 }
 pre .comment { color: var(--muted); }
 pre .mark-size { color: var(--size); font-weight: 600; }
-pre .mark-linger { color: var(--linger); font-weight: 600; }
+pre .mark-fetch { color: var(--flush-fetch); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 th, td { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); }
@@ -368,14 +365,14 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 @media (max-width: 1100px) {
 	.board {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		grid-template-areas: "kafka fetch" "buffer loop" "batch queue" "postgres commit";
+		grid-template-areas: "kafka fetch" "buffer loop" "batch flush" "postgres commit";
 		gap: 14px;
 	}
 	.station::after { content: none !important; }
 	.trace-row { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-	.board { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kafka" "fetch" "buffer" "loop" "batch" "queue" "postgres" "commit"; }
+	.board { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kafka" "fetch" "buffer" "loop" "batch" "flush" "postgres" "commit"; }
 	.lab { padding: 14px; }
 	.figure { font-size: 23px; }
 }
@@ -391,7 +388,7 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 <header class="masthead">
 	<p class="eyebrow">apps/consumer · startBatchConsumer</p>
 	<h1>Consumer Flush Simulator</h1>
-	<p class="lede">A playable model of the consumer's batching loop. Records come off Kafka in fetches, wait in the stream's buffer, and the <code>for await</code> loop moves them one at a time into a batch. A batch is flushed when it holds 100 records, or 2 s after its first record arrived. A flush inserts the batch in one Postgres transaction, then commits the Kafka offset. Change the load or inject a failure to see each path.</p>
+	<p class="lede">A playable model of the consumer's batching loop. Records come off Kafka in fetches, wait in the stream's buffer, and the <code>for await</code> loop moves them one at a time into a batch. A batch is flushed when it holds 1,000 records, or when the stream has nothing more buffered, which means the fetch is used up. The broker does the waiting: it answers a fetch once 32 KiB are ready or 2 s have passed. A flush inserts the batch with one statement, then commits the Kafka offset. Change the load or inject a failure to see each path.</p>
 </header>
 
 <section class="lab" aria-label="Simulation">
@@ -400,6 +397,7 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 			<span class="control-label" id="load-label">Load</span>
 			<div class="segmented">
 				<button type="button" id="load-backlog" data-load="backlog" aria-pressed="true">Backlog</button>
+				<button type="button" id="load-busy" data-load="busy" aria-pressed="false">Busy stream</button>
 				<button type="button" id="load-steady" data-load="steady" aria-pressed="false">Steady stream</button>
 				<button type="button" id="load-trickle" data-load="trickle" aria-pressed="false">Trickle</button>
 			</div>
@@ -432,7 +430,7 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 		<span class="stat">consumer time <b class="clock" id="clock">0.000 s</b></span>
 		<span class="stat" id="speed-note"></span>
 		<span class="stat"><span class="swatch" data-tone="size"></span>size flushes <b id="count-size">0</b></span>
-		<span class="stat"><span class="swatch" data-tone="linger"></span>linger flushes <b id="count-linger">0</b></span>
+		<span class="stat"><span class="swatch" data-tone="flush-fetch"></span>fetch flushes <b id="count-fetch">0</b></span>
 		<span class="stat">rows inserted <b id="count-rows">0</b></span>
 		<span class="stat">dead-lettered <b id="count-dlq">0</b></span>
 		<span class="stat">restarts <b id="count-restarts">0</b></span>
@@ -495,27 +493,24 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 
 		<article class="station" data-area="loop" data-arrow="down" id="station-loop">
 			<h3><span class="stage">4</span>for await loop</h3>
-			<p class="where">kafka.ts:386</p>
+			<p class="where">kafka.ts startBatchConsumer</p>
 			<span class="pill" id="loop-state" data-tone="fetch">pulling</span>
 			<p class="detail" id="loop-detail"></p>
 		</article>
 
 		<article class="station" data-area="batch" data-arrow="left" id="station-batch">
 			<h3><span class="stage">5</span>Batch</h3>
-			<p class="where">state.messages</p>
-			<div class="figure"><span id="batch-count">0</span> <small>/ 100</small></div>
+			<p class="where">batch, a local array in the loop</p>
+			<div class="figure"><span id="batch-count">0</span> <small>/ 1,000</small></div>
 			<div class="batch-grid" id="batch-grid" aria-hidden="true"></div>
-			<div class="linger">
-				<div class="linger-track" aria-hidden="true"><div class="linger-fill" id="linger-fill"></div></div>
-				<span class="linger-label" id="linger-label"></span>
-			</div>
+			<p class="batch-note" id="batch-note"></p>
 		</article>
 
-		<article class="station" data-area="queue" data-arrow="left" id="station-queue">
-			<h3><span class="stage">6</span>Flush queue</h3>
-			<p class="where">state.inFlight promise chain</p>
-			<ul class="queue-list" id="queue-list"></ul>
-			<p class="detail">One flush at a time. Each waits for the one before it.</p>
+		<article class="station" data-area="flush" data-arrow="left" id="station-flush">
+			<h3><span class="stage">6</span>Flush</h3>
+			<p class="where">kafka.ts flushBatch, awaited by the loop</p>
+			<ul class="flush-list" id="flush-list"></ul>
+			<p class="detail">One flush at a time, because the loop awaits each one before it reads again.</p>
 		</article>
 
 		<article class="station" data-area="postgres" data-arrow="left" id="station-postgres">
@@ -548,7 +543,7 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 			<div class="legend" style="margin-top: 8px">
 				<span><span class="swatch" data-tone="fetch"></span>fetch, records</span>
 				<span><span class="swatch" data-tone="size"></span>size flush</span>
-				<span><span class="swatch" data-tone="linger"></span>linger flush</span>
+				<span><span class="swatch" data-tone="flush-fetch"></span>fetch flush</span>
 				<span><span class="swatch" data-tone="poison"></span>DLQ send</span>
 				<span><span class="swatch" data-tone="commit"></span>offset commit</span>
 				<span><span class="swatch" data-tone="fail"></span>failure</span>
@@ -563,78 +558,73 @@ td.number { font-family: var(--font-mono); font-variant-numeric: tabular-nums; w
 
 <article class="notes">
 	<section>
-		<h2>One loop, two ways to flush</h2>
-		<p>The whole consumer is one <code>for await</code> loop over the message stream. Each pass adds one record to the batch. The first record starts a linger timer. The hundredth record makes the loop <code>await</code> a size flush.</p>
-<pre><code><span class="comment">// apps/consumer/src/integrations/events/kafka.ts:386-407</span>
+		<h2>One loop, one awaited flush</h2>
+		<p>The whole consumer is one <code>for await</code> loop over the message stream. Each pass adds one record to the batch, then asks two things: is the batch full, and does the stream still hold anything? If neither, it reads on. Otherwise it <code>await</code>s a flush, and reads nothing more until the flush and its commit are done.</p>
+<pre><code><span class="comment">// apps/consumer/src/integrations/events/kafka.ts, startBatchConsumer</span>
+let batch: KafkaMessage[] = [];
 for await (const message of messageStream) {
-	state.messages.push(message);
+	batch.push(message);
 
-	if (state.messages.length === 1) {
-		state.lingerTimer = setTimeout(() =&gt; {
-			<span class="mark-linger">flushBatch(state, "linger")</span>.catch((error: unknown) =&gt; {
-				messageStream.destroy(
-					error instanceof Error ? error : new Error(String(error))
-				);
-			});
-		}, options.lingerMs);
-	}
+	const isFull = batch.length &gt;= options.batchSize;
+	if (!isFull &amp;&amp; <span class="mark-fetch">messageStream.readableLength &gt; 0</span>) continue;
 
-	if (state.messages.length &gt;= options.batchSize) {
-		<span class="mark-size">await flushBatch(state, "size")</span>;
-	}
-}
-
-<span class="comment">// The stream ends only on shutdown: the partial batch is read again after the restart</span>
-if (state.lingerTimer) clearTimeout(state.lingerTimer);</code></pre>
-		<ul>
-			<li>The size flush is awaited, so the loop takes nothing more from the stream until the insert and the commit are done. That wait is the consumer's only backpressure. Nothing calls <code>pause()</code>.</li>
-			<li>The linger flush runs from a timer callback, which can't be awaited. The loop keeps filling the next batch while it runs.</li>
-			<li>Both go through <code>flushBatch</code>, which chains every flush onto one promise, so two flushes never run at the same time.</li>
-		</ul>
-<pre><code><span class="comment">// kafka.ts:349-358, comments trimmed</span>
-function flushBatch(state: BatchState, trigger: FlushTrigger) {
-	const flushed = state.inFlight.then(() =&gt; drainBatch(state, trigger));
-	state.inFlight = flushed;
-	return flushed;
+	<span class="mark-size">await flushBatch(batch, onBatch, topic, isFull ? "size" : "fetch")</span>;
+	batch = [];
 }</code></pre>
+		<ul>
+			<li>Every flush is awaited, so one runs at a time and the loop takes nothing from the stream while it runs. That wait is the consumer's only backpressure. Nothing calls <code>pause()</code>.</li>
+			<li><code>readableLength</code> is how many records the stream still holds. The client pushes a whole fetch before the loop sees any of it, so right after a record is taken, that number is how much of the fetch is left. Zero means the fetch is used up, and the batch goes now rather than waiting for the next fetch.</li>
+			<li>There is no timer in the consumer. Holding records back until enough have arrived is the broker's job: it answers a fetch once 32 KiB are ready or 2 s have passed, whichever comes first.</li>
+		</ul>
 	</section>
 
 	<section>
 		<h2>Which trigger fires</h2>
-		<p>A batch reaches 100 records within 2 s only when records arrive faster than 50 a second. A backlog always does, so catch-up is all size flushes. The live stream is slower, so it is all linger flushes.</p>
+		<p>A fetch of 2,900 records is flushed as two batches of 1,000 and one of 900. A fetch of 50 is flushed as one batch of 50. So a backlog is mostly size flushes, and the live stream is all fetch flushes.</p>
 		<div class="table-wrap">
 			<table>
-				<thead><tr><th>Trigger</th><th>Fires when</th><th>Does the loop wait?</th><th>Seen on this stack</th></tr></thead>
+				<thead><tr><th>Trigger</th><th>Fires when</th><th>Does the loop wait?</th><th>When you see it</th></tr></thead>
 				<tbody>
-					<tr><td><code>size</code></td><td>the 100th record joins the batch</td><td>Yes, until the insert and commit finish</td><td>25,690 flushes, almost all of them while the 5M-row load was read</td></tr>
-					<tr><td><code>linger</code></td><td>2 s after the batch's first record</td><td>No, the loop keeps reading</td><td>2 flushes in the same period. The normal case for <code>make produce-stream</code></td></tr>
+					<tr><td><code>size</code></td><td>the 100th record joins the batch</td><td>Yes, until the insert and commit finish</td><td>A backlog: every fetch holds thousands</td></tr>
+					<tr><td><code>fetch</code></td><td>the record just taken was the last one the stream held</td><td>Yes, the same wait</td><td>The live stream: a fetch holds what gathered in up to 2 s, far fewer than 1,000</td></tr>
 				</tbody>
 			</table>
 		</div>
-		<p class="footnote">Counts from Prometheus, <code>batch_flush_total</code> by trigger across the consumers since they last started, 21 Oct 2026.</p>
-		<p>The stream ends only when shutdown closes the consumer. A partial batch still buffered then is not flushed: a closed consumer can't commit, so the restart reads those records again.</p>
+		<p>The stream ends only when shutdown closes the consumer. Whatever it still held was never committed, so the restart reads those records again.</p>
+	</section>
+
+	<section>
+		<h2>How the broker gathers a batch</h2>
+		<p>A fetch request carries two limits besides its size cap. <code>fetch.min.bytes</code> (<code>KAFKA_FETCH_MIN_BYTES</code>, 32 KiB) is how much the broker gathers before it answers, and <code>fetch.max.wait.ms</code> (<code>KAFKA_MAX_WAIT_TIME_MS</code>, 2 s) is how long it will hold the request to get there. A card record is about 360 bytes, so 32 KiB is about 90 records.</p>
+		<ul>
+			<li>A backlog is answered at once with a full 1 MiB, about 2,900 records.</li>
+			<li>At 150 records a second, 32 KiB gather in about 0.6 s, and the fetch comes back then with about 90 records.</li>
+			<li>At 25 records a second, 2 s pass first, and the fetch comes back with about 50.</li>
+			<li>At 2 records a second, the fetch comes back after 2 s with a handful.</li>
+		</ul>
+		<p>So the longest a record waits before it is read is 2 s, and the consumer needs no timer to promise that. The next fetch is already in flight while the loop works through the last one, because the stream fetches again as soon as its buffer has room.</p>
 	</section>
 
 	<section>
 		<h2>What one flush does</h2>
 		<ol>
-			<li>Waits for the flush before it to settle (<code>state.inFlight</code>).</li>
-			<li>Clears the linger timer and swaps <code>state.messages</code> for a new array. The loop can start the next batch straight away.</li>
+			<li>Takes the batch the loop handed it. The loop starts a fresh array once the flush resolves.</li>
 			<li>Sorts the batch into valid records, poison records (failed to deserialise) and tombstones.</li>
-			<li>Categorises the valid records and inserts them in one Postgres transaction. <code>ON CONFLICT DO NOTHING</code> skips any it already stored.</li>
-			<li>Sends poison records to the dead-letter topic with their raw bytes and headers.</li>
+			<li>Normalises, validates and categorises each valid record on its own, before any SQL runs. A record that can't become a row is set aside for the dead-letter topic, and the rest of the batch is unaffected.</li>
+			<li>Inserts the rows with one statement. <code>ON CONFLICT DO NOTHING</code> skips any it already stored.</li>
+			<li>Sends the poison records and the records set aside to the dead-letter topic in one produce call, with their raw bytes and headers.</li>
 			<li>Commits the highest offset of each partition. The group's offset moves only now, after the data is stored.</li>
 		</ol>
-		<p>Measured here: 59 ms per flush on average (p50 41 ms, p95 198 ms), 49 ms of it the insert, for full batches of 100. These were measured with the earlier <code>unnest</code> insert, before it became <code>json_populate_recordset</code>, and haven't been measured again. One consumer works through about 1,700 records a second while catching up.</p>
-		<p class="source">kafka.ts:297-347 drainBatch · transactionBatchHandler.ts · transaction-ingester.ts · commit.ts</p>
+		<p>Measured on 2026-10-31 against a 14-million-row table: a full batch of 1,000 takes 442 ms per flush at the median (p95 1.1 s), 434 ms of it the insert, and one consumer stores about 2,500 records a second while catching up, against 2,200 with batches of 100 on the same table. Most of the insert is Postgres reading index pages: three indexes, and dates spread over 18 months, so every row touches pages across every partition. On the live stream every row lands in the current month's partition, whose pages stay in memory: there a batch of about 300 inserts in 20 ms and one consumer keeps up with 5,800 records a second.</p>
+		<p class="source">kafka.ts flushBatch · transactionBatchHandler.ts · transaction-ingester.ts · commit.ts</p>
 	</section>
 
 	<section>
 		<h2>Why memory stays bounded</h2>
 		<p>When a fetch comes back, the stream deserialises and pushes every record in it, whatever <code>push()</code> returns. The return value only decides whether the next fetch is scheduled. Once the buffer holds 1,024 records or more, fetching stops until the loop has taken it back under 1,024; Node then calls <code>_read()</code>, which fetches again.</p>
 		<p>So the most the stream can hold is just under 1,024 records plus one whole fetch. <code>KAFKA_FETCH_MAX_BYTES</code> caps a fetch at 1 MiB. The client's 50 MB default held about 144,000 card records, about 360 bytes each, and the consumer was OOM-killed working through a backlog. At 1 MiB a fetch holds about 2,900.</p>
-		<p class="sum">1,023 in the buffer + 2,900 from one fetch + 100 in the batch + 100 in the flush ≈ 4,100 records at most</p>
-		<p>Watch the buffer in the Backlog load: it jumps by a fetch, falls by 100 per flush, and fetches again once it drops under the 1,024 mark.</p>
+		<p class="sum">1,023 in the buffer + 2,900 from one fetch + 1,000 in the flush ≈ 4,900 records at most</p>
+		<p>Watch the buffer in the Backlog load: it jumps by a fetch, falls by 1,000 per flush (or by what was left of the fetch), and fetches again once it drops under the 1,024 mark.</p>
 	</section>
 
 	<section>
@@ -644,21 +634,22 @@ function flushBatch(state: BatchState, trigger: FlushTrigger) {
 				<thead><tr><th>What went wrong</th><th>What the flush does</th><th>Offset</th></tr></thead>
 				<tbody>
 					<tr><td>Poison record: the bytes don't deserialise</td><td>Inserts the rest, sends the poison record to the DLQ</td><td>Committed</td></tr>
-					<tr><td>Bad row: Postgres rejects it with SQLSTATE class 22 (data) or 23 (constraint)</td><td>Rolls the batch back, inserts the records one at a time, sends the bad one to the DLQ</td><td>Committed</td></tr>
-					<tr><td>Anything else: Postgres down, connection lost, any other SQLSTATE</td><td>Throws a <code>RetryableError</code>. The flush rejects, and so does every flush queued behind it, without inserting or committing.</td><td>Not committed</td></tr>
+					<tr><td>Invalid record: it decodes, but can't become a row (a bad currency, a field too long, a date more than a day ahead)</td><td>Set aside before the insert, so the rest still go in one statement; sent to the DLQ with the poison records</td><td>Committed</td></tr>
+					<tr><td>Bad row: Postgres rejects it with SQLSTATE class 22 (data) or 23 (constraint)</td><td>The one statement fails as a whole. The records are inserted one at a time, and the bad one is sent to the DLQ</td><td>Committed</td></tr>
+					<tr><td>Anything else: Postgres down, connection lost, any other SQLSTATE</td><td>Throws a <code>RetryableError</code>. The flush rejects, and nothing is committed.</td><td>Not committed</td></tr>
 				</tbody>
 			</table>
 		</div>
-		<p>A rejected flush ends the process. A size flush rejects the loop's <code>await</code>. A linger flush destroys the stream from its <code>.catch</code>. Either way the loop throws, <code>app.ts</code> closes the consumer so it leaves the group, and the process exits with code 1. Docker restarts it, it rejoins at the committed offset, and it reads the uncommitted records again. While Postgres is still down the boot check fails, so the container restarts over and over until Postgres is back.</p>
-		<p>A Kafka commit that fails after a successful insert is only logged. The next batch's commit moves the offset past it. If the process dies before that, the records are read again and <code>ON CONFLICT DO NOTHING</code> skips them. Delivery is at least once, and the table stores each record once.</p>
-		<p class="source">errors/postgres.ts classifyPostgresError · transactionBatchHandler.ts ingestOneByOne · app.ts shutDownGracefully</p>
+		<p>A rejected flush ends the process. The loop's <code>await</code> rejects, so the loop throws, <code>app.ts</code> closes the consumer so it leaves the group, and the process exits with code 1. Docker restarts it, it rejoins at the committed offset, and it reads the uncommitted records again. While Postgres is still down the boot check fails, so the container restarts over and over until Postgres is back.</p>
+		<p>A Kafka commit that fails after a successful insert ends the process the same way. The rows are stored, so the restart reads those records again and <code>ON CONFLICT DO NOTHING</code> skips them. Delivery is at least once, and the table stores each record once.</p>
+		<p class="source">errors/postgres.ts classifyPostgresError · transactionBatchHandler.ts prepareBatch, insertOneByOne · app.ts shutDownGracefully</p>
 	</section>
 
 	<section>
 		<h2>Node details that shape it</h2>
 		<ul>
 			<li>A fetch response is handled in one callback: every record is deserialised and pushed before anything else runs. The next fetch is then scheduled with <code>process.nextTick</code>, which gives heartbeats and commits a turn between fetches.</li>
-			<li>The broker holds a fetch that finds no records for up to <code>KAFKA_MAX_WAIT_TIME_MS</code> (1 s) and answers as soon as one arrives. At 25 records a second that means fetches of about one record each.</li>
+			<li>Node's <code>for await</code> over a Readable takes one record per pass with <code>read()</code> and keeps no read-ahead of its own, so <code>readableLength</code> is exactly what the stream still holds.</li>
 			<li><code>autocommit</code> is off. Offsets move only through <code>commitBatch</code>, after the batch is stored.</li>
 			<li>Each batch is its own trace, <code>consume.batch</code>, with links to the producers' traces rather than a parent.</li>
 		</ul>
@@ -675,17 +666,17 @@ function flushBatch(state: BatchState, trigger: FlushTrigger) {
 			<table>
 				<thead><tr><th>Setting</th><th>Value</th><th>What it controls</th></tr></thead>
 				<tbody>
-					<tr><td><code>KAFKA_BATCH_SIZE</code></td><td class="number">100</td><td>records per size flush</td></tr>
-					<tr><td><code>KAFKA_BATCH_LINGER_MS</code></td><td class="number">2,000</td><td>the longest a record waits in a batch</td></tr>
+					<tr><td><code>KAFKA_BATCH_SIZE</code></td><td class="number">1000</td><td>the most records in one flush, so the most rows in one insert</td></tr>
+					<tr><td><code>KAFKA_FETCH_MIN_BYTES</code></td><td class="number">32,768</td><td>the broker answers a fetch once this much is ready…</td></tr>
+					<tr><td><code>KAFKA_MAX_WAIT_TIME_MS</code></td><td class="number">2,000</td><td>…or after this long. Together they are Kafka's own linger</td></tr>
 					<tr><td><code>KAFKA_FETCH_MAX_BYTES</code></td><td class="number">1,048,576</td><td>the largest fetch, and so the memory bound</td></tr>
-					<tr><td><code>KAFKA_MAX_WAIT_TIME_MS</code></td><td class="number">1,000</td><td>how long the broker holds a fetch that found nothing</td></tr>
 					<tr><td><code>highWaterMark</code> (library default)</td><td class="number">1,024</td><td>the buffer size at which the stream stops fetching</td></tr>
 					<tr><td><code>KAFKA_READ_MODE</code></td><td class="number">committed</td><td>where a restarted consumer starts reading</td></tr>
 					<tr><td><code>DATABASE_POOL_MAX</code></td><td class="number">3</td><td>connections; a flush uses one at a time</td></tr>
 				</tbody>
 			</table>
 		</div>
-		<p class="footnote">The model shows one partition. Its timings: fetch round trip 4 ms; insert 10 ms plus 0.39 ms a row, about 49 ms for 100, which matches <code>insert_duration_seconds</code>; offset commit 5 ms; DLQ send 8 ms; a restart 2.9 s. All but the insert are assumptions. Sources: <code>apps/consumer/src/config.ts</code>, <code>infrastructure/docker-compose.yaml</code>, <code>@platformatic/kafka</code> 2.14.0 <code>messages-stream.js</code> and <code>options.js</code>.</p>
+		<p class="footnote">The model shows one partition. Its timings: fetch round trip 4 ms; insert 10 ms plus 0.39 ms a row, about 400 ms for 1,000, close to the 434 ms measured for <code>insert_duration_seconds</code>; offset commit 5 ms; DLQ send 8 ms; a restart 2.9 s. A record is taken as 360 bytes, so 32 KiB is 91 records and 1 MiB is 2,900. All but the insert are assumptions. Sources: <code>apps/consumer/src/config.ts</code>, <code>infrastructure/docker-compose.yaml</code>, <code>@platformatic/kafka</code> 2.14.0 <code>messages-stream.js</code> and <code>options.js</code>.</p>
 	</section>
 </article>
 </main>
@@ -695,11 +686,12 @@ function flushBatch(state: BatchState, trigger: FlushTrigger) {
 // A discrete-event model of startBatchConsumer. Times are milliseconds of
 // consumer time. Nothing in this block touches the DOM.
 const CONFIG = {
-	batchSize: 100,
-	lingerMs: 2000,
-	// What a 1 MiB fetch holds of ~360-byte card records
+	batchSize: 1000,
+	// Card records are about 360 bytes: what a 1 MiB fetch holds, and what the
+	// broker gathers for 32 KiB before it answers
 	fetchMaxRecords: 2900,
-	maxWaitMs: 1000,
+	fetchMinRecords: 91,
+	maxWaitMs: 2000,
 	highWaterMark: 1024
 };
 
@@ -720,6 +712,7 @@ const TIMING = {
 
 const LOADS = {
 	backlog: { backlog: 15000, ratePerSecond: 25, speed: 0.05 },
+	busy: { backlog: 0, ratePerSecond: 150, speed: 0.5 },
 	steady: { backlog: 0, ratePerSecond: 25, speed: 1 },
 	trickle: { backlog: 0, ratePerSecond: 2, speed: 1 }
 };
@@ -755,21 +748,17 @@ function createSimulation(loadKey) {
 		bufferFrom: 0,
 		bufferTo: 0,
 		batch: [],
-		fetch: { inFlight: false, waiting: false, paused: false, sentAt: 0, token: 0, lastSize: null },
-		linger: { armed: false, deadline: 0, token: 0, firedFlushId: null },
+		fetch: { inFlight: false, waiting: false, paused: false, sentAt: 0, token: 0, lastSize: null, answeredBy: null },
 		loop: { status: "waiting", awaitingFlushId: null },
 		flushSequence: 0,
 		flushes: [],
-		queue: [],
 		runningFlush: null,
-		queueRejected: false,
-		streamDestroyed: false,
 		poisonOffsets: new Set(),
 		badRowOffsets: new Set(),
 		postgresUp: true,
 		process: { status: "running", nextStepAt: null },
 		counters: {
-			flushes: { size: 0, linger: 0 },
+			flushes: { size: 0, fetch: 0 },
 			fetches: 0,
 			rowsInserted: 0,
 			duplicatesSkipped: 0,
@@ -830,8 +819,8 @@ function advanceSimulation(simulation, targetTime) {
 }
 
 function handleEvent(simulation, event) {
-	// A restart bumps the generation, which drops every fetch, pull, timer
-	// and flush step the old process had scheduled
+	// A restart bumps the generation, which drops every fetch, pull and flush
+	// step the old process had scheduled
 	if (!PROCESS_EVENTS.has(event.type) && event.generation !== simulation.generation) return;
 
 	switch (event.type) {
@@ -851,7 +840,8 @@ function handleEvent(simulation, event) {
 			break;
 		case "fetchTimeout":
 			if (event.payload.token === simulation.fetch.token && simulation.fetch.inFlight && simulation.fetch.waiting) {
-				deliverFetch(simulation, 0);
+				simulation.fetch.answeredBy = "maxWait";
+				deliverFetch(simulation, countAvailable(simulation));
 			}
 			break;
 		case "nextTickFetch":
@@ -859,9 +849,6 @@ function handleEvent(simulation, event) {
 			break;
 		case "pull":
 			pullRecord(simulation);
-			break;
-		case "linger":
-			fireLinger(simulation, event.payload.token);
 			break;
 		case "flushPhaseEnd":
 			endFlushPhase(simulation, event.payload.flushId, event.payload.index);
@@ -915,10 +902,11 @@ function produceRecord(simulation) {
 	simulation.logEnd += 1;
 	scheduleNextProduce(simulation);
 
-	// A long-polling fetch is answered as soon as a record arrives
+	// The broker answers a held fetch as soon as minBytes are ready
 	const fetch = simulation.fetch;
-	if (fetch.inFlight && fetch.waiting) {
+	if (fetch.inFlight && fetch.waiting && countAvailable(simulation) >= CONFIG.fetchMinRecords) {
 		fetch.waiting = false;
+		fetch.answeredBy = "minBytes";
 		schedule(simulation, simulation.now + TIMING.fetchRoundTripMs / 2, "fetchDeliver", { token: fetch.token });
 	}
 }
@@ -927,7 +915,7 @@ function produceRecord(simulation) {
 
 function startFetch(simulation, reason) {
 	const fetch = simulation.fetch;
-	if (simulation.process.status !== "running" || simulation.streamDestroyed || fetch.inFlight) return;
+	if (simulation.process.status !== "running" || fetch.inFlight) return;
 
 	if (fetch.paused) {
 		fetch.paused = false;
@@ -936,6 +924,7 @@ function startFetch(simulation, reason) {
 	}
 	fetch.inFlight = true;
 	fetch.waiting = false;
+	fetch.answeredBy = null;
 	fetch.sentAt = simulation.now;
 	fetch.token += 1;
 	simulation.history.fetches.push({ start: simulation.now, end: null, waitedFrom: null, size: null });
@@ -952,14 +941,30 @@ function arriveFetch(simulation, token) {
 	const fetch = simulation.fetch;
 	if (token !== fetch.token || !fetch.inFlight) return;
 
-	if (countAvailable(simulation) > 0) {
-		deliverFetch(simulation, countAvailable(simulation));
+	const available = countAvailable(simulation);
+	if (available >= CONFIG.fetchMinRecords) {
+		fetch.answeredBy = "ready";
+		deliverFetch(simulation, available);
 		return;
 	}
 
+	// Short of minBytes: the broker holds the request until they are ready or
+	// maxWaitTime runs out, whichever comes first
 	fetch.waiting = true;
 	findLast(simulation.history.fetches).waitedFrom = simulation.now;
+	logEvent(
+		simulation,
+		`fetch held at the broker: ${formatCount(available)} of ${CONFIG.fetchMinRecords} records ready; answered at ${CONFIG.fetchMinRecords} or after 2 s`,
+		"fetch",
+		"fetch-held"
+	);
 	schedule(simulation, fetch.sentAt + CONFIG.maxWaitMs, "fetchTimeout", { token });
+}
+
+function describeFetchAnswer(fetch) {
+	if (fetch.answeredBy === "maxWait") return "after the 2 s wait";
+	if (fetch.answeredBy === "minBytes") return "once 32 KiB were ready";
+	return "at once";
 }
 
 function deliverFetch(simulation, count) {
@@ -986,14 +991,15 @@ function deliverFetch(simulation, count) {
 	// push() returns false once the buffer is at the high-water mark. Every
 	// record in hand is pushed anyway; false only stops the next fetch.
 	const canPush = buffered < CONFIG.highWaterMark;
+	const answer = describeFetchAnswer(fetch);
 
 	if (count === 0) {
-		logEvent(simulation, "fetch came back empty after the 1 s long poll → nextTick → #fetch()", "fetch", "fetch-empty");
+		logEvent(simulation, "fetch came back empty after the 2 s wait → nextTick → #fetch()", "fetch", "fetch-empty");
 	} else if (canPush) {
 		const records = count === 1 ? "1 record" : `${formatCount(count)} records`;
-		logEvent(simulation, `fetch response: pushed ${records}, buffer under 1,024 → nextTick → #fetch()`, "fetch", count < 20 ? "fetch-small" : null);
+		logEvent(simulation, `fetch answered ${answer}: pushed ${records}, buffer under 1,024 → nextTick → #fetch()`, "fetch", count < 20 ? "fetch-small" : null);
 	} else {
-		logEvent(simulation, `fetch response: pushed ${formatCount(count)} records. push() returned false at ${formatCount(buffered)}: no next fetch`, "fetch");
+		logEvent(simulation, `fetch answered ${answer}: pushed ${formatCount(count)} records. push() returned false at ${formatCount(buffered)}: no next fetch`, "fetch");
 	}
 
 	if (canPush) {
@@ -1041,106 +1047,50 @@ function pullRecord(simulation) {
 		startFetch(simulation, "_read");
 	}
 
-	if (simulation.batch.length === 1) armLinger(simulation);
-
-	if (simulation.batch.length >= CONFIG.batchSize) {
-		const flush = flushBatch(simulation, "size");
-		setLoopStatus(simulation, "awaiting", flush.id);
-		logEvent(simulation, `batch reached 100 → await flushBatch("size") #${flush.id}; the loop stops reading`, "size");
+	// The batch closes when it is full, or when the stream holds nothing more:
+	// a fetch is pushed whole, so an empty stream means the fetch is used up
+	const isFull = simulation.batch.length >= CONFIG.batchSize;
+	if (!isFull && countBuffered(simulation) > 0) {
+		schedule(simulation, simulation.now + TIMING.pullMs, "pull");
 		return;
 	}
 
-	if (countBuffered(simulation) > 0) {
-		schedule(simulation, simulation.now + TIMING.pullMs, "pull");
+	const flush = startFlush(simulation, isFull ? "size" : "fetch");
+	setLoopStatus(simulation, "awaiting", flush.id);
+	if (isFull) {
+		logEvent(simulation, `batch reached ${CONFIG.batchSize} → await flushBatch(batch, "size") #${flush.id}; the loop stops reading`, "size");
 	} else {
-		setLoopStatus(simulation, "waiting");
+		logEvent(simulation, `readableLength is 0 with ${flush.offsets.length} in the batch → await flushBatch(batch, "fetch") #${flush.id}`, "flush-fetch");
 	}
-}
-
-function armLinger(simulation) {
-	const linger = simulation.linger;
-	linger.armed = true;
-	linger.token += 1;
-	linger.deadline = simulation.now + CONFIG.lingerMs;
-	linger.firedFlushId = null;
-	schedule(simulation, linger.deadline, "linger", { token: linger.token });
-	logEvent(simulation, "first record of a new batch → setTimeout(linger, 2,000 ms)", "linger");
-}
-
-function clearLinger(simulation) {
-	simulation.linger.armed = false;
-	simulation.linger.token += 1;
-}
-
-function fireLinger(simulation, token) {
-	const linger = simulation.linger;
-	if (token !== linger.token || !linger.armed) return;
-
-	linger.armed = false;
-	const size = simulation.batch.length;
-	const flush = flushBatch(simulation, "linger");
-	linger.firedFlushId = flush.id;
-	logEvent(simulation, `linger timer fires with ${size} in the batch → flushBatch("linger") #${flush.id}, not awaited`, "linger");
 }
 
 // ── Flushes ──
 
-function flushBatch(simulation, trigger) {
+function startFlush(simulation, trigger) {
 	simulation.flushSequence += 1;
 	const flush = {
 		id: simulation.flushSequence,
 		trigger,
-		status: "queued",
-		queuedAt: simulation.now,
-		startedAt: null,
+		status: "running",
+		startedAt: simulation.now,
 		endedAt: null,
-		offsets: [],
+		// The flush owns the batch from here; the loop starts a new one when it resolves
+		offsets: simulation.batch,
 		phases: [],
 		phaseIndex: -1,
 		note: ""
 	};
+	simulation.batch = [];
 	simulation.flushes.push(flush);
 	if (simulation.flushes.length > 40) simulation.flushes.shift();
 	simulation.history.markers.push({ time: simulation.now, trigger });
-
-	if (simulation.queueRejected) {
-		rejectQueuedFlush(simulation, flush);
-		return flush;
-	}
-
-	simulation.queue.push(flush);
-	if (simulation.runningFlush === null) startNextFlush(simulation);
-	return flush;
-}
-
-function startNextFlush(simulation) {
-	const flush = simulation.queue.shift();
-	if (!flush) return;
-
 	simulation.runningFlush = flush;
-	flush.status = "running";
-	flush.startedAt = simulation.now;
+	simulation.counters.flushes[trigger] += 1;
 
-	// drainBatch: clear the timer, then swap the array so the loop can fill
-	// the next batch while this one is stored
-	clearLinger(simulation);
-	flush.offsets = simulation.batch;
-	simulation.batch = [];
-
-	if (flush.offsets.length === 0) {
-		flush.status = "empty";
-		flush.endedAt = simulation.now;
-		simulation.runningFlush = null;
-		logEvent(simulation, `flush #${flush.id} found the batch already taken: nothing to do`, "flush");
-		settleAwaitingLoop(simulation, flush);
-		startNextFlush(simulation);
-		return;
-	}
-
-	simulation.counters.flushes[flush.trigger] += 1;
 	flush.phases = planFlushPhases(simulation, flush.offsets);
-	simulation.pulses.push("queue");
+	simulation.pulses.push("flush");
 	runFlushPhase(simulation, flush, 0);
+	return flush;
 }
 
 function planFlushPhases(simulation, offsets) {
@@ -1160,9 +1110,9 @@ function planFlushPhases(simulation, offsets) {
 	if (valid.length > 0 && badRows.length > 0) {
 		phases.push({
 			name: "insert",
-			label: `INSERT ${valid.length} rows fails on a bad row → ROLLBACK`,
+			label: `INSERT ${valid.length} rows fails on a bad row`,
 			durationMs: TIMING.failedInsertMs,
-			effect: "rollback"
+			effect: "badRow"
 		});
 		phases.push({
 			name: "isolate",
@@ -1176,7 +1126,7 @@ function planFlushPhases(simulation, offsets) {
 		const jitter = 0.8 + simulation.random() * 0.4;
 		phases.push({
 			name: "insert",
-			label: `BEGIN · INSERT ${valid.length} rows · COMMIT`,
+			label: `INSERT ${valid.length} rows, one statement`,
 			durationMs: (TIMING.insertBaseMs + TIMING.insertPerRowMs * valid.length) * jitter,
 			effect: "insert",
 			rows: valid
@@ -1269,8 +1219,8 @@ function applyPhaseEffect(simulation, phase) {
 		case "insert":
 			storeRows(simulation, phase.rows, null);
 			break;
-		case "rollback":
-			logEvent(simulation, "batch INSERT failed on a bad row (SQLSTATE 23…) → ROLLBACK, retry one at a time", "fail");
+		case "badRow":
+			logEvent(simulation, "the one INSERT failed on a bad row (SQLSTATE 22… or 23…): nothing stored, retry one at a time", "fail");
 			break;
 		case "insertEach":
 			storeRows(simulation, phase.rows, new Set(phase.badRows));
@@ -1295,20 +1245,17 @@ function finishFlush(simulation, flush) {
 	flush.endedAt = simulation.now;
 	simulation.runningFlush = null;
 
-	const tone = flush.trigger === "linger" ? "linger" : "size";
 	logEvent(
 		simulation,
-		`flush #${flush.id} (${flush.trigger}, ${flush.offsets.length}) resolved in ${formatDuration(flush.endedAt - flush.startedAt)}: offset committed`,
-		tone
+		`flush #${flush.id} (${flush.trigger}, ${flush.offsets.length}) resolved in ${formatDuration(flush.endedAt - flush.startedAt)}: offset committed, the loop reads again`,
+		flush.trigger === "fetch" ? "flush-fetch" : "size"
 	);
 
-	settleAwaitingLoop(simulation, flush);
-	startNextFlush(simulation);
+	resumeLoop(simulation);
 }
 
-function settleAwaitingLoop(simulation, flush) {
-	const loop = simulation.loop;
-	if (loop.status !== "awaiting" || loop.awaitingFlushId !== flush.id) return;
+function resumeLoop(simulation) {
+	if (simulation.loop.status !== "awaiting") return;
 
 	if (countBuffered(simulation) > 0) {
 		setLoopStatus(simulation, "pulling");
@@ -1318,33 +1265,13 @@ function settleAwaitingLoop(simulation, flush) {
 	}
 }
 
-function rejectQueuedFlush(simulation, flush) {
-	flush.status = "rejected";
-	flush.endedAt = simulation.now;
-	flush.note = "queued behind a failed flush";
-	logEvent(simulation, `flush #${flush.id} rejects with the same error: no insert, no commit`, "fail");
-}
-
 function failFlush(simulation, flush, reason) {
 	flush.status = "failed";
 	flush.endedAt = simulation.now;
 	flush.note = reason;
 	simulation.runningFlush = null;
-	simulation.queueRejected = true;
 	logEvent(simulation, `flush #${flush.id} rejects: ${reason}. Nothing committed.`, "fail");
-
-	for (const queued of simulation.queue) rejectQueuedFlush(simulation, queued);
-	simulation.queue = [];
-
-	if (flush.trigger === "linger") {
-		simulation.streamDestroyed = true;
-		logEvent(simulation, "the linger timer's .catch → messageStream.destroy(error)", "fail");
-	}
-	if (simulation.loop.status === "awaiting") {
-		logEvent(simulation, "the awaited flushBatch rejects → the for await loop throws", "fail");
-	} else {
-		logEvent(simulation, "the stream was destroyed → the for await loop throws", "fail");
-	}
+	logEvent(simulation, "the awaited flushBatch rejects → the for await loop throws", "fail");
 
 	beginShutdown(simulation);
 }
@@ -1353,7 +1280,6 @@ function failFlush(simulation, flush, reason) {
 
 function beginShutdown(simulation) {
 	simulation.generation += 1;
-	clearLinger(simulation);
 	simulation.fetch.inFlight = false;
 	simulation.fetch.waiting = false;
 	setLoopStatus(simulation, "stopped");
@@ -1415,14 +1341,10 @@ function rejoinGroup(simulation) {
 	simulation.bufferTo = simulation.committed;
 	simulation.fetchPosition = simulation.committed;
 	simulation.batch = [];
-	simulation.queue = [];
 	simulation.runningFlush = null;
-	simulation.queueRejected = false;
-	simulation.streamDestroyed = false;
 	simulation.fetch.inFlight = false;
 	simulation.fetch.waiting = false;
 	simulation.fetch.paused = false;
-	clearLinger(simulation);
 	setLoopStatus(simulation, "waiting");
 
 	logEvent(
@@ -1497,22 +1419,23 @@ const RULER_SCALE = 4000;
 const BUFFER_SCALE = 4000;
 
 const LOAD_NOTES = {
-	backlog: "15,000 records are waiting on the broker, as after a restart or make produce-load-data. Every fetch comes back full (about 2,900 records), every batch fills at once, and the loop spends its time awaiting size flushes. Played at 0.05× so each 59 ms flush is visible.",
-	steady: "25 records a second, the card producer's rate in make produce-stream. The broker answers each fetch as soon as a record arrives, so batches never reach 100, and the linger timer flushes about 50 records every 2 s.",
-	trickle: "2 records a second. Each fetch waits on the broker for the next record, and the linger timer flushes a handful every 2 s."
+	backlog: "15,000 records are waiting on the broker, as after a restart or make produce-load-data. Every fetch comes back full (about 2,900 records) at once, every batch fills, and the loop spends its time awaiting size flushes. Played at 0.05× so each 59 ms flush is visible.",
+	busy: "150 records a second. About 90 records make the 32 KiB minimum, so the broker answers each fetch after about 0.6 s, before the 2 s wait runs out. Each fetch is one flush of about 90: a fetch flush, never a size flush.",
+	steady: "25 records a second, the card producer's rate in make produce-stream. Only about 50 records gather in 2 s, so the broker answers on the wait, and the loop flushes each fetch as one batch of about 50.",
+	trickle: "2 records a second. The broker holds each fetch the full 2 s and answers with the handful that arrived, which the loop flushes as one small batch."
 };
 
 const elements = {};
 for (const id of [
 	"load-note", "speed", "play", "reset", "inject-poison", "inject-bad-row", "toggle-postgres",
-	"process-chip", "clock", "speed-note", "count-size", "count-linger", "count-rows", "count-dlq", "count-restarts", "count-peak",
+	"process-chip", "clock", "speed-note", "count-size", "count-fetch", "count-rows", "count-dlq", "count-restarts", "count-peak",
 	"ruler-flush", "ruler-batch", "ruler-buffer", "ruler-broker", "legend-flush", "legend-batch", "legend-buffer", "legend-broker",
 	"kafka-log-end", "kafka-committed", "kafka-lag",
 	"fetch-state", "fetch-detail", "fetch-last", "fetch-count",
 	"buffer-count", "buffer-fill", "buffer-mark", "buffer-mark-label", "buffer-detail",
 	"loop-state", "loop-detail",
-	"batch-count", "batch-grid", "linger-fill", "linger-label",
-	"queue-list",
+	"batch-count", "batch-grid", "batch-note",
+	"flush-list",
 	"postgres-state", "postgres-op", "postgres-rows", "postgres-duplicates", "postgres-dlq",
 	"commit-offset", "commit-detail", "commit-count",
 	"timeline", "timeline-caption", "event-log"
@@ -1523,7 +1446,7 @@ for (const id of [
 const stations = {
 	kafka: document.getElementById("station-kafka"),
 	buffer: document.getElementById("station-buffer"),
-	queue: document.getElementById("station-queue"),
+	flush: document.getElementById("station-flush"),
 	postgres: document.getElementById("station-postgres"),
 	commit: document.getElementById("station-commit")
 };
@@ -1537,7 +1460,7 @@ const page = {
 	lastFrameTime: null,
 	lastPulse: {},
 	renderedLogVersion: -1,
-	renderedQueue: "",
+	renderedFlushes: "",
 	framesSincePrune: 0,
 	cells: []
 };
@@ -1571,7 +1494,7 @@ function startLoad(loadKey) {
 	page.speed = LOADS[loadKey].speed;
 	elements.speed.value = String(page.speed);
 	page.renderedLogVersion = -1;
-	page.renderedQueue = "";
+	page.renderedFlushes = "";
 	for (const button of document.querySelectorAll("[data-load]")) {
 		button.setAttribute("aria-pressed", String(button.dataset.load === loadKey));
 	}
@@ -1610,7 +1533,7 @@ function renderStatus(simulation, effectiveSpeed) {
 		setTone(chip, "fail");
 		setText(chip, `exited with code 1 · restart in ${formatDuration(Math.max(0, process.nextStepAt - simulation.now))}`);
 	} else {
-		setTone(chip, "linger");
+		setTone(chip, "flush-fetch");
 		setText(chip, "booting: dependency checks");
 	}
 
@@ -1620,7 +1543,7 @@ function renderStatus(simulation, effectiveSpeed) {
 		effectiveSpeed !== page.speed ? `restart playing at ${effectiveSpeed}×` : ""
 	);
 	setText(elements["count-size"], formatCount(simulation.counters.flushes.size));
-	setText(elements["count-linger"], formatCount(simulation.counters.flushes.linger));
+	setText(elements["count-fetch"], formatCount(simulation.counters.flushes.fetch));
 	setText(elements["count-rows"], formatCount(simulation.counters.rowsInserted));
 	setText(elements["count-dlq"], formatCount(simulation.counters.deadLettered));
 	setText(elements["count-restarts"], formatCount(simulation.counters.restarts));
@@ -1663,18 +1586,18 @@ function renderFetch(simulation) {
 	const state = elements["fetch-state"];
 	const detail = elements["fetch-detail"];
 
-	if (simulation.process.status !== "running" || simulation.streamDestroyed) {
+	if (simulation.process.status !== "running") {
 		setTone(state, "fail");
 		setText(state, "stopped");
 		setText(detail, "No fetches while the consumer is down.");
 	} else if (fetch.inFlight && fetch.waiting) {
 		setTone(state, "fetch");
-		setText(state, "long poll");
-		setText(detail, "Nothing to read yet. The broker holds the request until a record arrives, up to 1 s.");
+		setText(state, "held at the broker");
+		setText(detail, `${formatCount(countAvailable(simulation))} of ${CONFIG.fetchMinRecords} records ready. The broker answers once 32 KiB are ready, or after 2 s.`);
 	} else if (fetch.inFlight) {
 		setTone(state, "fetch");
 		setText(state, "in flight");
-		setText(detail, `Asking for up to 1 MiB from offset ${formatCount(simulation.fetchPosition)}.`);
+		setText(detail, `Asking for up to 1 MiB from offset ${formatCount(simulation.fetchPosition)}; answered once 32 KiB are ready, or after 2 s.`);
 	} else if (fetch.paused) {
 		setTone(state, "muted");
 		setText(state, "paused by backpressure");
@@ -1721,7 +1644,7 @@ function renderLoop(simulation) {
 	} else if (loop.status === "awaiting") {
 		setTone(state, "size");
 		setText(state, `awaiting flush #${loop.awaitingFlushId}`);
-		setText(detail, "A size flush. The loop reads nothing until the insert and the commit finish. This wait is the backpressure.");
+		setText(detail, "The loop reads nothing until the insert and the commit finish. This wait is the backpressure.");
 	} else {
 		setTone(state, "fail");
 		setText(state, "threw");
@@ -1744,40 +1667,29 @@ function renderBatch(simulation) {
 		if (page.cells[index].className !== className) page.cells[index].className = className;
 	}
 
-	const linger = simulation.linger;
-	let fraction = 0;
 	let label;
-	if (linger.armed) {
-		const remaining = Math.max(0, linger.deadline - simulation.now);
-		fraction = remaining / CONFIG.lingerMs;
-		label = `linger timer: ${formatDuration(remaining)} left`;
-	} else if (linger.firedFlushId !== null && batch.length > 0) {
-		label = `linger fired: flush #${linger.firedFlushId} is queued, and the batch keeps filling until it starts`;
-	} else if (batch.length === 0 && simulation.loop.status === "awaiting") {
-		label = `batch handed to flush #${simulation.loop.awaitingFlushId}`;
+	if (simulation.loop.status === "awaiting") {
+		label = `handed to flush #${simulation.loop.awaitingFlushId}; a new batch starts when it resolves`;
+	} else if (batch.length === 0) {
+		label = "empty: the next record read starts a batch";
+	} else if (countBuffered(simulation) > 0) {
+		label = `${formatCount(countBuffered(simulation))} more buffered: keeps filling, to ${CONFIG.batchSize} at most`;
 	} else {
-		label = "no timer: the next record starts one";
+		label = "the stream is empty: this batch flushes on the next pass";
 	}
-	elements["linger-fill"].style.width = `${fraction * 100}%`;
-	setText(elements["linger-label"], label);
+	setText(elements["batch-note"], label);
 }
 
-function describeFlush(simulation, flush) {
-	if (flush.status === "queued") {
-		const running = simulation.runningFlush;
-		return running ? `queued behind #${running.id}; takes the batch when it starts` : "queued";
-	}
+function describeFlush(flush) {
 	if (flush.status === "running") {
 		const phase = flush.phases[flush.phaseIndex];
 		return phase ? phase.label : "starting";
 	}
 	if (flush.status === "done") return `done in ${formatDuration(flush.endedAt - flush.startedAt)}`;
-	if (flush.status === "empty") return "empty: the batch was already taken";
-	if (flush.status === "failed") return `failed: ${flush.note}`;
-	return "rejected: no insert, no commit";
+	return `failed: ${flush.note}`;
 }
 
-function renderQueue(simulation) {
+function renderFlushes(simulation) {
 	const items = [];
 	for (let index = simulation.flushes.length - 1; index >= 0 && items.length < 4; index -= 1) {
 		items.push(simulation.flushes[index]);
@@ -1785,15 +1697,14 @@ function renderQueue(simulation) {
 
 	let html = "";
 	for (const flush of items) {
-		const tone = flush.status === "failed" || flush.status === "rejected" ? "fail" : flush.trigger === "linger" ? "linger" : "size";
-		const size = flush.status === "queued" ? "" : ` · ${flush.offsets.length}`;
-		html += `<li data-status="${flush.status}" data-tone="${tone}"><span class="swatch"></span><span class="flush-name">#${flush.id} ${flush.trigger}${size}</span><span class="flush-state">${describeFlush(simulation, flush)}</span></li>`;
+		const tone = flush.status === "failed" ? "fail" : flush.trigger === "fetch" ? "flush-fetch" : "size";
+		html += `<li data-status="${flush.status}" data-tone="${tone}"><span class="swatch"></span><span class="flush-name">#${flush.id} ${flush.trigger} · ${flush.offsets.length}</span><span class="flush-state">${describeFlush(flush)}</span></li>`;
 	}
-	if (html === "") html = '<li class="queue-empty">No flushes yet.</li>';
+	if (html === "") html = '<li class="flush-empty">No flushes yet.</li>';
 
-	if (html !== page.renderedQueue) {
-		page.renderedQueue = html;
-		elements["queue-list"].innerHTML = html;
+	if (html !== page.renderedFlushes) {
+		page.renderedFlushes = html;
+		elements["flush-list"].innerHTML = html;
 	}
 }
 
@@ -1863,7 +1774,7 @@ function toneForKind(kind) {
 function readColors() {
 	const style = getComputedStyle(document.documentElement);
 	const colors = {};
-	for (const name of ["ink", "muted", "rule", "track", "panel", "fetch", "size", "linger", "commit", "fail", "poison"]) {
+	for (const name of ["ink", "muted", "rule", "track", "panel", "fetch", "size", "flush-fetch", "commit", "fail", "poison"]) {
 		colors[name] = style.getPropertyValue(`--${name}`).trim();
 	}
 	return colors;
@@ -2059,7 +1970,7 @@ function drawTimeline(simulation, effectiveSpeed) {
 	for (const phase of simulation.history.flushPhases) {
 		const end = phase.end ?? simulation.now;
 		if (end < view.start) continue;
-		let color = phase.trigger === "linger" ? colors.linger : colors.size;
+		let color = phase.trigger === "fetch" ? colors["flush-fetch"] : colors.size;
 		if (phase.name === "deadLetter") color = colors.poison;
 		if (phase.name === "commit") color = colors.commit;
 		if (phase.failed) color = colors.fail;
@@ -2072,7 +1983,7 @@ function drawTimeline(simulation, effectiveSpeed) {
 	for (const marker of simulation.history.markers) {
 		if (marker.time < view.start) continue;
 		const x = view.toX(marker.time);
-		context.fillStyle = marker.trigger === "linger" ? colors.linger : colors.size;
+		context.fillStyle = marker.trigger === "fetch" ? colors["flush-fetch"] : colors.size;
 		context.beginPath();
 		context.moveTo(x - 4, flushLane.top - 7);
 		context.lineTo(x + 4, flushLane.top - 7);
@@ -2139,7 +2050,7 @@ function renderAll(frameTime, effectiveSpeed) {
 	renderBuffer(simulation);
 	renderLoop(simulation);
 	renderBatch(simulation);
-	renderQueue(simulation);
+	renderFlushes(simulation);
 	renderPostgres(simulation);
 	renderCommit(simulation);
 	renderEventLog(simulation);

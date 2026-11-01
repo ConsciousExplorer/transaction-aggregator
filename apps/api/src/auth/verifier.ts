@@ -74,7 +74,7 @@ export async function verifyToken(
 			audience: verification.audience,
 			algorithms: ["RS256"],
 			// jose checks exp only when a token has one, and a token without it
-			// never expires. RFC 9068 §2.2 makes it required.
+			// never expires, so a token has to carry one to be accepted.
 			requiredClaims: ["exp"]
 		}));
 	} catch (error) {

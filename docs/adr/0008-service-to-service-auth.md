@@ -62,5 +62,5 @@ The end user signs in to the calling app, not to this API. That app knows who th
 
 ## Revisit when
 
-- **A caller the API can't fully trust appears:** make the token name the user. The production path is OAuth token exchange (RFC 8693): the portal swaps the user's token for one scoped to that user, and the API checks the path's `userId` against it.
+- **A caller the API can't fully trust appears:** make the token name the user. The production path is OAuth token exchange: the portal swaps the user's token for one scoped to that user, and the API checks the path's `userId` against it.
 - **The API scales out with no gateway:** add a rate limit keyed on the verified client id, after auth, with a shared store.

@@ -51,7 +51,7 @@ suite("OpenAPI contract", () => {
 		}
 	});
 
-	// The server answers every error as RFC 9457 problem+json, so the contract
+	// The server answers every error as problem+json, so the contract
 	// must say so: a generated client dispatches on Content-Type, and finds no
 	// schema for the body it got otherwise
 	test("every error response is documented as application/problem+json, not application/json", () => {
