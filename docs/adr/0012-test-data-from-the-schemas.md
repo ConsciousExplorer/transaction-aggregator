@@ -68,7 +68,7 @@ The hints live in the schema. Each field's `arg.properties` says how to generate
 - **The schema does three jobs:** it is the contract, the key definition and the test-data spec. A change to the generated data is a schema diff, reviewed like one.
 - **A field exists only for the generator:** the card and debit-order schemas carry a `category` field so the generator can make the merchant, code and amount agree. It travels on the wire, and the consumer's Zod schema requires it, but nothing stores it and the categoriser never reads it.
 - **Pin both values to test duplicates:** the same seed with a different anchor produces the same `externalId`s with different times, so a re-send on another day inserts new rows instead of deduplicating. Wherever duplicates are tested, pin `ANCHOR_DATE` beside the seed.
-- **A fixed anchor ages:** on a database created long after `ANCHOR_DATE`, the oldest rows fall outside the partition range and land in the default partition. Moving the anchor forward is a deliberate change to the data.
+- **A fixed anchor ages:** on a database created long after `ANCHOR_DATE`, the oldest rows fall outside the partition range and land in the default partition. Moving the anchor forward changes the data.
 - **The data is plausible, not real:** the distributions are hand-tuned weights. Load and categorisation results show how the system behaves, not a real bank's numbers.
 - **One library sits under every record:** a missing feature means a fix upstream. The anchor needed one (`generate(now=…)`), which shipped in avro-datagen 0.6.0.
 - **Stream mode isn't repeatable.**

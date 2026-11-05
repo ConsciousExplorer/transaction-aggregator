@@ -25,7 +25,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 
 ## How it works
 
-- **Batches.** A batch is what one fetch delivered, capped at 1,000 messages (`KAFKA_BATCH_SIZE`). The broker holds a fetch until 32 KiB are ready (`KAFKA_FETCH_MIN_BYTES`) or 2 seconds have passed (`KAFKA_MAX_WAIT_TIME_MS`), so at low rates that is where messages gather; the consumer has no timer of its own. The loop waits on each flush, so only one runs at a time.
+- **Batches.** A batch is whatever is buffered when the loop gets to it, capped at 1,000 messages (`KAFKA_BATCH_SIZE`). The broker holds a fetch until 32 KiB are ready (`KAFKA_FETCH_MIN_BYTES`) or 2 seconds have passed (`KAFKA_MAX_WAIT_TIME_MS`), so at low rates that is where messages gather; the consumer has no timer of its own. The loop waits on each flush, so only one runs at a time.
 - **One insert per batch.** Valid messages are normalised and categorised, then written by a single `INSERT … SELECT FROM json_populate_recordset(…)` statement, which is atomic without a transaction. The batch goes over as one JSON array of rows.
 - **Idempotent writes.** The insert uses `ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`. Kafka may deliver a message more than once, but each row is stored once, so replaying a batch is safe.
 - **Commit last.** Offsets are committed by hand (`autocommit: false`), after the batch handler returns. The handler returns only once every message in the batch has been inserted, dead-lettered or skipped.

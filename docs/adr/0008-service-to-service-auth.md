@@ -20,14 +20,14 @@ The end user signs in to the calling app, not to this API. That app knows who th
   - `ops-console` has `ops`, which no route uses yet.
   - Access tokens last 15 minutes.
 - **Verification:** the API verifies every token in an `onRequest` hook against Keycloak's published keys (JWKS). It requires RS256, the realm's issuer, the `txn-api` audience and an expiry.
-- **Errors:** a request with no valid token gets a 401 before its query or body is parsed. If Keycloak's keys can't be fetched, the API answers 503.
+- **Errors:** a request with no valid token gets a 401 before its query or body is validated. If Keycloak's keys can't be fetched, the API answers 503.
 - **Guarded by default:** every route needs a token unless it opts out. Only `/health`, `/ready`, `/metrics` and the docs opt out.
 - **Scopes:** each route declares the scope it needs. Reads need `tx:read` and writes need `tx:write`, and a missing scope is a 403. `route-scopes.test.ts` checks every route.
 - **The calling app is the `azp` claim:** the client id that asked for the token. Keycloak's `sub` for a client is an opaque service-account id that changes when the realm is imported again.
 
 **The user is named in the path, and the API trusts the caller to name the right one.** Every user route is `/api/v1/users/{userId}/…`, and every query is scoped by that `user_id`. A request can't reach another user's rows through a transaction id, but the API does not check that the caller may act for that user.
 
-**The portal shows the intended shape:**
+**The portal is the reference caller:**
 
 1. The user signs in to the portal through Keycloak (authorisation code with PKCE).
 2. The portal's backend reads `customer_id` from the ID token and keeps it in a sealed session cookie.

@@ -26,7 +26,7 @@ Rules like these, enforced only in application code, hold only until the first b
 | `txn_agg_prefs_write` | `SELECT`, `INSERT` and `UPDATE` on the two override tables | `api_write` |
 | `txn_agg_monitor` | `pg_monitor`, and the views in `monitoring` | `grafana_read`, `postgres_exporter` |
 
-Three consequences of that table are the point of this decision:
+Three consequences of that table:
 
 - **The API can't change a transaction.** Its login, `api_write`, holds no write privilege on `transactions`. It writes preferences directly, in one synchronous call, but only those.
 - **The consumer can't change a preference or delete a transaction.** It can insert transactions, and that is all it can write.

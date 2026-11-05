@@ -8,7 +8,7 @@ Measurements behind the service targets, taken on 2026-10-28 against the full st
 | S2 | Ingest lag, p95 under 5 s at 250 messages a second | **Met:** p95 1.74 s | [write-throughput.md](write-throughput.md) |
 | S6 | Write throughput, measured | 2026-10-28: a backlog drains at about 4,200 rows a second (peak 7,300), and a live stream holds about 4,000 a second. 2026-10-31, with 1,000-row batches and 1 GB of shared buffers: a live stream holds 9,000 a second with p95 lag about 1 s | [write-throughput.md](write-throughput.md) |
 
-S3 and S4 (duplicates and poison messages) are covered by the consumer's integration tests in CI, not measured here. For S5 (under 1% uncategorised), the same database had 0 of its 7,349,463 rows on the fallback category: every row matched a rule.
+S3 and S4 (duplicates and poison messages) are covered by the consumer's tests in CI, not measured here: duplicates and rows Postgres rejects by the integration suite, undecodable and invalid records by unit tests. For S5 (under 1% uncategorised), the same database had 0 of its 7,349,463 rows on the fallback category: every row matched a rule.
 
 ## S1: the load test
 

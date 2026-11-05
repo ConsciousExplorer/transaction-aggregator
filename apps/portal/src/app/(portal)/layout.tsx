@@ -1,12 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { loadConfig } from "@/bff/config.ts";
 import { readCustomer } from "@/bff/session.ts";
-import { NavLinks } from "@/components/NavLinks.tsx";
+import { TopBar } from "@/components/TopBar.tsx";
 
-// Every signed-in page shares this shell. No session, no shell: back to sign-in.
+// Every signed-in page shares this shell: the top bar, then the page. No session, no
+// shell: back to sign-in.
 export default async function PortalLayout({
 	children
 }: {
@@ -20,22 +20,7 @@ export default async function PortalLayout({
 
 	return (
 		<>
-			<header className="site-header">
-				<div className="header-inner">
-					<Link href="/overview" className="brand">
-						Transaction portal <span className="demo-pill">Demo</span>
-					</Link>
-					<NavLinks />
-					<div className="account">
-						<span className="account-name">{customer.displayName}</span>
-						<form action="/bff/auth/logout" method="post">
-							<button type="submit" className="button button-quiet">
-								Sign out
-							</button>
-						</form>
-					</div>
-				</div>
-			</header>
+			<TopBar customerName={customer.displayName} />
 			<main className="page">{children}</main>
 		</>
 	);

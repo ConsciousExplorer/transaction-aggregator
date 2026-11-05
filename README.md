@@ -62,9 +62,9 @@ Four pages there look closer at how it works: the [message flow](docs/adr/messag
 | Kafka | [infrastructure/kafka](infrastructure/kafka) | One KRaft broker with SASL/SCRAM. The `kafka-init` one-shot creates the users, the ACLs and the topics: `transactions.<type>` (12 partitions) and `transactions.<type>.dlq`. |
 | Schema Registry | [infrastructure/schema-registry](infrastructure/schema-registry), [schemas](schemas) | Holds the Avro contracts. The `schemas-register` one-shot registers `schemas/*.avsc` before any producer starts. |
 | Consumers | [apps/consumer](apps/consumer) | Node and TypeScript. One image runs as four containers, one per topic. Each batches records, normalises and categorises them, inserts the batch in one statement, and dead-letters records it can't store. See its [README](apps/consumer/README.md). |
-| PostgreSQL | [database](database), [infrastructure/postgres](infrastructure/postgres) | Postgres 18 with pg_partman and pg_cron. The `migrate` one-shot applies the drizzle-kit migrations: the `txn_agg` schema with monthly partitions, the category and rule seed, the maintenance jobs and the Grafana views. |
+| PostgreSQL | [database](database), [infrastructure/postgres](infrastructure/postgres) | Postgres 18 with pg_partman and pg_cron. The `migrate` one-shot applies the drizzle-kit migrations: the `txn_agg` schema with monthly partitions, the category and rule seed, the maintenance jobs and the Grafana views. See its [README](database/README.md). |
 | API | [apps/api](apps/api) | Node and TypeScript on Fastify. Lists a user's transactions, categories and spending summary, and stores their category overrides. Every `/api/v1` route needs a Keycloak bearer token. |
-| Portal (demo) | [apps/portal](apps/portal) | A demo banking portal in Next.js, built to showcase the backend. A customer signs in through Keycloak; its server side is a BFF that calls the API as `banking-portal`, so the browser never holds a token the API accepts. Shows categories, spending by category and month, a cursor-paged transaction list, and re-categorising. See its [README](apps/portal/README.md). |
+| Portal (demo) | [apps/portal](apps/portal) | A demo banking portal in Next.js. A customer signs in through Keycloak; its server side is a BFF that calls the API as `banking-portal`, so the browser never holds a token the API accepts. Shows categories, spending by category and month, a cursor-paged transaction list, and re-categorising. See its [README](apps/portal/README.md). |
 | Keycloak | [infrastructure/keycloak](infrastructure/keycloak) | Identity provider. The `txn-api` realm issues client-credentials tokens for the API and signs people in to kafbat-ui and the portal. |
 | Observability | [infrastructure/observability](infrastructure/observability) | The `obs` profile (`make up-all`). Prometheus scrapes the API, the consumers and postgres-exporter; Grafana has four dashboards; the OpenTelemetry collector sends traces to Tempo. |
 | Dev UIs | [infrastructure/kafbat](infrastructure/kafbat), [infrastructure/avro-datagen-ui](infrastructure/avro-datagen-ui) | The `ui` profile, on by default, with the portal. kafbat-ui browses topics and messages; avro-datagen-ui previews sample records for a schema. |
@@ -72,7 +72,7 @@ Four pages there look closer at how it works: the [message flow](docs/adr/messag
 
 ## Service targets
 
-Built for the brief's shape: 2M users at 5 transactions a day ≈ 10M a day (~115/s sustained, ~1,200/s peak), kept for 18 months. The local stack proves that shape at smaller numbers.
+Design shape: 2M users at 5 transactions a day ≈ 10M a day (~115/s sustained, ~1,200/s peak), kept for 18 months. The local stack proves that shape at smaller numbers.
 
 | Target | Goal | Where to watch it |
 | --- | --- | --- |
@@ -125,14 +125,14 @@ All of these are local development credentials.
 ### Try the demo portal
 
 <p align="center">
-  <img src="docs/portal-overview.png" width="100%" alt="The portal's overview for John Doe: money in against money out for the last 12 months, spending by category, and money in and out by month.">
+  <img src="docs/portal-overview.png" width="100%" alt="The portal's spending screen for John Doe over the last 12 months: a ring of money out by category with the total in its centre, money in and the net under it, the categories with transactions ranked by money out beside it, money in and out by month, and the first rows of the transaction list.">
 </p>
 
 The quickest way to see the system at work. Open http://localhost:8084 and sign in as `john.doe`, `jane.doe` or `richard.roe`, all with the password `portal-password`. Each is one of the generated customers.
 
-- **Overview**: money in and out for 1, 3 or 12 months, spending by category, and money in and out by month. A category or a month opens its transactions.
-- **Transactions**: filter, sort and page through the list with the API's cursors, and re-categorise any transaction.
-- **Categories**: remap a whole category to another one.
+- **Spending**: money out for 1, 3 or 12 months as a ring by category, with money in and the net, and the categories with transactions or every transaction type ranked by money out. A category's menu remaps the whole category to another one.
+- **Money in and out**: by day, week or month. Selecting a column or a type filters the rest of the screen; selecting a category narrows the chart and the transaction list, while the ring, its total, money in and the net keep counting every category.
+- **Transactions**: filter, sort and page through the list with the API's cursors. A row's menu re-categorises a transaction.
 
 It is a demo, not a product. Its server side is a BFF: the browser only talks to the portal, which calls the API with its own token. The [portal's README](apps/portal/README.md) explains how.
 
@@ -169,7 +169,7 @@ docker compose -f infrastructure/docker-compose.yaml run --rm --no-deps \
 # Delivered to transactions.card [10] @ offset 10601: key=8f2e5e43-2deb-42b2-be2c-40506e2f26e8 (199 bytes)
 ```
 
-**2. Read it from Kafka.** The headers carry the producer's name and a W3C `traceparent`; its middle part is the trace id. The value is Avro: to see it decoded, open kafbat-ui at http://localhost:8080 (Topics, `transactions.card`, Messages, then that partition and offset).
+**2. Read it from Kafka.** The headers carry the producer's name and a `traceparent`, whose middle part is the trace id. The value is Avro: to see it decoded, open kafbat-ui at http://localhost:8080 (Topics, `transactions.card`, Messages, then that partition and offset).
 
 ```sh
 docker exec kafka-01 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:29092 \

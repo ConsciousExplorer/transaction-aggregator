@@ -186,9 +186,10 @@ async function waitForHandlerCalls(onBatch: Mock<BatchHandler>, count: number) {
 
 suite("startBatchConsumer", () => {
 	// The client pushes a whole fetch into the stream before the loop sees any
-	// of it, so an empty stream means the fetch is used up. A batch closes
-	// there, or at batchSize, whichever comes first; nothing waits on a timer.
-	test("a batch is what one fetch delivered, capped at batchSize", async () => {
+	// of it, so an empty stream means everything fetched so far is used up. A
+	// batch closes there, or at batchSize, whichever comes first; nothing waits
+	// on a timer.
+	test("a batch closes when the stream is empty or at batchSize", async () => {
 		const messages = buildMessages(250);
 		const stream = buildFetchedStream(messages);
 		stream.push(null);

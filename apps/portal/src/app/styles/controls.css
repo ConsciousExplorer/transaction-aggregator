@@ -1,0 +1,557 @@
+/* One height, one border, one shape: selects, inputs and buttons are pills, white with the
+   control border. The primary button is for sign in only. */
+select,
+.input,
+.button {
+	font: inherit;
+	font-size: var(--fs-body);
+	color: var(--text);
+	background: var(--surface);
+	border: 1px solid var(--control);
+	border-radius: var(--radius-pill);
+	min-height: var(--control-height);
+	padding: 0 var(--space-3);
+	max-width: 100%;
+}
+
+select {
+	appearance: none;
+	background-image: var(--select-chevron);
+	background-repeat: no-repeat;
+	background-position: right var(--space-3) center;
+	padding-right: calc(var(--space-3) * 2 + 12px);
+	cursor: pointer;
+}
+
+/* Disabled reads as muted text on the raised fill (pale blue, a dark grey in dark mode),
+   which still reaches 4.5:1; faded ink would not. background-color, not background, so a
+   select keeps its chevron. */
+select:disabled,
+select[aria-disabled="true"],
+.input:disabled,
+.button:disabled,
+.button[aria-disabled="true"] {
+	color: var(--muted);
+	background-color: var(--raised);
+	border-color: var(--border);
+	cursor: default;
+}
+
+.input {
+	width: 7rem;
+}
+
+.input::placeholder {
+	color: var(--faint);
+}
+
+/* A pill select or pill input: the pill is the <label>, holding the control's name in muted
+   and the control itself without a border of its own, its value at 500. The pill, not the
+   bare control, shows hover and focus. */
+.pill-select,
+.pill-input {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	min-height: var(--control-height);
+	padding-left: 14px;
+	border: 1px solid var(--control);
+	border-radius: var(--radius-pill);
+	background: var(--surface);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.pill-input {
+	cursor: text;
+}
+
+.pill-select-label,
+.pill-input-label {
+	color: var(--muted);
+}
+
+.pill-select select,
+.pill-input .input {
+	min-width: 0;
+	min-height: calc(var(--control-height) - 2px);
+	padding-left: 0;
+	border: none;
+	background-color: transparent;
+	font-weight: 500;
+}
+
+.pill-input .input {
+	width: 5.5rem;
+	padding-right: 14px;
+}
+
+.pill-select:hover,
+.pill-input:hover {
+	border-color: var(--muted);
+}
+
+.pill-select:has(:focus-visible),
+.pill-input:has(:focus-visible) {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.pill-select :focus-visible,
+.pill-input :focus-visible {
+	outline: none;
+}
+
+/* The default button is the quiet, secondary one: white with the control border */
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	font-weight: 500;
+	text-decoration: none;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+/* A disabled button, or a link marked disabled, does not answer hover. Each variant's hover
+   carries the same guard, so it stays as specific as the base rule and still overrides it. */
+.button:not(:disabled):not([aria-disabled="true"]):hover {
+	border-color: var(--muted);
+}
+
+/* The one primary button: near-black with a white label, inverted in dark mode. Hover
+   eases it a step towards the surface. */
+.button-primary {
+	background: var(--primary);
+	border-color: var(--primary);
+	color: var(--primary-ink);
+}
+
+.button-primary:not(:disabled):not([aria-disabled="true"]):hover {
+	background: color-mix(in srgb, var(--primary) 85%, var(--surface));
+	border-color: transparent;
+}
+
+/* A text button: the accent's ink on nothing, underlined on hover. Sign out is one. */
+.button-text {
+	background: transparent;
+	border-color: transparent;
+	color: var(--accent-ink);
+	padding: 0;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.2em;
+}
+
+.button-text:not(:disabled):not([aria-disabled="true"]):hover {
+	border-color: transparent;
+	text-decoration-line: underline;
+}
+
+.button-wide {
+	width: 100%;
+	min-height: 44px;
+}
+
+/* A disclosure is a quiet button with a chevron that turns when its panel is open;
+   the description toggle in the table draws the same chevron after the name's last word. */
+.disclosure::after,
+.description-toggle .description-end::after {
+	content: "";
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-left: var(--space-2);
+	margin-bottom: 2px;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: rotate(45deg);
+	transition: transform 150ms ease-out;
+}
+
+.disclosure[aria-expanded="true"]::after,
+.description-toggle[aria-expanded="true"] .description-end::after {
+	transform: rotate(-135deg);
+	margin-bottom: -2px;
+}
+
+/* Segmented links: the period and interval controls. A pill track in the active grey; the
+   current segment is a white pill with ink text, never a filled colour. The track's 2px
+   padding plus the segment's 32px make one control height. */
+.segments {
+	display: inline-flex;
+	background: var(--active);
+	border-radius: var(--radius-pill);
+	padding: 2px;
+	gap: 2px;
+}
+
+.segment {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: calc(var(--control-height) - 4px);
+	padding: 0 var(--space-3);
+	border-radius: var(--radius-pill);
+	color: var(--muted);
+	text-decoration: none;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.segment:hover {
+	color: var(--text);
+}
+
+.segment[aria-current="page"] {
+	background: var(--surface);
+	color: var(--text);
+}
+
+/* In a card's head the track steps down a size, so it sits under the heading's weight */
+.panel-head .segment {
+	min-height: 28px;
+	font-size: var(--fs-small);
+}
+
+/* Status chips: a pale pill per state with the word inside carrying the meaning.
+   Completed takes the neutral pair, the default; pending warns; failed and reversed are
+   negative. */
+.chip {
+	display: inline-flex;
+	align-items: center;
+	height: 24px;
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-pill);
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+	background: var(--pill-neutral-bg);
+	color: var(--pill-neutral-ink);
+}
+
+.chip-pending {
+	background: var(--pill-warning-bg);
+	color: var(--pill-warning-ink);
+}
+
+.chip-reversed,
+.chip-failed {
+	background: var(--pill-negative-bg);
+	color: var(--pill-negative-ink);
+}
+
+/* The row menu: a round 36px button with the three dots in muted, filled in the active grey
+   on hover and while its menu is open */
+.kebab,
+.theme-toggle {
+	display: inline-grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--muted);
+	vertical-align: middle;
+	cursor: pointer;
+}
+
+.kebab:hover,
+.kebab[aria-expanded="true"],
+.theme-toggle:hover {
+	background: var(--active);
+	color: var(--text);
+}
+
+/* The menu drops just below its button (18px is half the button, then a 4px gap). Whatever
+   holds it is the positioned box it hangs from, and sets --menu-inset to line the menu's right
+   edge up with the button's. Only the menu and the picker float, so only they cast a shadow. */
+.menu {
+	position: absolute;
+	top: calc(50% + 22px);
+	right: var(--menu-inset, 0);
+	z-index: 2;
+	width: 280px;
+	padding: 6px;
+	border-radius: 14px;
+	background: var(--surface);
+	box-shadow: var(--shadow-float);
+	text-align: left;
+}
+
+.menu [role="menuitem"] {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	height: 40px;
+	padding: 0 var(--space-3);
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--text);
+	font: inherit;
+	text-align: left;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+/* The focus ring sits inside the item, so it shows on the menu's edge items too */
+.menu [role="menuitem"]:focus-visible {
+	outline-offset: -2px;
+}
+
+.menu [role="menuitem"]:not([aria-disabled="true"]):hover,
+.menu [role="menuitem"]:focus-visible {
+	background: var(--raised);
+}
+
+.menu [role="menuitem"][aria-disabled="true"] {
+	color: var(--muted);
+	cursor: default;
+}
+
+.menu .icon {
+	flex: none;
+	color: var(--muted);
+}
+
+/* The scrim behind a phone's menu sheet; wider, the menu drops in place and has none */
+.menu-scrim {
+	display: none;
+}
+
+/* The category picker: a modal dialog, 320px and centred, over a scrim. The dialog has no
+   padding of its own: its panel fills it, so a click that lands on the dialog element itself
+   is a click on the backdrop. In the DOM it sits inside whatever opened it, such as a table
+   cell, so it sets the alignment and leading it would otherwise take from there. */
+.picker {
+	width: 320px;
+	max-width: calc(100% - 2 * var(--space-4));
+	padding: 0;
+	border: none;
+	border-radius: 16px;
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-float);
+	text-align: left;
+	line-height: 1.45;
+	overflow: hidden;
+}
+
+.picker::backdrop {
+	background: var(--scrim);
+}
+
+/* The panel is never taller than the screen less the margin a modal dialog keeps (2em and
+   6px), so on a short screen the list shrinks and scrolls and the foot stays in reach */
+.picker-panel {
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100dvh - 2em - 6px);
+	padding: var(--space-2);
+}
+
+.picker-head {
+	padding: 10px var(--space-3) var(--space-2);
+}
+
+.picker-title {
+	font-size: var(--fs-body);
+	font-weight: 600;
+}
+
+.picker-sub {
+	font-size: var(--fs-small);
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The search is a pill with the magnifier inside; the pill, not the bare input, shows focus */
+.picker-search {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex: none;
+	height: var(--control-height);
+	margin: 0 var(--space-2) 6px;
+	padding: 0 var(--space-3);
+	border: 1px solid var(--control);
+	border-radius: var(--radius-pill);
+	color: var(--muted);
+}
+
+.picker-search:has(input:focus-visible) {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.picker-search input {
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	border: none;
+	outline: none;
+	background: none;
+	color: var(--text);
+	font: inherit;
+}
+
+.picker-search input::placeholder {
+	color: var(--faint);
+}
+
+/* The list takes what the head, search and foot leave, up to 312px, and scrolls inside */
+.picker-list {
+	flex: 1 1 auto;
+	min-height: 0;
+	max-height: 312px;
+	margin: 0;
+	padding: 0;
+	overflow: auto;
+	list-style: none;
+}
+
+.picker-list [role="option"] {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	height: 40px;
+	padding: 0 10px;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--text);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+/* The list scrolls, so the focus ring sits inside the option rather than being clipped */
+.picker-list [role="option"]:focus-visible {
+	outline-offset: -2px;
+}
+
+.picker-list [aria-selected="false"]:hover,
+.picker-list [aria-selected="false"]:focus-visible {
+	background: var(--raised);
+}
+
+/* The current category: the accent's pale fill and ink, and the check at the row's end. It
+   keeps the fill under hover and focus; focus adds only the ring. */
+.picker-list [aria-selected="true"] {
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+	font-weight: 600;
+}
+
+.picker-option-label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.picker-empty {
+	padding: var(--space-2) var(--space-3);
+	font-size: var(--fs-small);
+	color: var(--muted);
+}
+
+/* The status is always there for a screen reader, and takes no room until it has words */
+.picker-empty:empty {
+	padding: 0;
+}
+
+.picker-foot {
+	flex: none;
+	margin-top: 6px;
+	padding: 6px var(--space-1) 2px;
+	border-top: 1px solid var(--rule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.disclosure::after,
+	.description-toggle .description-end::after {
+		transition: none;
+	}
+}
+
+/* Forced colours paint the current segment's fill as the canvas, so an outline inside it
+   marks it instead. Focused, its outline moves outside like every focus ring, so focus on
+   the current segment still shows. The menu and the picker lose their shadow there, so an
+   outline gives each its edge. */
+@media (forced-colors: active) {
+	.menu,
+	.picker {
+		outline: 1px solid CanvasText;
+	}
+
+	.segment[aria-current="page"] {
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
+	}
+
+	.segment[aria-current="page"]:focus-visible {
+		outline-offset: 2px;
+	}
+}
+
+@media (max-width: 760px) {
+	.segments {
+		display: flex;
+	}
+
+	.segment {
+		flex: 1;
+	}
+
+	/* A phone's menu is a sheet: fixed 8px in from the screen's sides and bottom, with taller
+	   items, over a scrim that closes it */
+	.menu-scrim {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 10;
+		background: var(--scrim);
+	}
+
+	.menu {
+		position: fixed;
+		top: auto;
+		left: var(--space-2);
+		right: var(--space-2);
+		bottom: var(--space-2);
+		z-index: 11;
+		width: auto;
+		padding: var(--space-2);
+		border-radius: 18px;
+	}
+
+	.menu [role="menuitem"] {
+		height: 48px;
+	}
+
+	/* A phone's picker is a sheet: full width at the bottom, rounded at the top, no taller than
+	   80% of the screen, with the list scrolling inside it */
+	.picker {
+		width: 100%;
+		max-width: none;
+		max-height: 80vh;
+		margin: auto 0 0;
+		border-radius: 20px 20px 0 0;
+	}
+
+	.picker-panel {
+		max-height: 80vh;
+	}
+
+	.picker-list {
+		max-height: none;
+	}
+}

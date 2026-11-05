@@ -5,9 +5,20 @@ import { buildApiQuery } from "@/bff/query.ts";
 import { requireCustomer } from "@/bff/session.ts";
 import type { Summary } from "@/lib/types.ts";
 
-const SUMMARY_PARAMETERS = ["fromDateTime", "toDateTime", "interval"];
+const SUMMARY_PARAMETERS = [
+	"fromDateTime",
+	"toDateTime",
+	"transactionType",
+	"category",
+	"creditDebitIndicator",
+	"amountMin",
+	"amountMax",
+	"interval"
+];
 
-// Totals by category for the window, or by category and month with interval=month
+// Totals by category for the window, or by category and bucket with interval=day, week or month,
+// which the overview sends for its chart. With the list's filters it is also the totals for a
+// filtered list.
 export async function GET(request: Request) {
 	try {
 		const config = loadConfig();

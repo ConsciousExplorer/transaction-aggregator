@@ -60,5 +60,5 @@ CI's `schemas` workflow checks the same rule without a registry. Each schema mus
 
 ## Revisit when
 
-- A producer we don't control writes to a source topic.
+- A producer outside this repo writes to a source topic.
 - The organisation standardises on Protobuf and gRPC.

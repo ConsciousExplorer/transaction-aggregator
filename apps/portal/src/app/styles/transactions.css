@@ -1,0 +1,411 @@
+/* The ledger's table, its open row's detail, and the stacked layout a narrow ledger takes. */
+
+/* The ledger runs to its panel's edges, as the category rows do, so the table's rules span
+   the panel; the outer cells pad by the panel's padding, which lines their text up with
+   the heading. It is the container the table's stacked layout queries. */
+.ledger {
+	--ledger-inset: var(--card-pad);
+	display: grid;
+	margin: 0 calc(-1 * var(--ledger-inset));
+	container: transaction-table / inline-size;
+}
+
+/* Whatever stands in for the table lines up with it too */
+.ledger > .notice {
+	margin: 0 var(--ledger-inset);
+}
+
+.ledger > .empty,
+.ledger > .block-error {
+	padding-inline: var(--ledger-inset);
+}
+
+/* The loading table is the real table with a grey bar in each cell, so its rows keep the
+   real rows' pitch */
+.skeleton-description {
+	display: grid;
+	line-height: 1.3;
+}
+
+/* The category's dot and the round menu button, as grey circles at their real sizes */
+.skeleton-dot {
+	display: block;
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--raised);
+}
+
+.skeleton-kebab {
+	display: inline-block;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var(--raised);
+	vertical-align: middle;
+}
+
+.skeleton-width-date {
+	width: 5.5rem;
+}
+
+.skeleton-width-description {
+	width: 9rem;
+}
+
+.skeleton-width-type {
+	width: 3rem;
+}
+
+.skeleton-width-status {
+	width: 4.5rem;
+}
+
+.skeleton-table .skeleton-width-amount {
+	width: 6rem;
+}
+
+/* The table: date, description over its type, category, amount, status and the row's menu
+   button. Rows are 56px; the header is small muted type over the border's rule, and the rows
+   are parted by the fainter rule. */
+.transactions {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.transactions th {
+	text-align: left;
+	font-size: var(--fs-small);
+	font-weight: 500;
+	color: var(--muted);
+	padding: var(--space-2) var(--space-4);
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+}
+
+.transactions td {
+	height: 56px;
+	padding: var(--space-2) var(--space-4);
+	border-bottom: 1px solid var(--rule);
+	vertical-align: middle;
+	line-height: 1.3;
+}
+
+/* The detail belongs to the row above it, so no rule runs between them */
+.transactions tr:has(+ .detail-row) td {
+	border-bottom: none;
+}
+
+.transactions tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.transactions th:first-child,
+.transactions td:first-child {
+	padding-left: var(--ledger-inset);
+}
+
+.transactions th:last-child,
+.transactions td:last-child {
+	padding-right: var(--ledger-inset);
+}
+
+/* A row whose write is running dims, as a block reading again does. The cells dim rather than
+   the row, and in the actions cell only the button: an opacity on the row or that cell would
+   hold the menu sheet opened from it inside the row's stacking context, under the rows below. */
+.transactions tr[aria-busy="true"] > td:not(.cell-actions),
+.transactions tr[aria-busy="true"] .kebab {
+	opacity: 0.6;
+}
+
+.cell-date {
+	white-space: nowrap;
+	color: var(--muted);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+	width: 7rem;
+}
+
+/* The description is a button that opens the row's detail; it looks like the text it
+   holds, and the chevron after the name says it opens. */
+.description-toggle {
+	display: grid;
+	text-align: left;
+	font: inherit;
+	line-height: 1.3;
+	color: inherit;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	border-radius: var(--radius-control);
+}
+
+.description {
+	font-weight: 600;
+}
+
+/* A browser may break a line just before the chevron, which would leave it alone on a line
+   of its own under a long name. The name's last word carries the chevron and never wraps, so
+   the two move to a new line together. */
+.description-end {
+	white-space: nowrap;
+}
+
+.description-type {
+	font-size: var(--fs-small);
+	color: var(--muted);
+}
+
+.description-toggle:hover .description {
+	color: var(--accent);
+}
+
+.cell-category {
+	width: 13rem;
+}
+
+/* The category: a dot in its hue, then its label */
+.category-cell {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* Under the category after a change: what the row's category was before it */
+.changed {
+	display: block;
+	margin-top: 2px;
+	font-size: var(--fs-small);
+	color: var(--accent-ink);
+}
+
+.transactions .cell-amount {
+	text-align: right;
+	font-weight: 700;
+	width: 9rem;
+}
+
+.cell-status {
+	font-size: 13px;
+	color: var(--muted);
+	white-space: nowrap;
+	width: 6.5rem;
+}
+
+/* The menu button's column, as narrow as the button. The cell is the box the row's menu hangs
+   from, its right edge lined up with the button's. */
+.cell-actions {
+	width: 44px;
+	position: relative;
+	text-align: right;
+	--menu-inset: var(--ledger-inset);
+}
+
+.transactions .cell-actions {
+	padding-left: 0;
+}
+
+/* The open row's detail: an inset under the row, facts as label over value, ids in code */
+.transactions .detail-cell {
+	padding: var(--space-2) var(--space-4) var(--space-4);
+	background: var(--surface);
+}
+
+.detail {
+	display: grid;
+	gap: var(--space-4);
+}
+
+/* The date, status and amount sit at the end of the line; a long description, when there
+   is one, takes the space before them */
+.detail-summary {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: baseline;
+	gap: var(--space-2) var(--space-5);
+}
+
+.detail-description {
+	font-weight: 600;
+	margin-right: auto;
+}
+
+.detail-summary .amount {
+	font-weight: 700;
+}
+
+.detail-facts {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+	gap: var(--space-3) var(--space-5);
+	margin: 0;
+}
+
+.detail-references {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+	gap: var(--space-3) var(--space-5);
+	margin: 0;
+}
+
+.detail dt {
+	font-size: 13px;
+	color: var(--muted);
+}
+
+.detail dd {
+	margin: 0;
+	line-height: 1.4;
+}
+
+.detail .notice {
+	justify-self: start;
+}
+
+/* A phone's panel pads 16px, so the ledger reaches out that far */
+@media (max-width: 760px) {
+	.ledger {
+		--ledger-inset: var(--space-4);
+	}
+}
+
+/* The table becomes stacked rows when the ledger is narrower than 820px: below that the
+   date, category, amount and status columns leave the description too little room, and its
+   names break word by word */
+@container transaction-table (max-width: 819px) {
+	.transactions thead {
+		display: none;
+	}
+
+	.transactions,
+	.transactions tbody,
+	.transactions tr,
+	.transactions td {
+		display: block;
+	}
+
+	/* A stacked row: the description and the amount on the first line, the date, category and
+	   status in small type on the second, and the menu button beside both */
+	.transactions tr {
+		display: grid;
+		grid-template-columns: auto auto minmax(0, 1fr) auto 40px;
+		grid-template-areas:
+			"description description description amount actions"
+			"date category status status actions";
+		align-items: center;
+		gap: 2px 6px;
+		padding: 10px var(--ledger-inset);
+		border-bottom: 1px solid var(--rule);
+	}
+
+	/* The stacked row carries the rule now, so the open row drops it above its detail */
+	.transactions tr:has(+ .detail-row) {
+		border-bottom: none;
+	}
+
+	.transactions tbody tr:last-child {
+		border-bottom: none;
+	}
+
+	/* The stacked row pads itself, so no cell does, the outer ones included */
+	.transactions td,
+	.transactions td:first-child,
+	.transactions td:last-child,
+	.transactions .cell-date,
+	.transactions .cell-category,
+	.transactions .cell-amount,
+	.transactions .cell-status,
+	.transactions .cell-actions {
+		height: auto;
+		padding: 0;
+		border: none;
+		width: auto;
+	}
+
+	.transactions .cell-description {
+		grid-area: description;
+		min-width: 0;
+	}
+
+	.transactions .cell-amount {
+		grid-area: amount;
+	}
+
+	.transactions .cell-actions {
+		grid-area: actions;
+		--menu-inset: 0;
+	}
+
+	.transactions .cell-date,
+	.transactions .cell-category,
+	.transactions .cell-status {
+		font-size: var(--fs-small);
+		white-space: nowrap;
+	}
+
+	.transactions .cell-date {
+		grid-area: date;
+	}
+
+	.transactions .cell-category {
+		grid-area: category;
+	}
+
+	.transactions .cell-status {
+		grid-area: status;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* The second line's facts are parted by middle dots, which a screen reader skips. Each dot
+	   takes the row's 6px gap on its right too, so it sits midway between two facts. The
+	   loading rows' grey bars are blocks, which would push a dot onto a line of its own. */
+	.transactions .cell-category::before,
+	.transactions .cell-status::before {
+		content: "·" / "";
+		margin-right: 6px;
+		color: var(--muted);
+	}
+
+	.skeleton-table .cell-category::before,
+	.skeleton-table .cell-status::before {
+		content: none;
+	}
+
+	.transactions .cell-status .chip {
+		height: 20px;
+		padding: 0 var(--space-2);
+		font-size: 11px;
+		vertical-align: middle;
+	}
+
+	/* The type and a change's note give way to the second line's facts */
+	.transactions .description-type,
+	.transactions .changed {
+		display: none;
+	}
+
+	.transactions .detail-row {
+		display: block;
+		padding: 0 var(--ledger-inset) var(--space-3);
+	}
+
+	.transactions .detail-cell {
+		padding: 0;
+	}
+
+	.detail-facts {
+		grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+	}
+
+	/* On a narrow phone a 19rem column is wider than the detail, and would hold the table,
+	   and with it the ledger, past the panel. The column narrows to the detail's width
+	   instead; the ids in it break anywhere. */
+	.detail-references {
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+	}
+}

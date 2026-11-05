@@ -1,6 +1,6 @@
 {
 	"name": "portal",
-	"version": "1.0.1",
+	"version": "1.3.0",
 	"private": true,
 	"description": "Demo banking portal with a BFF, built to showcase the transaction API",
 	"license": "ISC",

@@ -1,0 +1,199 @@
+/* The top bar on the ground with one rule beneath it, the page canvas, and the sign-in
+   page. */
+.top-bar {
+	background: var(--ground);
+	border-bottom: 1px solid var(--border);
+}
+
+/* The bar's inner edges line up with the page canvas below it. It stays one 48px row at
+   every width: on a narrow phone the product's name and then the customer's truncate, and
+   Sign out never moves. */
+.top-bar-inner {
+	max-width: var(--content-width);
+	margin: 0 auto;
+	padding: 0 var(--pad);
+	height: 48px;
+	display: flex;
+	align-items: center;
+	gap: 0 var(--space-4);
+}
+
+/* The product's mark, name and the word Demo; the sign-in card shows the same line. The
+   name and Demo share a baseline, and the mark centres on them. */
+.brand {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	font-size: var(--fs-body);
+	font-weight: 600;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.brand-mark {
+	flex: none;
+	align-self: center;
+}
+
+/* In the bar the name is a link home, as tall as the controls beside it, so it is an
+   easier target; it gives up width first */
+.top-bar .brand {
+	min-width: 0;
+	padding: var(--space-2) 0;
+}
+
+.top-bar .brand-name,
+.account-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.demo-marker {
+	flex: none;
+	font-size: var(--fs-small);
+	font-weight: 400;
+	color: var(--muted);
+}
+
+.account {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	min-width: 0;
+	margin-left: auto;
+}
+
+.account form {
+	flex: none;
+	margin: 0;
+}
+
+.theme-toggle {
+	flex: none;
+}
+
+/* The toggle offers the other mode: a moon by day, a sun by night. Each span holds its icon and
+   its words for a screen reader, so hiding a span hides its name too. Before a choice is made
+   the system's mode decides, and a choice wins over the system's mode either way. */
+.theme-toggle-to-dark {
+	display: grid;
+}
+
+.theme-toggle-to-light {
+	display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle-to-dark {
+	display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle-to-light {
+	display: grid;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) .theme-toggle-to-dark {
+		display: none;
+	}
+
+	:root:not([data-theme="light"]) .theme-toggle-to-light {
+		display: grid;
+	}
+}
+
+/* Above phone width, a little more room above the title than at the sides, so the title row
+   breathes under the bar; a phone pads 16px on every side */
+.page {
+	max-width: var(--content-width);
+	margin: 0 auto;
+	padding: 28px var(--pad) var(--pad);
+}
+
+/* Sign in: one card. Its upper part is the task; its lower part, an inset, is the help. */
+.sign-in {
+	min-height: 100vh;
+	display: grid;
+	place-items: center;
+	padding: var(--space-6) var(--space-4);
+}
+
+.sign-in-card {
+	width: 100%;
+	max-width: 30rem;
+	overflow: hidden;
+}
+
+.sign-in-main {
+	padding: var(--space-6);
+	display: grid;
+	gap: var(--space-4);
+}
+
+.sign-in-main .button-wide {
+	margin-top: var(--space-2);
+}
+
+.sign-in-help {
+	border-top: 1px solid var(--border);
+	background: var(--ground);
+	padding: var(--space-4) var(--space-6) var(--space-5);
+}
+
+.demo-logins {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.demo-logins caption {
+	text-align: left;
+	color: var(--muted);
+	padding-bottom: var(--space-2);
+}
+
+.demo-logins th {
+	text-align: left;
+	font-weight: 500;
+	color: var(--muted);
+	border-bottom: 1px solid var(--border);
+	padding: var(--space-1) 0;
+}
+
+/* The help sits on the ground, where the lighter row rule would vanish */
+.demo-logins td {
+	padding: var(--space-2) 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.demo-logins tr:last-child td {
+	border-bottom: none;
+}
+
+/* Phone width: 16px gutters on the bar and the page alike. The toggle's button needs room in
+   the bar, so the word Demo gives way, as the sign-in card and the page's title still say it,
+   and the bar's gaps tighten, so the product's name and the customer's stay whole. */
+@media (max-width: 760px) {
+	.top-bar-inner {
+		gap: 0 var(--space-2);
+		padding: 0 var(--space-4);
+	}
+
+	.top-bar .demo-marker {
+		display: none;
+	}
+
+	.account {
+		gap: var(--space-1);
+	}
+
+	.page {
+		padding: var(--space-4);
+	}
+
+	.sign-in-main,
+	.sign-in-help {
+		padding-left: var(--space-4);
+		padding-right: var(--space-4);
+	}
+}

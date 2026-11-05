@@ -1,0 +1,934 @@
+/* The one screen: the title row, then the outlined blocks in one column: the spending card,
+   the chart and the ledger. */
+.title-row {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-end;
+	gap: var(--space-3) var(--space-4);
+	margin-bottom: 20px;
+}
+
+.title-row h1 {
+	font-size: var(--fs-title);
+	font-weight: 600;
+}
+
+.finding {
+	min-height: 1lh;
+	margin-top: var(--space-1);
+	font-size: var(--fs-body);
+	color: var(--muted);
+}
+
+.dashboard {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-areas:
+		"spending"
+		"chart"
+		"ledger";
+	gap: var(--gap);
+	align-items: start;
+}
+
+.chart-block {
+	grid-area: chart;
+}
+
+.ledger-block {
+	grid-area: ledger;
+}
+
+/* The panel itself (surface, outline, radius, padding) is base.css's */
+.panel > h2 {
+	font-size: var(--fs-section);
+	font-weight: 600;
+	margin-bottom: var(--space-4);
+}
+
+/* A block's title and its control on one line */
+.panel-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+	margin-bottom: var(--space-4);
+}
+
+.panel-head h2 {
+	font-size: var(--fs-section);
+	font-weight: 600;
+}
+
+/* A block reading again keeps its last body on screen, dimmed, under its title and its
+   head's control. The spending card's head sits inside its list column, so that column's
+   other children dim one by one. A row while its write runs dims too: a category row's here,
+   further down, a table row's in transactions.css. */
+.panel[aria-busy="true"] > :not(h2):not(.panel-head):not(.hero-categories),
+.panel[aria-busy="true"] .hero-categories > :not(.panel-head) {
+	opacity: 0.6;
+}
+
+/* A failed read: one line inside the block, above whatever the block still shows. A small
+   negative square marks it; the sentence stays in ink and Retry is a text button. */
+.block-error {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-3);
+	min-height: var(--control-height);
+}
+
+.block-error p {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.block-error-mark {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--negative);
+}
+
+.panel > .block-error:not(:last-child),
+.hero-ring > .block-error:not(:last-child),
+.hero-categories > .block-error:not(:last-child) {
+	margin-bottom: var(--space-4);
+}
+
+/* The spending card: the ring column beside the list, a rule between them. Wide, the list
+   runs down two columns, so the card ends about where the ring column does. The ring's size
+   and stroke are set here, so the drawn ring, its placeholder and its hole agree. The svg
+   draws a 20px stroke on a 260px ring; a phone scales that drawing down to its own size, so
+   its stroke is scaled by the same ratio. */
+.spending-block {
+	--ring-size: 260px;
+	--ring-stroke: 20px;
+	grid-area: spending;
+	display: grid;
+	grid-template-columns: 380px minmax(0, 1fr);
+	gap: var(--space-6);
+}
+
+.hero-ring {
+	min-width: 0;
+	padding-right: var(--space-6);
+	border-right: 1px solid var(--rule);
+}
+
+.hero-categories {
+	min-width: 0;
+}
+
+/* The ring with its total in the hole. The svg draws at one size and is scaled to
+   --ring-size. */
+.ring-wrap {
+	position: relative;
+	width: var(--ring-size);
+	height: var(--ring-size);
+	margin: var(--space-2) auto 20px;
+}
+
+.ring {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* A segment takes its category's mark through the hue class on its path */
+.ring path {
+	stroke: var(--mark);
+}
+
+/* A period with no money out keeps the ring's shape as an empty track */
+.ring-empty {
+	stroke: var(--active);
+}
+
+/* The loading ring: a grey track drawn as a circle's border */
+.ring-skeleton {
+	width: 100%;
+	height: 100%;
+	border: var(--ring-stroke) solid var(--raised);
+	border-radius: 50%;
+}
+
+/* The centre fills the hole inside the stroke, so a long caption wraps there */
+.ring-centre {
+	position: absolute;
+	inset: var(--ring-stroke);
+	display: grid;
+	place-content: center;
+	gap: 2px;
+	padding: 0 var(--space-3);
+	text-align: center;
+	pointer-events: none;
+}
+
+.ring-total {
+	font-size: var(--fs-kpi);
+	font-weight: 700;
+	line-height: 1.1;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* The rand in ink, the cents smaller and grey */
+.ring-total .cents {
+	font-size: 0.6em;
+	font-weight: 600;
+	color: var(--muted);
+}
+
+.ring-caption,
+.ring-average {
+	font-size: var(--fs-small);
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+	text-wrap: balance;
+}
+
+/* Under the ring, two tiles: money in and the net */
+.period-figures {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: var(--space-3);
+	margin: 0;
+}
+
+.period-figure {
+	min-width: 0;
+	padding: var(--space-3) 14px;
+	border-radius: var(--radius-inner);
+	background: var(--raised);
+}
+
+.period-figure dt {
+	margin-bottom: 2px;
+	font-size: var(--fs-small);
+	color: var(--muted);
+}
+
+.period-figure dd {
+	margin: 0;
+	font-size: var(--fs-section);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.period-in {
+	color: var(--positive);
+}
+
+.period-count {
+	margin-top: var(--space-3);
+	font-size: var(--fs-small);
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A loading value: a flat grey bar inside a box one line tall, so the line keeps the height
+   of the text that replaces it. The bar is the text's x-height and change. */
+.skeleton-text {
+	display: block;
+	height: 1lh;
+	padding-block: calc(0.5lh - 0.35em);
+	border-radius: var(--radius-chip);
+	background: var(--raised);
+	background-clip: content-box;
+}
+
+.skeleton-width-total {
+	width: 9rem;
+}
+
+.skeleton-width-caption {
+	width: 6rem;
+}
+
+.skeleton-width-value {
+	width: 60%;
+}
+
+.skeleton-width-count {
+	width: 11rem;
+}
+
+.skeleton-width-label {
+	width: 7rem;
+}
+
+.skeleton-width-amount {
+	width: 5rem;
+	margin-left: auto;
+}
+
+/* In the ring's hole a loading bar is centred; on a raised tile it takes the control grey,
+   which differs from the tile in both themes, so it still shows */
+.ring-centre .skeleton-text {
+	margin-inline: auto;
+}
+
+.period-figure .skeleton-text {
+	background-color: var(--control);
+}
+
+/* One hue class colours a category everywhere: the ring's segments, the badges on the
+   spending rows and in the picker, and the table's dots. A badge is the category's icon in
+   the dark of its hue on a pale tint of it, in a circle: the hue class on the badge sets
+   --tint and --ink, and the size class sets the diameter. */
+.badge {
+	width: var(--size);
+	height: var(--size);
+	border-radius: 50%;
+	background: var(--tint);
+	color: var(--ink);
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+}
+
+.badge-row {
+	--size: 36px;
+}
+
+.badge-option {
+	--size: 28px;
+}
+
+/* The table's mark of a category: a dot in the hue's full colour beside the label */
+.dot {
+	display: inline-block;
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--mark);
+}
+
+/* The list: the categories with transactions, ranked by money out. Each row's fill reaches 8px
+   past its text on both sides, a rule under it. Wide, the rows run down two columns and then
+   across. */
+.category-rows {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.category-rows > li {
+	border-bottom: 1px solid var(--rule);
+	break-inside: avoid;
+}
+
+.hero-categories .category-rows {
+	columns: 2;
+	column-gap: var(--space-6);
+}
+
+/* With no row to show, the sentence lines up with the card's heading */
+.hero-categories > .empty {
+	padding-inline: 0;
+}
+
+/* A row: the badge, the label over its subline, the amount over its average, and on a
+   category's row its menu. The row is the grid. The button that selects spans its first three
+   columns and lays its parts out on them; the menu takes the fourth, outside the button, so
+   pressing it never selects the row. The row carries the fill, so a hovered or selected row
+   is filled under its menu too. */
+.spending-row {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	column-gap: 14px;
+	width: calc(100% + 2 * var(--space-2));
+	margin: 0 calc(-1 * var(--space-2));
+	border-radius: var(--radius-inner);
+}
+
+.spending-row-with-actions {
+	grid-template-columns: auto minmax(0, 1fr) auto auto;
+	padding-right: var(--space-1);
+}
+
+.spending-row-select {
+	grid-column: 1 / 4;
+	display: grid;
+	grid-template-columns: subgrid;
+	align-items: center;
+	padding: 10px var(--space-2);
+	border: none;
+	border-radius: var(--radius-inner);
+	background: transparent;
+	color: var(--text);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.spending-row:has(> .spending-row-select:hover) {
+	background: var(--raised);
+}
+
+.spending-row:has(> .spending-row-select[aria-pressed="true"]) {
+	background: var(--accent-soft);
+}
+
+/* A badge's pale tint all but vanishes into the selected fill, so a selected row draws its
+   badge on the surface, where the hue of its icon still reads */
+.spending-row-select[aria-pressed="true"] .badge {
+	background: var(--surface);
+}
+
+/* The box the row's menu hangs from, as tall as the kebab, its right edge lined up with the
+   kebab's */
+.spending-row-actions {
+	position: relative;
+	display: grid;
+}
+
+/* A category row whose write is running dims, as a table row does. The button and the kebab
+   dim rather than the row, so the menu sheet opened from the row is not held inside the row's
+   stacking context, under the rows below. */
+.category-rows > li[aria-busy="true"] .spending-row-select,
+.category-rows > li[aria-busy="true"] .kebab {
+	opacity: 0.6;
+}
+
+.spending-row-text {
+	display: grid;
+	min-width: 0;
+}
+
+.spending-row-label {
+	font-weight: 600;
+	line-height: 20px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.spending-row-subline,
+.spending-row-note {
+	font-size: var(--fs-small);
+	line-height: 18px;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A category running above its usual month says so on a line of its own under the count and
+   share, in the accent ink. In a narrow row it wraps, and tries not to leave "month" alone on
+   a line. */
+.usual {
+	display: block;
+	color: var(--accent-ink);
+	text-wrap: pretty;
+}
+
+.spending-row-figures {
+	display: grid;
+	justify-items: end;
+	text-align: right;
+}
+
+.spending-row-amount {
+	font-weight: 600;
+	line-height: 20px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.spending-row-average {
+	font-size: var(--fs-small);
+	line-height: 18px;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* A category with nothing in or out in the period is greyed */
+.spending-row-empty .spending-row-label,
+.spending-row-empty .spending-row-amount {
+	font-weight: 500;
+	color: var(--muted);
+}
+
+/* "Show all" is a phone's; wider, every row is shown */
+.show-all {
+	display: none;
+	margin-top: var(--space-2);
+}
+
+/* A loading row at a real row's height: 10px of padding above and below two lines of 20px
+   and 18px, and its rule */
+.skeleton-category-row {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 14px;
+	min-height: 59px;
+}
+
+.skeleton-badge {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var(--raised);
+}
+
+/* A Category tab's loading row keeps its menu's place as the real row does: the circle hangs
+   4px past the list's edge, 14px after the amount column, and the amount bar stops the row
+   button's 8px padding short of that column's end */
+.skeleton-category-row-with-menu {
+	grid-template-columns: auto minmax(0, 1fr) auto auto;
+	margin-right: calc(-1 * var(--space-1));
+}
+
+.skeleton-category-row-with-menu .skeleton-width-amount {
+	margin-right: var(--space-2);
+}
+
+/* The chart: the axis gutter beside the plot. The plot is a stretched svg of the marks with
+   a row of transparent buttons laid over it; each button runs down past the plot into the
+   24px label row beneath it. Money out is ink and money in the positive green, the colours
+   the figures use. */
+.money-flow {
+	--plot-height: 240px;
+	display: grid;
+	grid-template-columns: 80px minmax(0, 1fr);
+	--tick-inset: var(--space-2);
+}
+
+.axis {
+	position: relative;
+	height: var(--plot-height);
+	font-size: var(--fs-small);
+	line-height: 16px;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Each label is centred on its place in the gutter: a tick on its gridline, the "In" and
+   "Out" captions half a step either side of the zero line */
+.axis .tick,
+.axis-caption {
+	position: absolute;
+	right: var(--tick-inset);
+	white-space: nowrap;
+	text-align: right;
+	transform: translateY(-50%);
+}
+
+.tick-compact {
+	display: none;
+}
+
+/* The plot isolates its stacking, so a selected column's fill can sit behind the marks */
+.plot {
+	position: relative;
+	isolation: isolate;
+	height: var(--plot-height);
+	margin-bottom: 24px;
+}
+
+.plot svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* The chart's loading state: the gutter and a plot box at the plot's own size, with the
+   label row under it, so the block keeps its height when the chart lands */
+.skeleton-money-flow .plot {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-around;
+	gap: var(--space-2);
+	border-bottom: 1px solid var(--border);
+}
+
+.gridline {
+	stroke: var(--grid);
+	stroke-width: 1;
+}
+
+.zero-line {
+	stroke: var(--text);
+	stroke-width: 1;
+}
+
+.money-flow .bar-in {
+	fill: var(--positive);
+}
+
+.money-flow .bar-out {
+	fill: var(--text);
+}
+
+.money-flow .bar-dim {
+	fill: var(--control);
+}
+
+/* A fieldset groups the buckets' buttons under one name; its own border, padding and
+   min-content width are dropped */
+.columns {
+	position: absolute;
+	inset: 0 0 -24px;
+	display: flex;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.column {
+	position: relative;
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.column:focus-visible {
+	outline-offset: -2px;
+}
+
+/* The selected column is filled across the plot's height in the grey of an active row,
+   behind the bars, so a selected bucket with nothing in it still reads as selected; the pale
+   blue of --raised is too close to the white card to show. The fill stops above the label
+   row. */
+.column[aria-pressed="true"]::before {
+	content: "";
+	position: absolute;
+	inset: 0 0 24px;
+	z-index: -1;
+	background: var(--active);
+}
+
+/* A label may be wider than its column. The columns beside a labelled one carry none, so it
+   stays on one line, centred, and spills over its empty neighbours evenly. */
+.money-flow .bucket-label {
+	display: flex;
+	justify-content: center;
+	height: 24px;
+	padding-top: var(--space-1);
+	font-size: var(--fs-small);
+	line-height: 16px;
+	color: var(--muted);
+	white-space: nowrap;
+	visibility: visible;
+}
+
+.money-flow .bucket-label-major {
+	color: var(--text);
+}
+
+.money-flow.chart-dense .bucket-label-minor {
+	visibility: hidden;
+}
+
+/* The tooltip: a plain ink box with paper text and no arrow */
+.money-flow .tooltip {
+	display: none;
+	position: absolute;
+	top: var(--space-2);
+	z-index: 2;
+	min-width: 11rem;
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-control);
+	background: var(--text);
+	color: var(--ground);
+	font-size: var(--fs-small);
+	line-height: 16px;
+	text-align: left;
+	gap: 2px;
+	translate: none;
+	pointer-events: none;
+}
+
+.money-flow .tooltip-start {
+	left: 0;
+	right: auto;
+}
+
+.money-flow .tooltip-end {
+	left: auto;
+	right: 0;
+}
+
+.money-flow .column:hover .tooltip,
+.money-flow .column:focus-visible .tooltip {
+	display: grid;
+}
+
+.money-flow .tooltip-title {
+	font-weight: 600;
+}
+
+.money-flow .tooltip-row {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-3);
+	white-space: nowrap;
+}
+
+.money-flow .tooltip-row .amount {
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The ledger's selections: a chip per bucket or category picked, each a grey pill whose
+   link removes it, then "Clear all" */
+.selections {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	margin-bottom: var(--space-4);
+}
+
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.selection-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 10px;
+	border-radius: 999px;
+	background: var(--raised);
+	color: var(--text);
+	font-size: 13px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.selection-chip:hover {
+	background: var(--control);
+}
+
+.clear-all {
+	font-size: 13px;
+}
+
+/* The list's filters: pills on one wrapping row, the amount range's two boxes and Apply among
+   them. The Filters button is a phone's; wide, it is hidden and the fields always show. */
+.toolbar {
+	margin-bottom: var(--space-4);
+}
+
+.toolbar-toggle {
+	display: none;
+}
+
+.toolbar-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+.amount-range {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin: 0;
+}
+
+.amount-range-message {
+	flex-basis: 100%;
+	font-size: 13px;
+	color: var(--negative);
+}
+
+/* A re-read after a write keeps the rows on screen, dimmed, until the new pages land */
+.ledger[aria-busy="true"] {
+	opacity: 0.6;
+}
+
+/* The list's foot: how many rows are shown, and "Show more" while there are more */
+.list-foot {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-4) var(--ledger-inset) 0;
+	border-top: 1px solid var(--rule);
+}
+
+.list-foot-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.list-count {
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Forced colours drop fills; the bars, badges and dots keep theirs, and a selection gains an
+   outline */
+@media (forced-colors: active) {
+	.bar,
+	.block-error-mark,
+	.badge,
+	.dot,
+	.ring,
+	.ring-skeleton {
+		forced-color-adjust: none;
+	}
+
+	.column[aria-pressed="true"],
+	.spending-row-select[aria-pressed="true"] {
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
+	}
+}
+
+/* Narrower, the ring column sits above the list and the rule between them lies under the
+   ring; the list is one column */
+@media (max-width: 1000px) {
+	.spending-block {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.hero-ring {
+		padding-right: 0;
+		padding-bottom: 20px;
+		border-right: none;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.hero-categories .category-rows {
+		columns: 1;
+	}
+}
+
+@media (max-width: 860px) {
+	.page {
+		padding: var(--space-4);
+	}
+
+	/* A narrower gutter whose labels hug the plot. "−R 1 000 000" is wider than it, so the
+	   ticks switch to their compact labels ("−R 1,0 m", "R 400 k"). */
+	.money-flow {
+		--plot-height: 180px;
+		--tick-inset: var(--space-1);
+		grid-template-columns: 72px minmax(0, 1fr);
+	}
+
+	.tick-full {
+		display: none;
+	}
+
+	.tick-compact {
+		display: inline;
+	}
+
+	/* A phone's columns are too narrow for every month's or week's name: the minor labels
+	   are hidden, their spans kept so the columns keep their height */
+	.money-flow .bucket-label-minor {
+		visibility: hidden;
+	}
+
+	/* The list's filters fold behind the Filters button; the chips above stay. Opened, the
+	   fields stack one to a row under it, with the amount range's two boxes sharing one. */
+	.toolbar-toggle {
+		display: inline-flex;
+		min-height: 44px;
+	}
+
+	.toolbar-fields {
+		display: none;
+	}
+
+	.toolbar.is-open .toolbar-fields {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-3);
+		margin-top: var(--space-3);
+	}
+
+	.toolbar-fields .pill-select,
+	.toolbar-fields .pill-input,
+	.toolbar-fields .button {
+		width: 100%;
+		min-height: 44px;
+	}
+
+	/* Inside a full-width pill the control takes what its name leaves */
+	.toolbar-fields .pill-select select,
+	.toolbar-fields .pill-input .input {
+		flex: 1;
+		width: auto;
+		min-height: 42px;
+	}
+
+	.amount-range {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: var(--space-3);
+	}
+
+	.amount-range .button,
+	.amount-range-message {
+		grid-column: 1 / -1;
+	}
+
+	.list-foot-row .show-more {
+		width: 100%;
+		min-height: 44px;
+	}
+}
+
+/* A phone: a smaller ring, and the list folds to its first five rows behind "Show all". The
+   ring is the desktop drawing scaled from 260px to 224px, so its 20px stroke draws at about
+   17.2px, and the placeholder's track and the hole take that width too. */
+@media (max-width: 760px) {
+	.spending-block {
+		--ring-size: 224px;
+		--ring-stroke: calc(20px * 224 / 260);
+	}
+
+	.show-all {
+		display: inline-flex;
+	}
+
+	.category-rows:not(.category-rows-expanded) .category-item-extra {
+		display: none;
+	}
+
+	/* The loading list shows a phone's five rows. One standing in for more rows than that, the
+	   categories', keeps the room their "Show all" takes; the Type tab's four have none. */
+	.skeleton-category-row:nth-child(n + 6) {
+		display: none;
+	}
+
+	.skeleton-category-rows:has(> .skeleton-category-row:nth-child(6)) {
+		padding-bottom: calc(var(--space-2) + var(--control-height));
+	}
+}

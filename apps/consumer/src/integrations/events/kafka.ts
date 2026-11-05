@@ -337,7 +337,7 @@ export async function startBatchConsumer(
 		minBytes: options.fetchMinBytes,
 		maxWaitTime: options.maxWaitTime,
 		// The stream takes in a whole fetch before it applies backpressure, so
-		// the fetch size is the bound on the records held in memory
+		// the fetch size and the stream's buffer bound the records held in memory
 		maxBytes: options.fetchMaxBytes,
 		autocommit: false,
 		onDeserializationError: onDeserialisationFailure

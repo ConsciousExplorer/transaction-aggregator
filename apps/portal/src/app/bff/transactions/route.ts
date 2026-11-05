@@ -12,6 +12,8 @@ const LIST_PARAMETERS = [
 	"transactionType",
 	"category",
 	"creditDebitIndicator",
+	"amountMin",
+	"amountMax",
 	"sort",
 	"limit",
 	"cursor"

@@ -24,7 +24,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 **Categories are read as slugs and written as ids.**
 
 - `GET /api/v1/categories` returns `{categoryId, category, label}` for all 16.
-- A category's id is called `categoryId` wherever it appears, `mappedTo.categoryId` included. The per-user category endpoints said `id` until they were renamed before the first release.
+- A category's id is called `categoryId` wherever it appears, `mappedTo.categoryId` included.
 - Responses carry the stable slug (`category`, such as `"groceries"`). The slug never changes; a new display name changes `label`.
 - The list's `category` filter takes slugs, and an unknown slug is a 400 `validation-error`.
 - **Writes send the numeric id.** The seed pins every id, so ids are the same in every environment and are never reused.

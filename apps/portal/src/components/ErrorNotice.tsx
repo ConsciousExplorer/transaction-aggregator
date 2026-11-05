@@ -24,3 +24,26 @@ export function ErrorNotice({
 		</div>
 	);
 }
+
+// A block's failed read, inside the block: one sentence saying what failed and a Retry text
+// button. The negative colour is only on the small mark before the sentence, so a failed
+// block never turns into a banner. The write notice above keeps the full ErrorNotice.
+export function BlockError({
+	sentence,
+	onRetry
+}: {
+	sentence: string;
+	onRetry?: () => void;
+}) {
+	return (
+		<div className="block-error" role="alert">
+			<span className="block-error-mark" aria-hidden="true" />
+			<p>{sentence}</p>
+			{onRetry === undefined ? null : (
+				<button type="button" className="button button-text" onClick={onRetry}>
+					Retry
+				</button>
+			)}
+		</div>
+	);
+}

@@ -585,7 +585,7 @@ for await (const message of messageStream) {
 			<table>
 				<thead><tr><th>Trigger</th><th>Fires when</th><th>Does the loop wait?</th><th>When you see it</th></tr></thead>
 				<tbody>
-					<tr><td><code>size</code></td><td>the 100th record joins the batch</td><td>Yes, until the insert and commit finish</td><td>A backlog: every fetch holds thousands</td></tr>
+					<tr><td><code>size</code></td><td>the 1,000th record joins the batch</td><td>Yes, until the insert and commit finish</td><td>A backlog: every fetch holds thousands</td></tr>
 					<tr><td><code>fetch</code></td><td>the record just taken was the last one the stream held</td><td>Yes, the same wait</td><td>The live stream: a fetch holds what gathered in up to 2 s, far fewer than 1,000</td></tr>
 				</tbody>
 			</table>

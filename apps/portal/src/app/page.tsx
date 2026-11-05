@@ -15,13 +15,14 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
 };
 
 const DEMO_CUSTOMERS = [
-	{ username: "john.doe", name: "John Doe" },
-	{ username: "jane.doe", name: "Jane Doe" },
+	{ username: "john.doe", name: "John Doe" }, // taste-skill-ignore: the realm's seeded demo customers
+	{ username: "jane.doe", name: "Jane Doe" }, // taste-skill-ignore: the realm's seeded demo customers
 	{ username: "richard.roe", name: "Richard Roe" }
 ];
 
 type SignInPageProps = { searchParams: Promise<{ error?: string }> };
 
+// One card: the task in its upper part, the demo customers as help in its lower part
 export default async function SignInPage({ searchParams }: SignInPageProps) {
 	// Rendered per request, never prerendered at build: it reads the session, and the build
 	// has no runtime environment for loadConfig
@@ -45,37 +46,44 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
 	return (
 		<main className="sign-in">
-			<div className="sign-in-card">
-				<p className="brand">
-					Transaction portal <span className="demo-pill">Demo</span>
-				</p>
-				<h1>Sign in to see your money</h1>
-				<p className="lead">
-					This portal exists to show the transaction API at work. You sign in
-					through Keycloak; the portal&rsquo;s server then calls the API on your
-					behalf, so your browser never holds a token the API accepts.
-				</p>
-				{message ? (
-					<div className="notice notice-error" role="alert">
-						<p className="notice-title">{message}</p>
-					</div>
-				) : null}
-				<a className="button button-primary button-wide" href="/bff/auth/login">
-					Sign in with Keycloak
-				</a>
-				<table className="demo-logins">
-					<caption>
-						Demo customers. The password for each is{" "}
-						<code>portal-password</code>.
-					</caption>
-					<thead>
-						<tr>
-							<th scope="col">Customer</th>
-							<th scope="col">Username</th>
-						</tr>
-					</thead>
-					<tbody>{rows}</tbody>
-				</table>
+			<div className="sheet sign-in-card">
+				<div className="sign-in-main">
+					<p className="brand">
+						Transaction portal <span className="demo-marker">Demo</span>
+					</p>
+					<h1>Sign in to see your money</h1>
+					<p className="lead">
+						This portal exists to show the transaction API at work. You sign in
+						through Keycloak; the portal&rsquo;s server then calls the API on
+						your behalf, so your browser never holds a token the API accepts.
+					</p>
+					{message ? (
+						<div className="notice notice-error" role="alert">
+							<p className="notice-title">{message}</p>
+						</div>
+					) : null}
+					<a
+						className="button button-primary button-wide"
+						href="/bff/auth/login"
+					>
+						Sign in with Keycloak
+					</a>
+				</div>
+				<div className="sign-in-help">
+					<table className="demo-logins">
+						<caption>
+							Demo customers. The password for each is{" "}
+							<code>portal-password</code>.
+						</caption>
+						<thead>
+							<tr>
+								<th scope="col">Customer</th>
+								<th scope="col">Username</th>
+							</tr>
+						</thead>
+						<tbody>{rows}</tbody>
+					</table>
+				</div>
 			</div>
 		</main>
 	);

@@ -1,6 +1,6 @@
 # Transaction portal (demo)
 
-> **This is a demo app.** It exists to showcase the [transaction-aggregator](../../README.md) backend: the API's reads, paging and overrides, Keycloak sign-in, and the backend-for-frontend (BFF) pattern the API was designed to sit behind. It is not a product and is not hardened for production.
+> **A demo app** for the [transaction-aggregator](../../README.md) backend: the API's reads, paging and overrides, Keycloak sign-in, and the backend-for-frontend (BFF) pattern in front of the API. It is not a product and is not hardened for production.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
@@ -12,9 +12,15 @@
 
 A customer signs in and sees their own money:
 
-- **Overview**: money in and out for 1, 3 or 12 months, spending by category, and money in and out by month. A category or a month opens the matching transactions.
-- **Transactions**: filter by type, category and direction; sort; choose a page size; and page with the API's cursors. Re-categorise any transaction, or reset it to the bank's category.
-- **Categories**: remap a whole category to another, or remove the remap.
+- **Where the money went**: a ring of money out by category for 1, 3 or 12 months, with the total in its centre, and under it money in and the net. Beside the ring, a Category tab ranks the categories with transactions by money out, and a Type tab ranks the four transaction types (card, EFT, debit order, own transfer). Each row gives its count, its share of the money out and its average per transaction. Over 1 or 3 months, a category spending more a month than usual says by how much, as "+R 6 210 vs your usual month"; its usual month is a twelfth of its money out over the last 12 months.
+- **Money in and out over time**: one chart of columns by day, week or month, depending on the period, with money in above the zero line and money out below it.
+- **The transactions**: filter by type, direction and amount range, and sort; Show more appends the next page. A transaction opens its detail in place, with its full description, references and funding source.
+
+Every transaction and every category row has a menu behind its three dots. A transaction's menu changes its category in a searchable picker, resets it to the bank's category, or opens its detail. A category's menu shows the whole category as another one, in the same picker, or removes that remap; a remapped category says what it is shown as, and keeps its row even with no transactions, so the remap can be removed.
+
+The sun or moon in the top bar switches between day and night. Until a customer chooses, the portal follows the system's mode. The choice stays in a cookie, so the server renders the first paint in that mode.
+
+Selecting a column, a category or a type filters the other blocks in place. A column or a category shows as a chip above the transactions, and a type sets the list's Type filter. The whole view is in the URL, so it can be linked.
 
 Every view reads the API's *effective* category, so a re-categorisation or remap shows everywhere at once.
 
@@ -34,13 +40,13 @@ There are two identities, and they never mix:
 - **The person** signs in through Keycloak (client `banking-portal-web`, authorization-code flow with PKCE). Their ID token carries a `customer_id` claim. The BFF verifies the token, then keeps the customer id and name in a session cookie that is sealed (encrypted and signed), `httpOnly` and `SameSite=Lax`. There is no server-side session store, so the BFF stays stateless.
 - **The service** is the BFF itself, calling the API as `banking-portal` with a client-credentials token (`tx:read tx:write`). It caches that token until shortly before it expires.
 
-The rule that makes this safe: **the `{userId}` in every API path comes from the session, never from the browser.** The API lets any `tx:read` caller read any user, by design. The BFF is what ties a signed-in person to their own customer id. A `userId` query parameter sent to the BFF is simply dropped.
+**The `{userId}` in every API path comes from the session, never from the browser.** The API lets any `tx:read` caller read any user; the BFF is what ties a signed-in person to their own customer id. A `userId` query parameter sent to the BFF is dropped.
 
-**Why the browser holds no token the API accepts.** The token the API accepts is the service's, and it can read every customer, so it can't go to a browser. Giving the browser the person's own token instead would mean per-user authorization and CORS inside the API, which the backend's design rules out. A token in the browser can also be read by any script on the page, so a single cross-site-scripting bug would leak it, while an `httpOnly` cookie can't be read from JavaScript.
+**The browser holds no token the API accepts.** The token the API accepts is the service's, and it can read every customer, so it can't go to a browser. The person's own token would mean per-user authorization and CORS inside the API, which the API doesn't do. A token in the browser can also be read by any script on the page, so a single cross-site-scripting bug would leak it, while an `httpOnly` cookie can't be read from JavaScript.
 
-One token does pass through the browser: on sign-out, the person's ID token travels to Keycloak as `id_token_hint` in the address bar, so Keycloak can end the session without asking. That is how OpenID Connect logout works, and the token is useless against the API: its audience is the portal's sign-in client, not `txn-api`, and it carries no scopes, so the API answers 401.
+One token does pass through the browser: on sign-out, the person's ID token travels to Keycloak as `id_token_hint` in the address bar, so Keycloak can end the session without asking. The token is useless against the API: its audience is the portal's sign-in client, not `txn-api`, and it carries no scopes, so the API answers 401.
 
-**What the BFF sends the API.** Every call carries three headers: `Authorization: Bearer <service token>`, a fresh W3C `traceparent`, and `accept: application/json`. The API logs the trace id on its audit line, alongside `client_id: banking-portal` and the customer's `user_id`. When something fails, the page shows that trace id as its reference, so the request can be found in the API's logs and in Tempo.
+**What the BFF sends the API.** Every call carries three headers: `Authorization: Bearer <service token>`, a fresh `traceparent`, and `accept: application/json`. The API logs the trace id on its audit line, alongside `client_id: banking-portal` and the customer's `user_id`. When something fails, the page shows that trace id as its reference, so the request can be found in the API's logs and in Tempo.
 
 **Writes** (re-categorise, remap) also check that the request's `Origin` is the portal's own, on top of `SameSite=Lax`. Sign-out is a `POST` for the same reason, and it ends the Keycloak session too.
 
@@ -109,13 +115,14 @@ All from the environment, validated with Zod on each request ([src/bff/config.ts
 src/
 ├── app/
 │   ├── page.tsx                 sign-in page
-│   ├── (portal)/                the signed-in shell, and the overview, transactions and categories pages
+│   ├── (portal)/                the signed-in shell, and the one screen at /overview
+│   ├── styles/                  the stylesheets the root layout imports: tokens, base, controls, shell, dashboard, transactions
 │   └── bff/                     the BFF's routes
 │       ├── auth/                login, callback, logout
-│       └── me, categories, summary, transactions (+ the two write routes)
+│       └── categories, summary, summary/by-type, transactions, transactions/[transactionId] (+ the two write routes)
 ├── bff/                         server-only: config, session, Keycloak, the API client, problems
-├── components/                  the three views and their parts
-└── lib/                         shared by browser and BFF: types, money, dates, summaries, the browser's BFF client
+├── components/                  the screen's blocks (the frame and title row; the spending card with its ring, category rows and type rows; the chart; the toolbar and chips; the transaction list and table; the detail), the row menu and the category picker, the day and night toggle, the badges and icons, and the shared controls
+└── lib/                         shared by browser and BFF: types, labels, money, dates, periods, buckets, categories, category hues and icons, the ring, chart, selections, finding, the spending rows' words, the usual month, the type summary, the day or night choice, amounts, the URL's queries, detail, description, menu focus, category search, the browser's BFF client
 ```
 
 Each `*.test.ts` sits next to the file it tests.

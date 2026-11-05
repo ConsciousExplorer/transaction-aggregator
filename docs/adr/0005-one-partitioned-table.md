@@ -26,7 +26,7 @@ Every API read is about one user: a page of their transactions, or a summary ove
 - Retention is 18 months, and expiry drops a whole partition. Nothing is ever deleted row by row.
 - pg_cron runs partman's maintenance hourly, and `ANALYZE`s the partitioned parents half an hour later, because Postgres never auto-analyses a partitioned parent.
 
-**One covering index serves every user-scoped read:**
+**One covering index serves every list and summary read:**
 
 ```sql
 (user_id, occurred_at DESC, transaction_id DESC)
@@ -40,7 +40,7 @@ A page of a user's transactions is an index scan inside the partitions its windo
 - **The two override tables** ([0004](0004-versioned-rules-read-time-overrides.md)) hold a user's preferences, not parts of the fact. They have their own writer, the API.
 - **`user_transaction_overrides`** is partitioned on the same calendar with the same retention. It has no foreign key to `transactions`, so the two sets of partitions drop independently. An orphaned override matches nothing.
 
-**Our objects live in the `txn_agg` schema.** The monitoring views live in `monitoring`, and `public` holds only what extensions install there.
+**The application's objects live in the `txn_agg` schema.** The monitoring views live in `monitoring`, and `public` holds only what extensions install there.
 
 ## Alternatives rejected
 

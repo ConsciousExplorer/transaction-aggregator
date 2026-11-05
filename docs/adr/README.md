@@ -2,7 +2,7 @@
 
 ## Decisions
 
-Each record states what was decided, what was rejected and why, and what would make us look again. 0001 to 0011 follow a transaction's path, from the wire to the API. 0012 is about the data that drives it.
+Each record states what was decided, what was rejected and why, and what would reopen it. 0001 to 0011 follow a transaction's path, from the wire to the API. 0012 is about the data that drives it.
 
 | ADR | Decision |
 | --- | --- |

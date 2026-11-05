@@ -1,0 +1,214 @@
+/* A pale cool ground under white cards, ink for words and money out, one blue accent, green
+   for money in, red for what failed. Every pair that carries words reaches 4.5:1 on the
+   surface it sits on, in both modes.
+
+   Each colour holds its light and its dark value side by side in light-dark(), and the root's
+   color-scheme picks between them: the system's mode until the customer chooses one in the top
+   bar, then the data-theme the layout sets from their cookie. Dark is a black ground, surfaces
+   one step up, and two greys for words that read apart. Its accent and hues are lifted so they
+   hold their contrast on #111; a hue's tint is its mark mixed into the surface, and the mark
+   itself is the ink. */
+:root {
+	color-scheme: light dark;
+
+	--ground: light-dark(#f3f5f7, #000000);
+	--surface: light-dark(#ffffff, #111111);
+	--raised: light-dark(#f2f8fd, #222222);
+	--active: light-dark(#e9eef3, #222222);
+	--border: light-dark(#e6e6e6, #1a1a1a);
+	--rule: light-dark(#f1f2f3, #161616);
+	--control: light-dark(#d6d9dd, #444444);
+	--grid: light-dark(#e5e7ea, #2b2b2b);
+	--text: light-dark(#1b1d1f, #ffffff);
+	--muted: light-dark(#5c6064, #b4b4b4);
+	--faint: light-dark(#6b6f73, #949494);
+	--accent: light-dark(#1d5fd6, #5b8fe6);
+	--accent-soft: light-dark(#dcf1ff, #15283f);
+	--accent-ink: light-dark(#0a3a80, #9cc0f5);
+	--primary: light-dark(#1b1d1f, #ffffff);
+	--primary-ink: light-dark(#ffffff, #000000);
+	--positive: light-dark(#2f7a45, #3fc07a);
+	--negative: light-dark(#c41c29, #e5566f);
+	--pill-negative-bg: light-dark(#ffedea, #2c1a20);
+	--pill-negative-ink: light-dark(#831c1e, #e5566f);
+	--pill-warning-bg: light-dark(#fffbeb, #2b2414);
+	--pill-warning-ink: light-dark(#92400e, #e5a93b);
+	--pill-neutral-bg: light-dark(#eef1f4, #222222);
+	--pill-neutral-ink: light-dark(#3a3d40, #ffffff);
+	/* The select's chevron is a picture, which light-dark() cannot hold, so one mid grey serves
+	   both modes: 3.3:1 on a white control and 5.8:1 on a #111 one */
+	--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a8f94' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+	/* A category's colour is its identity, so it never changes between periods. Each hue
+	   is three colours: the mark for the ring's segment and the table's dot, a pale tint for
+	   the badge, and the dark of the same hue as the badge's ink. Seven categories own a
+	   hue; every other category is neutral, and Uncategorised is unknown, the darker grey in
+	   light mode. */
+	--hue-blue: light-dark(#2a78d6, #3987e5);
+	--hue-blue-tint: light-dark(
+		#dcebfb,
+		color-mix(in srgb, var(--hue-blue) 22%, var(--surface))
+	);
+	--hue-blue-ink: light-dark(#0a3a80, var(--hue-blue));
+	--hue-orange: light-dark(#eb6834, #d95926);
+	--hue-orange-tint: light-dark(
+		#fde6dc,
+		color-mix(in srgb, var(--hue-orange) 22%, var(--surface))
+	);
+	--hue-orange-ink: light-dark(#8a3410, var(--hue-orange));
+	--hue-aqua: light-dark(#1baf7a, #199e70);
+	--hue-aqua-tint: light-dark(
+		#d6f5e8,
+		color-mix(in srgb, var(--hue-aqua) 22%, var(--surface))
+	);
+	--hue-aqua-ink: light-dark(#0b5e42, var(--hue-aqua));
+	--hue-yellow: light-dark(#eda100, #c98500);
+	--hue-yellow-tint: light-dark(
+		#fdf0c8,
+		color-mix(in srgb, var(--hue-yellow) 22%, var(--surface))
+	);
+	--hue-yellow-ink: light-dark(#7a5200, var(--hue-yellow));
+	--hue-magenta: light-dark(#e87ba4, #d55181);
+	--hue-magenta-tint: light-dark(
+		#fbe0ea,
+		color-mix(in srgb, var(--hue-magenta) 22%, var(--surface))
+	);
+	--hue-magenta-ink: light-dark(#8c2a52, var(--hue-magenta));
+	--hue-green: #008300;
+	--hue-green-tint: light-dark(
+		#dcf3dc,
+		color-mix(in srgb, var(--hue-green) 22%, var(--surface))
+	);
+	--hue-green-ink: light-dark(#0f5a0f, var(--hue-green));
+	--hue-red: light-dark(#e34948, #e66767);
+	--hue-red-tint: light-dark(
+		#fde0e0,
+		color-mix(in srgb, var(--hue-red) 22%, var(--surface))
+	);
+	--hue-red-ink: light-dark(#8a1f1f, var(--hue-red));
+	/* The two greys use dark values of their own: their mark is also the badge's ink, and an
+	   icon needs 3:1 on its dark tint. Neutral #70767c reaches 3.25:1 and unknown #959ba1
+	   4.76:1, which makes unknown the lighter grey in dark mode, not the darker one. The seven
+	   hues keep the dark values set for them, which reach 3:1 on their tints as they are (green
+	   the lowest, at 3.1:1). */
+	--hue-neutral: light-dark(#cfd3d6, #70767c);
+	--hue-neutral-tint: light-dark(
+		#eef1f4,
+		color-mix(in srgb, var(--hue-neutral) 22%, var(--surface))
+	);
+	--hue-neutral-ink: light-dark(#3a3d40, var(--hue-neutral));
+	--hue-unknown: light-dark(#a7adb3, #959ba1);
+	--hue-unknown-tint: light-dark(
+		#eef1f4,
+		color-mix(in srgb, var(--hue-unknown) 22%, var(--surface))
+	);
+	--hue-unknown-ink: light-dark(#5c6064, var(--hue-unknown));
+
+	/* --font-sans is set on <html> by next/font, which self-hosts Manrope. The monospace
+	   face is for IDs only. */
+	--font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+	--fs-title: 28px;
+	--fs-section: 18px;
+	--fs-kpi: 28px;
+	--fs-body: 15px;
+	--fs-small: 13px;
+
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+
+	/* One large radius on the cards, stepping down inside them; every button, select and
+	   segmented track is a pill */
+	--radius-card: 20px;
+	--radius-inner: 10px;
+	--radius-control: 10px;
+	--radius-pill: 999px;
+	--radius-chip: 4px;
+
+	--gap: 24px;
+	--pad: 24px;
+	--card-pad: 24px;
+	--control-height: 36px;
+	--content-width: 1280px;
+
+	/* Only what floats while it is open, the row menu and the category picker, casts a shadow.
+	   In dark mode they are the card's own #111, and a black shadow barely shows on it, so a 1px
+	   ring a step lighter gives them their edge; the darker, denser shadow under it still lifts
+	   them off a black ground. */
+	--shadow-float:
+		0 0 0 1px light-dark(transparent, #2e2e2e),
+		0 12px 32px light-dark(rgba(27, 29, 31, 0.14), rgba(0, 0, 0, 0.6)),
+		0 1px 2px light-dark(rgba(27, 29, 31, 0.08), rgba(0, 0, 0, 0.5));
+	/* The veil over the page behind the picker and a phone's menu sheet. A light-mode veil barely
+	   darkens a black ground, so the dark one is denser. */
+	--scrim: light-dark(rgba(27, 29, 31, 0.3), rgba(0, 0, 0, 0.55));
+}
+
+/* The customer's choice in the top bar wins over the system's mode */
+:root[data-theme="light"] {
+	color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+	color-scheme: dark;
+}
+
+/* A hue class hands its three colours to whatever it sits on, under one set of names, so a
+   badge, a dot or a ring segment reads --mark, --tint and --ink without knowing its hue */
+.hue-blue {
+	--mark: var(--hue-blue);
+	--tint: var(--hue-blue-tint);
+	--ink: var(--hue-blue-ink);
+}
+
+.hue-orange {
+	--mark: var(--hue-orange);
+	--tint: var(--hue-orange-tint);
+	--ink: var(--hue-orange-ink);
+}
+
+.hue-aqua {
+	--mark: var(--hue-aqua);
+	--tint: var(--hue-aqua-tint);
+	--ink: var(--hue-aqua-ink);
+}
+
+.hue-yellow {
+	--mark: var(--hue-yellow);
+	--tint: var(--hue-yellow-tint);
+	--ink: var(--hue-yellow-ink);
+}
+
+.hue-magenta {
+	--mark: var(--hue-magenta);
+	--tint: var(--hue-magenta-tint);
+	--ink: var(--hue-magenta-ink);
+}
+
+.hue-green {
+	--mark: var(--hue-green);
+	--tint: var(--hue-green-tint);
+	--ink: var(--hue-green-ink);
+}
+
+.hue-red {
+	--mark: var(--hue-red);
+	--tint: var(--hue-red-tint);
+	--ink: var(--hue-red-ink);
+}
+
+.hue-neutral {
+	--mark: var(--hue-neutral);
+	--tint: var(--hue-neutral-tint);
+	--ink: var(--hue-neutral-ink);
+}
+
+.hue-unknown {
+	--mark: var(--hue-unknown);
+	--tint: var(--hue-unknown-tint);
+	--ink: var(--hue-unknown-ink);
+}

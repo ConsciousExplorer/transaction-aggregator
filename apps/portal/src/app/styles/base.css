@@ -1,0 +1,215 @@
+/* Element defaults, the text utilities, the two surface levels, notices, skeletons. */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--ground);
+	color: var(--text);
+	font-family: var(--font-sans), system-ui, sans-serif;
+	font-size: var(--fs-body);
+	font-weight: 400;
+	line-height: 1.45;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* App type, not display type: nothing on a screen is set over 32px. Only the title
+   tracks in, the way large type needs. */
+h1,
+h2 {
+	margin: 0;
+	line-height: 1.2;
+	font-weight: 600;
+}
+
+h1 {
+	font-size: var(--fs-title);
+	letter-spacing: -0.01em;
+}
+
+h2 {
+	font-size: var(--fs-section);
+}
+
+p {
+	margin: 0;
+}
+
+a {
+	color: var(--text);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.15em;
+}
+
+code {
+	font-family: var(--font-mono);
+	font-size: 0.875em;
+	background: var(--raised);
+	border-radius: var(--radius-chip);
+	padding: 0.1em 0.4em;
+	overflow-wrap: anywhere;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.muted {
+	color: var(--muted);
+}
+
+.small {
+	font-size: var(--fs-small);
+}
+
+/* Words for a screen reader only, such as the header of the table's menu column */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Tabular figures on every number that sits in a column or updates, so digits keep one
+   width and amounts line up the way a statement's do. The other stylesheets set the same
+   on their own figure classes (dates, counts, axis ticks). */
+table,
+.amount {
+	font-variant-numeric: tabular-nums;
+}
+
+.amount {
+	white-space: nowrap;
+}
+
+.amount-in {
+	color: var(--positive);
+}
+
+.lead {
+	color: var(--muted);
+	max-width: 64ch;
+}
+
+.empty {
+	color: var(--muted);
+	display: grid;
+	gap: var(--space-2);
+	justify-items: start;
+	padding: var(--space-6) var(--space-4);
+}
+
+/* Flat surfaces: a sheet and a panel are both white on the ground with a 1px border, the
+   large card radius and no shadow. A sheet holds its own padding; a panel pads its content.
+   An inset is a ground-coloured recess inside one, at the smaller inner radius. */
+.sheet {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-card);
+	min-width: 0;
+}
+
+.panel {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-card);
+	padding: var(--card-pad);
+	min-width: 0;
+}
+
+.inset {
+	background: var(--ground);
+	border-radius: var(--radius-inner);
+	padding: var(--space-4) var(--space-5);
+	animation: fade-in 150ms ease-out both;
+}
+
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+}
+
+/* Notices */
+.notice {
+	border-radius: var(--radius-card);
+	padding: var(--space-3) var(--space-4);
+	display: grid;
+	gap: var(--space-1);
+	justify-items: start;
+}
+
+.notice-error {
+	background: var(--pill-negative-bg);
+	border: 1px solid color-mix(in srgb, var(--negative) 35%, transparent);
+}
+
+/* A notice carries no margin of its own: a grid container's gap spaces it. Standing
+   alone on the page, above a sheet, it clears what follows. */
+.page > .notice {
+	margin-bottom: var(--space-5);
+}
+
+.notice-title {
+	font-weight: 600;
+}
+
+.notice-reference {
+	font-size: var(--fs-small);
+	color: var(--muted);
+}
+
+/* Skeletons hold the layout while a read is in flight. Each shape mirrors what will
+   replace it; the pulse stops under reduced motion. */
+.skeleton-line {
+	display: block;
+	height: 0.875em;
+	border-radius: 999px;
+	background: var(--raised);
+}
+
+.skeleton-line-medium {
+	width: 60%;
+}
+
+.skeleton-column {
+	flex: 0 1 24px;
+	border-radius: var(--radius-chip) var(--radius-chip) 0 0;
+	background: var(--raised);
+}
+
+.skeleton-detail {
+	animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+	50% {
+		opacity: 0.55;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.inset,
+	.skeleton-detail {
+		animation: none;
+	}
+}
+
+@media (max-width: 760px) {
+	.panel {
+		padding: var(--space-4);
+	}
+
+	.inset {
+		padding: var(--space-4);
+	}
+}

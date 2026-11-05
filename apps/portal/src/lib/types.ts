@@ -22,6 +22,63 @@ export type Transaction = {
 	amount: Money;
 };
 
+// The single-transaction read's shape. `fundingSource` is discriminated on `transactionType`.
+export type CardFundingSource = {
+	transactionType: "card";
+	cardLast4: string;
+	cardNetwork: string;
+	merchantName: string | null;
+	mcc: string | null;
+	authCode: string | null;
+	posEntryMode: string | null;
+};
+
+export type EftFundingSource = {
+	transactionType: "eft";
+	beneficiaryName: string;
+	beneficiaryBank: string;
+	beneficiaryAccountLast4: string | null;
+	branchCode: string | null;
+	reference: string | null;
+	clearingType: string | null;
+};
+
+export type DebitOrderFundingSource = {
+	transactionType: "debit_order";
+	creditorName: string;
+	mandateId: string;
+	frequency: string | null;
+	collectionType: string | null;
+};
+
+export type InternalTransferFundingSource = {
+	transactionType: "internal_transfer";
+	fromAccountId: string;
+	fromAccountType: string;
+	toAccountId: string;
+	toAccountType: string;
+};
+
+export type FundingSource =
+	| CardFundingSource
+	| EftFundingSource
+	| DebitOrderFundingSource
+	| InternalTransferFundingSource;
+
+export type TransactionDetail = {
+	transactionId: string;
+	accountId: string;
+	externalId: string;
+	occurredAt: string;
+	creditDebitIndicator: CreditDebitIndicator;
+	amount: Money;
+	status: Transaction["status"];
+	longDescription: string | null;
+	shortDescription: string | null;
+	category: string;
+	fundingSource: FundingSource;
+};
+
 type Links = { self: string; next?: string; prev?: string };
 
 type TransactionPageMeta = {
@@ -64,6 +121,17 @@ export type Summary = {
 		netAmount: Money;
 	};
 };
+
+// The BFF's answer for the spending card's Type tab: one summary's totals per transaction type
+export type TypeSummaryRow = {
+	transactionType: TransactionType;
+	count: number;
+	credit: SummarySide;
+	debit: SummarySide;
+	netAmount: Money;
+};
+
+export type TypeSummary = { data: TypeSummaryRow[] };
 
 export type Category = {
 	categoryId: number;

@@ -13,7 +13,7 @@ Failures come in two kinds:
 - **Something is wrong with one message:** it won't decode, it fails validation, or Postgres rejects the row.
 - **Something is wrong with the infrastructure:** Postgres is down or slow, or the network drops a connection.
 
-An earlier version logged a failed insert and committed the offsets anyway, so the batch was lost. That bug is what this decision exists to prevent.
+An earlier version logged a failed insert and committed the offsets anyway, so the batch was lost.
 
 ## Decision
 
@@ -23,7 +23,7 @@ An earlier version logged a failed insert and committed the offsets anyway, so t
 INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING
 ```
 
-- A transaction's identity is its source and its source's id. The record's Kafka position, `(topic, partition, offset)`, is never used to dedupe, because a redelivery has a new offset.
+- A transaction's identity is its source and its source's id. The record's Kafka position, `(topic, partition, offset)`, is never used to dedupe, because a producer re-send is a new record with a new offset.
 - `occurred_at` is in the key only because Postgres requires a partitioned table's unique key to include the partition key.
 
 **Commit offsets only after the work is done.**
@@ -53,9 +53,9 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 
 **Batches and backpressure:**
 
-- A batch is what one fetch delivered, capped at 1,000 messages. The broker holds a fetch until 32 KiB are ready or 2 s have passed (`fetch.min.bytes`, `fetch.max.wait.ms`), which is where messages gather at low rates; the consumer has no timer of its own.
+- A batch is whatever is buffered when the loop gets to it, capped at 1,000 messages. The broker holds a fetch until 32 KiB are ready or 2 s have passed (`fetch.min.bytes`, `fetch.max.wait.ms`), which is where messages gather at low rates; the consumer has no timer of its own.
 - The `for await` loop waits on each flush, so only one ever runs, and it pulls nothing more until that flush and its commit are done. A failed flush ends the loop.
-- Memory is bounded by one 1 MiB fetch.
+- Memory is bounded by the stream's 1,024-message buffer, a 1 MiB fetch per broker and the batch in progress. With one broker that is about 4,900 records at most, however large the backlog.
 
 ## Alternatives rejected
 
@@ -63,13 +63,13 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 | --- | --- |
 | Kafka transactions (exactly-once) | They cover Kafka to Kafka. The sink is Postgres, which still has to dedupe, so this adds transactional ids and fencing for nothing. |
 | Deduplicating in the app (a cache of seen ids) | A cache sees a window. The unique index sees every row still kept. |
-| A content hash or the Kafka offset as the key | A redelivery changes the offset. A hash changes when any field is corrected, and so makes duplicates. |
+| A content hash or the Kafka offset as the key | A producer re-send gets a new offset. A hash changes when any field is corrected, and so makes duplicates. |
 | An in-process retry loop with backoff | The restart already retries, with no extra state in the process. |
 | A draining shutdown with flags and timers | It saves a few seconds of replay and adds no correctness. |
 | Fetching an unknown schema from the registry on a miss | It's a second way to load schemas, with its own rules for a 404 versus an outage, for a case a restart already covers. |
 | Dead-lettering a message with an unknown schema id | Every producer rollout would turn into a redrive. |
 | `pause()` and `resume()` for backpressure | The loop already stops pulling while it waits on a flush. |
-| A linger timer in the consumer, flushing a partial batch 2 s after its first message (how it was built until 2026-10-31) | The broker already holds a fetch until `fetch.min.bytes` are ready or `fetch.max.wait.ms` has passed, so it gathers the batch. A timer that fires outside the loop needed a promise chain to stop two flushes overlapping, and a failed flush had to poison that chain so nothing committed past it. Flushing when the batch is full or the stream is empty needs none of that. |
+| A linger timer in the consumer, flushing a partial batch 2 s after its first message | The broker already holds a fetch until `fetch.min.bytes` are ready or `fetch.max.wait.ms` has passed, so it gathers the batch. A timer that fires outside the loop needed a promise chain to stop two flushes overlapping, and a failed flush had to poison that chain so nothing committed past it. Flushing when the batch is full or the stream is empty needs none of that. |
 
 ## Consequences
 
@@ -86,5 +86,5 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 
 - Restarts and rebalances measurably hurt at real load: bring back an in-process retry with jittered backoff.
 - Schema rollouts become frequent enough that a restart each time hurts.
-- Fetch flushes are too small to be worth an insert each, or a 100-message batch stops fitting in one fetch: tune `KAFKA_FETCH_MIN_BYTES`, `KAFKA_MAX_WAIT_TIME_MS` and `KAFKA_FETCH_MAX_BYTES` before putting any timer in the consumer.
+- Fetch flushes are too small to be worth an insert each, or a full batch stops fitting in one fetch: tune `KAFKA_FETCH_MIN_BYTES`, `KAFKA_MAX_WAIT_TIME_MS` and `KAFKA_FETCH_MAX_BYTES` before putting any timer in the consumer.
 - Another system needs an event for every stored row: see [0011](0011-egress.md).

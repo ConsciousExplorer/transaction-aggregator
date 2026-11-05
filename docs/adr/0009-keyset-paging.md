@@ -38,7 +38,7 @@ A user's transaction list is paged. The consumer keeps inserting while a client 
 | Option | Why not |
 | --- | --- |
 | `OFFSET` paging | Page N reads and throws away N × limit rows. Rows inserted while a client pages shift the offsets, so rows repeat or vanish. |
-| The cursor as plain parameters (`cursorOccurredAt`, `cursorTransactionId`, `cursorDirection`) | Built, then replaced. The contract grows with every new sort key, and clients start building cursors by hand. |
+| The cursor as plain parameters (`cursorOccurredAt`, `cursorTransactionId`, `cursorDirection`) | The contract grows with every new sort key, and clients start building cursors by hand. |
 | A signed (HMAC) cursor | It means key management for no threat: the user is already in the path, so a forged cursor reaches nothing new. |
 | A total count in `meta` | It's a `COUNT(*)` over the whole window on every request, which is the full scan keyset paging avoids, and it drifts during ingest. |
 | Absolute URLs or a `Link` header | The API would have to know its public host, scheme and gateway prefix. |

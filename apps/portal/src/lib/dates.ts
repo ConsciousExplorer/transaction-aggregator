@@ -9,3 +9,17 @@ const dateFormatter = new Intl.DateTimeFormat("en-ZA", {
 export function formatTransactionDate(occurredAt: string) {
 	return dateFormatter.format(new Date(occurredAt));
 }
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-ZA", {
+	day: "2-digit",
+	month: "short",
+	year: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+	hour12: false,
+	timeZone: "Africa/Johannesburg"
+});
+
+export function formatTransactionDateTime(occurredAt: string) {
+	return dateTimeFormatter.format(new Date(occurredAt));
+}

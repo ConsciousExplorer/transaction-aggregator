@@ -1,5 +1,5 @@
 {
-  "version": "3.0.0",
+  "version": "2.0.0",
   "darkMode": true,
   "gridEnabling": false,
   "currentViewName": null,
@@ -9,45 +9,39 @@
     "tablePositions": [
       {
         "name": "categories",
-        "schemaName": "public",
-        "x": 153.17630984342838,
-        "y": 653.992904552859
+        "schemaName": "txn_agg",
+        "x": -284.4051913559829,
+        "y": 37.22597373242403
       },
       {
         "name": "rule_sets",
-        "schemaName": "public",
-        "x": 877.0581377184923,
-        "y": 875.3907076399646
+        "schemaName": "txn_agg",
+        "x": 405.104757330275,
+        "y": 529.5878755343667
       },
       {
         "name": "categorization_rules",
-        "schemaName": "public",
-        "x": 510.4392994348237,
-        "y": 1079.5477235713374
+        "schemaName": "txn_agg",
+        "x": 53.72170279357647,
+        "y": 690.819908674189
       },
       {
         "name": "user_category_overrides",
-        "schemaName": "public",
-        "x": 883.7590526033608,
-        "y": -76.08606145994574
+        "schemaName": "txn_agg",
+        "x": 337.51390728334735,
+        "y": -290.7116847890889
       },
       {
         "name": "user_transaction_overrides",
-        "schemaName": "public",
-        "x": 1309.6195951448015,
-        "y": 58.50286065289606
+        "schemaName": "txn_agg",
+        "x": 1899.217706446616,
+        "y": -194.0121188147966
       },
       {
         "name": "transactions",
-        "schemaName": "public",
-        "x": 1305.4692045198015,
-        "y": 382.5543609713627
-      },
-      {
-        "name": "ingest_progress",
-        "schemaName": "public",
-        "x": 170.56054032427147,
-        "y": 64.18448162570951
+        "schemaName": "txn_agg",
+        "x": 1130.7255859375,
+        "y": 53
       }
     ],
     "tableGroupCollapseStates": [],

@@ -87,9 +87,10 @@ PostgreSQL                 as api_write: reads, and writes only the override tab
 - **Routes know HTTP:** schemas, status codes, links and problem responses. None touches the pool or Drizzle, apart from `/ready`, which runs `SELECT 1`.
 - **Repositories know SQL.** They take plain filter objects and return rows, and none imports Fastify or an HTTP error. A foreign-key violation comes back as `undefined`, and the route decides that it's a 400.
 - **Wiring lives in one place.** `container.ts` builds every shared instance once: the pool, Drizzle, the token check and the three repositories. `server.ts` hands them to the routes as options, so nothing creates its own.
-### Why not handlers → services → repositories
 
-A common layout puts a service between each handler and its repository. In this API that service would have nothing to do:
+### No service layer
+
+There is no service layer because a service between each handler and its repository would have nothing to do:
 
 - **Each operation is one query, or two.** Every route makes one repository call to answer the request, plus at most one check: that a category filter names real categories, or that a transaction exists before it is overridden. A service per operation would only forward the call, adding a file, a name and a type mapping with no logic of its own.
 - **The jobs a service usually does are already done elsewhere.**

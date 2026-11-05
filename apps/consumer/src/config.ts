@@ -109,12 +109,12 @@ const configSchema = z
 			.positive()
 			.default(40_000),
 
-		// Fetch and batching. A batch is what one fetch delivered, capped at
-		// KAFKA_BATCH_SIZE, so the broker's fetch settings decide how records
-		// gather at low rates: it holds a fetch until KAFKA_FETCH_MIN_BYTES are
-		// ready or KAFKA_MAX_WAIT_TIME_MS has passed (Kafka's fetch.min.bytes and
-		// fetch.max.wait.ms). 32 KiB is about 90 card records, and 2 s is the
-		// longest a record waits at the broker.
+		// Fetch and batching. A batch is whatever is buffered when the loop gets
+		// to it, capped at KAFKA_BATCH_SIZE, so the broker's fetch settings decide
+		// how records gather at low rates: it holds a fetch until
+		// KAFKA_FETCH_MIN_BYTES are ready or KAFKA_MAX_WAIT_TIME_MS has passed
+		// (Kafka's fetch.min.bytes and fetch.max.wait.ms). 32 KiB is about 90 card
+		// records, and 2 s is the longest a record waits at the broker.
 		KAFKA_MAX_WAIT_TIME_MS: z.coerce.number().int().positive().default(2_000),
 		KAFKA_FETCH_MIN_BYTES: z.coerce.number().int().positive().default(32_768),
 		// The most one fetch returns (Kafka's fetch.max.bytes). The client pushes
