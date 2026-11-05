@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { describeRowAmount, isMoneyInOnly } from "@/lib/spending-text.ts";
 
 function buildRowClassName(isEmpty: boolean, hasActions: boolean) {
 	const classNames = ["spending-row"];
@@ -10,17 +11,19 @@ function buildRowClassName(isEmpty: boolean, hasActions: boolean) {
 // One row of the spending card's list, a category or a transaction type: its badge, its label
 // over a subline, and its money out over the average per transaction. All of that is one
 // button; pressing it selects what it stands for, and pressing the selected row clears it. A
-// row with nothing in the period is greyed. A row's actions, such as a category's menu, sit
-// beside the button in the row, never inside it, so pressing them never selects the row.
+// row with only money in shows that money in green instead, and a row with nothing in the
+// period is greyed. A row's actions, such as a category's menu, sit beside the button in the
+// row, never inside it, so pressing them never selects the row.
 export function SpendingRow({
 	selectionValue,
 	badge,
 	label,
 	subline,
 	note,
-	amountLabel,
+	moneyOutMinor,
+	moneyInMinor,
+	currency,
 	averageLabel,
-	isEmpty,
 	isSelected,
 	actions,
 	onSelect
@@ -32,13 +35,15 @@ export function SpendingRow({
 	subline: ReactNode;
 	// A third line under the subline, such as what a remapped category is shown as
 	note?: string | undefined;
-	amountLabel: string;
+	moneyOutMinor: number;
+	moneyInMinor: number;
+	currency: string;
 	averageLabel?: string | undefined;
-	isEmpty: boolean;
 	isSelected: boolean;
 	actions?: ReactNode;
 	onSelect: (selectionValue: string) => void;
 }) {
+	const isEmpty = moneyOutMinor === 0 && moneyInMinor === 0;
 	return (
 		<div className={buildRowClassName(isEmpty, actions !== undefined)}>
 			<button
@@ -56,7 +61,15 @@ export function SpendingRow({
 					)}
 				</span>
 				<span className="spending-row-figures">
-					<span className="spending-row-amount">{amountLabel}</span>
+					<span
+						className={
+							isMoneyInOnly(moneyOutMinor, moneyInMinor)
+								? "spending-row-amount spending-row-amount-in"
+								: "spending-row-amount"
+						}
+					>
+						{describeRowAmount(moneyOutMinor, moneyInMinor, currency)}
+					</span>
 					{averageLabel === undefined ? null : (
 						<span className="spending-row-average">{averageLabel}</span>
 					)}

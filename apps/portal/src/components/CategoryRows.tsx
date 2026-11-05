@@ -20,7 +20,6 @@ import {
 	listShownCategories,
 	readCategoryFigures
 } from "@/lib/categories.ts";
-import { formatMoney } from "@/lib/money.ts";
 import { describeRowAverage, describeRowSubline } from "@/lib/spending-text.ts";
 import type { Category } from "@/lib/types.ts";
 import { describeUsualDelta } from "@/lib/usual.ts";
@@ -192,16 +191,14 @@ function CategoryRow({
 					currency
 				)}
 				note={describeRemapNote(category)}
-				amountLabel={formatMoney(categoryFigures.moneyOutMinor, currency)}
+				moneyOutMinor={categoryFigures.moneyOutMinor}
+				moneyInMinor={categoryFigures.moneyInMinor}
+				currency={currency}
 				averageLabel={describeRowAverage(
 					categoryFigures.moneyOutMinor,
 					categoryFigures.moneyOutCount,
 					currency
 				)}
-				isEmpty={
-					categoryFigures.moneyOutMinor === 0 &&
-					categoryFigures.moneyInMinor === 0
-				}
 				isSelected={isSelected}
 				actions={
 					<>

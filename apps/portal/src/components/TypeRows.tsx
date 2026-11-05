@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { TypeBadge } from "@/components/CategoryBadge.tsx";
 import { SpendingRow } from "@/components/SpendingRow.tsx";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/labels.ts";
-import { formatMoney } from "@/lib/money.ts";
 import { describeRowAverage, describeRowSubline } from "@/lib/spending-text.ts";
 import type { TypeSummaryRow } from "@/lib/types.ts";
 
@@ -27,15 +26,14 @@ function buildTypeItems(
 						moneyOut.amountMinor,
 						periodMoneyOutMinor
 					)}
-					amountLabel={formatMoney(moneyOut.amountMinor, moneyOut.currency)}
+					moneyOutMinor={moneyOut.amountMinor}
+					moneyInMinor={row.credit.total.amountMinor}
+					currency={moneyOut.currency}
 					averageLabel={describeRowAverage(
 						moneyOut.amountMinor,
 						row.debit.count,
 						moneyOut.currency
 					)}
-					isEmpty={
-						moneyOut.amountMinor === 0 && row.credit.total.amountMinor === 0
-					}
 					isSelected={row.transactionType === selectedType}
 					onSelect={onSelect}
 				/>

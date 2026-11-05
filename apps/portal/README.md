@@ -12,7 +12,7 @@
 
 A customer signs in and sees their own money:
 
-- **Where the money went**: a ring of money out by category for 1, 3 or 12 months, with the total in its centre, and under it money in and the net. Beside the ring, a Category tab ranks the categories with transactions by money out, and a Type tab ranks the four transaction types (card, EFT, debit order, own transfer). Each row gives its count, its share of the money out and its average per transaction. Over 1 or 3 months, a category spending more a month than usual says by how much, as "+R 6 210 vs your usual month"; its usual month is a twelfth of its money out over the last 12 months.
+- **Where the money went**: a ring of money out by category for 1, 3 or 12 months, with the total in its centre, and under it money in and the net. Beside the ring, a Category tab ranks the categories with transactions by money out, and a Type tab ranks the four transaction types (card, EFT, debit order, own transfer). Each row gives its count, its share of the money out and its average per transaction. A row with money in and no money out shows that money in green instead, as "+R 8 857,29". Over 1 or 3 months, a category spending more a month than usual says by how much, as "+R 6 210 vs your usual month"; its usual month is a twelfth of its money out over the last 12 months.
 - **Money in and out over time**: one chart of columns by day, week or month, depending on the period, with money in above the zero line and money out below it.
 - **The transactions**: filter by type, direction and amount range, and sort; Show more appends the next page. A transaction opens its detail in place, with its full description, references and funding source.
 

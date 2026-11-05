@@ -444,6 +444,11 @@
 	white-space: nowrap;
 }
 
+/* A row with only money in shows that money, green with its plus as the Money in tile does */
+.spending-row-amount-in {
+	color: var(--positive);
+}
+
 .spending-row-average {
 	font-size: var(--fs-small);
 	line-height: 18px;
