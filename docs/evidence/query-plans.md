@@ -1,6 +1,6 @@
 # Query plans at volume
 
-The API's three main reads, run as `EXPLAIN (ANALYZE, BUFFERS)` against a table of 7,349,463 rows (4.9 GB with its indexes). This is evidence for S1: list, detail and summary at p95 under 200 ms on a database of at least 5M rows. The plans show the reasons it is met, not only the timings.
+The API's three main reads, run as `EXPLAIN (ANALYZE, BUFFERS)` against a table of 7,349,463 rows (4.9 GB with its indexes). This is evidence for the API latency target: list, detail and summary at p95 under 200 ms on a database of at least 5M rows. The plans show the reasons it is met, not only the timings.
 
 ## Setup
 

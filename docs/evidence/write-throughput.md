@@ -2,12 +2,12 @@
 
 Measured on 2026-10-28, on one laptop, against the whole stack running in compose. This page is the evidence for two service targets:
 
-- **S2, ingest lag:** p95 under 5 s at 250 messages a second.
-- **S6, write throughput:** measured and recorded, with no target set in advance.
+- **Ingest lag:** p95 under 5 s at 250 messages a second.
+- **Write throughput:** measured and recorded, with no target set in advance.
 
 ## Results
 
-- **S2 is met.** At 250 messages a second, ingest lag p95 was 1.7 s.
+- **The ingest lag target is met.** At 250 messages a second, ingest lag p95 was 1.7 s.
 - **Backlog:** the four consumers stored a 4.9M-record backlog at about 4,200 rows a second on average, and up to 7,300 a second at their peak.
 - **Live stream:** a steady stream holds up to about 4,000 messages a second, with p95 lag under 1 s. At 5,000 a second, the card consumer falls behind and lag grows.
 - **2026-10-31, with 1,000-row batches and two Postgres settings:** a live stream holds 9,000 messages a second with p95 lag about 1 s. A backlog on a 14-million-row table drains at about 2,500 rows a second per consumer, limited by the disk reading index pages.
