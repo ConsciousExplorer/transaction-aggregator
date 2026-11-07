@@ -3,12 +3,12 @@ import { apiUnavailableError, upstreamError } from "./problems.ts";
 import { getServiceToken } from "./runtime.ts";
 import { buildTraceparent } from "./trace.ts";
 
-type ApiRequest = {
+interface ApiRequest {
 	method: "GET" | "PUT" | "DELETE";
 	path: string;
 	query?: URLSearchParams;
 	body?: unknown;
-};
+}
 
 // Every API path names its user. Here it is always the signed-in customer, from the session.
 export function buildCustomerPath(customerId: string, rest: string) {

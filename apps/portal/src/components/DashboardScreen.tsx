@@ -61,7 +61,7 @@ import { buildUsualDeltas } from "@/lib/usual.ts";
 // Everything a block on the screen reads from: the one "now" every read's window is measured
 // from, the URL and what it selects, the categories, and the write callbacks. A write bumps
 // reloadCount, and every block reads again.
-export type DashboardContext = {
+export interface DashboardContext {
 	now: Date;
 	searchParams: URLSearchParams;
 	months: number;
@@ -72,7 +72,7 @@ export type DashboardContext = {
 	reloadCount: number;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 // A write landed: clear any earlier write error and read every block again
 function createChangedHandler(

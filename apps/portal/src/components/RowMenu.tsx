@@ -13,13 +13,17 @@ import { Icon } from "@/components/Icons.tsx";
 import type { IconName } from "@/lib/category-style.ts";
 import { chooseFocusIndex, findFocusedIndex } from "@/lib/menu-focus.ts";
 
-export type MenuItem = { label: string; icon: IconName; onSelect: () => void };
+export interface MenuItem {
+	label: string;
+	icon: IconName;
+	onSelect: () => void;
+}
 
-type MenuRefs = {
+interface MenuRefs {
 	kebab: RefObject<HTMLButtonElement | null>;
 	menu: RefObject<HTMLDivElement | null>;
 	scrim: RefObject<HTMLDivElement | null>;
-};
+}
 
 // Closing puts focus back on the kebab, so a keyboard user carries on from the row
 function closeMenu(

@@ -3,11 +3,11 @@ import { describeLastPeriod, type Interval } from "./periods.ts";
 import { buildToggleHref } from "./transaction-query.ts";
 import type { Category } from "./types.ts";
 
-export type SelectionChip = {
+export interface SelectionChip {
 	name: "bucket" | "category";
 	label: string;
 	href: string;
-};
+}
 
 // The keys of every bucket the chart shows for a period, empty ones included
 export function listBucketKeys(

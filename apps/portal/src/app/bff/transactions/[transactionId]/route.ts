@@ -4,7 +4,9 @@ import { respondWithProblem } from "@/bff/problems.ts";
 import { requireCustomer } from "@/bff/session.ts";
 import type { TransactionDetail } from "@/lib/types.ts";
 
-type TransactionRouteContext = { params: Promise<{ transactionId: string }> };
+interface TransactionRouteContext {
+	params: Promise<{ transactionId: string }>;
+}
 
 // One of the customer's transactions with its merchant, beneficiary, mandate or transfer fields
 export async function GET(_request: Request, context: TransactionRouteContext) {

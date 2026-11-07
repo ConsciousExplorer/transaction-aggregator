@@ -1,11 +1,11 @@
 import type { Interval } from "./periods.ts";
 import type { SummaryRow } from "./types.ts";
 
-export type BucketTotal = {
+export interface BucketTotal {
 	bucket: string;
 	moneyInMinor: number;
 	moneyOutMinor: number;
-};
+}
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;

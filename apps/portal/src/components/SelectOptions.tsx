@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 
 // A select's choices as value and label, for the filter row's selects
 
-export type SelectOption = { value: string; label: string };
+export interface SelectOption {
+	value: string;
+	label: string;
+}
 
 export function buildOptions(options: SelectOption[]) {
 	const elements: ReactNode[] = [];

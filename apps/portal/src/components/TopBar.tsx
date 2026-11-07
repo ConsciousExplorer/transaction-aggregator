@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle.tsx";
 
-type TopBarProps = { customerName: string };
+interface TopBarProps {
+	customerName: string;
+}
 
 // The shell's one bar. On the left the product's mark, its name and the word Demo; on the
 // right who is signed in, the switch between day and night, and the way out. No nav links:

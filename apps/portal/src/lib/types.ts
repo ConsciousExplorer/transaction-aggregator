@@ -1,7 +1,10 @@
 // The API's response shapes the portal reads (apps/api/openapi/openapi.json), and the shapes the
 // BFF hands the browser. The browser never sees an API URL: links become cursors.
 
-export type Money = { amountMinor: number; currency: string };
+export interface Money {
+	amountMinor: number;
+	currency: string;
+}
 
 export type TransactionType =
 	| "card"
@@ -11,7 +14,7 @@ export type TransactionType =
 
 export type CreditDebitIndicator = "credit" | "debit";
 
-export type Transaction = {
+export interface Transaction {
 	transactionId: string;
 	occurredAt: string;
 	shortDescription: string;
@@ -20,10 +23,10 @@ export type Transaction = {
 	status: "completed" | "pending" | "reversed" | "failed";
 	category: string;
 	amount: Money;
-};
+}
 
 // The single-transaction read's shape. `fundingSource` is discriminated on `transactionType`.
-export type CardFundingSource = {
+export interface CardFundingSource {
 	transactionType: "card";
 	cardLast4: string;
 	cardNetwork: string;
@@ -31,9 +34,9 @@ export type CardFundingSource = {
 	mcc: string | null;
 	authCode: string | null;
 	posEntryMode: string | null;
-};
+}
 
-export type EftFundingSource = {
+export interface EftFundingSource {
 	transactionType: "eft";
 	beneficiaryName: string;
 	beneficiaryBank: string;
@@ -41,23 +44,23 @@ export type EftFundingSource = {
 	branchCode: string | null;
 	reference: string | null;
 	clearingType: string | null;
-};
+}
 
-export type DebitOrderFundingSource = {
+export interface DebitOrderFundingSource {
 	transactionType: "debit_order";
 	creditorName: string;
 	mandateId: string;
 	frequency: string | null;
 	collectionType: string | null;
-};
+}
 
-export type InternalTransferFundingSource = {
+export interface InternalTransferFundingSource {
 	transactionType: "internal_transfer";
 	fromAccountId: string;
 	fromAccountType: string;
 	toAccountId: string;
 	toAccountType: string;
-};
+}
 
 export type FundingSource =
 	| CardFundingSource
@@ -65,7 +68,7 @@ export type FundingSource =
 	| DebitOrderFundingSource
 	| InternalTransferFundingSource;
 
-export type TransactionDetail = {
+export interface TransactionDetail {
 	transactionId: string;
 	accountId: string;
 	externalId: string;
@@ -77,42 +80,49 @@ export type TransactionDetail = {
 	shortDescription: string | null;
 	category: string;
 	fundingSource: FundingSource;
-};
+}
 
-type Links = { self: string; next?: string; prev?: string };
+interface Links {
+	self: string;
+	next?: string;
+	prev?: string;
+}
 
-type TransactionPageMeta = {
+interface TransactionPageMeta {
 	count: number;
 	limit: number;
 	sort: "-occurredAt" | "occurredAt";
 	fromDateTime: string;
 	toDateTime: string;
-};
+}
 
-export type ApiTransactionPage = {
+export interface ApiTransactionPage {
 	data: Transaction[];
 	links: Links;
 	meta: TransactionPageMeta;
-};
+}
 
-export type TransactionPage = {
+export interface TransactionPage {
 	transactions: Transaction[];
 	meta: TransactionPageMeta;
 	nextCursor?: string | undefined;
 	previousCursor?: string | undefined;
-};
+}
 
-type SummarySide = { count: number; total: Money };
+interface SummarySide {
+	count: number;
+	total: Money;
+}
 
-export type SummaryRow = {
+export interface SummaryRow {
 	group: { category?: string; day?: string; week?: string; month?: string };
 	count: number;
 	credit: SummarySide;
 	debit: SummarySide;
 	netAmount: Money;
-};
+}
 
-export type Summary = {
+export interface Summary {
 	data: SummaryRow[];
 	totals: {
 		transactionCount: number;
@@ -120,20 +130,22 @@ export type Summary = {
 		debit: SummarySide;
 		netAmount: Money;
 	};
-};
+}
 
 // The BFF's answer for the spending card's Type tab: one summary's totals per transaction type
-export type TypeSummaryRow = {
+export interface TypeSummaryRow {
 	transactionType: TransactionType;
 	count: number;
 	credit: SummarySide;
 	debit: SummarySide;
 	netAmount: Money;
-};
+}
 
-export type TypeSummary = { data: TypeSummaryRow[] };
+export interface TypeSummary {
+	data: TypeSummaryRow[];
+}
 
-export type Category = {
+export interface Category {
 	categoryId: number;
 	category: string;
 	label: string;
@@ -143,10 +155,10 @@ export type Category = {
 		label: string;
 		updatedAt: string;
 	};
-};
+}
 
-export type ApiCategoryList = {
+export interface ApiCategoryList {
 	data: Category[];
 	links: Links;
 	meta: { count: number };
-};
+}

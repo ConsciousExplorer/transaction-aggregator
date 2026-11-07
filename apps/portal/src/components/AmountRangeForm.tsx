@@ -38,14 +38,14 @@ function readAmountRange(
 	return { isValid: true, amountMin: cleanedMin, amountMax: cleanedMax };
 }
 
-type AmountFieldProps = {
+interface AmountFieldProps {
 	label: string;
 	accessibleName?: string;
 	value: string;
 	isInvalid: boolean;
 	messageId: string;
 	onChange: (value: string) => void;
-};
+}
 
 // A box that does not read as rand is marked invalid and points at the message that says why.
 // A short visible label that does not name the box on its own takes a fuller accessible name.

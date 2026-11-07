@@ -6,7 +6,9 @@ import { respondWithProblem } from "@/bff/problems.ts";
 import { readRequestBody } from "@/bff/request-body.ts";
 import { requireCustomer } from "@/bff/session.ts";
 
-type TransactionRouteContext = { params: Promise<{ transactionId: string }> };
+interface TransactionRouteContext {
+	params: Promise<{ transactionId: string }>;
+}
 
 const recategoriseSchema = z.object({ categoryId: z.number().int() });
 

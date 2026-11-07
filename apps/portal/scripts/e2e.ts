@@ -11,7 +11,9 @@ import type { TransactionPage } from "../src/lib/types.ts";
 
 type CookieJar = Map<string, string>;
 
-type Problem = { type: string };
+interface Problem {
+	type: string;
+}
 
 const DEFAULT_PORTAL = "http://localhost:8084";
 

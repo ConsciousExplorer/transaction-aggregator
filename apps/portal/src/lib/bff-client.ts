@@ -11,7 +11,11 @@ export class PortalRequestError extends Error {
 	}
 }
 
-type ProblemBody = { title?: string; detail?: string; trace_id?: string };
+interface ProblemBody {
+	title?: string;
+	detail?: string;
+	trace_id?: string;
+}
 
 // 401 means the session is gone (expired, or signed out in another tab): back to sign-in
 async function readResponse(response: Response) {

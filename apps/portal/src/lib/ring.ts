@@ -5,16 +5,19 @@ import type { Category } from "./types.ts";
 // The spending ring: money out by category as arcs of one circle, the largest first,
 // clockwise from the top. The arithmetic is here, apart from the drawing, so it can be tested.
 
-export type RingSegment = {
+export interface RingSegment {
 	label: string;
 	// Undefined for Other, which stands for several categories
 	slug: string | undefined;
 	amountMinor: number;
 	share: number;
 	hue: CategoryHue;
-};
+}
 
-type RingArc = { d: string; segment: RingSegment };
+interface RingArc {
+	d: string;
+	segment: RingSegment;
+}
 
 // Seven hues can be told apart around one ring; every category past the seventh joins Other
 const RING_SEGMENT_LIMIT = 7;

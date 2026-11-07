@@ -1,6 +1,9 @@
 import type { FundingSource, TransactionDetail } from "./types.ts";
 
-export type DetailField = { label: string; value: string };
+export interface DetailField {
+	label: string;
+	value: string;
+}
 
 // A field the API has no value for is left out rather than shown empty
 function addField(fields: DetailField[], label: string, value: string | null) {

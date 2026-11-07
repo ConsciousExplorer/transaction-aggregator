@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 // Problem details, the shape the API answers errors with, so the browser handles one error format
-type ProblemPayload = {
+interface ProblemPayload {
 	type: string;
 	title: string;
 	status: number;
 	detail?: string | undefined;
 	trace_id?: string | undefined;
-};
+}
 
 class BffProblem extends Error {
 	payload: ProblemPayload;

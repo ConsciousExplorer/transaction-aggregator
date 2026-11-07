@@ -61,13 +61,13 @@ function describeTransactionFacts(transaction: Transaction) {
 
 // What a transaction row's writes read and set: whether one is running, the row's note of the
 // category it had before a change, and the list's callbacks
-type TransactionRowWriteContext = {
+interface TransactionRowWriteContext {
 	isSaving: boolean;
 	setIsSaving: Dispatch<SetStateAction<boolean>>;
 	setChangedFromLabel: Dispatch<SetStateAction<string | undefined>>;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 // Picking a category re-categorises the row's transaction. The row is busy until the write
 // settles, and a pick made while one runs is ignored. Once the write lands the row notes the
@@ -118,14 +118,14 @@ function createDetailToggler(
 	};
 }
 
-type TransactionRowProps = {
+interface TransactionRowProps {
 	transaction: Transaction;
 	categories: Category[];
 	isOpen: boolean;
 	onToggleDetail: (transactionId: string) => void;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 // The row, and when it is open, the detail row under it. The detail row spans every column,
 // and its id is what the description button controls. While a write runs the row is busy and
@@ -270,14 +270,14 @@ function TransactionRow({
 	);
 }
 
-export type TransactionTableProps = {
+export interface TransactionTableProps {
 	transactions: Transaction[];
 	categories: Category[];
 	openTransactionId: string | undefined;
 	onToggleDetail: (transactionId: string) => void;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 export function TransactionTable(props: TransactionTableProps) {
 	const rows: ReactNode[] = [];

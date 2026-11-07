@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export type SegmentedLink = { href: string; label: string; current: boolean };
+export interface SegmentedLink {
+	href: string;
+	label: string;
+	current: boolean;
+}
 
 // A row of links that reads as one control: the current one is filled and carries
 // aria-current, so the choice is in the URL and the page stays linkable. A choice changes the

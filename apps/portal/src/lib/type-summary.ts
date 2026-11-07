@@ -12,10 +12,10 @@ export const TRANSACTION_TYPES: TransactionType[] = [
 ];
 
 // One type's summary read, carried with the type it was read for
-type TypeSummaryRead = {
+interface TypeSummaryRead {
 	transactionType: TransactionType;
 	body: Summary;
-};
+}
 
 // Each read's totals are its type's row, in the order the reads come
 export function buildTypeRows(reads: TypeSummaryRead[]) {

@@ -20,14 +20,14 @@ const DENSE_BUCKET_COUNT = 40;
 // buckets still draw columns rather than blocks
 const MAXIMUM_BAR_WIDTH = 6;
 
-type ChartGeometry = {
+interface ChartGeometry {
 	ticks: number[];
 	step: number;
 	top: number;
 	bottom: number;
 	range: number;
 	zeroY: number;
-};
+}
 
 // The signed axis as positions on the plot. The svg's viewBox is 0–100 on both axes, so every
 // y here is a percentage of the plot's height, measured down from the top. With nothing in

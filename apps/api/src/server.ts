@@ -40,14 +40,14 @@ const IGNORE_TEST_FILES = /\.test\.(ts|js)$/;
  * that serves real requests types its dependencies with this: leaving one out
  * is then a compile error, not a 500 on that route's first request.
  */
-export type ServerDependencies = {
+export interface ServerDependencies {
 	tokenVerification: TokenVerification;
 	pool: Pool;
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;
 	summaryRepository: SummaryRepository;
 	queryWindow: QueryWindowConfig;
-};
+}
 
 export type BuildServerOptions = Partial<ServerDependencies> & {
 	appInfo?: AppInfoConfig;

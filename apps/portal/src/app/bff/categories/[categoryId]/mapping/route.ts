@@ -6,7 +6,9 @@ import { respondWithProblem } from "@/bff/problems.ts";
 import { readRequestBody } from "@/bff/request-body.ts";
 import { requireCustomer } from "@/bff/session.ts";
 
-type CategoryRouteContext = { params: Promise<{ categoryId: string }> };
+interface CategoryRouteContext {
+	params: Promise<{ categoryId: string }>;
+}
 
 const remapSchema = z.object({ toCategoryId: z.number().int() });
 

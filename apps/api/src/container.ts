@@ -15,7 +15,7 @@ import { SummaryRepository } from "./integrations/database/repositories/summary-
 import { UserTransactionRepository } from "./integrations/database/repositories/transaction-repository.ts";
 
 /** Everything the container builds, by the name it is resolved by */
-export type AppCradle = {
+export interface AppCradle {
 	appInfo: AppInfoConfig;
 	config: Config;
 	logger: Logger;
@@ -25,7 +25,7 @@ export type AppCradle = {
 	categoryRepository: CategoryRepository;
 	transactionRepository: UserTransactionRepository;
 	summaryRepository: SummaryRepository;
-};
+}
 
 export async function buildContainer() {
 	// Create the application container

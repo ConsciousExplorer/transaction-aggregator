@@ -46,7 +46,7 @@ const FOOT_FAILURE_SENTENCES: Record<FootFailure, string> = {
 	reload: "Couldn't refresh the transactions."
 };
 
-type TransactionListProps = {
+interface TransactionListProps {
 	searchParams: URLSearchParams;
 	now: Date;
 	selectedBucket: string | undefined;
@@ -56,7 +56,7 @@ type TransactionListProps = {
 	reloadCount: number;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 function buildPagePath(basePath: string, cursor: string | undefined) {
 	if (cursor === undefined) return basePath;

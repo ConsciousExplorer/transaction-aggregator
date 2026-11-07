@@ -1,4 +1,7 @@
-type ServiceToken = { accessToken: string; expiresInSeconds: number };
+interface ServiceToken {
+	accessToken: string;
+	expiresInSeconds: number;
+}
 
 // Thirty seconds of slack, so a token never expires between the check and the API call
 const EXPIRY_MARGIN_SECONDS = 30;

@@ -1,13 +1,13 @@
 import type { Category, SummaryRow } from "./types.ts";
 
-export type CategoryFigures = {
+export interface CategoryFigures {
 	moneyInMinor: number;
 	moneyOutMinor: number;
 	// Every transaction in the category, money in and out alike
 	count: number;
 	// Only those that sent money out, which an average of money out divides by
 	moneyOutCount: number;
-};
+}
 
 // The summary grouped by category has a row per category; key them by slug for lookup
 export function buildCategoryFigures(rows: SummaryRow[]) {

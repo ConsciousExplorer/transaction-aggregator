@@ -20,7 +20,9 @@ const DEMO_CUSTOMERS = [
 	{ username: "richard.roe", name: "Richard Roe" }
 ];
 
-type SignInPageProps = { searchParams: Promise<{ error?: string }> };
+interface SignInPageProps {
+	searchParams: Promise<{ error?: string }>;
+}
 
 // One card: the task in its upper part, the demo customers as help in its lower part
 export default async function SignInPage({ searchParams }: SignInPageProps) {

@@ -78,12 +78,12 @@ function describeRemapNote(category: Category) {
 
 // What a category row's writes read and set: whether one is running, and the screen's
 // callbacks
-type CategoryRowWriteContext = {
+interface CategoryRowWriteContext {
 	isSaving: boolean;
 	setIsSaving: Dispatch<SetStateAction<boolean>>;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 // Picking a category shows the row's category as that one. The row is busy until the write
 // settles, and a pick made while one runs is ignored. Picking the category it is already
@@ -116,7 +116,7 @@ function createRemoveRemapHandler(
 	};
 }
 
-type CategoryRowProps = {
+interface CategoryRowProps {
 	category: Category;
 	// Every category, which the picker offers
 	categories: Category[];
@@ -130,7 +130,7 @@ type CategoryRowProps = {
 	onSelect: (slug: string) => void;
 	onChanged: () => void;
 	onFailed: (error: unknown) => void;
-};
+}
 
 // One category's row, with its menu beside the row's button. While a write runs the row is
 // busy and its menu's items are aria-disabled. A remapped row says what it is shown as, and
@@ -225,7 +225,7 @@ function CategoryRow({
 	);
 }
 
-type CategoryRowsProps = {
+interface CategoryRowsProps {
 	// Every category ranked by money out, of which those with transactions get a row
 	ranked: Category[];
 	// Every category in the categories read's order, which the picker lists
@@ -241,7 +241,7 @@ type CategoryRowsProps = {
 	// Each category running above its usual month, by slug, with how far above in minor units;
 	// empty when the usual month is not shown
 	usualDeltaByCategory: Record<string, number>;
-};
+}
 
 function buildCategoryItems(shown: Category[], props: CategoryRowsProps) {
 	const items: ReactNode[] = [];
