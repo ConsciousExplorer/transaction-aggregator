@@ -455,7 +455,7 @@ pre .comment { color: var(--muted); }
 			</tbody>
 		</table>
 	</div>
-	<p>Today main holds only a README and <code>.gitignore</code>, so every app is new to it, and the first pull request passes the version, contract and schema comparisons with nothing to compare against. From the second one on, each is checked against what the first one merged.</p>
+	<p>A manifest, contract or schema that main doesn't have passes its comparison, because there is nothing to compare it against. Everything else is checked against main's copy.</p>
 	<span class="source">scripts/check-version-bump.ts · the version job in api.yml, consumer.yml, portal.yml, producers.yml</span>
 </section>
 
@@ -563,7 +563,7 @@ pre .comment { color: var(--muted); }
 	<p>Adding a response enum value fails because a client may switch on the values it knows, and would meet one it doesn't. To change a field, add the new one beside the old one; removing the old one later is a breaking change, and this check stops it.</p>
 	<div class="callout">
 		<p class="callout-title">The one gap: filters that take one value or a list</p>
-		<p><code>transactionType</code> and <code>creditDebitIndicator</code> accept one value or an array, so their schema is <code>anyOf: [enum, array of enum]</code>. oasdiff 1.32.1 doesn't compare enums inside an <code>anyOf</code>: removing a value there reports nothing, yet a client still sending it now gets a 400. Removing <code>loan</code> from <code>transactionType</code> was this kind of change. Until the check covers it, a reviewer has to catch it.</p>
+		<p><code>transactionType</code> and <code>creditDebitIndicator</code> accept one value or an array, so their schema is <code>anyOf: [enum, array of enum]</code>. oasdiff 1.32.1 doesn't compare enums inside an <code>anyOf</code>: removing a value there reports nothing, yet a client still sending it now gets a 400. Removing <code>loan</code> from <code>transactionType</code> was this kind of change. The check doesn't cover it, so a reviewer has to catch it.</p>
 	</div>
 	<span class="source">.github/workflows/api-contract.yml · apps/api/scripts/generate-openapi.ts · apps/api/openapi/openapi.json</span>
 </section>

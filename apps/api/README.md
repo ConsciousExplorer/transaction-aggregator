@@ -100,11 +100,6 @@ There is no service layer because a service between each handler and its reposit
   - Keeping reads apart from writes: the API's database login can't write a transaction.
 - **The one business rule belongs in the query.** Which category wins is worked out in SQL, because the list filters by it and the summary totals by it. In application code, the API would have to load every row in the window before it could filter, total or page them.
 
-A service layer becomes worth having when one of these appears:
-- a write that must change several tables in one transaction, such as an audit row saved with the override;
-- a second way in that reuses the write logic, such as a command consumer or an admin CLI;
-- a route that needs more than two repository calls and branches between them.
-
 The [consumer](../consumer/README.md) is layered into handlers, services and integrations because it has that kind of logic: it turns four source shapes into one row and categorises each one.
 
 ## Project structure

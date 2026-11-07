@@ -77,10 +77,10 @@ Lag is meaningless during a backlog, since records wait their turn. It sat above
 - **One consumer per source.** Each source's consumer reads all 12 partitions of its topic in one loop, one flush at a time. At about 2,600–2,800 rows a second sustained, the card consumer is the first to saturate.
 - **The insert dominates a flush.** At 100 rows it takes 20–35 ms, and its p95 roughly doubles as the database gets busier.
 
-There are two ways to raise the ceiling, neither of them built:
+The runs on 2026-10-31, below, measured two ways past that ceiling:
 
-- **More consumers for card:** a topic's 12 partitions allow up to 12 instances of one source's consumer in its group.
-- **Larger batches:** `KAFKA_BATCH_SIZE` above 100, within the 1 MiB fetch.
+- **Larger batches:** adopted. `KAFKA_BATCH_SIZE` went from 100 to 1,000.
+- **More consumers for card:** not adopted. A topic's 12 partitions allow up to 12 instances of one source's consumer, and each source runs one.
 
 ## What this doesn't show
 

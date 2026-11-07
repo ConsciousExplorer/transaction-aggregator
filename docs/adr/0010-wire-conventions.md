@@ -59,8 +59,5 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 - **Clients never do float maths on money:** amounts are exact integers.
 - **Category ids are append-only:** renumbering or reusing one is a breaking change.
 - **A year is the most one request can read,** so an older history means stepping the window back.
-
-## Open
-
-- **Problem `type` values are bare slugs:** the problem-details format allows a relative reference, but recommends absolute URIs. Decide before the first release whether they become `urn:txn-agg:problem:<slug>` or stay as they are.
+- **Problem `type` values are bare slugs:** the problem-details format allows a relative reference, but recommends absolute URIs.
 - **Positivity is enforced by the database only:** the response schema describes amounts as positive but doesn't check it. The database's `CHECK (amount_minor > 0)` is what enforces it.

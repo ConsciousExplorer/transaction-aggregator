@@ -17,7 +17,7 @@ The end user signs in to the calling app, not to this API. That app knows who th
 - **Clients:**
   - `banking-portal` has `tx:read` and `tx:write`.
   - `banking-service` has `tx:read` only.
-  - `ops-console` has `ops`, which no route uses yet.
+  - `ops-console` has `ops`, which no route uses.
   - Access tokens last 15 minutes.
 - **Verification:** the API verifies every token in an `onRequest` hook against Keycloak's published keys (JWKS). It requires RS256, the realm's issuer, the `txn-api` audience and an expiry.
 - **Errors:** a request with no valid token gets a 401 before its query or body is validated. If Keycloak's keys can't be fetched, the API answers 503.
@@ -47,6 +47,7 @@ The end user signs in to the calling app, not to this API. That app knows who th
 | Option | Why not |
 | --- | --- |
 | Forward the user's own token to the API | The API would depend on the end-user login, and `customer_id` would have to go into access tokens. Callers with no user, such as batch jobs, would need a second path. |
+| OAuth token exchange, with the portal swapping the user's token for one scoped to that user | It adds a token swap per user session, and every caller is an internal app the API already trusts to name the user. |
 | `/me` routes | A client-credentials token has no user in it. |
 | `sub` as the client's identity | In Keycloak it's an opaque id that changes when the realm is imported again. |
 | A shared-secret (HS256) token issuer | Every service would hold the signing secret. The keys published by Keycloak (JWKS) need no shared secret. |
@@ -59,8 +60,3 @@ The end user signs in to the calling app, not to this API. That app knows who th
 - **The audit line records a claim:** its `user_id` is what the caller said, not proof of who the user was.
 - **There is no per-client fairness without a gateway:** with no gateway in front, one misbehaving client can hold every pool connection. The pool caps total load, not who gets it.
 - **Dev secrets are committed:** the client secrets are in the realm export and in compose, as committed dev credentials.
-
-## Revisit when
-
-- **A caller the API can't fully trust appears:** make the token name the user. The production path is OAuth token exchange: the portal swaps the user's token for one scoped to that user, and the API checks the path's `userId` against it.
-- **The API scales out with no gateway:** add a rate limit keyed on the verified client id, after auth, with a shared store.

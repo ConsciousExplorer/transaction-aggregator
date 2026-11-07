@@ -58,11 +58,5 @@ Categorising can't fail, because the fallback always matches. The rule set is lo
 - **Rule changes need a migration and a restart:** a consumer picks up a new rule set only when it restarts.
 - **Old rows keep old verdicts:** re-categorising history would need a backfill job, which doesn't exist.
 - **Reads cost two joins:** every read joins the two override tables. Both are small and keyed for the join.
-- **Downstream sees the system category:** anything reading stored rows directly, such as an export, gets the system category unless it applies the same resolution ([0011](0011-egress.md)).
+- **Downstream sees the system category:** anything reading stored rows directly gets the system category unless it applies the same resolution ([0011](0011-egress.md)).
 - **Append-only is partly by convention:** the grants stop the apps changing rules, but nothing stops a migration editing a version's rows. A database built before an in-place edit keeps the old rules, because migrations that have already run aren't applied again.
-
-## Revisit when
-
-- Rules change often enough that a migration and a restart are too slow: load new versions without a restart.
-- Users need remaps to chain, or rules of their own.
-- A model beats the rules on accuracy: put it behind the same categorise step and record its version the same way.

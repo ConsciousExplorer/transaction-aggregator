@@ -24,7 +24,7 @@ The schemas change over time. `schemas/v2/card.avsc` already adds a field.
 
 **Money is a `long` of minor units** (cents). There are no floats and no decimal logical type.
 
-**Closed sets are Avro enums where both sides agree on the values.** `transactionType` and `creditDebitIndicator` are enums whose symbols match the database's enum values. This is safe here because no reader resolves against an older reader schema: a message is decoded with the schema it was written with, so a new symbol decodes. The consumer's Zod schemas and the database enums still decide which values are accepted. A new value therefore reaches the database and the consumer before any producer sends it. `status` and `currency` are still strings, checked by the consumer and the database.
+**Closed sets are Avro enums where both sides agree on the values.** `transactionType` and `creditDebitIndicator` are enums whose symbols match the database's enum values. This is safe here because no reader resolves against an older reader schema: a message is decoded with the schema it was written with, so a new symbol decodes. The consumer's Zod schemas and the database enums still decide which values are accepted. A new value therefore reaches the database and the consumer before any producer sends it. `status` and `currency` are strings, checked by the consumer and the database.
 
 **Rollout rules.**
 
@@ -44,6 +44,7 @@ CI's `schemas` workflow checks the same rule without a registry. Each schema mus
 | Plain JSON | There is no compatibility gate. Every record repeats every key name, and `JSON.parse` turns amounts into doubles. |
 | Producers auto-register | A producer could publish a schema nobody reviewed. |
 | Strings for every closed set | Strings are safer only for readers that resolve against their own reader schema, and none do here. An enum stops a producer sending `"Debit"`. |
+| Decoding longs as `BigInt` (an avsc `LongType`, with a `bigint` column mode in Drizzle) | A JavaScript number is exact up to 2^53, about 90 trillion rand in cents, far above any amount this system stores. |
 
 ## Consequences
 
@@ -52,13 +53,3 @@ CI's `schemas` workflow checks the same rule without a registry. Each schema mus
 - A future reader that resolves against its own reader schema (a Java consumer with generated classes, say) would fail on a new enum symbol. It needs the symbol first, or an enum `default`.
 - The unit lives in the schema's `doc`, not in the type: `amount` is cents because the schema says so.
 - avsc decodes a `long` to a JavaScript number, which is exact only up to 2^53 (about 90 trillion rand in cents). Nothing converts longs to `BigInt`.
-
-## Open
-
-- **`long` precision:** either accept the 2^53 bound in writing, or decode longs as `BigInt` (an avsc `LongType`, with a `bigint` column mode in Drizzle).
-- **`status`:** decide whether it becomes an enum like the other two closed sets.
-
-## Revisit when
-
-- A producer outside this repo writes to a source topic.
-- The organisation standardises on Protobuf and gRPC.

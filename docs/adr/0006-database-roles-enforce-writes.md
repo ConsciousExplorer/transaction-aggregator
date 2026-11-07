@@ -56,7 +56,3 @@ Three consequences of that table:
 - **New tables need explicit grants:** every new table needs its write grants added to the migration by hand. Reads come from the default privilege.
 - **Archived remaps never go away:** `user_category_overrides` isn't partitioned, so its archived rows stay for good.
 - **`api_read` is unused:** the login exists, but nothing uses it.
-
-## Revisit when
-
-- **Another service shares the database:** give it its own schema and group roles.

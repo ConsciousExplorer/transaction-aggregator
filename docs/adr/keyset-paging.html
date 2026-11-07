@@ -131,17 +131,6 @@ button.quiet { background: transparent; color: var(--muted); }
 .seg button:last-child { border-radius: 0 6px 6px 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chips button { font-family: var(--font-mono); font-size: 12px; padding: 5px 9px; }
-.pill {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px dashed var(--keyset);
-  color: var(--keyset);
-  border-radius: 99px;
-  padding: 3px 9px;
-  align-self: center;
-}
 
 .actions { display: grid; gap: 10px; }
 .groups { display: flex; flex-wrap: wrap; gap: 10px 26px; }
@@ -416,7 +405,6 @@ pre.sql, pre.code, pre.json {
 .chip.shape { background: var(--code); }
 .chip.filt { border: 1px dashed var(--faint); }
 .chip.cur { background: var(--keyset-soft); color: var(--keyset); }
-.chip.prop { border: 1px dashed var(--keyset); }
 .chip.sel { outline: 2px solid currentColor; outline-offset: 1px; }
 .explain {
   display: grid;
@@ -437,15 +425,6 @@ pre.sql, pre.code, pre.json {
 }
 .two > div { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .caption { font-size: 13px; color: var(--muted); }
-.callout {
-  border: 1px dashed var(--keyset);
-  border-radius: 10px;
-  padding: 14px 16px;
-  display: grid;
-  gap: 8px;
-  max-width: 86ch;
-}
-.callout ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 
 .tokens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .tok {
@@ -480,14 +459,6 @@ thead th.o { color: var(--offset); }
 thead th.k { color: var(--keyset); }
 tbody th { font-weight: 600; width: 22%; }
 td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
-.verdict {
-  font-family: var(--font-display);
-  font-stretch: 115%;
-  font-weight: 760;
-  font-size: clamp(20px, 2.4vw, 26px);
-  line-height: 1.2;
-}
-.verdict code { font-size: 0.85em; color: var(--keyset); background: var(--keyset-soft); padding: 1px 6px; border-radius: 5px; }
 
 @media (max-width: 1080px) {
   .bench { grid-template-columns: minmax(0, 1fr); }
@@ -508,7 +479,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   <header class="top">
     <p class="eyebrow">transaction-aggregator · apps/api/src/utils/paging.ts</p>
     <h1>Keyset Paging <span class="k">Lab</span></h1>
-    <p class="lede">One user's transactions, two clients paging through them. The offset client asks for page numbers. The keyset client follows <code>links.next</code> and <code>links.prev</code>, which is how the API works today. Change the data while they page and watch which one repeats or loses rows.</p>
+    <p class="lede">One user's transactions, two clients paging through them. The offset client asks for page numbers. The keyset client follows <code>links.next</code> and <code>links.prev</code>, which is how the API works. Change the data while they page and watch which one repeats or loses rows.</p>
   </header>
 
   <section class="controls" aria-label="The request both clients send">
@@ -516,8 +487,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       <select id="sort">
         <option value="-occurredAt">-occurredAt · newest first</option>
         <option value="occurredAt">occurredAt · oldest first</option>
-        <option value="-amount">-amount · largest first (proposal)</option>
-        <option value="amount">amount · smallest first (proposal)</option>
       </select>
     </label>
     <label class="field" for="limit"><span class="lbl">limit</span>
@@ -549,7 +518,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
         <option value="100000">R 1 000 and up</option>
       </select>
     </label>
-    <span class="pill" id="sortPill" hidden>Amount sort is not built</span>
   </section>
 
   <section class="actions" aria-label="Actions">
@@ -572,7 +540,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
         <button type="button" data-scenario="repeat">Show a repeat</button>
         <button type="button" data-scenario="skip">Show a skip</button>
         <button type="button" data-scenario="filter">Page through a filter</button>
-        <button type="button" data-scenario="amount">Sort by amount</button>
       </div>
     </div>
     <p class="event" id="eventMsg" aria-live="polite"></p>
@@ -616,7 +583,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
         <p class="caption" id="jsonCaption"></p>
       </div>
     </div>
-    <div class="callout" id="amountBox"></div>
   </section>
 
   <section class="ref" id="stepper" aria-labelledby="stepperTitle">
@@ -638,8 +604,8 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
           <tr><th scope="row">A row arrives above you</th><td>The next page repeats a row.</td><td>No effect. The new row shows up when you page back.</td></tr>
           <tr><th scope="row">A row above you leaves</th><td>The next page loses a row.</td><td>No effect. The cursor is a value, not a row, so it still works when its own row is gone.</td></tr>
           <tr><th scope="row">Jump to page 7</th><td>Yes.</td><td>No. Only next and prev from a boundary row.</td></tr>
-          <tr><th scope="row">Page count</th><td>Needs a <code>COUNT(*)</code> over the window on every request.</td><td>None. An opt-in <code>includeTotal</code> is the way back in.</td></tr>
-          <tr><th scope="row">Sorting by another column</th><td>Change <code>ORDER BY</code>.</td><td>The cursor must carry that column plus the tiebreak, for example <code>amountMinor</code> in the cursor's position.</td></tr>
+          <tr><th scope="row">Page count</th><td>Needs a <code>COUNT(*)</code> over the window on every request.</td><td>None. <code>meta</code> has no total.</td></tr>
+          <tr><th scope="row">Sorting by another column</th><td>Change <code>ORDER BY</code>.</td><td>The cursor has to carry that column plus the tiebreak. The API sorts only by <code>occurredAt</code>, newest or oldest first.</td></tr>
           <tr><th scope="row">What the client keeps</th><td>A page number.</td><td>Nothing. It follows the links.</td></tr>
         </tbody>
       </table>
@@ -647,14 +613,13 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   </section>
 
   <section class="ref" aria-labelledby="namingTitle">
-    <h2 id="namingTitle">buildKeysetPage or buildCursorPage?</h2>
-    <p class="verdict">Keep <code>buildKeysetPage</code>. It returns rows, and the cursor is made from them one layer up.</p>
+    <h2 id="namingTitle">Keyset and cursor</h2>
     <div class="prose">
-      <p>Keyset is the technique: seek past the last row's sort key instead of counting rows. A cursor is what the client holds: a position it sends back. The code already uses each word for its own layer:</p>
+      <p>Keyset is the technique: seek past the last row's sort key instead of counting rows. A cursor is what the client holds: a position it sends back. The code uses each word for its own layer:</p>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th scope="col">Layer</th><th scope="col">What it holds</th><th scope="col">Names today</th><th scope="col">Word</th></tr></thead>
+        <thead><tr><th scope="col">Layer</th><th scope="col">What it holds</th><th scope="col">Names</th><th scope="col">Word</th></tr></thead>
         <tbody>
           <tr><th scope="row">Repository</th><td>The seek on the sort key</td><td><code>cursorBound</code>, <code>cursorSeek</code></td><td>keyset, fed by the cursor's position</td></tr>
           <tr><th scope="row"><code>paging.ts</code></th><td>Up to limit rows, plus the boundary rows <code>nextFrom</code> and <code>prevFrom</code></td><td><code>buildKeysetPage</code></td><td>keyset: it holds rows, not cursors</td></tr>
@@ -664,10 +629,9 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       </table>
     </div>
     <div class="prose">
-      <h3>Why not buildCursorPage</h3>
-      <p>It would say the page carries cursors when it carries rows. The route turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word should change.</p>
-      <p>In Postgres, a cursor is <code>DECLARE … CURSOR</code>: a server-side position held open between fetches. Keyset paging holds nothing between requests, and that is its whole point. Keeping "keyset" on the database side avoids an interviewer asking whether a cursor stays open between page requests.</p>
-      <p><code>buildKeysetPage(fetched, limit, cursorDirection, hasCursor)</code> takes cursor words as inputs. That is correct: they are facts about the request, not about the page.</p>
+      <p><code>buildKeysetPage</code> returns rows, not cursors, so it is named for the technique. The route turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word changes.</p>
+      <p>In Postgres, a cursor is <code>DECLARE … CURSOR</code>: a server-side position held open between fetches. Keyset paging holds nothing between requests, so the database side says keyset.</p>
+      <p><code>buildKeysetPage(fetched, limit, cursorDirection, hasCursor)</code> takes cursor words as inputs because they are facts about the request, not about the page.</p>
     </div>
   </section>
 </div>
@@ -679,12 +643,10 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   const WINDOW = { from: "2026-09-01T00:00:00Z", to: "2026-10-08T00:00:00Z" };
   const TYPES = ["card", "eft", "debit_order", "internal_transfer"];
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const COLUMN = { at: "occurred_at", id: "transaction_id", amount: "amount_minor" };
+  const COLUMN = { at: "occurred_at", id: "transaction_id" };
   const SORTS = {
     "-occurredAt": { keys: ["at", "id"], desc: true },
-    occurredAt: { keys: ["at", "id"], desc: false },
-    "-amount": { keys: ["amount", "at", "id"], desc: true },
-    amount: { keys: ["amount", "at", "id"], desc: false }
+    occurredAt: { keys: ["at", "id"], desc: false }
   };
 
   // [occurred_at, short description, transaction type, direction, amount in cents, category]
@@ -783,7 +745,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   }
   function signedMoney(r) { return r.dir === "credit" ? `+${money(r.amount)}` : money(r.amount); }
   function keyLabel(r) {
-    if (isAmountSort()) return money(r.amount);
     const t = timeParts(r.at);
     return `${t.day} ${t.hms.slice(0, 5)}`;
   }
@@ -798,7 +759,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   }
 
   // ---------- ordering and filters ----------
-  function isAmountSort() { return state.sort.endsWith("amount"); }
   function compareKeys(a, b, keys) {
     for (const k of keys) {
       if (a[k] < b[k]) return -1;
@@ -822,7 +782,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     const sortAscending = !SORTS[state.sort].desc;
     return dir === "next" ? sortAscending : !sortAscending;
   }
-  function buildPageCursor(r) { return { id: r.id, at: r.at, amount: r.amount }; }
+  function buildPageCursor(r) { return { id: r.id, at: r.at }; }
 
   // ---------- the function under study, as in paging.ts ----------
   function buildKeysetPage(fetched, limit, cursorDirection, hasCursor) {
@@ -859,7 +819,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       dir,
       fetched,
       page: buildKeysetPage(fetched, state.limit, dir, cursor !== null),
-      walked: isAmountSort() ? db.length : walked
+      walked
     };
   }
 
@@ -882,7 +842,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       rows: matched.slice(offset, offset + state.limit),
       hasMore: matched.length > offset + state.limit,
       total: ordered.filter(matches).length,
-      walked: isAmountSort() ? db.length : walked
+      walked
     };
   }
 
@@ -1019,11 +979,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   }
   // What the API puts in a cursor: which way to read, and the boundary row's position
   function cursorPayload(cursor, dir) {
-    const position = {};
-    if (isAmountSort()) position.amountMinor = cursor.amount;
-    position.occurredAt = cursor.at;
-    position.transactionId = cursor.id;
-    return { direction: dir, position };
+    return { direction: dir, position: { occurredAt: cursor.at, transactionId: cursor.id } };
   }
   // JSON, then base64url, as encodeCursor in paging.ts does
   function encodeCursor(payload) {
@@ -1041,9 +997,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       `<li><code>position.occurredAt</code>: the boundary row's occurred_at, exact to the microsecond, in UTC. SQL formats it with to_char(… 'US'). data[].occurredAt is only exact to the millisecond, so a cursor built from it would repeat or lose rows that differ only in microseconds, like the two transfers on 15 Sep at 08:00:00.112934 and .112935.</li>`,
       `<li><code>position.transactionId</code>: the tiebreak. Debit orders all land at 00:00:00.000000 on the 1st of the month, so occurred_at alone can't put them in order. With transaction_id the sort key is unique, and every row has exactly one place.</li>`
     ];
-    if (isAmountSort()) {
-      notes.unshift(`<li><code>position.amountMinor</code> (not built): with an amount sort the keyset becomes (amount_minor, occurred_at, transaction_id), so the position carries the amount too. Keeping occurred_at in the middle puts rows with the same amount in time order.</li>`);
-    }
     return `<p><b>Decoded:</b></p><pre class="json">${jsonHtml(JSON.stringify(cursorPayload(cursor, dir), null, 2))}</pre><ul>${notes.join("")}</ul>`;
   }
   function toUrl(params) {
@@ -1091,7 +1044,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     const ascending = isAscendingRead(dir);
     const keys = SORTS[state.sort].keys;
     function value(k) {
-      if (k === "amount") return String(cursor.amount);
       if (k === "at") return full ? `'${cursor.at}'::timestamptz` : `'${cursor.at}'`;
       return full ? `'${cursor.id}'::uuid` : `'${shortId(cursor.id)}'`;
     }
@@ -1143,7 +1095,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     const kOn = new Set(kRes.page.rows.map((r) => r.id));
     const kAhead = kRes.fetched.length > state.limit ? kRes.fetched[state.limit].id : null;
     const oOn = new Set(oRes.rows.map((r) => r.id));
-    const amountKey = isAmountSort();
 
     let seekAt = -1;
     if (kRes.cursor) {
@@ -1176,9 +1127,9 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       out.push(`<div class="${classes.join(" ")}">
         <span class="lane o${oLane}"></span><span class="lane k${kLane}"></span>
         <span class="pos">${m ? matchPos + 1 : ""}</span>
-        <span class="t${amountKey ? "" : " key"}">${timeHtml(r.at)}</span>
+        <span class="t key">${timeHtml(r.at)}</span>
         <span class="d">${esc(r.desc)}${tag}</span>
-        <span class="a${r.dir === "credit" ? " credit" : ""}${amountKey ? " key" : ""}">${signedMoney(r)}</span>
+        <span class="a${r.dir === "credit" ? " credit" : ""}">${signedMoney(r)}</span>
       </div>`);
       if (m) matchPos++;
     }
@@ -1189,7 +1140,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     const keys = SORTS[state.sort].keys;
     const op = isAscendingRead(res.dir) ? ">" : "<";
     const vals = keys.map((k) => {
-      if (k === "amount") return res.cursor.amount;
       if (k === "at") return `'${res.cursor.at}'`;
       return `'${shortId(res.cursor.id)}'`;
     }).join(", ");
@@ -1251,7 +1201,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       <div class="req">GET …/transactions?${queryHtml(query)}</div>
       <div class="stats">
         <div class="stat"><b>${res.pageIndex + 1}<small> / ${pages}</small></b><span>page; the total needs a COUNT(*)</span></div>
-        <div class="stat hot"><b>${res.walked}</b><span>${isAmountSort() ? "rows read: the whole window, then sorted" : "index entries read"}</span></div>
+        <div class="stat hot"><b>${res.walked}</b><span>index entries read</span></div>
         <div class="stat"><b>${res.offset}</b><span>matching rows read and thrown away</span></div>
       </div>
       <pre class="sql">${sqlHtml(sql)}</pre>
@@ -1278,7 +1228,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       <div class="req">GET …/transactions?${queryHtml(query)}</div>
       <div class="stats">
         <div class="stat"><b>${keysetPane.stack.length}</b><span>pages into the walk; keyset has no page numbers</span></div>
-        <div class="stat hot"><b>${res.walked}</b><span>${isAmountSort() ? "rows read: the whole window, then sorted" : "index entries read"}</span></div>
+        <div class="stat hot"><b>${res.walked}</b><span>index entries read</span></div>
         <div class="stat"><b>${res.fetched.length}</b><span>rows fetched (limit + 1 at most)</span></div>
       </div>
       <pre class="sql">${sqlHtml(sql)}</pre>
@@ -1339,7 +1289,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     document.getElementById("sqlBox").innerHTML = sqlHtml(keysetSql(lc.cursor, lc.dir));
 
     renderEnvelope(links);
-    renderAmountBox();
   }
 
   function renderEnvelope(links) {
@@ -1379,27 +1328,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     } else {
       caption.innerHTML = "There is no total in <code>meta</code>: counting the window on every page is the scan keyset avoids.";
     }
-  }
-
-  function renderAmountBox() {
-    const box = document.getElementById("amountBox");
-    if (!isAmountSort()) {
-      box.innerHTML = `<h3>A cursor for an amount sort</h3>
-        <p>Amount sorting isn't built. Switch the sort to see how the cursor and the seek would change.</p>
-        <div><button type="button" data-scenario="amount">Sort by largest amount</button></div>`;
-      return;
-    }
-    const next = keysetPane.res.page.nextFrom;
-    const sample = next
-      ? jsonHtml(JSON.stringify(cursorPayload(buildPageCursor(next), "next"), null, 2))
-      : "There is no next page in this window.";
-    box.innerHTML = `<h3>The next cursor for an amount sort (not built), decoded</h3>
-      <pre class="json">${sample}</pre>
-      <ul>
-        <li>Amounts aren't unique: the three R 199.00 rows tie, and so do both Gautrain trips and both Takealot rows. The cursor carries the full key, <code>(amount_minor, occurred_at, transaction_id)</code>, so ties have one fixed order.</li>
-        <li>Every column in the key has to run the same way for one row comparison to do the seek. If amounts ran largest first but ties ran oldest first, the predicate has to be written out: <code>amount_minor &lt; $1 OR (amount_minor = $1 AND (occurred_at, transaction_id) &gt; ($2, $3))</code>.</li>
-        <li>Without an index on <code>(user_id, amount_minor, occurred_at, transaction_id)</code>, every page reads and sorts the whole window. That is the "rows read" figure in both panes. The 366-day window cap bounds that cost, which is why the proposal adds no index.</li>
-      </ul>`;
   }
 
   function tokenList(rows, lookIndex) {
@@ -1446,7 +1374,6 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     document.getElementById("amountMin").value = String(state.amountMin);
     for (const b of document.querySelectorAll("[data-dir]")) b.setAttribute("aria-pressed", String(b.dataset.dir === state.direction));
     for (const b of document.querySelectorAll("[data-type]")) b.setAttribute("aria-pressed", String(state.types.has(b.dataset.type)));
-    document.getElementById("sortPill").hidden = !isAmountSort();
   }
 
   function updateButtons() {
@@ -1506,18 +1433,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       nextBoth();
       setMsg("Debits of R 500 and up. The index strikes through rows the filters remove. Keyset walks past them on its way to limit + 1 matches, so its rows-read count includes them, but it still never reads the pages behind it.");
     }
-    if (name === "amount") {
-      state.sort = "-amount";
-      syncControls();
-      resetWalk();
-      nextBoth();
-      setMsg("Largest amount first. The cursor's position gains <code>amountMinor</code>, and without an index on amount both clients read the whole window on every page. See the cursor below.");
-    }
     renderAll();
-    if (name === "amount") {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      document.getElementById("anatomy").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    }
   }
 
   // ---------- events ----------

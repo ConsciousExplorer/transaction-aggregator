@@ -43,6 +43,7 @@ A user's transaction list is paged. The consumer keeps inserting while a client 
 | A total count in `meta` | It's a `COUNT(*)` over the whole window on every request, which is the full scan keyset paging avoids, and it drifts during ingest. |
 | Absolute URLs or a `Link` header | The API would have to know its public host, scheme and gateway prefix. |
 | Cursor fields in `meta` beside the links | Two ways to page, which had already drifted apart once. |
+| `sort=amount` | People filter by amount, category and date far more than they re-sort. An amount order also needs a keyset of its own, `(amount_minor, occurred_at, transaction_id)`. |
 
 ## Consequences
 
@@ -51,9 +52,3 @@ A user's transaction list is paged. The consumer keeps inserting while a client 
 - **No jumping to page N:** keyset paging has no page numbers, so a client can't skip ahead and doesn't know the total.
 - **Cursors aren't tied to their query:** a cursor isn't checked against the sort or filters it was made with. Reused with different parameters, it pages from that position under the new ones.
 - **Gateway prefixes break the links:** if a gateway rewrites the path prefix, the relative links still carry the API's own path.
-
-## Revisit when
-
-- **An amount sort is asked for:** the keyset becomes `(amount_minor, occurred_at, transaction_id)`, and `amountMinor` joins the cursor's `position`. The parameter doesn't change, because the cursor is opaque.
-- **A cursor must expire, or be bound to its filters:** add those to the payload and sign it.
-- **A second list needs paging:** make the page cursor schema generic over its `position`.

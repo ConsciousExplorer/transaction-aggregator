@@ -58,14 +58,8 @@ A page of a user's transactions is an index scan inside the partitions its windo
 ## Consequences
 
 - **One write path:** there is one insert statement. A new source needs a normaliser, a schema and one new value in the `transaction_type` enum, but no new table or column.
-- **No statistics on JSON keys:** Postgres keeps none. The day a key needs filtering, the ladder is an expression index, then `CREATE STATISTICS`, then a `STORED` generated column.
+- **No statistics on JSON keys:** Postgres keeps none, and nothing filters on those keys.
 - **The database doesn't check `metadata`:** the column is nullable with no CHECK, and its keys are fixed only by the normalisers' code.
 - **Corrected timestamps duplicate rows:** the unique key includes `occurred_at`, so a source that re-sends an id with a corrected time creates a second row.
 - **The id isn't the transaction's time:** the time inside `transaction_id` is insert time, not when the transaction happened. It only breaks ties between rows with the same `occurred_at`.
 - **Old rows land in the default partition:** a row older than the partition range lands there and stays until someone moves it.
-
-## Revisit when
-
-- **Writes outgrow one table:** write, vacuum or index pressure reaches about ten times today's design load. Shard by `user_id` (Citus, say), or build a per-user read store.
-- **A metadata key needs filtering:** a key gets a query path. Climb the ladder above.
-- **Merchant analytics:** a cross-user analytics surface is needed. Add an analytics store beside Postgres, not instead of it.

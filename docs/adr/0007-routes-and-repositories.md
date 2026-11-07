@@ -26,20 +26,11 @@ The contract (request validation, response shape, OpenAPI document) has to stay 
 - `npm run generate-contract` writes `openapi/openapi.json` from the same schemas, and the file is committed.
 - **Checked in CI:** the `api-contract` workflow regenerates the file and fails on any diff. On a pull request into `main`, oasdiff also fails on a breaking change against `main`'s contract.
 
-## When a service layer becomes worth it
-
-None of these has happened yet. Any one of them is reason enough:
-
-1. A write must span tables atomically, such as an audit or outbox row committed with an override.
-2. A second transport needs the write logic: a Kafka command consumer, or an admin CLI.
-3. A business rule spans several entities, such as remap chains or override quotas.
-4. A handler grows past two repository calls with branching between them.
-
 ## Alternatives rejected
 
 | Option | Why not |
 | --- | --- |
-| A service layer now | Most operations would be one-line pass-throughs, and the main rule can't move out of SQL anyway. Validation belongs to Zod, integrity to foreign keys, and ownership to the `user_id` in every query, so a service would have nothing left to own. |
+| A service layer | Most operations would be one-line pass-throughs, and the main rule can't move out of SQL anyway. Validation belongs to Zod, integrity to foreign keys, and ownership to the `user_id` in every query, so a service would have nothing left to own. |
 | Hexagonal (domain, application, infrastructure) | A hexagon around an empty core. The consumer has real domain code and is layered; the API isn't. |
 | Feature modules | The URL tree is already the routing, and the units don't split by feature: one repository serves both the transaction routes and the override routes. |
 | Express | Zod as validator, serialiser and OpenAPI source is a Fastify type-provider feature. On Express it takes three libraries and glue. |
@@ -55,8 +46,4 @@ None of these has happened yet. Any one of them is reason enough:
   - The transaction override reads the transaction (its owner and `occurred_at`), then upserts.
   - The category override upserts, then reads the names back.
   - This is safe because facts never change and each upsert is atomic. The worst case is two PUTs racing, and the last write wins.
-- **Write orchestration sits in handlers:** it would move to a service the day one of the triggers above happens.
-
-## Revisit when
-
-Any trigger in "When a service layer becomes worth it" happens.
+- **Write orchestration sits in handlers:** a handler makes its own checks and repository calls, with no service between them.

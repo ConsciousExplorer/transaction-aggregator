@@ -72,9 +72,3 @@ The hints live in the schema. Each field's `arg.properties` says how to generate
 - **The data is plausible, not real:** the distributions are hand-tuned weights. Load and categorisation results show how the system behaves, not a real bank's numbers.
 - **One library sits under every record:** a missing feature means a fix upstream. The anchor needed one (`generate(now=…)`), which shipped in avro-datagen 0.6.0.
 - **Stream mode isn't repeatable.**
-
-## Revisit when
-
-- Real or anonymised source data becomes available for a test environment.
-- A test needs a steady rate of poison messages mixed into stream traffic: add a malformed-percentage option to stream mode.
-- The data needs sequences across records that a field hint can't express, such as a debit order followed by its reversal.
