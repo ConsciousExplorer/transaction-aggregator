@@ -33,7 +33,7 @@ Each file holds the SQL exactly as the API sent it, with its plan below.
 
 **Summary:**
 - **The scan:** an *Index Only Scan* of the read index on each of the 13 partitions in the window. It reads the customer's 732 rows, groups them by month, category and currency, and sorts the 123 buckets.
-- **Heap fetches:** there were 88, on pages written by the stream runs that autovacuum hadn't yet marked all-visible. Once it has, the scan reads the index alone.
+- **Heap fetches:** there were 88, all in partitions for older months, which only the generated history writes to. The current month, where the stream runs write, had none. These are pages not yet marked all-visible: an insert-triggered vacuum needs about 20% new rows, so a partition that stops receiving inserts can keep some unmarked until something else vacuums it. Once a vacuum has marked them, the scan reads the index alone.
 
 ## What the plans also show
 

@@ -21,7 +21,7 @@ The end user signs in to the calling app, not to this API. That app knows who th
   - Access tokens last 15 minutes.
 - **Verification:** the API verifies every token in an `onRequest` hook against Keycloak's published keys (JWKS). It requires RS256, the realm's issuer, the `txn-api` audience and an expiry.
 - **Errors:** a request with no valid token gets a 401 before its query or body is validated. If Keycloak's keys can't be fetched, the API answers 503.
-- **Guarded by default:** every route needs a token unless it opts out. Only `/health`, `/ready`, `/metrics` and the docs opt out.
+- **Guarded by default:** every route needs a token unless it opts out. Only `/`, which redirects to the docs, `/health`, `/ready`, `/metrics` and the docs opt out.
 - **Scopes:** each route declares the scope it needs. Reads need `tx:read` and writes need `tx:write`, and a missing scope is a 403. `route-scopes.test.ts` checks every route.
 - **The calling app is the `azp` claim:** the client id that asked for the token. Keycloak's `sub` for a client is an opaque service-account id that changes when the realm is imported again.
 

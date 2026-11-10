@@ -20,12 +20,10 @@ const INITDB_DIRECTORY = join(
 const MIGRATIONS_DIRECTORY = join(REPOSITORY_ROOT, "database/migrations");
 const SECRETS_DIRECTORY = join(REPOSITORY_ROOT, "secrets");
 
-// Built on the first run, then reused from Docker's build cache. The API's
-// integration tests build the same image under the same name.
+// Built on the first run, then reused from Docker's build cache.
 const POSTGRES_IMAGE_NAME = "txn-agg-postgres-test";
 
-// Compose's postgres command. Keep it in step with
-// infrastructure/docker-compose.yaml and the API's test harness.
+// Compose's postgres command.
 const POSTGRES_COMMAND = [
 	"postgres",
 	"-c",

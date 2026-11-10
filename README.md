@@ -80,7 +80,7 @@ Design shape: 2M users at 5 transactions a day ≈ 10M a day (~115/s sustained, 
 | Ingest lag (insert time − Kafka record timestamp) | p95 < 5 s at 250 msg/s | Grafana → Consumers, 5 s threshold line |
 | Duplicates when records are re-sent | Exactly 0 | `duplicates_skipped_total` |
 | Malformed records | All dead-lettered, no consumer crash | Grafana → Consumers, DLQ panels |
-| Categorisation coverage | < 1% uncategorised | Grafana → Consumers, fallback verdicts |
+| Categorisation coverage | < 1% uncategorised | Grafana → Data, uncategorised share |
 | Retention | 18 months; pg_partman drops whole monthly partitions | Grafana → Database, partition coverage |
 
 ## Getting started

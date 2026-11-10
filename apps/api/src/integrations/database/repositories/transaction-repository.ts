@@ -62,11 +62,11 @@ export class UserTransactionRepository {
 	async getTransactions(filter: ListTransactionsFilter) {
 		const ascending = filter.sort === "occurredAt";
 
-		// The cursor conditions go before the window. Postgres starts each
-		// partition's index scan at the first occurred_at bound it finds, so with
-		// the window first a deep page walks every entry from toDateTime down to
-		// the cursor. The plain bound repeats the row comparison's first column,
-		// which is what an ascending (backward) scan can start from.
+		// Beside the row comparison, a plain bound on occurred_at alone, which
+		// keeps the same rows. Partition pruning can't use a row comparison, so
+		// without the plain bound a deep page also scans every partition between
+		// the window's edge and the cursor. With it, those partitions are pruned,
+		// and each scan starts at the cursor's timestamp, not the window's edge.
 		let cursorBound: SQL | undefined;
 		let cursorSeek: SQL | undefined;
 		if (filter.cursor !== undefined) {
@@ -170,9 +170,7 @@ export class UserTransactionRepository {
 					}
 				})
 				// An insert writes created_at and updated_at from the same now();
-				// the conflict branch writes updated_at alone. (xmax = 0) would be
-				// exact, but Postgres refuses system columns in RETURNING on a
-				// partitioned table.
+				// the conflict branch writes updated_at alone.
 				.returning({
 					...getTableColumns(userTransactionOverrides),
 					inserted: sql<boolean>`(created_at = updated_at)`

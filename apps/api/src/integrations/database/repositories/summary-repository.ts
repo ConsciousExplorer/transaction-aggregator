@@ -25,7 +25,6 @@ export interface UserSummaryFilter extends TransactionFilter {
 }
 
 // Bucket labels, not timestamps: "2026-08-15" | "2026-W33" | "2026-08".
-// https://en.wikipedia.org/wiki/ISO_week_date
 const BUCKET_FORMAT = {
 	day: "YYYY-MM-DD",
 	week: 'IYYY-"W"IW',
@@ -34,8 +33,9 @@ const BUCKET_FORMAT = {
 
 /**
  * The indicator goes into the SQL as a literal, not a parameter: it is one of
- * two fixed words. Postgres returns count and sum as bigint, which node-postgres
- * reads as a string, so mapWith(Number) turns the result back into a number.
+ * two fixed words. Postgres returns count as bigint and the sum of a bigint
+ * column as numeric, and node-postgres reads both as strings, so
+ * mapWith(Number) turns the result back into a number.
  */
 function countByIndicator(indicator: CreditDebitIndicator) {
 	return sql<number>`count(*) filter (where ${transactions.creditDebitIndicator} = ${sql.raw(`'${indicator}'`)})`.mapWith(

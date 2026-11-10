@@ -77,12 +77,16 @@ const configSchema = z
 		// the canonical/DB type value, and the consumer group id.
 		TRANSACTION_TYPE: z.enum(CANONICAL_TRANSACTION_TYPES).default("card"),
 
+		// The categorisation ruleset every verdict comes from, stamped on each
+		// row. A migration can add a version; it is used once this names it.
+		RULESET_VERSION: z.coerce.number().int().positive().default(1),
+
 		KAFKA_BROKERS: z
 			.string()
 			.transform((value) => separateByDelimiter(value, ",")),
-		// Topic names are explicit config, exactly as the producers take them —
-		// broker topics are dashed (transactions.debit-order) while the
-		// canonical type keeps its underscore. The DLQ topic is <topic>.dlq.
+		// Topic names are explicit config — broker topics are dashed
+		// (transactions.debit-order) while the canonical type keeps its
+		// underscore. The DLQ topic is <topic>.dlq.
 		KAFKA_TOPIC: z.string().min(1),
 		KAFKA_USERNAME: z.string(),
 		KAFKA_PASSWORD_SECRET_NAME: z.string(),
@@ -119,21 +123,18 @@ const configSchema = z
 		KAFKA_FETCH_MIN_BYTES: z.coerce.number().int().positive().default(32_768),
 		// The most one fetch returns (Kafka's fetch.max.bytes). The client pushes
 		// a whole fetch into its buffer before backpressure applies, so this is
-		// what bounds memory under a backlog. At the client's 50 MB default, one
-		// fetch held about 144,000 card records and the consumer was OOM-killed;
-		// 1 MiB holds a few thousand and reads just as fast.
+		// what bounds memory under a backlog.
 		KAFKA_FETCH_MAX_BYTES: z.coerce
 			.number()
 			.int()
 			.positive()
 			.default(1_048_576),
-		// The most records in one flush, and so the most rows in one INSERT. Most
-		// of a flush is fixed cost (the statement, its commit, the offset commit),
-		// so 1,000 rows pay it once where ten batches of 100 would pay it ten
-		// times, and a 1 MiB fetch still holds almost three such batches. The
+		// The most records in one flush, and so the most rows in one INSERT. An
+		// insert's time is mostly per row, so a bigger batch saves only the cost
+		// of each flush (the round trip, its commit, the offset commit). The
 		// fetch answers at 32 KiB, so while the consumer keeps up a flush holds
-		// the ~90 records that arrived during the last one and lag stays low;
-		// under a backlog every fetch is full and inserts go out 1,000 at a time.
+		// the ~90 records that arrived during the last one; under a backlog every
+		// fetch is full, at 1,000 rows an INSERT.
 		KAFKA_BATCH_SIZE: z.coerce.number().int().positive().default(1_000),
 		KAFKA_READ_MODE: z.enum(KAFKA_READ_MODES).default("committed"),
 
@@ -204,8 +205,9 @@ const configSchema = z
 				keepAliveDelay: environment.DATABASE_KEEP_ALIVE_DELAY_MS
 			}),
 			transactionType: environment.TRANSACTION_TYPE,
+			rulesetVersion: environment.RULESET_VERSION,
 			kafka: Object.freeze({
-				brokers: environment.KAFKA_BROKERS, // string[] now
+				brokers: environment.KAFKA_BROKERS,
 				groupId: `transaction-consumer-${environment.TRANSACTION_TYPE}`,
 				clientId: environment.APP_NAME,
 				sasl: Object.freeze({

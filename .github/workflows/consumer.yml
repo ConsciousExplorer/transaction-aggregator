@@ -86,6 +86,12 @@ jobs:
           npm run schema:generate
           npx @biomejs/biome format --write src/schemas
           git diff --exit-code src/schemas
+      # The integration files run in parallel, and each builds this image. Built
+      # here first, their builds are cache hits, so they don't race, and a build
+      # that fails stops here with Docker's own error. Testcontainers uses the
+      # classic builder, whose cache a BuildKit build doesn't fill.
+      - name: Build the Postgres test image
+        run: DOCKER_BUILDKIT=0 docker build -t txn-agg-postgres-test ../../infrastructure/postgres
       - name: Integration tests
         run: npm run test:integration
 

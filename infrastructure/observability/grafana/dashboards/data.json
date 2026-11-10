@@ -657,7 +657,7 @@
     {
       "type": "table",
       "title": "Fallback share by rule version",
-      "description": "Rows no rule matched (rule_priority is null), per ruleset version. Non-zero is the stored side of the Ingest dashboard's fallback verdicts stat.",
+      "description": "Rows no rule matched (rule_priority is null), per ruleset version. Non-zero is the stored side of the Consumers dashboard's fallback verdicts stat.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "postgres"

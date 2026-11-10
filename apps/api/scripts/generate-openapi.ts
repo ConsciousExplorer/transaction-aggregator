@@ -34,8 +34,7 @@ function sortKeysDeep(value: unknown) {
 /** The ROOT object alone keeps the conventional OpenAPI key order — a plain
  *  alphabetical sort files "openapi": "3.0.3" under info, where no reader
  *  looks for it. Known keys in spec order, unknown keys alphabetical after;
- *  everything BELOW the root still gets the full deep sort. Deterministic
- *  either way — this trades alphabetical for conventional at one level. */
+ *  everything BELOW the root still gets the full deep sort. */
 const ROOT_ORDER = ["openapi", "info", "components", "servers", "tags", "paths", "security", "externalDocs"];
 function rankRootKey(key: string) {
 	const index = ROOT_ORDER.indexOf(key);

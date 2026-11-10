@@ -34,8 +34,8 @@ function recordRequestEnd(request: FastifyRequest, reply: FastifyReply) {
 }
 
 // RED metrics (rate, errors, duration) for every route. The route label is the
-// pattern (/v1/users/:userId/transactions), never the raw URL: one series per
-// user id would blow up Prometheus's storage.
+// pattern (/api/v1/users/:userId/transactions), never the raw URL: one series
+// per user id would blow up Prometheus's storage.
 export default fastifyPlugin(
 	async (fastify) => {
 		fastify.addHook("onRequest", async (request, reply) => {
@@ -44,7 +44,7 @@ export default fastifyPlugin(
 
 			// The auto-instrumentation has no Fastify support, so its http span only
 			// knows "GET". Handing it the route pattern names the span
-			// "GET /v1/users/:userId/transactions" and sets http.route. With tracing
+			// "GET /api/v1/users/:userId/transactions" and sets http.route. With tracing
 			// disabled there is no metadata, and this does nothing. A 404 matched no
 			// route, so its span keeps the bare method name.
 			const rpcMetadata = getRPCMetadata(context.active());

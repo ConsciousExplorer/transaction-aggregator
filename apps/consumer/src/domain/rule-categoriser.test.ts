@@ -180,8 +180,7 @@ suite("tier 2: keyword", () => {
 });
 
 // The seed's rules for a debit order to a lender, and their pinned category
-// ids (database/migrations/0001_seed_categories_and_rules.sql): 10 is
-// loan_repayment, 16 is recurring_payments.
+// ids: 10 is loan_repayment, 16 is recurring_payments.
 const SEED_DEBIT_ORDER_RULES = [
 	buildRule({
 		matcherType: "keyword",

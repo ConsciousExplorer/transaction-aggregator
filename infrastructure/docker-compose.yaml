@@ -5,7 +5,7 @@
 # folder. Core services have NO profile: `make up` brings the whole system up.
 #
 # Optional profiles: ui (kafbat-ui, avro-datagen-ui, portal — on by default in
-# `make up`, `make up UI=` leaves them out), obs, cache. The Makefile passes
+# `make up`, `make up UI=` leaves them out) and obs. The Makefile passes
 # them as --profile flags; compose does not read the repo-root .env from here.
 #
 # Broker topology:
@@ -66,6 +66,8 @@ x-consumer-environment: &consumer-environment
   DATABASE_POOL_MIN: 2
   DATABASE_POOL_MAX: 3
   SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  # One ruleset for all four consumers, so their verdicts agree
+  RULESET_VERSION: ${RULESET_VERSION:-1}
   # CLIENT listener (in-network SASL)
   KAFKA_BROKERS: kafka1:9094
   KAFKA_USERNAME: consumer
@@ -137,7 +139,7 @@ services:
       retries: 5
     networks: [txn-network]
 
-  # One-shot: SCRAM credentials (app-worker, app-generator, host-admin) + the four
+  # One-shot: SCRAM users (producer, consumer, admin), their ACLs + the four
   # application topics (transactions.<source>, 12 partitions) and their
   # dead-letter topics (transactions.<source>.dlq, 3 partitions).
   kafka-init:

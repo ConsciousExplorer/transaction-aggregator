@@ -29,7 +29,7 @@ import {
 	CHECK_VIOLATION,
 	readPostgresErrorCode
 } from "./helpers/postgres-errors.ts";
-import { CATEGORY_IDS } from "./helpers/rows.ts";
+import { CATEGORY_IDS, SEED_RULESET_VERSION } from "./helpers/rows.ts";
 
 // The batch handler as app.ts builds it: the real ingester on kafka_consumer's
 // pool and a ruleset loaded from the seeded database. Only the DLQ is a fake,
@@ -63,7 +63,10 @@ suite("batch ingestion into Postgres", () => {
 	before(
 		async () => {
 			database = await startTestDatabase();
-			ruleset = await loadRuleset(createDatabase(database.consumerPool));
+			ruleset = await loadRuleset(
+				createDatabase(database.consumerPool),
+				SEED_RULESET_VERSION
+			);
 		},
 		{ timeout: 180_000 }
 	);
@@ -169,6 +172,55 @@ suite("batch ingestion into Postgres", () => {
 					rule_priority: 902
 				}
 			]
+		);
+	});
+
+	// Version 2 maps the same card code to income, so which rules come back
+	// shows which version was read.
+	test("loads the configured ruleset version, not the newest one", async () => {
+		await database.adminPool.query(
+			"INSERT INTO txn_agg.rule_sets (version, notes) VALUES (2, 'test')"
+		);
+		await database.adminPool.query(
+			`INSERT INTO txn_agg.categorization_rules
+			   (ruleset_version, priority, matcher_type, pattern, category_id)
+			 VALUES (2, 100, 'mcc', '5411', $1)`,
+			[CATEGORY_IDS.income]
+		);
+
+		try {
+			const consumerDatabase = createDatabase(database.consumerPool);
+			const first = await loadRuleset(consumerDatabase, 1);
+			const second = await loadRuleset(consumerDatabase, 2);
+
+			assert.equal(first.version, 1);
+			assert.equal(
+				first.rules.find((rule) => rule.priority === 100)?.categoryId,
+				CATEGORY_IDS.groceries
+			);
+			assert.equal(second.version, 2);
+			assert.deepEqual(second.rules, [
+				{
+					priority: 100,
+					matcherType: "mcc",
+					pattern: "5411",
+					categoryId: CATEGORY_IDS.income
+				}
+			]);
+		} finally {
+			await database.adminPool.query(
+				"DELETE FROM txn_agg.categorization_rules WHERE ruleset_version = 2"
+			);
+			await database.adminPool.query(
+				"DELETE FROM txn_agg.rule_sets WHERE version = 2"
+			);
+		}
+	});
+
+	test("an unknown ruleset version fails the load", async () => {
+		await assert.rejects(
+			loadRuleset(createDatabase(database.consumerPool), 99),
+			/Ruleset version 99 not found/
 		);
 	});
 });

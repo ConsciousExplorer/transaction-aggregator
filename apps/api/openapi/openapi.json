@@ -3,7 +3,7 @@
   "info": {
     "description": "Transaction API for client transactions",
     "title": "Transaction API",
-    "version": "2.0.0"
+    "version": "2.0.1"
   },
   "components": {
     "schemas": {},

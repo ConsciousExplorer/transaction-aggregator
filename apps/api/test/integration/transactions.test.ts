@@ -275,7 +275,7 @@ suite("transactions, read through the API", () => {
 			{ query: "creditDebitIndicator=credit", expected: [income] },
 			{ query: "category=dining", expected: [dining] },
 			{ query: "amountMin=2000&amountMax=6000", expected: [income] },
-			// Every status is listed; only the summary counts completed rows alone
+			// Every status is listed
 			{ query: "", expected: [dining, income, groceries] }
 		];
 

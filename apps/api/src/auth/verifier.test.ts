@@ -105,7 +105,6 @@ suite("Token Verifier", () => {
 		assert.equal(claims.aud, TEST_AUDIENCE);
 	});
 
-	// Negative test cases
 	test("Should reject an expired token", async () => {
 		await assertRejectsWith(
 			signTestToken(privateKey, {}, { expiresIn: "-1s" }),

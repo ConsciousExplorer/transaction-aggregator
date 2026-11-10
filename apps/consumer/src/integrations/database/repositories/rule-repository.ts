@@ -1,4 +1,4 @@
-import { eq, max, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Rule } from "#src/domain/rule-categoriser.ts";
 import type { Database } from "../pool.ts";
 import {
@@ -8,14 +8,22 @@ import {
 } from "../schemas/schema.ts";
 
 /**
- * The newest ruleset version, as a subquery inside the rules query. It runs
- * once, at boot. `loadRuleset` reads the version the verdicts carry in a
- * statement of its own, so the two agree unless a ruleset is added while the
- * consumer is starting.
+ * Stored rows reference rule_sets by foreign key, so a version that isn't
+ * there would fail every insert as a bad row. Failing the boot stops that.
  */
-const activeVersion = sql`(select max(${ruleSets.version}) from ${ruleSets})`;
+async function assertRulesetExists(db: Database, version: number) {
+	const rows = await db
+		.select({ version: ruleSets.version })
+		.from(ruleSets)
+		.where(eq(ruleSets.version, version))
+		.limit(1);
 
-async function loadActiveRules(db: Database) {
+	if (rows.length === 0) {
+		throw new Error(`Ruleset version ${version} not found in rule_sets table`);
+	}
+}
+
+async function loadRules(db: Database, version: number) {
 	const rows = await db
 		.select({
 			priority: categorizationRules.priority,
@@ -24,27 +32,10 @@ async function loadActiveRules(db: Database) {
 			categoryId: categorizationRules.categoryId
 		})
 		.from(categorizationRules)
-		.where(eq(categorizationRules.rulesetVersion, activeVersion))
+		.where(eq(categorizationRules.rulesetVersion, version))
 		.orderBy(categorizationRules.priority);
 
 	return rows as Rule[];
-}
-
-/**
- * Read from `rule_sets` rather than inferred from a rule row, so it is still
- * correct when the active set has no rules.
- */
-async function loadRulesetVersion(db: Database) {
-	const rows = await db
-		.select({ version: max(ruleSets.version) })
-		.from(ruleSets);
-
-	const version = rows[0]?.version;
-	if (version == null) {
-		throw new Error("No ruleset version found in rule_sets table");
-	}
-
-	return version;
 }
 
 async function loadUncategorisedId(db: Database) {
@@ -62,11 +53,13 @@ async function loadUncategorisedId(db: Database) {
 	return category.categoryId;
 }
 
-/** The active ruleset, loaded once at boot for the categoriser. */
-export async function loadRuleset(db: Database) {
+/** The configured ruleset version, loaded once at boot for the categoriser. */
+export async function loadRuleset(db: Database, version: number) {
+	await assertRulesetExists(db, version);
+
 	return {
-		version: await loadRulesetVersion(db),
-		rules: await loadActiveRules(db),
+		version,
+		rules: await loadRules(db, version),
 		uncategorisedId: await loadUncategorisedId(db)
 	};
 }

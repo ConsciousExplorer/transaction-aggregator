@@ -28,7 +28,6 @@ export interface AppCradle {
 }
 
 export async function buildContainer() {
-	// Create the application container
 	const container = createContainer<AppCradle>();
 
 	container.register({

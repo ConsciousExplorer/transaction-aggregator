@@ -44,10 +44,10 @@ export function deserialise<T>(types: Map<number, avsc.Type>, data?: Buffer) {
 }
 
 /**
- * Loads every registered version of each subject, once, at startup. The
- * library's deserialisers are synchronous, so a schema cannot be fetched while
- * a message is being read: an id that is not here stops the consumer, and the
- * restart loads it.
+ * Loads every registered version of each subject, once, at startup. No schema
+ * is fetched while a message is being read: an id that is not here stops the
+ * consumer, and the restart loads it, so there is one way to load a schema and
+ * reading a message stays synchronous.
  */
 export async function createAvroDeserialiser<T>(
 	registryUrl: string,

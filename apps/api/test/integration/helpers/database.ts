@@ -41,9 +41,6 @@ const POSTGRES_COMMAND = [
 	"max_worker_processes=16"
 ];
 
-/**
- * Log when the database is ready to accept connections.
- */
 const READY_LOG_LINE = /database system is ready to accept connections/;
 
 /** A pool on the test database as one of the logins initdb creates */

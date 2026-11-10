@@ -12,8 +12,8 @@ done
 echo "Kafka is ready."
 
 # --- SCRAM-SHA-512 credentials ---
-# These users authenticate on the EXTERNAL (SASL_PLAINTEXT) listener.
-# Services running on the host use these credentials to connect to localhost:9092.
+# These users authenticate on the SASL_PLAINTEXT listeners: CLIENT for services
+# in the compose network, EXTERNAL for tools on the host (localhost:9092).
 
 echo "Creating SCRAM credentials..."
 
@@ -39,7 +39,7 @@ echo "SCRAM credentials created: producer, consumer, admin"
 
 echo "Applying ACLs..."
 
-# producer: write-only on transaction topics (prefix covers transactions + transactions.dlq)
+# producer: write-only on transaction topics (prefix covers each transactions.<source> and its .dlq)
 /opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka1:29092 --add \
   --allow-principal User:producer \
   --operation Write --operation Describe \

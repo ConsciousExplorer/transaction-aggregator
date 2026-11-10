@@ -19,6 +19,7 @@ import {
 } from "./helpers/database.ts";
 import { createRecordingDeadLetterSender } from "./helpers/dead-letters.ts";
 import { buildValidMessage } from "./helpers/messages.ts";
+import { SEED_RULESET_VERSION } from "./helpers/rows.ts";
 
 // An outage must never dead-letter good data: the batch handler rethrows it as
 // retryable, so nothing is committed and the restart reads the batch again.
@@ -65,7 +66,10 @@ suite("a database outage", () => {
 			// Read as admin, so the consumer's pool opens its first connection
 			// inside the first test. node:test reports an error from a connection
 			// against whichever test or hook opened it.
-			const ruleset = await loadRuleset(createDatabase(database.adminPool));
+			const ruleset = await loadRuleset(
+				createDatabase(database.adminPool),
+				SEED_RULESET_VERSION
+			);
 			handleTransactionBatch = createTransactionBatchHandler(
 				"card",
 				ruleset,

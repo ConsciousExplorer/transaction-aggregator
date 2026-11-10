@@ -12,18 +12,14 @@ writeFileSync(join(secretsDir, "db_password"), "db-pw-from-file\n");
 writeFileSync(join(secretsDir, "kafka_password"), "  kafka-pw-from-file  ");
 
 const sampleEnv: Record<string, string | undefined> = {
-	// # NODE and APP configuration
 	APP_NAME: "transaction-aggregator",
 	HOST: "0.0.0.0",
 	PORT: "6000",
 
-	// # Secrets and certs
 	SECRET_DIR: secretsDir,
 
-	// # Logging configuration
 	LOG_LEVEL: "info",
 
-	// # Postgres configuration
 	DATABASE_HOST: "localhost",
 	DATABASE_NAME: "txn_agg",
 	DATABASE_PORT: "5432",
@@ -32,10 +28,8 @@ const sampleEnv: Record<string, string | undefined> = {
 	DATABASE_POOL_MIN: "2",
 	DATABASE_POOL_MAX: "10",
 
-	// # Schema Registry configuration
 	SCHEMA_REGISTRY_URL: "http://localhost:8081",
 
-	// # KAFKA configuration
 	KAFKA_BROKERS: "localhost:9092",
 	KAFKA_TOPIC: "transactions.card",
 	KAFKA_USERNAME: "consumer",
@@ -113,6 +107,18 @@ suite("loadConfig", () => {
 		assert.throws(() =>
 			loadConfig({ ...sampleEnv, TRANSACTION_TYPE: "bitcoin" })
 		);
+	});
+
+	test("RULESET_VERSION names the ruleset to load, 1 by default", () => {
+		assert.strictEqual(loadConfig(sampleEnv).rulesetVersion, 1);
+		assert.strictEqual(
+			loadConfig({ ...sampleEnv, RULESET_VERSION: "2" }).rulesetVersion,
+			2
+		);
+	});
+
+	test("rejects a RULESET_VERSION that isn't a positive integer", () => {
+		assert.throws(() => loadConfig({ ...sampleEnv, RULESET_VERSION: "0" }));
 	});
 
 	test("should fail validation required vars are not passed", () => {

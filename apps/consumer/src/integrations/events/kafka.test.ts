@@ -17,9 +17,11 @@ import {
 	type BatchConsumerOptions,
 	classifyMessages,
 	createDeadLetterSender,
+	createKafkaConsumer,
 	type DeadLetterProducer,
 	type KafkaConsumer,
 	type KafkaMessage,
+	listenForConsumerErrors,
 	startBatchConsumer
 } from "./kafka.ts";
 
@@ -244,8 +246,7 @@ suite("startBatchConsumer", () => {
 
 	// The fetch settings are the broker's. minBytes and maxWaitTime are Kafka's
 	// own linger: the broker holds a fetch until one of them is met. maxBytes
-	// bounds what one fetch holds in memory; at the client's 50 MB default, one
-	// fetch held about 144,000 card records and the consumer was OOM-killed.
+	// bounds what one fetch holds in memory.
 	test("asks the broker for minBytes, maxWaitTime and at most fetchMaxBytes", async () => {
 		const consumeCalls: RecordedConsumeOptions[] = [];
 
@@ -442,7 +443,7 @@ function buildPoisonFailure(error: unknown): DeadLetterFailure {
 }
 
 suite("createDeadLetterSender", () => {
-	// The original key, so a redrive produces it onto the customer's partition
+	// The original key, so a redrive produces it under the customer's key
 	test("a record is dead-lettered as it arrived, with the DLQ headers on top", async () => {
 		const send = mock.fn(acceptRecords);
 		const headers = buildIncomingHeaders();
@@ -491,5 +492,24 @@ suite("createDeadLetterSender", () => {
 		assert.deepEqual(record?.value, Buffer.from("not avro"));
 		assert.equal(record?.headers.traceparent, TRACEPARENT);
 		assert.equal(record?.headers["x-dlq-reason"], "deserialisation");
+	});
+});
+
+suite("listenForConsumerErrors", () => {
+	// The client emits 'error' on the consumer when a background rejoin fails.
+	// A real consumer is used because its emit is what throws when nothing
+	// listens; building one opens no connection.
+	test("a client error runs the shutdown instead of throwing", async () => {
+		const kafkaConsumer = createKafkaConsumer({
+			groupId: "transaction-consumer-card",
+			clientId: "test_consumer",
+			bootstrapBrokers: ["localhost:9092"]
+		});
+		const shutDown = mock.fn(async () => {});
+
+		listenForConsumerErrors(kafkaConsumer, shutDown);
+		kafkaConsumer.emit("error", new Error("rejoin failed"));
+
+		assert.equal(shutDown.mock.callCount(), 1);
 	});
 });

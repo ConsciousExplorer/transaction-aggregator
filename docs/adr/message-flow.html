@@ -378,7 +378,7 @@ pre .comment { color: var(--muted); }
 
 <section>
 	<h2>What a dead-letter record carries</h2>
-	<p>Enough to send it back to its source topic unchanged once the problem is fixed: the original key, so it lands on the customer's partition again; the original bytes and headers; and headers saying why and where it came from.</p>
+	<p>Enough to send it back to its source topic unchanged once the problem is fixed: the original key, so a tool built on librdkafka, as the producers are, puts it back on the customer's partition; the original bytes and headers; and headers saying why and where it came from.</p>
 <pre><code><span class="comment">// buildDeadLetterRecord, kafka.ts</span>
 topic:   transactions.card.dlq
 key:     the original key (customerId)
