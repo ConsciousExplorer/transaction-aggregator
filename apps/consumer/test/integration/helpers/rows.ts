@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { CategorisedTransactionSchema } from "#src/schemas/transaction.ts";
 
-// The seed's pinned ids (database/migrations/0001_seed_categories_and_rules.sql)
+// The seed's only ruleset version
+export const SEED_RULESET_VERSION = 1;
+
+// The seed's pinned ids
 export const CATEGORY_IDS = {
 	uncategorised: 1,
 	groceries: 2,

@@ -4,7 +4,7 @@ import { transactions } from "#src/integrations/database/schemas/partitioned.ts"
 
 type NewTransaction = typeof transactions.$inferInsert;
 
-// The seed's pinned ids (database/migrations/0001_seed_categories_and_rules.sql)
+// The seed's pinned ids
 export const CATEGORY_IDS = {
 	groceries: 2,
 	dining: 3,

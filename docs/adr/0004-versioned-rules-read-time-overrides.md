@@ -27,7 +27,7 @@ Categorising can't fail, because the fallback always matches. The rule set is lo
 
 **Rule sets are versioned and append-only.**
 
-- `rule_sets` holds the versions, and `categorization_rules` holds each version's rules. The active version is the highest.
+- `rule_sets` holds the versions, and `categorization_rules` holds each version's rules. The consumers' `RULESET_VERSION` setting names the active version, so a migration can add a version without switching to it, and going back is a config change. The boot fails if the named version doesn't exist.
 - Every stored row records the category, the `rule_version` and the `rule_priority` that matched. A composite foreign key points at that exact rule. A null priority means the fallback matched.
 - A rule change is a new version, added by a migration. The apps can only read the rule tables, so only a migration can change them.
 - Before the first release the seed is edited in place, and every database is rebuilt from empty. Version 1 lost the three loan rules that way.
@@ -55,7 +55,7 @@ Categorising can't fail, because the fallback always matches. The rule set is lo
 ## Consequences
 
 - Categorising costs microseconds and never fails a message.
-- **Rule changes need a migration and a restart:** a consumer picks up a new rule set only when it restarts.
+- **Rule changes need a migration, a config change and a restart:** a consumer loads the version `RULESET_VERSION` names, once, when it starts.
 - **Old rows keep old verdicts:** re-categorising history would need a backfill job, which doesn't exist.
 - **Reads cost two joins:** every read joins the two override tables. Both are small and keyed for the join.
 - **Downstream sees the system category:** anything reading stored rows directly gets the system category unless it applies the same resolution ([0011](0011-egress.md)).

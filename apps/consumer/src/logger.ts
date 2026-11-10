@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { pino } from "pino";
 import { separateByDelimiter } from "./utils/separate-by-delimiter.ts";
 
-/** The levels pino understands. config.ts reuses this for LOG_LEVEL. */
+/** The levels pino understands. */
 export const LOG_LEVELS = [
 	"fatal",
 	"error",

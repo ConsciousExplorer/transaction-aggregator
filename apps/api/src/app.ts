@@ -36,7 +36,6 @@ const server = buildServer({
 try {
 	await pool.query("SELECT 1");
 
-	// Start the server and start listening for requests
 	await server.listen({ host: config.app.host, port: config.app.port });
 	logger.info({ event: "app.start", port: config.app.port });
 	const { secretsSpec, ...configToLog } = config;

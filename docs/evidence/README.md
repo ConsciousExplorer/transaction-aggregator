@@ -5,10 +5,10 @@ Measurements behind the service targets, taken on 2026-10-28 against the full st
 | Target | Result | Evidence |
 | --- | --- | --- |
 | API latency, p95 under 200 ms at 50 req/s on at least 5M rows | **Met:** p95 17.6 ms at 54.5 req/s on 7,349,463 rows, 0 failures | k6 report [`load-20261028-161600.html`](../../loadtests/results/load-20261028-161600.html) and [query-plans.md](query-plans.md) |
-| Ingest lag, p95 under 5 s at 250 messages a second | **Met:** p95 1.74 s | [write-throughput.md](write-throughput.md) |
+| Ingest lag, p95 under 5 s at 250 messages a second | **Met:** p95 1.74 s, measured on 2026-10-28 with the consumer's 2 s linger timer, since removed | [write-throughput.md](write-throughput.md) |
 | Write throughput, measured | 2026-10-28: a backlog drains at about 4,200 rows a second (peak 7,300), and a live stream holds about 4,000 a second. 2026-10-31, with 1,000-row batches and 1 GB of shared buffers: a live stream holds 9,000 a second with p95 lag about 1 s | [write-throughput.md](write-throughput.md) |
 
-Duplicates and poison messages are covered by the consumer's tests in CI, not measured here: duplicates and rows Postgres rejects by the integration suite, undecodable and invalid records by unit tests. The target for uncategorised rows is under 1%, and the same database had 0 of its 7,349,463 rows on the fallback category: every row matched a rule.
+Duplicates and poison messages are covered by the consumer's tests in CI, not measured here: duplicates and rows Postgres rejects by the integration suite, undecodable and invalid records by unit tests. The target for uncategorised rows is under 1%. The generated data meets it by construction: every merchant code the generator emits has its own rule, so no card reaches card's default rule, the one source default that maps to `uncategorised`. The fallback matched 0 of the same database's 7,349,463 rows.
 
 ## The load test
 

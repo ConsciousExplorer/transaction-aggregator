@@ -17,8 +17,6 @@ export interface AuthConfig {
 }
 
 // Always use zod to parse external data entering our system.
-// Data structure and recommended claims
-// https://datatracker.ietf.org/doc/html/rfc9068#name-data-structure
 const verifiedClaimsSchema = z.looseObject({
 	sub: z.string(),
 	// The client that asked for the token. With client credentials sub is the

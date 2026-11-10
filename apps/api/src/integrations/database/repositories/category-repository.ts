@@ -95,9 +95,7 @@ export class CategoryRepository {
 					}
 				})
 				// An insert writes created_at and updated_at from the same now();
-				// the conflict branch writes updated_at alone. (xmax = 0) would be
-				// exact, but Postgres refuses system columns in RETURNING on a
-				// partitioned table.
+				// the conflict branch writes updated_at alone.
 				.returning({
 					...getTableColumns(userCategoryOverrides),
 					inserted: sql<boolean>`(created_at = updated_at)`

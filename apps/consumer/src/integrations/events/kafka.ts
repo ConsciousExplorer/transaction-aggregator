@@ -78,7 +78,6 @@ export function createKafkaConsumer(
 
 	const kafkaConsumer = new Consumer(consumerOptions);
 
-	// Register listeners
 	kafkaConsumer.addListener("consumer:group:rebalance", () =>
 		logger.warn("Preparing a rebalance")
 	);
@@ -90,14 +89,28 @@ export function createKafkaConsumer(
 	return kafkaConsumer;
 }
 
+/**
+ * The client emits 'error' on the consumer when a background rejoin fails.
+ * Node throws an 'error' that nothing listens for, which would end the process
+ * without leaving the group or closing anything, so this logs it and runs the
+ * normal shutdown. Whatever wasn't committed is read again after the restart.
+ */
+export function listenForConsumerErrors(
+	kafkaConsumer: KafkaConsumer,
+	shutDown: () => Promise<void>
+) {
+	kafkaConsumer.addListener("error", (error: Error) => {
+		logger.error({ err: error }, "Consumer stopped on a client error");
+		void shutDown();
+	});
+}
+
 export type DeadLetterProducer = Producer<string, Buffer, string, string>;
 
 /**
- * Creates a DLQ kafka producer
- * No serializers should be passed.
- * Raw messages should be persisted as is
- * Given a registry, the client records its own metrics there
- * (kafka_produced_messages, ...). Without one, none.
+ * The DLQ producer takes no serializers, so a dead letter is sent as the raw
+ * bytes it arrived as. Given a registry, the client records its own metrics
+ * there (kafka_produced_messages, ...). Without one, none.
  */
 export function createKafkaDeadLetterProducer(
 	options: Omit<ProducerOptions<string, Buffer, string, string>, "serializers">,
@@ -125,7 +138,7 @@ function chooseDeadLetterReason(failure: DeadLetterFailure) {
 
 /**
  * The record as it arrived: its key, its raw bytes and its own headers, so a
- * redrive re-produces the original onto the customer's partition. The DLQ
+ * redrive re-produces the original under the customer's key. The DLQ
  * headers go on top and win a name clash; where it came from and when it was
  * produced travel as headers too.
  */
@@ -227,8 +240,8 @@ export function classifyMessages(messages: KafkaMessage[]) {
 			classifiedMessages.push({
 				...origin,
 				kind: "poison",
-				// CONTINUE hands back record.value verbatim as the raw Buffer
-				// (messages-stream.js:671), which is the whole point of the DLQ.
+				// CONTINUE hands back record.value verbatim as the raw Buffer,
+				// which is the whole point of the DLQ.
 				raw: (message.value as Buffer | null | undefined) ?? null,
 				error: failure.error
 			});

@@ -15,6 +15,7 @@ import {
 	createKafkaDeadLetterProducer,
 	type DeadLetterProducer,
 	type KafkaConsumer,
+	listenForConsumerErrors,
 	startBatchConsumer
 } from "./integrations/events/kafka.ts";
 import { createServer } from "./integrations/http/server.ts";
@@ -123,7 +124,7 @@ const writerPool = await runStartupCheck("PostgreSQL", async () => {
 });
 
 const ruleset = await runStartupCheck("Ruleset", () =>
-	loadRuleset(createDatabase(writerPool))
+	loadRuleset(createDatabase(writerPool), config.rulesetVersion)
 );
 
 const deserialiseValue = await runStartupCheck("SchemaRegistry", () =>
@@ -192,6 +193,7 @@ const resources: Resources = {
 
 process.on("SIGTERM", () => void shutDownGracefully(resources, 0));
 process.on("SIGINT", () => void shutDownGracefully(resources, 0));
+listenForConsumerErrors(kafkaConsumer, () => shutDownGracefully(resources, 1));
 // #endregion
 
 // #region: Consume
@@ -209,9 +211,9 @@ try {
 	);
 
 	/**
-	 * Used for metrics and tracing.
-	 * The consumer's lag is the difference between the last offset in the partition and the last offset the consumer has committed.
-	 * This is a measure of how far behind the consumer is in processing messages from the topic.
+	 * Feeds the kafka_consumers_lags metric. The consumer's lag is the
+	 * difference between the last offset in the partition and the last offset
+	 * the consumer has committed.
 	 */
 	kafkaConsumer.startLagMonitoring(
 		{ topics: [config.kafka.topics.main] },

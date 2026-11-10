@@ -5,11 +5,7 @@ import type { DomainTransactionSchema } from "#src/schemas/transaction.ts";
 // Wire records for tests. Not a .test.ts file, so the test runner does not run
 // it as a suite.
 
-/**
- * A well-formed card record as the producer emits it. Note the source schema
- * types every one of these as bare `z.string()`/`z.number()`, which is exactly
- * why the normaliser has to validate what it produces.
- */
+/** A well-formed card record as the producer emits it. */
 export function buildCardRecord(
 	over: Partial<CardTransaction> = {}
 ): CardTransaction {

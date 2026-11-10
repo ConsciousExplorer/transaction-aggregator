@@ -101,9 +101,6 @@ export function buildServer(options: BuildServerOptions = {}) {
 	server.setValidatorCompiler(validatorCompiler);
 	server.setSerializerCompiler(serializerCompiler);
 
-	/**
-	 *  Setting error handlers
-	 */
 	server.setErrorHandler((error: FastifyError, request, reply) => {
 		const log = request.log.child({ method: request.method, url: request.url });
 
@@ -172,7 +169,6 @@ export function buildServer(options: BuildServerOptions = {}) {
 		});
 	}
 
-	/**  rewrite / to /docs */
 	server.get("/", {
 		schema: { hide: true },
 		config: { authConfig: { public: true } },
@@ -181,20 +177,12 @@ export function buildServer(options: BuildServerOptions = {}) {
 		}
 	});
 
-	/**
-	 * Returns the actual server instance, which is a FastifyInstance with all the plugins and routes registered.
-	 * The caller can then call server.listen() to start the server.
-	 */
 	return server;
 }
 
 // #region: Helpers
 
-/**
- * Helpers to send a problem+json response.
- * The FastifyReply type is used to ensure that the reply object is correctly typed
- * The response is sent with the correct status code and content type.
- */
+/** Sends a problem as an application/problem+json response with its status. */
 function send(reply: FastifyReply, problem: HttpProblem) {
 	return reply
 		.code(problem.payload.status)

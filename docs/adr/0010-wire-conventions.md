@@ -28,7 +28,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 - Responses carry the stable slug (`category`, such as `"groceries"`). The slug never changes; a new display name changes `label`.
 - The list's `category` filter takes slugs, and an unknown slug is a 400 `validation-error`.
 - **Writes send the numeric id.** The seed pins every id, so ids are the same in every environment and are never reused.
-- **A PUT answers 201 when it creates the override and 200 when it replaces one.** The upsert tells the two apart in its own `RETURNING`: an insert writes `created_at` and `updated_at` from the same `now()`, the conflict branch writes `updated_at` alone. (`xmax = 0` would be exact, but Postgres refuses system columns in `RETURNING` on a partitioned table.)
+- **A PUT answers 201 when it creates the override and 200 when it replaces one.** The upsert tells the two apart in its own `RETURNING`: an insert writes `created_at` and `updated_at` from the same `now()`, the conflict branch writes `updated_at` alone. (`xmax = 0` would be exact, but Postgres refuses system columns in `RETURNING` on a partitioned table, which the transaction override table is, so both upserts use the same comparison.)
   - The database's foreign key is the validator: Postgres's error 23503 becomes a 400 `validation-error`.
   - The handler checks `from ≠ to` before the database's CHECK does.
 
@@ -36,7 +36,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 
 - `fromDateTime` and `toDateTime` are ISO 8601, and `toDateTime` is exclusive. A future value is clamped to now.
 - The window may be at most 366 days, on the list and the summary alike (`WINDOW_MAX_DAYS`). Anything longer is a 400 `window-too-large`.
-- 366 days fits any twelve calendar months, leap day included, so a year's trend is one summary call. The list matches it, so every summary figure opens as the transactions behind it, with the same parameters.
+- 366 days fits any twelve calendar months, leap day included, so a year's trend is one summary call. The list takes the same window and filters, so a summary figure opens as the transactions behind it. The list also shows the pending, reversed and failed transactions in that window, which the summary doesn't count.
 
 **Errors are problem details** (`application/problem+json`) from one typed catalog. The `type` is a short slug, such as `validation-error`, `invalid-cursor` or `window-too-large`. A 500 carries its `trace_id`.
 

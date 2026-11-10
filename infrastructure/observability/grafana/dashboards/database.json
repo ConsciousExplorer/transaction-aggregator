@@ -2880,7 +2880,7 @@
     {
       "type": "timeseries",
       "title": "Rows written/s",
-      "description": "Rows inserted, updated and deleted per second, as Postgres counts them. Inserts should track the Ingest dashboard's rows inserted/s.",
+      "description": "Rows inserted, updated and deleted per second, as Postgres counts them. Inserts should track the Consumers dashboard's rows inserted/s.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

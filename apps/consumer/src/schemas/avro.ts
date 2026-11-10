@@ -5,7 +5,6 @@ const AvroSchemaString = z.string().refine(
 	(value) => {
 		try {
 			const parsed = JSON.parse(value);
-			// Basic check to ensure it looks like a valid AVRO record schema
 			return parsed && parsed.type === "record" && Array.isArray(parsed.fields);
 		} catch {
 			return false;

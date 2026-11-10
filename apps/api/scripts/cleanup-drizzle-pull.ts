@@ -19,7 +19,6 @@ const filesToKeep = new Set([
     'schema.ts', 'partitioned.ts'
 ])
 
-// Loop over schemaDirectory and remove files that are not needed by application
 for (const entry of readdirSync(schemaDirectory)) {
     if (filesToKeep.has(entry))
         continue;

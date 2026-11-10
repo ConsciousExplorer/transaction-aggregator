@@ -48,8 +48,7 @@ function documentErrorsAsProblems(
 	return documented;
 }
 
-// Every route requires a bearer token unless its own schema says otherwise
-// (e.g. security: [] on /ready, /health).
+// Every route requires a bearer token unless its own schema says otherwise.
 function documentRoute(transformOptions: Parameters<SwaggerTransform>[0]) {
 	const { schema, url } = jsonSchemaTransform({
 		...transformOptions,

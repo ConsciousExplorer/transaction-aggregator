@@ -55,4 +55,4 @@ Three consequences of that table:
 - **A leaked API credential is contained:** it can read data and change preferences, but it can't alter or destroy transactions.
 - **New tables need explicit grants:** every new table needs its write grants added to the migration by hand. Reads come from the default privilege.
 - **Archived remaps never go away:** `user_category_overrides` isn't partitioned, so its archived rows stay for good.
-- **`api_read` is unused:** the login exists, but nothing uses it.
+- **`api_read` serves tooling only:** no running service logs in with it. The API's drizzle-kit `pull` and `studio` scripts do, so they read the schema without any write grant.

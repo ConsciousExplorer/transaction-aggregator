@@ -1,5 +1,4 @@
 // SQLSTATE codes the tests expect
-// https://www.postgresql.org/docs/current/errcodes-appendix.html
 export const CHECK_VIOLATION = "23514";
 
 /**

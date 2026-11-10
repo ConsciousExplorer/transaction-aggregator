@@ -46,14 +46,15 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 | Same row already stored | `ON CONFLICT DO NOTHING` | Skipped; counted in `duplicates_skipped_total` |
 | Tombstone or empty payload | `classifyMessages` → `tombstone` | Skipped; counted in `tombstones_skipped_total` |
 | Bytes that don't decode as Avro | `handleDeserialisationError` → `CONTINUE` → `poison` | Dead-lettered with `x-dlq-reason: deserialisation` |
-| Schema id not loaded at startup | `handleDeserialisationError` → `FAIL` | Exits without committing; the restart loads the new schema and reads the message again |
+| Schema id not loaded at startup | `handleDeserialisationError` → `FAIL` | Logs the message's topic, partition and offset, then exits without committing; the restart loads the new schema and reads the message again |
 | Record that doesn't map to a valid row | `normaliseTransaction` → `NonRetryableError` | Dead-lettered with `x-dlq-reason: processing` before the batch is inserted; the rest of the batch still goes in one statement |
 | Row Postgres rejects (SQLSTATE class 22 or 23: a bad value or a constraint) | `classifyPostgresError` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
 | Any other Postgres failure (down, timed out, deadlock, read-only standby, bad password, missing grant) | `classifyPostgresError` → `RetryableError` | Exits without committing; the restart replays the batch |
 | Dead-letter publish fails | `sendToDeadLetterQueue` throws | Exits without committing; the restart replays the batch |
-| Offset commit fails after a good flush | `drainBatch` | Exits without committing. The rows are stored, so the restart reads them again and `ON CONFLICT` skips them |
+| Offset commit fails after a good flush | `flushBatch` | Exits without committing. The rows are stored, so the restart reads them again and `ON CONFLICT` skips them |
+| The client fails to rejoin the group in the background | `listenForConsumerErrors` | Logs the error and shuts down as on `SIGTERM`, leaving the group; the restart replays whatever wasn't committed |
 
-A dead-letter record carries the message exactly as it arrived: the original key, bytes and headers, so it can be produced to the source topic again unchanged, onto the same partition. The consumer adds these headers:
+A dead-letter record carries the message exactly as it arrived: the original key, bytes and headers, so it can be produced to the source topic again unchanged. A tool built on librdkafka, as the producers are, puts it back on the same partition. Another client may hash the key differently, which is harmless because nothing depends on order. The consumer adds these headers:
 - `x-dlq-reason`: `deserialisation` or `processing`
 - `x-dlq-error`
 - `x-source-topic`, `x-source-partition`, `x-source-offset` and `x-source-timestamp` (when the original was produced, in epoch milliseconds)
@@ -67,8 +68,8 @@ The dead-letter producer waits for `acks=all`, so a record counts as sent only o
 1. **Config**: `runtime.ts` parses the environment with Zod, which also checks the Kafka timeouts against each other. It then freezes the config and reads the secrets from files in `SECRET_DIR`. Bad config fails before anything connects.
 2. **Tracing**: starts only when `OTEL_SDK_DISABLED=false`.
 3. **PostgreSQL**: creates the pool and runs `SELECT 1`.
-4. **Ruleset**: loads the active categorisation rules. The batch handler compiles them once, so a record only looks rules up.
-5. **Schema registry**: loads every registered version of `<topic>-value`. Deserialisers are synchronous, so nothing is fetched while a message is being read.
+4. **Ruleset**: loads the rules of the version `RULESET_VERSION` names, and fails if `rule_sets` doesn't have it. The batch handler compiles them once, so a record only looks rules up.
+5. **Schema registry**: loads every registered version of `<topic>-value`. Nothing is fetched while a message is being read: a new version is loaded by the restart it causes.
 6. **Kafka**: creates the consumer and the dead-letter producer, and fetches metadata with both to prove that the brokers are reachable and the SASL credentials work.
 7. **HTTP server**: serves `/health` and `/metrics` on `PORT`.
 8. **Consume**: starts lag monitoring and the batch loop.
@@ -181,6 +182,7 @@ All configuration comes from environment variables, validated at startup by [`sr
 | --- | --- | --- |
 | `TRANSACTION_TYPE` | `card` | Picks the normaliser and the consumer group (`transaction-consumer-<type>`) |
 | `KAFKA_TOPIC` | required | Source topic; the dead-letter topic is `<KAFKA_TOPIC>.dlq` |
+| `RULESET_VERSION` | `1` | The categorisation ruleset to load and stamp on every row. The boot fails if `rule_sets` doesn't have it |
 | `KAFKA_BROKERS` | required | Comma-separated broker list |
 | `KAFKA_BATCH_SIZE` | `1000` | The most messages in one flush, so the most rows in one insert; a fetch holding more is flushed in several |
 | `KAFKA_FETCH_MIN_BYTES` | `32768` | The broker holds a fetch until this many bytes are ready… |

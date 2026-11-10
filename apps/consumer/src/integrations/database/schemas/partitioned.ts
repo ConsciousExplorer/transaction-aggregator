@@ -45,7 +45,6 @@ export const transactions = txnAgg.table(
 			"credit_debit_indicator"
 		).notNull(),
 		status: transactionStatus().notNull(),
-		// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 		amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
 		currency: char({ length: 3 }).notNull(),
 		longDescription: text("long_description"),
@@ -72,8 +71,7 @@ export const transactions = txnAgg.table(
 		),
 		// The covering read index. Postgres also INCLUDEs transaction_type,
 		// credit_debit_indicator, status, amount_minor, currency, category_id,
-		// short_description and account_id, which drizzle can't express; the
-		// migration has the full definition.
+		// short_description and account_id, which drizzle can't express.
 		index("idx_tx_user_read").using(
 			"btree",
 			table.userId.asc(),
