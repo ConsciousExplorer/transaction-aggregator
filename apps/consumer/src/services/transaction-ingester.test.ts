@@ -105,12 +105,12 @@ suite("transaction insertion", () => {
 			rowCount: 2
 		}));
 
-		const outcome = await insertTransactions(
+		const inserted = await insertTransactions(
 			[buildPreparedCardRow(), buildPreparedCardRow()],
 			{ query } as unknown as Pool
 		);
 
-		assert.deepEqual(outcome, { attempted: 2, inserted: 2 });
+		assert.equal(inserted, 2);
 		assert.equal(query.mock.callCount(), 1);
 		assert.match(
 			query.mock.calls[0]?.arguments[0] ?? "",

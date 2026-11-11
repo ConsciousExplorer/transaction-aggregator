@@ -96,4 +96,13 @@ export default fastifyPlugin<{
 	await fastify.register(swaggerUi, {
 		routePrefix: "/docs"
 	});
+
+	// The root leads to the docs, and only exists when they do
+	fastify.get("/", {
+		schema: { hide: true },
+		config: { authConfig: { public: true } },
+		handler: async (_request, reply) => {
+			reply.redirect("/docs");
+		}
+	});
 });

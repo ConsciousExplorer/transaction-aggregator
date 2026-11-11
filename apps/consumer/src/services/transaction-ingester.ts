@@ -20,11 +20,6 @@ import {
 } from "#src/telemetry/metrics.ts";
 import { runInSpan } from "#src/telemetry/tracing.ts";
 
-interface BatchOutcome {
-	attempted: number;
-	inserted: number;
-}
-
 /** A row ready to insert, with the matcher that chose its category kept for the metrics. */
 export type PreparedTransaction = CategorisedTransactionSchema &
 	Pick<Verdict, "matcherType">;
@@ -49,17 +44,17 @@ export function prepareTransaction(
 }
 
 /**
- * The per-batch step: one INSERT for all the rows, atomic on its own. Reports
- * what it attempted against what landed, since the insert skips duplicates
- * rather than failing on them.
+ * The per-batch step: one INSERT for all the rows, atomic on its own. Returns
+ * how many rows landed, since the insert skips duplicates rather than failing
+ * on them.
  */
 export async function insertTransactions(
 	transactions: PreparedTransaction[],
 	pool: Pool
 ) {
-	const outcome = await insertBatch(transactions, pool);
-	recordCommittedBatch(transactions, outcome);
-	return outcome;
+	const inserted = await insertBatch(transactions, pool);
+	recordCommittedBatch(transactions, inserted);
+	return inserted;
 }
 
 /**
@@ -82,9 +77,9 @@ async function insertBatch(transactions: PreparedTransaction[], pool: Pool) {
 				}
 			},
 			async (span) => {
-				const result = await batchInsertTransactions(pool, transactions);
-				span.setAttribute("rows.inserted", result.inserted);
-				return result;
+				const inserted = await batchInsertTransactions(pool, transactions);
+				span.setAttribute("rows.inserted", inserted);
+				return inserted;
 			}
 		);
 	} catch (error) {
@@ -100,10 +95,10 @@ async function insertBatch(transactions: PreparedTransaction[], pool: Pool) {
  */
 function recordCommittedBatch(
 	transactions: PreparedTransaction[],
-	outcome: BatchOutcome
+	inserted: number
 ) {
-	rowsInsertedTotal.inc(outcome.inserted);
-	duplicatesSkippedTotal.inc(outcome.attempted - outcome.inserted);
+	rowsInsertedTotal.inc(inserted);
+	duplicatesSkippedTotal.inc(transactions.length - inserted);
 
 	for (const transaction of transactions) {
 		categorisationVerdictsTotal.inc({ matcher_type: transaction.matcherType });

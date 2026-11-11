@@ -130,7 +130,7 @@ apps/consumer
     │       └── server.ts                  /health, /metrics
     ├── domain/                    pure: no I/O, no async; imports only schemas/ and errors/
     │   ├── transaction-normaliser.ts      each source shape → one canonical row
-    │   └── rule-categoriser.ts            compiled rules: five matcher tiers, then a fallback
+    │   └── rule-categoriser.ts            compiled rules: four matcher tiers, then a fallback
     ├── services/                  the use case that does the I/O; knows nothing about Kafka
     │   └── transaction-ingester.ts        per record: normalise → categorise; per batch: insert
     ├── schemas/                   Zod: four generated source schemas and the canonical row

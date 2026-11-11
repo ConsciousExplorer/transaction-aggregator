@@ -18,10 +18,9 @@ The rules are tried in tiers, and the first match wins:
 
 1. **MCC:** the card's merchant category code.
 2. **Keyword:** a word in the description. Card and debit order only.
-3. **Source and operation:** the source plus `metadata.operation`. No seeded rule uses this tier since the loan source was removed, and no normaliser sets `operation`.
-4. **Source and credit/debit:** for example, an EFT credit is `income`.
-5. **Source default.**
-6. **Fallback:** `uncategorised`.
+3. **Source and credit/debit:** for example, an EFT credit is `income`.
+4. **Source default.**
+5. **Fallback:** `uncategorised`.
 
 Categorising can't fail, because the fallback always matches. The rule set is loaded and compiled once at startup.
 
@@ -56,6 +55,7 @@ Categorising can't fail, because the fallback always matches. The rule set is lo
 
 - Categorising costs microseconds and never fails a message.
 - **Rule changes need a migration, a config change and a restart:** a consumer loads the version `RULESET_VERSION` names, once, when it starts.
+- **The table accepts a matcher type the consumer doesn't read:** the check constraint on `matcher_type` still allows `source_transaction_type`. The consumer has no tier for it, so a rule of that type never matches.
 - **Old rows keep old verdicts:** re-categorising history would need a backfill job, which doesn't exist.
 - **Reads cost two joins:** every read joins the two override tables. Both are small and keyed for the join.
 - **Downstream sees the system category:** anything reading stored rows directly gets the system category unless it applies the same resolution ([0011](0011-egress.md)).

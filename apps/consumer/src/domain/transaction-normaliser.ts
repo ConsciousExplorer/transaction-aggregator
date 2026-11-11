@@ -94,19 +94,43 @@ function capitaliseFirstLetter(word: string) {
 	return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 }
 
-export function normaliseCard(record: CardTransaction) {
+/** The wire fields every source carries under the same names */
+type SharedWireFields = Pick<
+	CardTransaction,
+	| "customerId"
+	| "accountId"
+	| "transactionId"
+	| "timestamp"
+	| "description"
+	| "currency"
+	| "amount"
+	| "creditDebitIndicator"
+	| "status"
+>;
+
+/**
+ * The fields every source maps the same way. Each normaliser adds what is its
+ * own: the transaction type, the short description and the metadata.
+ */
+function normaliseSharedFields(record: SharedWireFields) {
 	return {
 		userId: record.customerId,
 		accountId: record.accountId,
-		transactionType: transactionTypeSchema.enum.card,
 		externalId: record.transactionId,
 		occurredAt: new Date(record.timestamp).toISOString(),
 		longDescription: record.description,
-		shortDescription: record.merchantName,
 		currency: record.currency,
 		amountMinor: record.amount,
 		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as TransactionStatus,
+		status: record.status.toLowerCase() as TransactionStatus
+	};
+}
+
+export function normaliseCard(record: CardTransaction) {
+	return {
+		...normaliseSharedFields(record),
+		transactionType: transactionTypeSchema.enum.card,
+		shortDescription: record.merchantName,
 		metadata: {
 			mcc: record.mccCode,
 			merchantName: record.merchantName,
@@ -120,17 +144,9 @@ export function normaliseCard(record: CardTransaction) {
 
 export function normaliseDebitOrder(record: DebitOrderTransaction) {
 	return {
-		userId: record.customerId,
-		accountId: record.accountId,
+		...normaliseSharedFields(record),
 		transactionType: transactionTypeSchema.enum.debit_order,
-		externalId: record.transactionId,
-		occurredAt: new Date(record.timestamp).toISOString(),
-		longDescription: record.description,
 		shortDescription: record.creditorName,
-		currency: record.currency,
-		amountMinor: record.amount,
-		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as TransactionStatus,
 		// The wire's category is the generator's hint, not a fact about the
 		// debit order: the categoriser decides the category, so it is not kept
 		metadata: {
@@ -145,17 +161,9 @@ export function normaliseDebitOrder(record: DebitOrderTransaction) {
 
 export function normaliseEft(record: EftTransaction) {
 	return {
-		userId: record.customerId,
-		accountId: record.accountId,
+		...normaliseSharedFields(record),
 		transactionType: transactionTypeSchema.enum.eft,
-		externalId: record.transactionId,
-		occurredAt: new Date(record.timestamp).toISOString(),
-		longDescription: record.description,
 		shortDescription: record.beneficiaryName,
-		currency: record.currency,
-		amountMinor: record.amount,
-		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as TransactionStatus,
 		metadata: {
 			beneficiaryName: record.beneficiaryName,
 			beneficiaryAccountLast4: record.beneficiaryAccountNumber.slice(-4),
@@ -175,18 +183,10 @@ export function normaliseInternalTransfer(record: InternalTransferTransaction) {
 			: record.fromAccountType;
 
 	return {
-		userId: record.customerId,
-		accountId: record.accountId,
+		...normaliseSharedFields(record),
 		transactionType: transactionTypeSchema.enum.internal_transfer,
-		externalId: record.transactionId,
-		occurredAt: new Date(record.timestamp).toISOString(),
-		longDescription: record.description,
 		// e.g. "Savings Account" — the account type on the other side of the transfer
 		shortDescription: `${capitaliseFirstLetter(otherAccountType)} Account`,
-		currency: record.currency,
-		amountMinor: record.amount,
-		creditDebitIndicator: record.creditDebitIndicator,
-		status: record.status.toLowerCase() as TransactionStatus,
 		metadata: {
 			fromAccountId: record.fromAccountId,
 			toAccountId: record.toAccountId,

@@ -181,7 +181,7 @@ apps/api
         └── secrets.ts            reads each secret from a file in SECRET_DIR
 ```
 
-The other route folders follow the `transactions/` pattern: one `*.route.ts` per operation, the folder's Zod shapes in `*.schemas.ts`, and its row-to-JSON functions in `*.mappers.ts`. A folder leaves out a file it doesn't need: `category-overrides/` reuses the shapes from `users/_userId/categories/`. Each unit test (`src/**/*.test.ts`) sits next to the file it tests; the tree leaves them out.
+The other route folders follow the `transactions/` pattern: one `*.route.ts` per operation, the folder's Zod shapes in `*.schemas.ts`, and its row-to-JSON functions in `*.mappers.ts`. A folder leaves out a file it doesn't need: `category-overrides/` reuses the shapes from `users/_userId/categories/`, and `categories/` has no mappers because its rows already are the response items. Each unit test (`src/**/*.test.ts`) sits next to the file it tests; the tree leaves them out.
 
 ## Configuration
 
