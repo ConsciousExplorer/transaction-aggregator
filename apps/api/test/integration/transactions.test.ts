@@ -124,7 +124,7 @@ suite("transactions, read through the API", () => {
 		assert.deepStrictEqual(othersResponse.json(), missingResponse.json());
 	});
 
-	test("a walk returns every row once, rows 1 µs apart included, and walks back over the same pages", async () => {
+	test("a walk returns every row once, rows 1 µs apart included, and walks back over the same pages, in either sort", async () => {
 		const userId = randomUUID();
 		const fixtures = [
 			{ occurredAt: "2026-08-15T10:00:00.000001Z" },
@@ -183,6 +183,32 @@ suite("transactions, read through the API", () => {
 			[ids[2], ids[1]],
 			[ids[4], ids[3]]
 		]);
+
+		const oldestFirst = await walkPages(
+			server,
+			readToken,
+			`/api/v1/users/${userId}/transactions?${AUGUST}&limit=2&sort=occurredAt`,
+			"next"
+		);
+
+		assert.deepStrictEqual(oldestFirst.pages, [
+			[ids[0], ids[1]],
+			[ids[2], ids[3]],
+			[ids[4]]
+		]);
+
+		const oldestFirstBackward = await walkPages(
+			server,
+			readToken,
+			oldestFirst.lastUrl,
+			"prev"
+		);
+
+		assert.deepStrictEqual(oldestFirstBackward.pages, [
+			[ids[4]],
+			[ids[2], ids[3]],
+			[ids[0], ids[1]]
+		]);
 	});
 
 	test("the window includes fromDateTime and excludes toDateTime", async () => {
@@ -224,21 +250,6 @@ suite("transactions, read through the API", () => {
 		assert.deepStrictEqual(ids, [inserted[1]?.transactionId]);
 	});
 
-	// Checked against the categories table: a typo would otherwise match
-	// nothing and read as no spending
-	test("a category slug no category has is a 400 that names it", async () => {
-		const response = await readAs(
-			server,
-			readToken,
-			`/api/v1/users/${randomUUID()}/transactions?${AUGUST}&category=groceries&category=grocery`
-		);
-
-		assert.strictEqual(response.statusCode, 400, response.body);
-		assert.deepStrictEqual(response.json().errors, [
-			{ path: ["category"], message: "unknown category grocery" }
-		]);
-	});
-
 	test("each filter narrows the list to the rows it names", async () => {
 		const userId = randomUUID();
 		const accountId = randomUUID();
@@ -274,6 +285,8 @@ suite("transactions, read through the API", () => {
 			{ query: `accountId=${accountId}`, expected: [groceries] },
 			{ query: "creditDebitIndicator=credit", expected: [income] },
 			{ query: "category=dining", expected: [dining] },
+			// A slug no category has matches nothing
+			{ query: "category=no-such-category", expected: [] },
 			{ query: "amountMin=2000&amountMax=6000", expected: [income] },
 			// Every status is listed
 			{ query: "", expected: [dining, income, groceries] }

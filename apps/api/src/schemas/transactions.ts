@@ -33,18 +33,19 @@ export type SummaryInterval = z.infer<typeof summaryIntervalSchema>;
 // The boundary row's keyset, which the query seeks from. occurredAt is exact to
 // the microsecond, because rows can differ only in microseconds and a
 // millisecond bound would skip or repeat them.
-export const transactionCursorSchema = z.object({
+export const transactionKeysetSchema = z.object({
 	occurredAt: z.iso.datetime({ precision: 6 }),
 	transactionId: z.uuid()
 });
-export type TransactionCursor = z.infer<typeof transactionCursorSchema>;
+export type TransactionKeyset = z.infer<typeof transactionKeysetSchema>;
 
 // What the opaque cursor in links carries: which way to read, and the row to
 // read from
 export const transactionPageCursorSchema = z.object({
 	direction: cursorDirectionSchema,
-	position: transactionCursorSchema
+	position: transactionKeysetSchema
 });
+export type TransactionPageCursor = z.infer<typeof transactionPageCursorSchema>;
 
 /**
  * The query parameters the transaction list and the summary share. Each route

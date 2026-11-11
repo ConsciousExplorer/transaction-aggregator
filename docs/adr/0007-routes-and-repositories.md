@@ -16,7 +16,7 @@ The contract (request validation, response shape, OpenAPI document) has to stay 
 
 - **Routes** are autoloaded from `src/routes`, where the folder path is the URL (`_userId` becomes `:userId`). Each operation has its own `*.route.ts`. The folder's response shapes and row-to-wire mappers sit beside it in `<folder>.schemas.ts` and `<folder>.mappers.ts`.
 - **Repositories** are classes in `src/integrations/database/repositories`, and they own all the SQL. `transaction-conditions.ts` holds the filter and effective-category joins that the list, the detail and the summary share.
-- **A handler** validates, makes its checks, calls a repository and maps the result. Checks used by more than one route live in `utils/`, such as `assertWindowWithin` and `assertKnownCategories`.
+- **A handler** validates, makes its checks, calls a repository and maps the result. A check used by more than one route lives in `utils/`, such as `assertWindowWithin`.
 - **Each route** declares only the repository methods it calls, as `Pick<Repository, "method">`, so a test passes a fake with just those methods.
 - **An Awilix container** builds the graph once at boot (`container.ts`). `app.ts` spreads it into `buildServer` as a `ServerDependencies`, so a missing dependency is a compile error.
 

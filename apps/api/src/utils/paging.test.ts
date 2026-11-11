@@ -3,69 +3,11 @@ import { suite, test } from "node:test";
 import z from "zod";
 import { invalidCursorError } from "#src/errors/http-problem.ts";
 import {
-	buildKeysetPage,
 	buildLink,
 	buildPageLinks,
 	decodeCursor,
 	encodeCursor
 } from "./paging.ts";
-
-// Rows as a keyset query returns them, named by age: a is the newest
-const NEWEST_FIRST = ["a", "b", "c"];
-
-suite("buildKeysetPage", () => {
-	test("a full first page drops the look-ahead row and continues from its last row", () => {
-		const page = buildKeysetPage(NEWEST_FIRST, 2, "next", false);
-		assert.deepStrictEqual(page, {
-			rows: ["a", "b"],
-			nextFrom: "b",
-			prevFrom: null
-		});
-	});
-
-	test("a short page read downwards from a cursor is the last one", () => {
-		const page = buildKeysetPage(["b", "c"], 2, "next", true);
-		assert.deepStrictEqual(page, {
-			rows: ["b", "c"],
-			nextFrom: null,
-			prevFrom: "b"
-		});
-	});
-
-	test("a full page read downwards from a cursor has both neighbours", () => {
-		const page = buildKeysetPage(NEWEST_FIRST, 2, "next", true);
-		assert.deepStrictEqual(page, {
-			rows: ["a", "b"],
-			nextFrom: "b",
-			prevFrom: "a"
-		});
-	});
-
-	test("a prev page is read oldest first, served newest first, and leaves the input alone", () => {
-		const oldestFirst = ["c", "b", "a"];
-		const page = buildKeysetPage(oldestFirst, 2, "prev", true);
-		assert.deepStrictEqual(page, {
-			rows: ["b", "c"],
-			nextFrom: "c",
-			prevFrom: "b"
-		});
-		assert.deepStrictEqual(oldestFirst, ["c", "b", "a"]);
-	});
-
-	test("a short prev page is the newest one", () => {
-		const page = buildKeysetPage(["b", "a"], 2, "prev", true);
-		assert.deepStrictEqual(page, {
-			rows: ["a", "b"],
-			nextFrom: "b",
-			prevFrom: null
-		});
-	});
-
-	test("an empty page has no neighbours", () => {
-		const page = buildKeysetPage([], 2, "next", true);
-		assert.deepStrictEqual(page, { rows: [], nextFrom: null, prevFrom: null });
-	});
-});
 
 suite("encodeCursor and decodeCursor", () => {
 	const positionSchema = z.object({ at: z.string(), id: z.number() });
@@ -86,6 +28,10 @@ suite("encodeCursor and decodeCursor", () => {
 			INVALID_CURSOR
 		);
 		assert.throws(() => decodeCursor("", positionSchema), INVALID_CURSOR);
+	});
+
+	test("no cursor decodes to none, which asks for the first page", () => {
+		assert.strictEqual(decodeCursor(undefined, positionSchema), undefined);
 	});
 
 	test("JSON that doesn't match the schema is an invalid cursor", () => {
@@ -137,21 +83,30 @@ suite("buildLink", () => {
 suite("buildPageLinks", () => {
 	const REQUEST = "/api/v1/things?toDateTime=2099-01-01T00:00:00.000Z&limit=2";
 	const WINDOW = { toDateTime: "2026-10-01T12:00:00.000Z" };
+	const NEXT_CURSOR = { direction: "next", position: { id: 7 } };
+	const PREVIOUS_CURSOR = { direction: "prev", position: { id: 3 } };
 
 	test("every link carries the window as read", () => {
-		const links = buildPageLinks(
-			REQUEST,
-			WINDOW,
-			{ cursor: "b" },
-			{ cursor: "a" }
-		);
+		const links = buildPageLinks(REQUEST, WINDOW, NEXT_CURSOR, PREVIOUS_CURSOR);
 		for (const link of [links.self, links.next, links.prev]) {
 			const url = new URL(link ?? "", "http://client.example");
 			assert.strictEqual(url.searchParams.get("toDateTime"), WINDOW.toDateTime);
 			assert.strictEqual(url.searchParams.get("limit"), "2");
 		}
+	});
+
+	test("next and prev each carry their page's cursor, encoded", () => {
+		const links = buildPageLinks(REQUEST, WINDOW, NEXT_CURSOR, PREVIOUS_CURSOR);
 		const next = new URL(links.next ?? "", "http://client.example");
-		assert.strictEqual(next.searchParams.get("cursor"), "b");
+		const previous = new URL(links.prev ?? "", "http://client.example");
+		assert.strictEqual(
+			next.searchParams.get("cursor"),
+			encodeCursor(NEXT_CURSOR)
+		);
+		assert.strictEqual(
+			previous.searchParams.get("cursor"),
+			encodeCursor(PREVIOUS_CURSOR)
+		);
 	});
 
 	test("next and prev are left out when there is no such page", () => {

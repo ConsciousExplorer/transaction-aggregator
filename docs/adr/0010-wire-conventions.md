@@ -1,7 +1,7 @@
 # 0010. Money, categories and date windows on the wire
 
 - **Status:** Accepted
-- **Where it lives:** [`schemas/common.ts`](../../apps/api/src/schemas/common.ts), [`schemas/transactions.ts`](../../apps/api/src/schemas/transactions.ts), [`time-window.ts`](../../apps/api/src/utils/time-window.ts), [`category-filter.ts`](../../apps/api/src/utils/category-filter.ts), [`http-problem.ts`](../../apps/api/src/errors/http-problem.ts), [`openapi.json`](../../apps/api/openapi/openapi.json)
+- **Where it lives:** [`schemas/common.ts`](../../apps/api/src/schemas/common.ts), [`schemas/transactions.ts`](../../apps/api/src/schemas/transactions.ts), [`time-window.ts`](../../apps/api/src/utils/time-window.ts), [`http-problem.ts`](../../apps/api/src/errors/http-problem.ts), [`openapi.json`](../../apps/api/openapi/openapi.json)
 - **Related:** [0001](0001-avro-schema-registry-contract.md) (the same conventions on Kafka), [0009](0009-keyset-paging.md)
 
 ## Context
@@ -26,7 +26,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 - `GET /api/v1/categories` returns `{categoryId, category, label}` for all 16.
 - A category's id is called `categoryId` wherever it appears, `mappedTo.categoryId` included.
 - Responses carry the stable slug (`category`, such as `"groceries"`). The slug never changes; a new display name changes `label`.
-- The list's `category` filter takes slugs, and an unknown slug is a 400 `validation-error`.
+- The `category` filter on the list and the summary takes slugs. A slug no category has matches nothing: the answer is an empty 200, not an error.
 - **Writes send the numeric id.** The seed pins every id, so ids are the same in every environment and are never reused.
 - **A PUT answers 201 when it creates the override and 200 when it replaces one.** The upsert tells the two apart in its own `RETURNING`: an insert writes `created_at` and `updated_at` from the same `now()`, the conflict branch writes `updated_at` alone. (`xmax = 0` would be exact, but Postgres refuses system columns in `RETURNING` on a partitioned table, which the transaction override table is, so both upserts use the same comparison.)
   - The database's foreign key is the validator: Postgres's error 23503 becomes a 400 `validation-error`.
@@ -51,6 +51,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 | `currency` once in `meta` | Every amount would depend on a field elsewhere in the payload. |
 | Numeric category ids on reads | Every client would need the id-to-name table just to render a row. |
 | Slugs on writes | The API would look up an id the client had already looked up from the same `GET /categories`. |
+| A 400 for a `category` filter that names an unknown slug | The API would have to know the category list on every request. That is either a query before each read, or a copy in memory that is wrong after a migration until the API restarts. |
 | 92 days on the list and 366 on the summary | A twelve-month figure would need four list calls stitched together, and there would be two settings to keep in step. |
 | 18 months (all of retention) | A daily summary would be 548 buckets × 16 categories in one unpaged response. |
 
@@ -58,6 +59,7 @@ These are the API's public contract, and CI fails a pull request into `main` tha
 
 - **Clients never do float maths on money:** amounts are exact integers.
 - **Category ids are append-only:** renumbering or reusing one is a breaking change.
+- **A mistyped category slug reads as no spending:** the list comes back empty and the summary's totals are zero. A client takes its slugs from `GET /categories`.
 - **A year is the most one request can read,** so an older history means stepping the window back.
 - **Problem `type` values are bare slugs:** the problem-details format allows a relative reference, but recommends absolute URIs.
 - **Positivity is enforced by the database only:** the response schema describes amounts as positive but doesn't check it. The database's `CHECK (amount_minor > 0)` is what enforces it.
