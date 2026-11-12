@@ -1,12 +1,8 @@
 -- Custom SQL migration file, put your code below! --
 
--- Isolating the application's tables in a schema to manage privileges.
+-- The application's tables get their own schema, so privileges are granted on
+-- it as a whole. The grants are not here: database/grants holds every one.
 CREATE SCHEMA txn_agg;
-
--- Readers can use the schema and read every table in it. The migrations run as
--- admin, so reads are a default privilege on every table admin creates here.
-GRANT USAGE ON SCHEMA txn_agg TO txn_agg_read;
-ALTER DEFAULT PRIVILEGES IN SCHEMA txn_agg GRANT SELECT ON TABLES TO txn_agg_read;
 
 CREATE TYPE txn_agg.transaction_type AS ENUM ('card', 'debit_order', 'eft', 'internal_transfer');
 CREATE TYPE txn_agg.credit_debit_indicator AS ENUM ('credit', 'debit');
@@ -141,10 +137,3 @@ SET
   retention_keep_table = false
 WHERE parent_table = 'txn_agg.user_transaction_overrides';
 
-
--- Write privileges, per table. Reads come from the txn_agg_read default privilege.
--- Consumers insert transaction facts; facts are never updated or deleted.
-GRANT INSERT ON txn_agg.transactions TO txn_agg_write;
-
--- The API writes user preferences only
-GRANT SELECT, INSERT, UPDATE ON txn_agg.user_transaction_overrides, txn_agg.user_category_overrides TO txn_agg_prefs_write;

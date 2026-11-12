@@ -328,8 +328,8 @@ pre .comment { color: var(--muted); }
 		<table>
 			<thead><tr><th>Workflow</th><th>Runs its checks when one of these changed</th><th>Needs a version bump when</th></tr></thead>
 			<tbody>
-				<tr><td><code>api</code></td><td><code>apps/api/**</code>, <code>database/migrations/**</code>, <code>infrastructure/postgres/**</code>, <code>secrets/**</code>, <code>api.yml</code></td><td>a file in <code>apps/api/</code> changed that isn't <code>.md</code></td></tr>
-				<tr><td><code>consumer</code></td><td><code>apps/consumer/**</code>, <code>schemas/*.avsc</code>, <code>database/migrations/**</code>, <code>infrastructure/postgres/**</code>, <code>secrets/**</code>, <code>consumer.yml</code></td><td>a file in <code>apps/consumer/</code> changed that isn't <code>.md</code></td></tr>
+				<tr><td><code>api</code></td><td><code>apps/api/**</code>, <code>database/migrations/**</code>, <code>database/grants/**</code>, <code>infrastructure/postgres/**</code>, <code>secrets/**</code>, <code>api.yml</code></td><td>a file in <code>apps/api/</code> changed that isn't <code>.md</code></td></tr>
+				<tr><td><code>consumer</code></td><td><code>apps/consumer/**</code>, <code>schemas/*.avsc</code>, <code>database/migrations/**</code>, <code>database/grants/**</code>, <code>infrastructure/postgres/**</code>, <code>secrets/**</code>, <code>consumer.yml</code></td><td>a file in <code>apps/consumer/</code> changed that isn't <code>.md</code></td></tr>
 				<tr><td><code>portal</code></td><td><code>apps/portal/**</code>, <code>portal.yml</code></td><td>a file in <code>apps/portal/</code> changed that isn't <code>.md</code></td></tr>
 				<tr><td><code>producers</code></td><td><code>apps/producers/**</code>, <code>schemas/*.avsc</code>, <code>producers.yml</code></td><td>a file in <code>apps/producers/</code> changed that isn't <code>.md</code></td></tr>
 				<tr><td><code>api-contract</code></td><td><code>apps/api/src/**</code>, <code>apps/api/openapi/**</code>, <code>apps/api/scripts/generate-openapi.ts</code>, <code>apps/api/package.json</code>, <code>apps/api/package-lock.json</code>, <code>api-contract.yml</code></td><td class="muted">never; the api workflow covers it</td></tr>
@@ -337,7 +337,7 @@ pre .comment { color: var(--muted); }
 			</tbody>
 		</table>
 	</div>
-	<p>The migrations, the Postgres setup and the secrets sit outside the apps, but the API's and the consumer's integration tests run against them, so a change there runs those tests too.</p>
+	<p>The migrations, the grants, the Postgres setup with its roles, and the secrets sit outside the apps, but the API's and the consumer's integration tests run against them, so a change there runs those tests too.</p>
 </section>
 
 <section class="wide">
@@ -449,7 +449,7 @@ pre .comment { color: var(--muted); }
 				<tr><td><code>apps/api/src/</code>, so <code>openapi.json</code> is regenerated too</td><td>api (one bump covers both)</td></tr>
 				<tr><td>Only <code>apps/api/README.md</code></td><td class="muted">none</td></tr>
 				<tr><td>A lockfile, like the producers' <code>uv.lock</code> after a security upgrade</td><td>producers</td></tr>
-				<tr><td>A migration in <code>database/migrations/</code></td><td class="muted">none, though the api and consumer tests run</td></tr>
+				<tr><td>A migration in <code>database/migrations/</code>, a grant in <code>database/grants/</code>, or a role in <code>infrastructure/postgres/roles/roles.sql</code></td><td class="muted">none, though the api and consumer tests run</td></tr>
 				<tr><td>A schema in <code>schemas/</code></td><td class="muted">none by itself; regenerating the consumer's types changes <code>apps/consumer/src/schemas/</code>, which needs a consumer bump</td></tr>
 				<tr><td>A workflow in <code>.github/workflows/</code></td><td class="muted">none</td></tr>
 			</tbody>

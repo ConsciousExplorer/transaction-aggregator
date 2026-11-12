@@ -34,6 +34,7 @@ jobs:
               - 'apps/consumer/**'
               - 'schemas/*.avsc'
               - 'database/migrations/**'
+              - 'database/grants/**'
               - 'infrastructure/postgres/**'
               - 'secrets/**'
               - '.github/workflows/consumer.yml'

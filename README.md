@@ -62,7 +62,7 @@ Four pages there look closer at how it works: the [message flow](docs/adr/messag
 | Kafka | [infrastructure/kafka](infrastructure/kafka) | One KRaft broker with SASL/SCRAM. The `kafka-init` one-shot creates the users, the ACLs and the topics: `transactions.<type>` (12 partitions) and `transactions.<type>.dlq`. |
 | Schema Registry | [infrastructure/schema-registry](infrastructure/schema-registry), [schemas](schemas) | Holds the Avro contracts. The `schemas-register` one-shot registers `schemas/*.avsc` before any producer starts. |
 | Consumers | [apps/consumer](apps/consumer) | Node and TypeScript. One image runs as four containers, one per topic. Each batches records, normalises and categorises them, inserts the batch in one statement, and dead-letters records it can't store. See its [README](apps/consumer/README.md). |
-| PostgreSQL | [database](database), [infrastructure/postgres](infrastructure/postgres) | Postgres 18 with pg_partman and pg_cron. The `migrate` one-shot applies the drizzle-kit migrations: the `txn_agg` schema with monthly partitions, the category and rule seed, the maintenance jobs and the Grafana views. See its [README](database/README.md). |
+| PostgreSQL | [database](database), [infrastructure/postgres](infrastructure/postgres) | Postgres 18 with pg_partman and pg_cron. The `migrate` one-shot applies the drizzle-kit migrations: the `txn_agg` schema with monthly partitions, the category and rule seed, the maintenance jobs and the Grafana views. The `roles` one-shot creates the roles and logins as the superuser, and the `grants` one-shot grants on the tables as `admin`. See its [README](database/README.md). |
 | API | [apps/api](apps/api) | Node and TypeScript on Fastify. Lists a user's transactions, categories and spending summary, and stores their category overrides. Every `/api/v1` route needs a Keycloak bearer token. |
 | Portal (demo) | [apps/portal](apps/portal) | A demo banking portal in Next.js. A customer signs in through Keycloak; its server side is a BFF that calls the API as `banking-portal`, so the browser never holds a token the API accepts. Shows categories, spending by category and month, a cursor-paged transaction list, and re-categorising. See its [README](apps/portal/README.md). |
 | Keycloak | [infrastructure/keycloak](infrastructure/keycloak) | Identity provider. The `txn-api` realm issues client-credentials tokens for the API and signs people in to kafbat-ui and the portal. |
@@ -99,7 +99,7 @@ make up
 
 `make up` runs in the foreground and streams every container's logs, so use a second terminal for everything else. The first run builds the images. Compose then starts everything in dependency order:
 
-1. Kafka and Postgres start. `kafka-init` creates the Kafka users, ACLs and topics, and `migrate` builds the database.
+1. Kafka and Postgres start. `kafka-init` creates the Kafka users, ACLs and topics, `roles` creates the database roles and logins, `migrate` builds the database, and `grants` gives each role its privileges.
 2. Schema Registry starts, and `schemas-register` registers the Avro schemas.
 3. Keycloak, the API and the four consumers start, then the portal once the API is ready.
 4. Once the topics and schemas exist, the four producers send 240,000 transactions (120,000 card and 40,000 from each of the other three) and exit. The seed is fixed, so it's the same data on every run. The consumers work through them.
@@ -247,6 +247,8 @@ Everything runs through `make` from the repo root; the compose file is [infrastr
 | `make produce-stream` | Live transactions until Ctrl-C. Change a rate with `make produce-stream CARD_RATE=100`. |
 | `make produce-load-data` | About 5M more transactions for the load test, on top of `make up`'s 240,000. The consumers take a while to store them. |
 | `make migrate` | Re-run the database migrations; applied ones are skipped |
+| `make roles` | Re-apply the database roles and logins as the superuser, to add a login or change a password on a running stack |
+| `make grants` | Re-apply the grants on the tables as `admin` |
 | `make load` | k6 load test against the API; `LOAD_PROFILE=smoke` or `breakpoint` for the others (needs k6 on the host) |
 | `make down` | Stop and remove the containers; Kafka and Postgres data are kept |
 | `make clean` | Stop and delete the volumes too: the next `make up` starts empty |

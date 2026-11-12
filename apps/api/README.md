@@ -244,7 +244,7 @@ To see how the API holds up under realistic traffic, run `make load` from the re
 **Unit tests** (`npm run test:unit`) sit next to the code they test. They call routes through Fastify's `inject`, with fake repositories, and sign tokens with a local test key, so nothing needs to be running.
 
 **Integration tests** (`npm run test:integration`) send requests through the API to a real PostgreSQL 18, started by Testcontainers.
-- Each test file gets a fresh database, built the way compose builds it: the repo's Postgres image, its `initdb` scripts, and every migration.
+- Each test file gets a fresh database, built the way compose builds it: the repo's Postgres image, its `initdb` scripts, the roles in `infrastructure/postgres/roles/roles.sql`, every migration, and the grants in `database/grants/grants.sql`.
 - The API connects as `api_write`, its own login, so a missing grant fails the test just as it would in production.
 - The real token check runs, trusting a test key pair.
 
