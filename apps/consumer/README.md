@@ -239,8 +239,9 @@ Node 24 strips the TypeScript types itself, so nothing is built and the Docker i
 
 **Integration tests** (`npm run test:integration`) run the consumer's write path against a real PostgreSQL 18, started by Testcontainers. Each test file gets a fresh database, built the way compose builds it:
 - the repo's Postgres image (`infrastructure/postgres`), started with compose's `postgres` command
-- the `initdb` scripts, which create the logins
+- the `initdb` scripts, which create the database and its owner
 - every migration in `database/migrations`, applied as `admin`
+- the roles, grants and logins in `database/access`, applied as `postgres`
 
 The code under test connects as `kafka_consumer`, the consumer's own login, so a missing grant fails the test just as it would in production. The tests read results back as `admin`. Kafka isn't started: the dead-letter sender is replaced by one that records what it's given.
 

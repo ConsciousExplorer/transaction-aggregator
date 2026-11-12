@@ -1,19 +1,20 @@
 # Database
 
-The hand-written SQL that builds the `txn_agg` database, and the drizzle-kit runner that applies it. Postgres itself, with pg_partman and pg_cron, is built in [infrastructure/postgres](../infrastructure/postgres).
+The hand-written SQL that builds the `txn_agg` database, the drizzle-kit runner that applies it, and the SQL that says who may log in and what each role may do. Postgres itself, with pg_partman and pg_cron, is built in [infrastructure/postgres](../infrastructure/postgres).
 
 ## What runs where
 
-Two things build the database, in this order:
+Three things build the database, in this order:
 
-1. **The image's init scripts** ([infrastructure/postgres/initdb](../infrastructure/postgres/initdb)) run once, when the data volume is empty. They hold what lives outside a schema: the `txn_agg` and `keycloak` databases, the extensions (pg_partman, pg_cron, pg_stat_statements) and every role.
-2. **The migrations** (`migrations/*.sql`) run as `admin`, in journal order, each once: the schemas, the tables and their grants, the seed data, the maintenance jobs and the monitoring views.
+1. **The image's init scripts** ([infrastructure/postgres/initdb](../infrastructure/postgres/initdb)) run once, when the data volume is empty. They hold the bootstrap: the `txn_agg` and `keycloak` databases, the two logins that own them (`admin` and `keycloak`) and the extensions (pg_partman, pg_cron, pg_stat_statements).
+2. **The migrations** (`migrations/*.sql`) run as `admin`, in journal order, each once: the schemas, the tables, the seed data, the maintenance jobs and the monitoring views. They hold no roles and no grants.
+3. **The access files** (`access/*.sql`) run as `postgres`, every time: the group roles and the logins with their passwords, then what each group role may do on the tables. See [Access](#access).
 
-The compose `migrate` one-shot applies the migrations on every `make up`, after Postgres is healthy and before the API and the consumers start. `drizzle-kit migrate` records each applied file in `drizzle.__drizzle_migrations` and skips it from then on, so `make migrate` can run at any time and applies only what is new.
+The compose `migrate` one-shot applies the migrations on every `make up`, after Postgres is healthy. The `access` one-shot follows it, and the API and the consumers start once it has finished. `drizzle-kit migrate` records each applied file in `drizzle.__drizzle_migrations` and skips it from then on, so `make migrate` can run at any time and applies only what is new.
 
 | File | What it does |
 | --- | --- |
-| `0000_types_and_tables.sql` | The `txn_agg` schema and its read grant, the enum types, the tables and their write grants, the covering read index, and pg_partman's monthly partitioning of `transactions` and `user_transaction_overrides` |
+| `0000_types_and_tables.sql` | The `txn_agg` schema, the enum types, the tables, the covering read index, and pg_partman's monthly partitioning of `transactions` and `user_transaction_overrides` |
 | `0001_seed_categories_and_rules.sql` | The 16 categories with pinned ids, and ruleset 1 |
 | `0002_maintenance.sql` | The hourly pg_cron jobs: partman maintenance (new monthly partitions, drop past 18 months) and `ANALYZE` of the partitioned parents |
 | `0003_monitoring.sql` | The `monitoring` schema and the views the Grafana Database dashboard reads |
@@ -48,13 +49,63 @@ drizzle-kit generates no SQL here. The schema is partitioned tables, pg_partman 
 
 4. **Regenerate the apps' Drizzle tables** if a table they read has changed: `npm run drizzle:pull-schema` in [apps/api](../apps/api) and [apps/consumer](../apps/consumer), against the migrated stack.
 
-5. **Run an integration suite.** `npm run test:integration` in either app starts the Postgres image with the init scripts, runs every file in `migrations/`, and tests against the result. CI runs both suites when anything in `migrations/` changes.
+5. **Run an integration suite.** `npm run test:integration` in either app starts the Postgres image with the init scripts, runs every file in `migrations/`, applies `access/`, and tests against the result. CI runs both suites when anything in `migrations/` or `access/` changes.
 
 ### Rules
 
 - **Every database is still rebuilt from empty** (`make clean`), so the four files are edited in place. From the first database that keeps its data, every change is a new file, a changed seed row or a new ruleset included. The runner applies a file only if its journal time is later than the last applied one, so an edit to an applied file never reaches a database that has already run it.
 - **Pending files run in one transaction.** A file that fails rolls back everything pending with it, and nothing is recorded, so fix the file and run again. A statement that can't run inside a transaction, such as `CREATE INDEX CONCURRENTLY`, can't be a migration here.
-- **Roles are not migrations.** A new role, membership or database belongs in the init scripts, which run before any migration and as the superuser.
+- **No roles and no grants in a migration.** They belong in `access/`. `admin`, which runs the migrations, can't create a role, so a migration that tries fails. A table an app writes to needs its write grant added to `access/grants.sql` in the same change; reads need nothing.
+- **A new database or extension belongs in the init scripts,** which run before any migration and as the superuser.
+
+## Access
+
+Who may log in, and what each role may do, is two SQL files in `access/`. Nothing else in the repo creates a role or grants a privilege, apart from the two owner logins in the init scripts.
+
+| File | What it holds |
+| --- | --- |
+| `access/roles.sql` | Who exists: the four group roles, which can't log in, who may connect to the database, and the logins, one block each with its password, its limits and the group roles it is a member of |
+| `access/grants.sql` | What each group role may do on the objects the migrations create: the grants on the `txn_agg` and `monitoring` schemas, and the write grants per table |
+
+A login never holds a privilege directly. It gets them by being a member of group roles, so "who can read?" is answered in one file and "what can a reader read?" in the other.
+
+The two files change for different reasons. `grants.sql` names tables, so it changes together with a migration, and nothing in it needs more than the rights of `admin`, which owns the tables. `roles.sql` names no table: it changes when a person or a service needs access, and it needs a role that may create roles.
+
+**How it is applied.** `psql` runs both files in one transaction, connected as `postgres`, so a statement that fails leaves access as it was. Every statement is safe to repeat: a role is created only when it is missing, and a grant that is already there is a notice. So the compose `access` one-shot applies them on every `make up`, after the migrations, and on a running stack:
+
+```sh
+make access
+```
+
+**Passwords come from the secrets folder,** never from the SQL. Each block reads its file from `SECRET_DIR` and sets it with `ALTER ROLE … PASSWORD`, on every run.
+
+### Adding a login
+
+A read-only reporting login, for example:
+
+1. **Add its password file:** `secrets/reporting_read_password`.
+2. **Add its block** to `access/roles.sql`:
+
+   ```sql
+   \set reporting_read_password `cat "$SECRET_DIR/reporting_read_password"`
+   SELECT 'CREATE ROLE reporting_read LOGIN'
+   WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'reporting_read') \gexec
+   ALTER ROLE reporting_read PASSWORD :'reporting_read_password' CONNECTION LIMIT 5;
+   GRANT txn_agg_read TO reporting_read;
+   ```
+
+3. **Apply it:** `make access`.
+
+A login that should see less than `txn_agg_read` gets its own group role in `access/roles.sql`, with that role's grants in `access/grants.sql`, and is made a member of that instead.
+
+### Changing a password
+
+Change the file in `secrets/`, run `make access`, and restart whatever logs in with it. Connections that are already open stay open.
+
+### What it doesn't do
+
+- **It only adds.** Deleting a block or a grant from a file removes nothing from a database that has already run it. Removing a login is a `DROP ROLE` by hand, and taking a privilege back is a `REVOKE` by hand.
+- **It doesn't manage `admin` or `keycloak`.** They own the two databases, so the init scripts create them before anything else can run.
 
 ## Environment
 
@@ -95,5 +146,8 @@ database
 ├── migrations/
 │   ├── 0000_….sql           the migrations, applied in journal order
 │   └── meta/                _journal.json, the order, and one empty snapshot per file
+├── access/
+│   ├── roles.sql            the group roles, the logins, their passwords and their memberships
+│   └── grants.sql           what each group role may do on the tables
 └── query-plans/             SQL run by hand to study the API's queries; the results are in docs/evidence
 ```

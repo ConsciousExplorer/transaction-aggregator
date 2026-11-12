@@ -36,6 +36,7 @@ jobs:
             app:
               - 'apps/api/**'
               - 'database/migrations/**'
+              - 'database/access/**'
               - 'infrastructure/postgres/**'
               - 'secrets/**'
               - '.github/workflows/api.yml'

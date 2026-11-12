@@ -1,4 +1,4 @@
-.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-internal-transfer produce-debit-order produce-card-v2 produce-stream produce-load-data db-diagram migrate load
+.PHONY: up up-all down clean logs ps produce produce-card produce-eft produce-internal-transfer produce-debit-order produce-card-v2 produce-stream produce-load-data db-diagram migrate access load
 
 # Every compose call goes through here: the compose file lives in infrastructure/
 COMPOSE := docker compose -f infrastructure/docker-compose.yaml
@@ -94,6 +94,13 @@ db-diagram:
 # argument: one would replace the image's CMD (npx drizzle-kit migrate).
 migrate:
 	$(COMPOSE) run --rm migrate
+
+# Re-applies database/access to the running database: the roles and logins
+# with their passwords, then the grants on the tables. Every statement is safe to
+# repeat, so this is how a new login or a changed password reaches a database
+# that keeps its data.
+access:
+	$(COMPOSE) run --rm --no-deps access
 
 # k6 load test (k6 on the host): randomised portal user sessions against the
 # API, arriving at a fixed rate. LOAD_PROFILE=smoke checks the script, load

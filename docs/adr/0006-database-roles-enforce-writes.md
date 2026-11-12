@@ -1,7 +1,7 @@
 # 0006. Database roles decide who can write what
 
 - **Status:** Accepted
-- **Where it lives:** [`03-permissions.sql`](../../infrastructure/postgres/initdb/03-permissions.sql), the grants at the end of [`0000_types_and_tables.sql`](../../database/migrations/0000_types_and_tables.sql), [`database-roles.test.ts`](../../apps/api/test/integration/database-roles.test.ts)
+- **Where it lives:** [`roles.sql`](../../database/access/roles.sql), [`grants.sql`](../../database/access/grants.sql), [`database-roles.test.ts`](../../apps/api/test/integration/database-roles.test.ts)
 - **Related:** [0004](0004-versioned-rules-read-time-overrides.md), [0005](0005-one-partitioned-table.md)
 
 ## Context
@@ -34,6 +34,8 @@ Three consequences of that table:
 
 **Only migrations change the categories and rules:** the apps can only read those tables, and `admin`, which runs the migrations, owns everything. `PUBLIC` is revoked on the database and on `public`.
 
+**Roles and grants are kept apart from the migrations.** Two SQL files in `database/access` hold them: `roles.sql` is who exists (the group roles, the logins and their memberships), and `grants.sql` is what each group role may do on the tables. They run after the migrations on every start, each statement is safe to repeat, and `make access` applies them to a running database, so a new login or a changed password needs no migration. Passwords are read from the secrets folder, never written in the SQL.
+
 **A test proves both sides.** `database-roles.test.ts` connects as the real logins against a Postgres built from the repo's own image. It checks that:
 
 - `api_write` can't insert a transaction, delete an override or insert a category;
@@ -46,6 +48,8 @@ Three consequences of that table:
 | Preference writes sent through Kafka to the consumer | The API would need broker credentials, and a preference toggle would become eventually consistent. |
 | One login for both apps | A bug or a leaked password in either app could then change facts. |
 | Enforcing the rules in application code only | Nothing proves it, and a single missed check breaks it. |
+| Roles in the Postgres init scripts and grants in the migrations | Init scripts run only on an empty volume, so a new login could not reach a database that keeps its data, and the grants were spread through the table definitions. |
+| Terraform's `postgresql` provider for roles and grants | It also removes what is no longer declared, but it adds a state file and a second tool to a stack that one `psql` command covers. |
 | Hard `DELETE` for preferences | It destroys the record that support and debugging need. |
 | Row-level security per user | The database never knows the end user. The API scopes every query by the `userId` in the path ([0008](0008-service-to-service-auth.md)). |
 
@@ -53,6 +57,7 @@ Three consequences of that table:
 
 - "The API can't change a fact" is a grant, and a test checks it.
 - **A leaked API credential is contained:** it can read data and change preferences, but it can't alter or destroy transactions.
-- **New tables need explicit grants:** every new table needs its write grants added to the migration by hand. Reads come from the default privilege.
+- **New tables need explicit grants:** every new table needs its write grants added to `grants.sql` by hand, in the same change as its migration. Reads come from the default privilege.
+- **Access only grows by itself:** the access files add roles and grants and never remove them. Dropping a login or taking a privilege back is done by hand.
 - **Archived remaps never go away:** `user_category_overrides` isn't partitioned, so its archived rows stay for good.
 - **`api_read` serves tooling only:** no running service logs in with it. The API's drizzle-kit `pull` and `studio` scripts do, so they read the schema without any write grant.

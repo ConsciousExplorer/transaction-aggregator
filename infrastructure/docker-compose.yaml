@@ -35,7 +35,7 @@
 #   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
 #   postgres-exporter obs      -      9187       Postgres statistics as metrics; Prometheus scrapes
 #
-#   No ports (one-shots): kafka-init, schemas-register, migrate, producer-*
+#   No ports (one-shots): kafka-init, schemas-register, migrate, access, producer-*
 
 # The name the project had at the repo root: container, image, network and
 # volume names stay transaction-aggregator-*, not infrastructure-*.
@@ -50,7 +50,8 @@ x-consumer: &consumer
   pull_policy: build
   restart: unless-stopped
   depends_on:
-    migrate: { condition: service_completed_successfully }
+    # access runs after migrate, so the tables and the consumer's login both exist
+    access: { condition: service_completed_successfully }
     schemas-register: { condition: service_completed_successfully }
     kafka-init: { condition: service_completed_successfully }
   volumes:
@@ -196,8 +197,9 @@ services:
 
   # ────────────────────────────── Postgres ───────────────────────────────
   # Custom build = postgres:18 base (pinned) + pg_cron + pg_stat_statements.
-  # initdb/ holds superuser bootstrap ONLY (CREATE EXTENSION ...); it runs solely
-  # on an EMPTY volume — all schema lives in the migrations (drift trap otherwise).
+  # initdb/ holds superuser bootstrap ONLY (the databases, their owners and
+  # CREATE EXTENSION ...); it runs solely on an EMPTY volume. All schema lives in
+  # the migrations, and every other role and grant in database/access.
   postgres:
     build:
       context: ./postgres
@@ -232,7 +234,7 @@ services:
     networks: [txn-network]
 
   # drizzle-kit migrations (database/migrations), applied once each in journal
-  # order: 0000 the txn_agg schema, its tables + grants, 0001 the category/rule
+  # order: 0000 the txn_agg schema and its tables, 0001 the category/rule
   # seed, 0002 the hourly pg_cron jobs (partman maintenance: premake monthly
   # partitions / drop >18 months; ANALYZE of the partitioned tables), 0003 the
   # monitoring schema's views for the Grafana Database dashboard.
@@ -251,6 +253,42 @@ services:
       DATABASE_PASSWORD_SECRET_NAME: admin_password
       SECRET_DIR: /secrets
     volumes:
+      - ../secrets:/secrets:ro
+    restart: "no"
+    networks: [txn-network]
+
+  # Who may log in and what each role may do (database/access): roles.sql is
+  # the group roles and the logins, with their passwords from secrets/, and
+  # grants.sql is what each group role may do on the migrations' tables. psql
+  # applies both in one transaction, after the migrations, because a grant
+  # needs its table. Every statement is safe to repeat, so this runs on
+  # every make up, and make access applies a change to a running database. It
+  # connects as the superuser, the only role that may create roles. The
+  # Postgres image is reused because it has psql.
+  access:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: access
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: txn_agg
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      # roles.sql reads each login's password file from here
+      SECRET_DIR: /secrets
+    command:
+      - psql
+      - --set=ON_ERROR_STOP=1
+      - --single-transaction
+      - --file=/access/roles.sql
+      - --file=/access/grants.sql
+    volumes:
+      - ../database/access:/access:ro
       - ../secrets:/secrets:ro
     restart: "no"
     networks: [txn-network]
@@ -446,7 +484,8 @@ services:
     pull_policy: build
     container_name: api
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      # access runs after migrate, so the tables and the API's login both exist
+      access: { condition: service_completed_successfully }
       # Tokens are verified against Keycloak's JWKS; no answers before that works
       keycloak: { condition: service_healthy }
     ports:
@@ -549,7 +588,8 @@ services:
       # Only its own password, not the whole secrets folder the apps mount
       - ../secrets/postgres_exporter_password:/secrets/postgres_exporter_password:ro
     depends_on:
-      postgres: { condition: service_healthy }
+      # Its login exists once access has run
+      access: { condition: service_completed_successfully }
     networks: [txn-network]
 
   prometheus:

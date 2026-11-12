@@ -5,10 +5,9 @@
 -- it read, and what each role's SQL costs. They read Postgres's catalogs and
 -- statistics, partman's config and pg_cron's run history, never a row of table
 -- data, so they get their own schema and only the statistics role,
--- txn_agg_monitor, can use them. grafana_read is a member. The apps pull their
--- drizzle schema from txn_agg only, so these views never reach the apps.
+-- txn_agg_monitor, can use them (database/access grants it). The apps pull
+-- their drizzle schema from txn_agg only, so these views never reach the apps.
 CREATE SCHEMA monitoring;
-GRANT USAGE ON SCHEMA monitoring TO txn_agg_monitor;
 
 -- pg_cron shows a role only the jobs it scheduled: its row security compares
 -- each row's username with current_user. The migrations schedule the jobs as
@@ -28,9 +27,6 @@ AS $$
     FROM cron.job job
     LEFT JOIN cron.job_run_details run ON run.jobid = job.jobid
 $$;
-
-REVOKE ALL ON FUNCTION monitoring.read_cron_job_runs() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION monitoring.read_cron_job_runs() TO txn_agg_monitor;
 
 -- Every run of every scheduled job (0002_maintenance.sql).
 CREATE VIEW monitoring.maintenance_runs AS
@@ -159,12 +155,3 @@ SELECT pg_roles.rolname AS role_name,
 FROM public.pg_stat_statements statements
 JOIN pg_roles ON pg_roles.oid = statements.userid
 WHERE statements.dbid = (SELECT oid FROM pg_database WHERE datname = current_database());
-
-GRANT SELECT ON
-    monitoring.maintenance_runs,
-    monitoring.maintenance_status,
-    monitoring.partition_coverage,
-    monitoring.table_usage,
-    monitoring.index_usage,
-    monitoring.statement_stats
-TO txn_agg_monitor;
