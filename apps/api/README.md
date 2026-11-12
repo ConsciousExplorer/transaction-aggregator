@@ -51,7 +51,7 @@ With `ENABLE_SWAGGER=true`, as in compose, the routes are listed in Swagger at `
 - **Time windows.** The list and the summary need `fromDateTime` and `toDateTime`; `toDateTime` is exclusive.
   - A window may span at most `WINDOW_MAX_DAYS`, 366 by default.
   - A time in the future is taken as now.
-  - A category filter must name a known category.
+- **Filters narrow, and never reject.** A `category` filter that names no category matches nothing, like an account with no transactions.
 - **Cursor paging.** A page holds up to `limit` rows (1–100, 50 by default).
   - `links.next` and `links.prev` carry an opaque cursor and every filter, so a client follows the link rather than building one.
   - Pages are keyed on time and id, so paging stays as fast however deep it goes.
@@ -75,7 +75,7 @@ plugins/auth.ts            checks the token and scope, before anything is parsed
    │
    ▼
 routes/…/*.route.ts        Zod checks the params, query and body (*.schemas.ts);
-   │                       checks the time window and category filter (utils/);
+   │                       checks the time window (utils/);
    │                       calls one repository method; turns rows into JSON (*.mappers.ts)
    ▼
 repositories/*.ts          all the SQL, written with Drizzle
@@ -85,14 +85,14 @@ PostgreSQL                 as api_write: reads, and writes only the override tab
 ```
 
 - **Routes know HTTP:** schemas, status codes, links and problem responses. None touches the pool or Drizzle, apart from `/ready`, which runs `SELECT 1`.
-- **Repositories know SQL.** They take plain filter objects and return rows, and none imports Fastify or an HTTP error. A foreign-key violation comes back as `undefined`, and the route decides that it's a 400.
+- **Repositories know SQL.** They take plain filter objects and return rows, or one page of rows with the cursors of the pages beside it. None imports Fastify or an HTTP error. A foreign-key violation comes back as `undefined`, and the route decides that it's a 400.
 - **Wiring lives in one place.** `container.ts` builds every shared instance once: the pool, Drizzle, the token check and the three repositories. `server.ts` hands them to the routes as options, so nothing creates its own.
 
 ### No service layer
 
 There is no service layer because a service between each handler and its repository would have nothing to do:
 
-- **Each operation is one query, or two.** Every route makes one repository call to answer the request, plus at most one check: that a category filter names real categories, or that a transaction exists before it is overridden. A service per operation would only forward the call, adding a file, a name and a type mapping with no logic of its own.
+- **Each operation is one query, or two.** Every route makes one repository call to answer the request. Only a transaction override makes a second, to check that the transaction exists. A service per operation would only forward the call, adding a file, a name and a type mapping with no logic of its own.
 - **The jobs a service usually does are already done elsewhere.**
   - Validating input: the route's Zod schemas, which also generate the OpenAPI contract.
   - Checking that a referenced category exists: the database's foreign key. A violation becomes a 400.
@@ -153,7 +153,7 @@ apps/api
     │           │   ├── list-transactions.route.ts   GET …/transactions
     │           │   ├── get-transaction.route.ts     GET …/transactions/:transactionId
     │           │   ├── transactions.schemas.ts      query, params and responses (Zod)
-    │           │   └── transactions.mappers.ts      rows → response items and cursors
+    │           │   └── transactions.mappers.ts      rows → response items
     │           ├── summary/                 GET …/summary
     │           ├── categories/              GET …/categories
     │           ├── category-overrides/      GET the remaps; PUT and DELETE one
@@ -162,9 +162,10 @@ apps/api
     │   ├── pool.ts               pg Pool; isForeignKeyViolation
     │   ├── query-logger.ts       optional SQL and EXPLAIN logging
     │   ├── repositories/         all the SQL, one class per area
-    │   │   ├── transaction-repository.ts   list, detail, set and archive a transaction's category
+    │   │   ├── transaction-repository.ts   one page of the list, detail, set and archive a transaction's category
     │   │   ├── summary-repository.ts       totals by category or by period
-    │   │   └── category-repository.ts      categories, a customer's remaps, unknown slugs
+    │   │   ├── category-repository.ts      categories and a customer's remaps
+    │   │   └── keyset-page.ts              limit + 1 rows → one page and the rows its neighbours continue from
     │   └── schemas/              Drizzle tables, pulled from the database
     ├── schemas/                  Zod the routes share: problems, links, cursors, windows, enums
     ├── errors/
@@ -174,14 +175,13 @@ apps/api
     │   ├── metrics.ts            Prometheus registry: request duration, requests in flight
     │   └── http-metrics.ts       records each request by route pattern; 499 for a client that left
     └── utils/
-        ├── paging.ts             keyset pages, opaque cursors, next and prev links
+        ├── paging.ts             opaque cursors, next and prev links
         ├── time-window.ts        rejects a window wider than WINDOW_MAX_DAYS
-        ├── category-filter.ts    rejects an unknown category slug
         ├── trace-id.ts           the request's trace id, for a 500
         └── secrets.ts            reads each secret from a file in SECRET_DIR
 ```
 
-The other route folders follow the `transactions/` pattern: one `*.route.ts` per operation, the folder's Zod shapes in `*.schemas.ts`, and its row-to-JSON functions in `*.mappers.ts`. A folder leaves out a file it doesn't need: `category-overrides/` reuses the shapes from `users/_userId/categories/`. Each unit test (`src/**/*.test.ts`) sits next to the file it tests; the tree leaves them out.
+The other route folders follow the `transactions/` pattern: one `*.route.ts` per operation, the folder's Zod shapes in `*.schemas.ts`, and its row-to-JSON functions in `*.mappers.ts`. A folder leaves out a file it doesn't need: `category-overrides/` reuses the shapes from `users/_userId/categories/`, and `categories/` has no mappers because its rows already are the response items. Each unit test (`src/**/*.test.ts`) sits next to the file it tests; the tree leaves them out.
 
 ## Configuration
 

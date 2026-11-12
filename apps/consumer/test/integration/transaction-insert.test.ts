@@ -124,12 +124,12 @@ suite("the consumer's batch insert", () => {
 			rulePriority: null
 		});
 
-		const outcome = await batchInsertTransactions(database.consumerPool, [
+		const inserted = await batchInsertTransactions(database.consumerPool, [
 			full,
 			sparse
 		]);
 
-		assert.deepStrictEqual(outcome, { attempted: 2, inserted: 2 });
+		assert.strictEqual(inserted, 2);
 		assert.deepStrictEqual(await readStoredRows(database.adminPool, userId), [
 			buildExpectedRow(full),
 			buildExpectedRow(sparse)
@@ -144,14 +144,14 @@ suite("the consumer's batch insert", () => {
 
 		await batchInsertTransactions(database.consumerPool, [first, second]);
 		// Both again, one new record, and that record twice in the same batch
-		const resend = await batchInsertTransactions(database.consumerPool, [
+		const inserted = await batchInsertTransactions(database.consumerPool, [
 			first,
 			second,
 			third,
 			third
 		]);
 
-		assert.deepStrictEqual(resend, { attempted: 4, inserted: 1 });
+		assert.strictEqual(inserted, 1);
 		assert.strictEqual(await countStoredRows(database.adminPool, userId), 3);
 	});
 
@@ -163,11 +163,11 @@ suite("the consumer's batch insert", () => {
 			occurredAt: "2023-01-15T10:00:00.000Z"
 		});
 
-		const outcome = await batchInsertTransactions(database.consumerPool, [
+		const inserted = await batchInsertTransactions(database.consumerPool, [
 			late
 		]);
 
-		assert.deepStrictEqual(outcome, { attempted: 1, inserted: 1 });
+		assert.strictEqual(inserted, 1);
 		assert.deepStrictEqual(
 			await readPartitionNames(database.adminPool, userId),
 			["txn_agg.transactions_default"]

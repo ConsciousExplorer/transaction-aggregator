@@ -58,6 +58,19 @@ async function runStartupCheck<T>(name: string, action: () => Promise<T>) {
 	}
 }
 
+/**
+ * Runs one step of the shutdown. A step that fails is logged and the steps
+ * after it still run, so one resource that won't close can't keep the others
+ * open.
+ */
+async function runShutdownStep(name: string, action: () => unknown) {
+	try {
+		await action();
+	} catch (error) {
+		logger.error({ err: error }, `${name} failed`);
+	}
+}
+
 async function shutDownGracefully(
 	resources: Resources,
 	code: number
@@ -66,35 +79,15 @@ async function shutDownGracefully(
 	// otherwise refuses to leave the group over; LeaveGroup is what stops the
 	// next start from waiting out the session timeout on a zombie member. A
 	// batch cut off here was never committed and is read again after restart.
-	try {
-		await resources.kafkaConsumer.close(true);
-	} catch (error) {
-		logger.error({ err: error }, "Consumer close failed");
-	}
-
-	try {
-		await resources.writerPool.end();
-	} catch (error) {
-		logger.error({ err: error }, "Pool close failed");
-	}
-
-	try {
-		await resources.deadLetterProducer.close();
-	} catch (error) {
-		logger.error({ err: error }, "Producer close failed");
-	}
-
-	try {
-		resources.server.close();
-	} catch (error) {
-		logger.error({ err: error }, "Health server close failed");
-	}
-
-	try {
-		await tracerProvider?.forceFlush();
-	} catch (error) {
-		logger.error({ err: error }, "Trace flush failed");
-	}
+	await runShutdownStep("Consumer close", () =>
+		resources.kafkaConsumer.close(true)
+	);
+	await runShutdownStep("Pool close", () => resources.writerPool.end());
+	await runShutdownStep("Producer close", () =>
+		resources.deadLetterProducer.close()
+	);
+	await runShutdownStep("Health server close", () => resources.server.close());
+	await runShutdownStep("Trace flush", () => tracerProvider?.forceFlush());
 
 	process.exit(code);
 }

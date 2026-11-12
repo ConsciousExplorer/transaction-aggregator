@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, suite, test } from "node:test";
 import type { FastifyInstance } from "fastify";
-import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
 import { buildServer } from "#src/server.ts";
 import registerListTransactionsRoute from "./list-transactions.route.ts";
@@ -29,54 +28,75 @@ function readLinkCursor(link: string): unknown {
 	return JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
 }
 
-// Typed off the real method so drift in the select shape breaks compilation
-const ROWS: Awaited<ReturnType<UserTransactionRepository["getTransactions"]>> =
-	[
-		{
-			transactionId: TRANSACTION_ID,
-			occurredAt: "2026-08-15T09:30:00.000Z",
-			transactionType: "card",
-			creditDebitIndicator: "debit",
-			status: "completed",
-			amountMinor: 1234,
-			currency: "ZAR",
-			category: "groceries",
-			shortDescription: "Spar",
-			cursorOccurredAt: "2026-08-15T09:30:00.000123Z"
-		},
-		{
-			transactionId: OLDER_TRANSACTION_ID,
-			occurredAt: "2026-08-14T12:00:00.000Z",
-			transactionType: "eft",
-			creditDebitIndicator: "credit",
-			status: "reversed",
-			amountMinor: 50000,
-			currency: "ZAR",
-			category: "salary",
-			shortDescription: null,
-			cursorOccurredAt: "2026-08-14T12:00:00.000000Z"
+// Typed off the real method so drift in what it returns breaks compilation
+type TransactionPage = Awaited<
+	ReturnType<UserTransactionRepository["seekTransactionPage"]>
+>;
+
+const ROWS: TransactionPage["rows"] = [
+	{
+		transactionId: TRANSACTION_ID,
+		occurredAt: "2026-08-15T09:30:00.000Z",
+		transactionType: "card",
+		creditDebitIndicator: "debit",
+		status: "completed",
+		amountMinor: 1234,
+		currency: "ZAR",
+		category: "groceries",
+		shortDescription: "Spar",
+		cursorOccurredAt: "2026-08-15T09:30:00.000123Z"
+	},
+	{
+		transactionId: OLDER_TRANSACTION_ID,
+		occurredAt: "2026-08-14T12:00:00.000Z",
+		transactionType: "eft",
+		creditDebitIndicator: "credit",
+		status: "reversed",
+		amountMinor: 50000,
+		currency: "ZAR",
+		category: "salary",
+		shortDescription: null,
+		cursorOccurredAt: "2026-08-14T12:00:00.000000Z"
+	}
+];
+
+// The only page: the repository found no page on either side of it
+const ONLY_PAGE: TransactionPage = {
+	rows: ROWS,
+	nextCursor: null,
+	previousCursor: null
+};
+
+// A page with another page on either side of it
+const MIDDLE_PAGE: TransactionPage = {
+	rows: ROWS,
+	nextCursor: {
+		direction: "next",
+		position: {
+			occurredAt: "2026-08-14T12:00:00.000000Z",
+			transactionId: OLDER_TRANSACTION_ID
 		}
-	];
+	},
+	previousCursor: {
+		direction: "prev",
+		position: {
+			occurredAt: "2026-08-15T09:30:00.000123Z",
+			transactionId: TRANSACTION_ID
+		}
+	}
+};
 
 // `satisfies` is the drift guard: the fake must match the real methods the
 // route calls, so a change to one of their signatures stops this compiling.
-const getTransactions = mock.fn<UserTransactionRepository["getTransactions"]>(
-	async () => ROWS
-);
+const seekTransactionPage = mock.fn<
+	UserTransactionRepository["seekTransactionPage"]
+>(async () => ONLY_PAGE);
 const transactionRepository = {
-	getTransactions
-} satisfies Pick<UserTransactionRepository, "getTransactions">;
-
-// Every slug names a category unless a test says otherwise
-const findUnknownCategories = mock.fn<
-	CategoryRepository["findUnknownCategories"]
->(async () => []);
-const categoryRepository = {
-	findUnknownCategories
-} satisfies Pick<CategoryRepository, "findUnknownCategories">;
+	seekTransactionPage
+} satisfies Pick<UserTransactionRepository, "seekTransactionPage">;
 
 function readRepositoryFilter() {
-	return getTransactions.mock.calls[0]?.arguments.at(0);
+	return seekTransactionPage.mock.calls[0]?.arguments.at(0);
 }
 
 suite("GET /api/v1/users/:userId/transactions", () => {
@@ -87,7 +107,6 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		await app.register(registerListTransactionsRoute, {
 			prefix: "/api/v1/users/:userId/transactions",
 			transactionRepository,
-			categoryRepository,
 			queryWindow: { maxDays: 366 }
 		});
 		await app.ready();
@@ -96,10 +115,8 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		await app.close();
 	});
 	beforeEach(() => {
-		getTransactions.mock.resetCalls();
-		getTransactions.mock.mockImplementation(async () => ROWS);
-		findUnknownCategories.mock.resetCalls();
-		findUnknownCategories.mock.mockImplementation(async () => []);
+		seekTransactionPage.mock.resetCalls();
+		seekTransactionPage.mock.mockImplementation(async () => ONLY_PAGE);
 	});
 
 	test("200: list maps rows to the wire shape, non-completed statuses included", async () => {
@@ -139,12 +156,12 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 	});
 
-	test("handler maps params/query onto the repository filter (limit 50 + one look-ahead row)", async () => {
+	test("handler maps params/query onto the repository filter, with the default sort and limit", async () => {
 		await app.inject({
 			method: "GET",
 			url: `${LIST_URL}&category=groceries&transactionType=card`
 		});
-		assert.strictEqual(getTransactions.mock.callCount(), 1);
+		assert.strictEqual(seekTransactionPage.mock.callCount(), 1);
 		assert.deepStrictEqual(readRepositoryFilter(), {
 			userId: USER_ID,
 			fromDateTime: FROM,
@@ -157,7 +174,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			amountMax: undefined,
 			sort: "-occurredAt",
 			cursor: undefined,
-			limit: 51
+			limit: 50
 		});
 	});
 
@@ -183,21 +200,6 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		]);
 	});
 
-	// The read would match nothing: an empty 200 that reads as no spending
-	test("400: an unknown category slug → validation problem, nothing read", async () => {
-		findUnknownCategories.mock.mockImplementationOnce(async () => ["grocery"]);
-		const response = await app.inject({
-			method: "GET",
-			url: `${LIST_URL}&category=grocery&category=dining`
-		});
-		assert.strictEqual(response.statusCode, 400);
-		assert.strictEqual(response.json().type, "validation-error");
-		assert.deepStrictEqual(findUnknownCategories.mock.calls[0]?.arguments, [
-			["grocery", "dining"]
-		]);
-		assert.strictEqual(getTransactions.mock.callCount(), 0);
-	});
-
 	test("400: an accountId that isn't a UUID → validation problem, repository untouched", async () => {
 		const response = await app.inject({
 			method: "GET",
@@ -205,53 +207,54 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 		assert.strictEqual(response.statusCode, 400);
 		assert.strictEqual(response.json().type, "validation-error");
-		assert.strictEqual(getTransactions.mock.callCount(), 0);
+		assert.strictEqual(seekTransactionPage.mock.callCount(), 0);
 	});
 
 	test("sort=occurredAt reaches the repository and every link keeps it", async () => {
+		seekTransactionPage.mock.mockImplementationOnce(async () => MIDDLE_PAGE);
 		const response = await app.inject({
 			method: "GET",
 			url: `${LIST_URL}&sort=occurredAt&limit=1`
 		});
 		assert.strictEqual(response.statusCode, 200);
 		assert.strictEqual(readRepositoryFilter()?.sort, "occurredAt");
+		assert.strictEqual(readRepositoryFilter()?.limit, 1);
 
 		const body = response.json();
 		assert.strictEqual(body.meta.sort, "occurredAt");
-		const next = new URL(body.links.next, "http://client.example");
-		assert.strictEqual(next.searchParams.get("sort"), "occurredAt");
+		assert.strictEqual(body.meta.limit, 1);
+		for (const name of ["self", "next", "prev"]) {
+			const link = new URL(body.links[name], "http://client.example");
+			assert.strictEqual(link.searchParams.get("sort"), "occurredAt", name);
+		}
 	});
 
-	test("200: a full page returns limit rows and a cursor from the last one", async () => {
-		// limit=1 and the repository returns 2 rows: the look-ahead row proves
-		// another page exists and is not returned.
+	test("200: the cursors the repository returns travel in links.next and links.prev", async () => {
+		seekTransactionPage.mock.mockImplementationOnce(async () => MIDDLE_PAGE);
 		const response = await app.inject({
 			method: "GET",
-			url: `${LIST_URL}&limit=1`
+			url: `${LIST_URL}&limit=2`
 		});
 		assert.strictEqual(response.statusCode, 200);
 
 		const body = response.json();
-		assert.strictEqual(body.data.length, 1);
-		assert.strictEqual(body.data[0].transactionId, TRANSACTION_ID);
-		assert.strictEqual(body.meta.count, 1);
-		assert.strictEqual(body.meta.limit, 1);
-
 		const next = new URL(body.links.next, "http://client.example");
 		assert.strictEqual(next.pathname, `/api/v1/users/${USER_ID}/transactions`);
 		assert.strictEqual(next.searchParams.get("fromDateTime"), FROM);
 		assert.strictEqual(next.searchParams.get("toDateTime"), TO);
-		assert.strictEqual(next.searchParams.get("limit"), "1");
-		assert.deepStrictEqual(readLinkCursor(body.links.next), {
-			direction: "next",
-			position: {
-				occurredAt: "2026-08-15T09:30:00.000123Z",
-				transactionId: TRANSACTION_ID
-			}
-		});
+		assert.strictEqual(next.searchParams.get("limit"), "2");
+		assert.deepStrictEqual(
+			readLinkCursor(body.links.next),
+			MIDDLE_PAGE.nextCursor
+		);
+		assert.deepStrictEqual(
+			readLinkCursor(body.links.prev),
+			MIDDLE_PAGE.previousCursor
+		);
 	});
 
-	test("the next link keeps every filter as sent and replaces the previous cursor", async () => {
+	test("the next link keeps every filter as sent and replaces the cursor it was reached with", async () => {
+		seekTransactionPage.mock.mockImplementationOnce(async () => MIDDLE_PAGE);
 		const sent = encodeTestCursor({
 			direction: "next",
 			position: {
@@ -266,31 +269,34 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		assert.strictEqual(response.statusCode, 200);
 
 		const body = response.json();
+		const self = new URL(body.links.self, "http://client.example");
+		assert.strictEqual(self.searchParams.get("cursor"), sent);
+
 		const next = new URL(body.links.next, "http://client.example");
 		assert.deepStrictEqual(next.searchParams.getAll("transactionType"), [
 			"card",
 			"eft"
 		]);
 		assert.strictEqual(next.searchParams.getAll("cursor").length, 1);
-		assert.deepStrictEqual(readLinkCursor(body.links.next), {
-			direction: "next",
+		assert.deepStrictEqual(
+			readLinkCursor(body.links.next),
+			MIDDLE_PAGE.nextCursor
+		);
+	});
+
+	test("a cursor reaches the repository decoded, beside the sort as requested", async () => {
+		const cursor = {
+			direction: "prev",
 			position: {
 				occurredAt: "2026-08-15T09:30:00.000123Z",
 				transactionId: TRANSACTION_ID
 			}
-		});
-	});
-
-	test("the cursor from links.next reaches the repository as the keyset alone", async () => {
-		const position = {
-			occurredAt: "2026-08-15T09:30:00.000123Z",
-			transactionId: TRANSACTION_ID
 		};
 		await app.inject({
 			method: "GET",
-			url: `${LIST_URL}&cursor=${encodeTestCursor({ direction: "next", position })}`
+			url: `${LIST_URL}&cursor=${encodeTestCursor(cursor)}`
 		});
-		assert.deepStrictEqual(readRepositoryFilter()?.cursor, position);
+		assert.deepStrictEqual(readRepositoryFilter()?.cursor, cursor);
 		assert.strictEqual(readRepositoryFilter()?.sort, "-occurredAt");
 	});
 
@@ -344,7 +350,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 				title: "Malformed pagination cursor",
 				status: 400
 			});
-			assert.strictEqual(getTransactions.mock.callCount(), 0);
+			assert.strictEqual(seekTransactionPage.mock.callCount(), 0);
 		});
 	}
 
@@ -355,24 +361,17 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		});
 		assert.strictEqual(response.statusCode, 400);
 		assert.strictEqual(response.json().type, "validation-error");
-		assert.strictEqual(getTransactions.mock.callCount(), 0);
+		assert.strictEqual(seekTransactionPage.mock.callCount(), 0);
 	});
 
 	test("self, next and prev all carry the window as read, a future toDateTime as now", async () => {
+		seekTransactionPage.mock.mockImplementationOnce(async () => MIDDLE_PAGE);
 		const fromDateTime = new Date(
 			Date.now() - 80 * MILLISECONDS_PER_DAY
 		).toISOString();
-		const sent = encodeTestCursor({
-			direction: "next",
-			position: {
-				occurredAt: "2026-09-01T00:00:00.000000Z",
-				transactionId: TRANSACTION_ID
-			}
-		});
-		// A cursor page that comes back full has both neighbours
 		const response = await app.inject({
 			method: "GET",
-			url: `/api/v1/users/${USER_ID}/transactions?fromDateTime=${fromDateTime}&toDateTime=2099-01-01T00:00:00.000Z&limit=1&cursor=${sent}`
+			url: `/api/v1/users/${USER_ID}/transactions?fromDateTime=${fromDateTime}&toDateTime=2099-01-01T00:00:00.000Z&limit=1`
 		});
 		assert.strictEqual(response.statusCode, 200);
 
@@ -405,7 +404,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 			status: 400,
 			detail: "fromDateTime to toDateTime may span at most 366 days"
 		});
-		assert.strictEqual(getTransactions.mock.callCount(), 0);
+		assert.strictEqual(seekTransactionPage.mock.callCount(), 0);
 	});
 
 	test("a future toDateTime is read as now, and the window is measured from there", async () => {
@@ -437,7 +436,7 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 	});
 
 	test("repository failure → 500 problem+json with zero internals on the wire", async () => {
-		getTransactions.mock.mockImplementationOnce(async () => {
+		seekTransactionPage.mock.mockImplementationOnce(async () => {
 			throw new Error("pg password=hunter2");
 		});
 		const response = await app.inject({ method: "GET", url: LIST_URL });
@@ -449,92 +448,5 @@ suite("GET /api/v1/users/:userId/transactions", () => {
 		);
 		assert.strictEqual(response.json().type, "internal");
 		assert.ok(!response.body.includes("hunter2"));
-	});
-
-	test("a page reached through next links back with prev from its first row", async () => {
-		const sent = encodeTestCursor({
-			direction: "next",
-			position: {
-				occurredAt: "2026-09-01T00:00:00.000000Z",
-				transactionId: TRANSACTION_ID
-			}
-		});
-		const response = await app.inject({
-			method: "GET",
-			url: `${LIST_URL}&limit=1&cursor=${sent}`
-		});
-		const body = response.json();
-
-		const self = new URL(body.links.self, "http://client.example");
-		assert.strictEqual(self.searchParams.get("cursor"), sent);
-
-		assert.deepStrictEqual(readLinkCursor(body.links.prev), {
-			direction: "prev",
-			position: {
-				occurredAt: "2026-08-15T09:30:00.000123Z",
-				transactionId: TRANSACTION_ID
-			}
-		});
-	});
-
-	test("a prev page is read upwards and served newest first", async () => {
-		// Upwards from the cursor the repository returns oldest first
-		getTransactions.mock.mockImplementationOnce(async () =>
-			[...ROWS].reverse()
-		);
-
-		const sent = encodeTestCursor({
-			direction: "prev",
-			position: {
-				occurredAt: "2026-08-01T00:00:00.000000Z",
-				transactionId: TRANSACTION_ID
-			}
-		});
-		const response = await app.inject({
-			method: "GET",
-			url: `${LIST_URL}&cursor=${sent}`
-		});
-		const body = response.json();
-
-		assert.strictEqual(readRepositoryFilter()?.sort, "occurredAt");
-		assert.strictEqual(body.meta.sort, "-occurredAt");
-		const transactionIds = [];
-		for (const row of body.data as { transactionId: string }[]) {
-			transactionIds.push(row.transactionId);
-		}
-		assert.deepStrictEqual(
-			transactionIds,
-			[TRANSACTION_ID, OLDER_TRANSACTION_ID],
-			"newest first, like every other page"
-		);
-		// Not full, so nothing newer; came from an older page, so next exists
-		assert.strictEqual("prev" in body.links, false);
-		assert.deepStrictEqual(readLinkCursor(body.links.next), {
-			direction: "next",
-			position: {
-				occurredAt: "2026-08-14T12:00:00.000000Z",
-				transactionId: OLDER_TRANSACTION_ID
-			}
-		});
-	});
-
-	test("an oldest-first prev page is read newest first, and the links keep the sort", async () => {
-		const sent = encodeTestCursor({
-			direction: "prev",
-			position: {
-				occurredAt: "2026-08-20T00:00:00.000000Z",
-				transactionId: TRANSACTION_ID
-			}
-		});
-		const response = await app.inject({
-			method: "GET",
-			url: `${LIST_URL}&sort=occurredAt&cursor=${sent}`
-		});
-		const body = response.json();
-
-		assert.strictEqual(readRepositoryFilter()?.sort, "-occurredAt");
-		assert.strictEqual(body.meta.sort, "occurredAt");
-		const next = new URL(body.links.next, "http://client.example");
-		assert.strictEqual(next.searchParams.get("sort"), "occurredAt");
 	});
 });

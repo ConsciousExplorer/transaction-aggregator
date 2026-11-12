@@ -2,7 +2,6 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import { problemSchema } from "#src/schemas/common.ts";
-import { buildCategoryResponse } from "./categories.mappers.ts";
 import { categoryListResponseSchema } from "./categories.schemas.ts";
 
 export default async function registerCategoriesRoute(
@@ -26,17 +25,13 @@ export default async function registerCategoriesRoute(
 			}
 		},
 		handler: async (request, reply) => {
-			const rows = await options.categoryRepository.getCategories();
-
-			const data = [];
-			for (const row of rows) {
-				data.push(buildCategoryResponse(row));
-			}
+			// The rows are the response items as they are: no mapper
+			const categories = await options.categoryRepository.getCategories();
 
 			return reply.send({
-				data: data,
+				data: categories,
 				links: { self: request.url },
-				meta: { count: data.length }
+				meta: { count: categories.length }
 			});
 		}
 	});

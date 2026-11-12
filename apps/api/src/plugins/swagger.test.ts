@@ -78,4 +78,10 @@ suite("OpenAPI contract", () => {
 			}
 		}
 	});
+
+	test("the root redirects to the docs, without a token", async () => {
+		const response = await app.inject({ method: "GET", url: "/" });
+		assert.strictEqual(response.statusCode, 302);
+		assert.strictEqual(response.headers.location, "/docs");
+	});
 });

@@ -1,48 +1,13 @@
 import type { UserTransactionRepository } from "#src/integrations/database/repositories/transaction-repository.ts";
-import type { CursorDirection } from "#src/schemas/common.ts";
-import type { TransactionSort } from "#src/schemas/transactions.ts";
 import { fundingSourceSchema } from "./transactions.schemas.ts";
 
 type TransactionListRow = Awaited<
-	ReturnType<UserTransactionRepository["getTransactions"]>
->[number];
+	ReturnType<UserTransactionRepository["seekTransactionPage"]>
+>["rows"][number];
 
 type TransactionDetailRow = NonNullable<
 	Awaited<ReturnType<UserTransactionRepository["getTransactionDetail"]>>
 >;
-
-/** The cursor a page boundary row hands to the next or previous page */
-export function buildPageCursor(
-	boundaryRow: TransactionListRow,
-	direction: CursorDirection
-) {
-	return {
-		direction,
-		position: {
-			occurredAt: boundaryRow.cursorOccurredAt,
-			transactionId: boundaryRow.transactionId
-		}
-	};
-}
-
-/**
- * The order the repository reads a page in. next continues in the requested
- * sort order. prev reads against it from the cursor, so that LIMIT keeps the
- * rows nearest the cursor rather than the furthest; buildKeysetPage flips them
- * back.
- */
-export function chooseReadSort(
-	requestedSort: TransactionSort,
-	cursorDirection: CursorDirection
-) {
-	if (cursorDirection === "next") {
-		return requestedSort;
-	}
-	if (requestedSort === "occurredAt") {
-		return "-occurredAt";
-	}
-	return "occurredAt";
-}
 
 export function buildTransactionItem(row: TransactionListRow) {
 	return {

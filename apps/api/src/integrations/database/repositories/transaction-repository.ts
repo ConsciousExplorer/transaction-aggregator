@@ -8,13 +8,14 @@ import {
 	isNull,
 	lt,
 	lte,
-	type SQL,
 	sql
 } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { AppCradle } from "#src/container.ts";
+import type { CursorDirection } from "#src/schemas/common.ts";
 import type {
-	TransactionCursor,
+	TransactionKeyset,
+	TransactionPageCursor,
 	TransactionSort
 } from "#src/schemas/transactions.ts";
 import { isForeignKeyViolation } from "../pool.ts";
@@ -23,6 +24,7 @@ import {
 	userTransactionOverrides
 } from "../schemas/partitioned.ts";
 import { categories, userCategoryOverrides } from "../schemas/schema.ts";
+import { buildKeysetPage } from "./keyset-page.ts";
 import {
 	buildFilterConditions,
 	categoryOverrideJoin,
@@ -31,10 +33,13 @@ import {
 	transactionOverrideJoin
 } from "./transaction-conditions.ts";
 
-/** GET .../transactions: the filters, plus the page to read */
-export interface ListTransactionsFilter extends TransactionFilter {
+/** GET .../transactions: the filters, plus the page to seek */
+export interface TransactionPageFilter extends TransactionFilter {
+	/** The order the client asked for. Every page comes back in it. */
 	sort: TransactionSort;
-	cursor?: TransactionCursor | undefined;
+	/** Where to continue from and which way. Left out for the first page. */
+	cursor?: TransactionPageCursor | undefined;
+	/** The most rows a page holds */
 	limit: number;
 }
 
@@ -52,6 +57,81 @@ export interface SetTransactionCategory {
 	categoryId: number;
 }
 
+/**
+ * The order a page is read in. next continues in the requested sort order.
+ * prev reads against it from the cursor, so that LIMIT keeps the rows nearest
+ * the cursor rather than the furthest; buildKeysetPage flips them back.
+ */
+export function chooseReadSort(
+	requestedSort: TransactionSort,
+	direction: CursorDirection
+) {
+	if (direction === "next") {
+		return requestedSort;
+	}
+	if (requestedSort === "occurredAt") {
+		return "-occurredAt";
+	}
+	return "occurredAt";
+}
+
+/**
+ * The rows past a keyset position, in the order read. No conditions for the
+ * first page, which has no position to seek from.
+ *
+ * Beside the row comparison goes a plain bound on occurred_at alone, which
+ * keeps the same rows. Partition pruning can't use a row comparison, so
+ * without the plain bound a deep page also scans every partition between the
+ * window's edge and the cursor. With it, those partitions are pruned, and each
+ * scan starts at the cursor's timestamp, not the window's edge.
+ */
+function buildSeekConditions(
+	position: TransactionKeyset | undefined,
+	readSort: TransactionSort
+) {
+	if (position === undefined) return [];
+
+	const { occurredAt, transactionId } = position;
+	if (readSort === "occurredAt") {
+		return [
+			gte(transactions.occurredAt, occurredAt),
+			sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${occurredAt}::timestamptz, ${transactionId}::uuid)`
+		];
+	}
+	return [
+		lte(transactions.occurredAt, occurredAt),
+		sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${occurredAt}::timestamptz, ${transactionId}::uuid)`
+	];
+}
+
+/** The keyset columns, both ascending or both descending */
+function buildSeekOrder(readSort: TransactionSort) {
+	if (readSort === "occurredAt") {
+		return [asc(transactions.occurredAt), asc(transactions.transactionId)];
+	}
+	return [desc(transactions.occurredAt), desc(transactions.transactionId)];
+}
+
+/** The columns of a row that a cursor is built from */
+interface PageBoundaryRow {
+	transactionId: string;
+	cursorOccurredAt: string;
+}
+
+/** The cursor that continues from a page's first or last row */
+function buildPageCursor(
+	boundaryRow: PageBoundaryRow,
+	direction: CursorDirection
+) {
+	return {
+		direction,
+		position: {
+			occurredAt: boundaryRow.cursorOccurredAt,
+			transactionId: boundaryRow.transactionId
+		}
+	};
+}
+
 export class UserTransactionRepository {
 	readonly #database: NodePgDatabase;
 
@@ -59,41 +139,23 @@ export class UserTransactionRepository {
 		this.#database = database;
 	}
 
-	async getTransactions(filter: ListTransactionsFilter) {
-		const ascending = filter.sort === "occurredAt";
-
-		// Beside the row comparison, a plain bound on occurred_at alone, which
-		// keeps the same rows. Partition pruning can't use a row comparison, so
-		// without the plain bound a deep page also scans every partition between
-		// the window's edge and the cursor. With it, those partitions are pruned,
-		// and each scan starts at the cursor's timestamp, not the window's edge.
-		let cursorBound: SQL | undefined;
-		let cursorSeek: SQL | undefined;
-		if (filter.cursor !== undefined) {
-			const { occurredAt, transactionId } = filter.cursor;
-			if (ascending) {
-				cursorBound = gte(transactions.occurredAt, occurredAt);
-				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) > (${occurredAt}::timestamptz, ${transactionId}::uuid)`;
-			} else {
-				cursorBound = lte(transactions.occurredAt, occurredAt);
-				cursorSeek = sql`(${transactions.occurredAt}, ${transactions.transactionId}) < (${occurredAt}::timestamptz, ${transactionId}::uuid)`;
-			}
-		}
+	/**
+	 * One page of a user's transactions, in the requested sort order, with the
+	 * cursors of the pages on either side of it (null when there is none).
+	 */
+	async seekTransactionPage(filter: TransactionPageFilter) {
+		const direction = filter.cursor?.direction ?? "next";
+		const readSort = chooseReadSort(filter.sort, direction);
 
 		const conditions = [
 			eq(transactions.userId, filter.userId),
-			cursorBound,
-			cursorSeek,
 			gte(transactions.occurredAt, filter.fromDateTime),
 			lt(transactions.occurredAt, filter.toDateTime),
+			...buildSeekConditions(filter.cursor?.position, readSort),
 			...buildFilterConditions(filter)
 		];
 
-		const order = ascending
-			? [asc(transactions.occurredAt), asc(transactions.transactionId)]
-			: [desc(transactions.occurredAt), desc(transactions.transactionId)];
-
-		const rows = await this.#database
+		const fetched = await this.#database
 			.select({
 				transactionId: transactions.transactionId,
 				occurredAt: transactions.occurredAt,
@@ -111,10 +173,25 @@ export class UserTransactionRepository {
 			.leftJoin(userCategoryOverrides, categoryOverrideJoin)
 			.innerJoin(categories, effectiveCategoryJoin)
 			.where(and(...conditions))
-			.orderBy(...order)
-			.limit(filter.limit);
+			.orderBy(...buildSeekOrder(readSort))
+			// One row more than a page holds. It is never returned: it only
+			// proves that another page exists in the direction read.
+			.limit(filter.limit + 1);
 
-		return rows;
+		const page = buildKeysetPage(
+			fetched,
+			filter.limit,
+			direction,
+			filter.cursor !== undefined
+		);
+
+		return {
+			rows: page.rows,
+			nextCursor: page.nextFrom ? buildPageCursor(page.nextFrom, "next") : null,
+			previousCursor: page.previousFrom
+				? buildPageCursor(page.previousFrom, "prev")
+				: null
+		};
 	}
 
 	async getTransactionDetail(filter: TransactionDetailFilter) {

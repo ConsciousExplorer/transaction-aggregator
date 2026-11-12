@@ -7,6 +7,9 @@ import type { CategorisedTransactionSchema } from "#src/schemas/transaction.ts";
  * json_populate_recordset turns it back into rows of the table's own type:
  * one parameter however many rows, and Postgres converts each value to its
  * column's type.
+ *
+ * Returns how many rows were inserted, which leaves out the rows ON CONFLICT
+ * skipped.
  */
 export async function batchInsertTransactions(
 	pool: Pool,
@@ -77,6 +80,5 @@ export async function batchInsertTransactions(
 		ON CONFLICT (transaction_type, external_id, occurred_at) DO NOTHING`,
 		[JSON.stringify(rows)]
 	);
-	/** An INSERT's row count leaves out the rows ON CONFLICT skipped */
-	return { attempted: transactions.length, inserted: result.rowCount ?? 0 };
+	return result.rowCount ?? 0;
 }

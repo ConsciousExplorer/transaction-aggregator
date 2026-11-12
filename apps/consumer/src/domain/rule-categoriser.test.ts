@@ -243,59 +243,7 @@ suite("tier 2 on the debit-order normaliser's output", () => {
 	});
 });
 
-suite("tier 3: source_transaction_type", () => {
-	const purchaseRule = buildRule({
-		matcherType: "source_transaction_type",
-		pattern: "card:purchase",
-		priority: 505,
-		categoryId: 30
-	});
-
-	test("matches on transactionType plus metadata.operation", () => {
-		const rules = compileRules(buildRuleSet([purchaseRule]));
-		assert.deepStrictEqual(
-			categoriseTransaction(
-				buildTransaction({
-					transactionType: "card",
-					metadata: { operation: "purchase" }
-				}),
-				rules
-			),
-			{
-				categoryId: 30,
-				ruleVersion: 7,
-				rulePriority: 505,
-				matcherType: "source_transaction_type"
-			}
-		);
-	});
-
-	test("the same operation on a different transactionType does not match", () => {
-		const rules = compileRules(buildRuleSet([purchaseRule]));
-		const verdict = categoriseTransaction(
-			buildTransaction({
-				transactionType: "eft",
-				metadata: { operation: "purchase" }
-			}),
-			rules
-		);
-		assert.strictEqual(verdict.matcherType, "fallback");
-	});
-
-	test("a non-string operation is ignored", () => {
-		const rules = compileRules(buildRuleSet([purchaseRule]));
-		const verdict = categoriseTransaction(
-			buildTransaction({
-				transactionType: "card",
-				metadata: { operation: 42 }
-			}),
-			rules
-		);
-		assert.strictEqual(verdict.matcherType, "fallback");
-	});
-});
-
-suite("tier 4: source_credit_debit_indicator", () => {
+suite("tier 3: source_credit_debit_indicator", () => {
 	const eftCreditRule = buildRule({
 		matcherType: "source_credit_debit_indicator",
 		pattern: "eft:credit",
@@ -347,7 +295,7 @@ suite("tier 4: source_credit_debit_indicator", () => {
 	});
 });
 
-suite("tier 5: source_default", () => {
+suite("tier 4: source_default", () => {
 	test("routes an otherwise unmatched transaction by its transactionType", () => {
 		const rules = compileRules(
 			buildRuleSet([
@@ -412,7 +360,7 @@ suite("tier precedence", () => {
 		assert.strictEqual(verdict.matcherType, "mcc");
 	});
 
-	test("keyword beats source_transaction_type", () => {
+	test("keyword beats source_credit_debit_indicator", () => {
 		const rules = compileRules(
 			buildRuleSet([
 				buildRule({
@@ -422,59 +370,8 @@ suite("tier precedence", () => {
 					categoryId: 20
 				}),
 				buildRule({
-					matcherType: "source_transaction_type",
-					pattern: "card:purchase",
-					priority: 505,
-					categoryId: 30
-				})
-			])
-		);
-		const verdict = categoriseTransaction(
-			buildTransaction({
-				shortDescription: "SPAR",
-				metadata: { operation: "purchase" }
-			}),
-			rules
-		);
-		assert.strictEqual(verdict.matcherType, "keyword");
-	});
-
-	test("source_transaction_type beats source_default", () => {
-		const rules = compileRules(
-			buildRuleSet([
-				buildRule({
-					matcherType: "source_transaction_type",
-					pattern: "card:purchase",
-					priority: 505,
-					categoryId: 30
-				}),
-				buildRule({
-					matcherType: "source_default",
-					pattern: "card",
-					priority: 905,
-					categoryId: 40
-				})
-			])
-		);
-		const verdict = categoriseTransaction(
-			buildTransaction({ metadata: { operation: "purchase" } }),
-			rules
-		);
-		assert.strictEqual(verdict.matcherType, "source_transaction_type");
-	});
-
-	test("source_transaction_type beats source_credit_debit_indicator", () => {
-		const rules = compileRules(
-			buildRuleSet([
-				buildRule({
-					matcherType: "source_transaction_type",
-					pattern: "eft:incoming",
-					priority: 505,
-					categoryId: 30
-				}),
-				buildRule({
 					matcherType: "source_credit_debit_indicator",
-					pattern: "eft:credit",
+					pattern: "card:debit",
 					priority: 705,
 					categoryId: 50
 				})
@@ -482,13 +379,12 @@ suite("tier precedence", () => {
 		);
 		const verdict = categoriseTransaction(
 			buildTransaction({
-				transactionType: "eft",
-				creditDebitIndicator: "credit",
-				metadata: { operation: "incoming" }
+				shortDescription: "SPAR",
+				creditDebitIndicator: "debit"
 			}),
 			rules
 		);
-		assert.strictEqual(verdict.matcherType, "source_transaction_type");
+		assert.strictEqual(verdict.matcherType, "keyword");
 	});
 
 	test("source_credit_debit_indicator beats source_default", () => {

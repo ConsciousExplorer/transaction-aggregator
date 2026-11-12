@@ -2,14 +2,12 @@ import type { ZodTypeProvider } from "@fastify/type-provider-zod";
 import type { FastifyInstance } from "fastify";
 import z from "zod";
 import type { QueryWindowConfig } from "#src/config.ts";
-import type { CategoryRepository } from "#src/integrations/database/repositories/category-repository.ts";
 import type { SummaryRepository } from "#src/integrations/database/repositories/summary-repository.ts";
 import { problemSchema } from "#src/schemas/common.ts";
 import {
 	buildTransactionFilterQuerySchema,
 	summaryIntervalSchema
 } from "#src/schemas/transactions.ts";
-import { assertKnownCategories } from "#src/utils/category-filter.ts";
 import { buildLink } from "#src/utils/paging.ts";
 import { assertWindowWithin } from "#src/utils/time-window.ts";
 import { buildSummaryItem, sumTotals } from "./summary.mappers.ts";
@@ -19,7 +17,6 @@ export default async function registerSummaryRoute(
 	fastify: FastifyInstance,
 	options: {
 		summaryRepository: Pick<SummaryRepository, "getUserSummary">;
-		categoryRepository: Pick<CategoryRepository, "findUnknownCategories">;
 		queryWindow: QueryWindowConfig;
 	}
 ) {
@@ -54,10 +51,6 @@ export default async function registerSummaryRoute(
 				request.query.fromDateTime,
 				request.query.toDateTime,
 				maxWindowDays
-			);
-			await assertKnownCategories(
-				options.categoryRepository,
-				request.query.category
 			);
 
 			const rows = await options.summaryRepository.getUserSummary({

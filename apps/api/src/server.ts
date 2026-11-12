@@ -169,14 +169,6 @@ export function buildServer(options: BuildServerOptions = {}) {
 		});
 	}
 
-	server.get("/", {
-		schema: { hide: true },
-		config: { authConfig: { public: true } },
-		handler: async (_request, reply) => {
-			reply.redirect("/docs");
-		}
-	});
-
 	return server;
 }
 

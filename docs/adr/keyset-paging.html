@@ -477,7 +477,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
 <body>
 <div class="wrap">
   <header class="top">
-    <p class="eyebrow">transaction-aggregator · apps/api/src/utils/paging.ts</p>
+    <p class="eyebrow">transaction-aggregator · apps/api/src/integrations/database/repositories/keyset-page.ts</p>
     <h1>Keyset Paging <span class="k">Lab</span></h1>
     <p class="lede">One user's transactions, two clients paging through them. The offset client asks for page numbers. The keyset client follows <code>links.next</code> and <code>links.prev</code>, which is how the API works. Change the data while they page and watch which one repeats or loses rows.</p>
   </header>
@@ -587,7 +587,7 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
 
   <section class="ref" id="stepper" aria-labelledby="stepperTitle">
     <h2 id="stepperTitle">buildKeysetPage, line by line</h2>
-    <p>The keyset pane's current page, run through the real function in <code>paging.ts</code>. The repository reads <code>limit + 1</code> rows; the extra row only proves another page exists in the direction read.</p>
+    <p>The keyset pane's current page, run through the real function in <code>keyset-page.ts</code>. The repository reads <code>limit + 1</code> rows; the extra row only proves another page exists in the direction read.</p>
     <div id="stepBox" class="prose"></div>
   </section>
 
@@ -621,15 +621,16 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       <table>
         <thead><tr><th scope="col">Layer</th><th scope="col">What it holds</th><th scope="col">Names</th><th scope="col">Word</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Repository</th><td>The seek on the sort key</td><td><code>cursorBound</code>, <code>cursorSeek</code></td><td>keyset, fed by the cursor's position</td></tr>
-          <tr><th scope="row"><code>paging.ts</code></th><td>Up to limit rows, plus the boundary rows <code>nextFrom</code> and <code>prevFrom</code></td><td><code>buildKeysetPage</code></td><td>keyset: it holds rows, not cursors</td></tr>
-          <tr><th scope="row">Route</th><td>A boundary row turned into a position, and back</td><td><code>buildPageCursor</code>, <code>encodeCursor</code>, <code>decodeCursor</code>, <code>transactionPageCursorSchema</code></td><td>cursor</td></tr>
+          <tr><th scope="row">Repository</th><td>The seek on the sort key</td><td><code>seekTransactionPage</code>, <code>buildSeekConditions</code>, <code>buildSeekOrder</code></td><td>keyset, fed by the cursor's position</td></tr>
+          <tr><th scope="row"><code>keyset-page.ts</code></th><td>Up to limit rows, plus the boundary rows <code>nextFrom</code> and <code>previousFrom</code></td><td><code>buildKeysetPage</code></td><td>keyset: it holds rows, not cursors</td></tr>
+          <tr><th scope="row">Repository, on the way out</th><td>A boundary row turned into a position and a direction</td><td><code>buildPageCursor</code>, <code>nextCursor</code>, <code>previousCursor</code></td><td>cursor</td></tr>
+          <tr><th scope="row">Route</th><td>The cursor decoded from the request, and encoded into the links</td><td><code>decodeCursor</code>, <code>encodeCursor</code>, <code>buildPageLinks</code>, <code>transactionPageCursorSchema</code></td><td>cursor</td></tr>
           <tr><th scope="row">Wire</th><td>One opaque query value a client sends back</td><td><code>cursor</code>: base64url of <code>{ direction, position }</code></td><td>cursor: what clients know it as</td></tr>
         </tbody>
       </table>
     </div>
     <div class="prose">
-      <p><code>buildKeysetPage</code> returns rows, not cursors, so it is named for the technique. The route turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word changes.</p>
+      <p><code>buildKeysetPage</code> returns rows, not cursors, so it is named for the technique. The repository turns <code>nextFrom</code> into a cursor with <code>buildPageCursor</code>, and that step is where the word changes.</p>
       <p>In Postgres, a cursor is <code>DECLARE … CURSOR</code>: a server-side position held open between fetches. Keyset paging holds nothing between requests, so the database side says keyset.</p>
       <p><code>buildKeysetPage(fetched, limit, cursorDirection, hasCursor)</code> takes cursor words as inputs because they are facts about the request, not about the page.</p>
     </div>
@@ -784,18 +785,18 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   }
   function buildPageCursor(r) { return { id: r.id, at: r.at }; }
 
-  // ---------- the function under study, as in paging.ts ----------
+  // ---------- the function under study, as in keyset-page.ts ----------
   function buildKeysetPage(fetched, limit, cursorDirection, hasCursor) {
     const hasMore = fetched.length > limit;
     const kept = hasMore ? fetched.slice(0, limit) : fetched;
     const rows = cursorDirection === "prev" ? kept.slice().reverse() : kept;
     const hasNext = cursorDirection === "next" ? hasMore : hasCursor;
-    const hasPrev = cursorDirection === "prev" ? hasMore : hasCursor;
+    const hasPrevious = cursorDirection === "prev" ? hasMore : hasCursor;
     return {
       rows,
       nextFrom: hasNext ? (rows.at(-1) ?? null) : null,
-      prevFrom: hasPrev ? (rows.at(0) ?? null) : null,
-      trace: { hasMore, kept, hasNext, hasPrev }
+      previousFrom: hasPrevious ? (rows.at(0) ?? null) : null,
+      trace: { hasMore, kept, hasNext, hasPrevious }
     };
   }
 
@@ -892,11 +893,11 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
   const canOffsetNext = () => offsetPane.res.hasMore;
   const canOffsetPrev = () => offsetPane.res.pageIndex > 0;
   const canKeysetNext = () => keysetPane.res.page.nextFrom !== null;
-  const canKeysetPrev = () => keysetPane.res.page.prevFrom !== null;
+  const canKeysetPrev = () => keysetPane.res.page.previousFrom !== null;
   function offsetNext() { if (canOffsetNext()) offsetGo(offsetPane.res.pageIndex + 1, "next"); }
   function offsetPrev() { if (canOffsetPrev()) offsetGo(offsetPane.res.pageIndex - 1, "prev"); }
   function keysetNext() { if (canKeysetNext()) keysetGo(buildPageCursor(keysetPane.res.page.nextFrom), "next", "next"); }
-  function keysetPrev() { if (canKeysetPrev()) keysetGo(buildPageCursor(keysetPane.res.page.prevFrom), "prev", "prev"); }
+  function keysetPrev() { if (canKeysetPrev()) keysetGo(buildPageCursor(keysetPane.res.page.previousFrom), "prev", "prev"); }
 
   function resetWalk() {
     justArrived = null;
@@ -1008,13 +1009,13 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
     return {
       self: res.cursor ? base.concat(cursorParams(res.cursor, res.dir)) : base,
       next: res.page.nextFrom ? base.concat(cursorParams(buildPageCursor(res.page.nextFrom), "next")) : null,
-      prev: res.page.prevFrom ? base.concat(cursorParams(buildPageCursor(res.page.prevFrom), "prev")) : null
+      prev: res.page.previousFrom ? base.concat(cursorParams(buildPageCursor(res.page.previousFrom), "prev")) : null
     };
   }
   function linkCursor(tab) {
     const res = keysetPane.res;
     if (tab === "next") return res.page.nextFrom ? { cursor: buildPageCursor(res.page.nextFrom), dir: "next" } : null;
-    if (tab === "prev") return res.page.prevFrom ? { cursor: buildPageCursor(res.page.prevFrom), dir: "prev" } : null;
+    if (tab === "prev") return res.page.previousFrom ? { cursor: buildPageCursor(res.page.previousFrom), dir: "prev" } : null;
     return { cursor: res.cursor, dir: res.dir };
   }
   function queryHtml(params) {
@@ -1351,9 +1352,9 @@ td code, th code { background: var(--code); padding: 1px 5px; border-radius: 4px
       `const kept = hasMore ? fetched.slice(0, limit) : fetched;        ${c(t.hasMore ? "drops the look-ahead row" : "nothing to drop")}`,
       `const rows = cursorDirection === "prev" ? kept.slice().reverse() : kept;  ${c(dir === "prev" ? "prev: flipped back into sort order" : "next: kept as read")}`,
       `const hasNext = cursorDirection === "next" ? hasMore : hasCursor;  ${c(dir === "next" ? `next, so hasMore → ${t.hasNext}` : `prev, so hasCursor → ${t.hasNext}`)}`,
-      `const hasPrev = cursorDirection === "prev" ? hasMore : hasCursor;  ${c(dir === "prev" ? `prev, so hasMore → ${t.hasPrev}` : `next, so hasCursor → ${t.hasPrev}${hasCursor ? "" : " (first page)"}`)}`,
+      `const hasPrevious = cursorDirection === "prev" ? hasMore : hasCursor;  ${c(dir === "prev" ? `prev, so hasMore → ${t.hasPrevious}` : `next, so hasCursor → ${t.hasPrevious}${hasCursor ? "" : " (first page)"}`)}`,
       `nextFrom: hasNext ? rows.at(-1) : null                          ${c(nameOf(res.page.nextFrom))}`,
-      `prevFrom: hasPrev ? rows.at(0) : null                           ${c(nameOf(res.page.prevFrom))}`
+      `previousFrom: hasPrevious ? rows.at(0) : null                   ${c(nameOf(res.page.previousFrom))}`
     ];
     document.getElementById("stepBox").innerHTML = `
       <div class="strip">
