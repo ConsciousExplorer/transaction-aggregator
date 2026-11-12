@@ -5,7 +5,7 @@
 -- it read, and what each role's SQL costs. They read Postgres's catalogs and
 -- statistics, partman's config and pg_cron's run history, never a row of table
 -- data, so they get their own schema and only the statistics role,
--- txn_agg_monitor, can use them (database/access grants it). The apps pull
+-- txn_agg_monitor, can use them (granted in database/grants). The apps pull
 -- their drizzle schema from txn_agg only, so these views never reach the apps.
 CREATE SCHEMA monitoring;
 

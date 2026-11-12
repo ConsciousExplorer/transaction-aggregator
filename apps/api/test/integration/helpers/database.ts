@@ -21,7 +21,11 @@ const INITDB_DIRECTORY = join(
 	"infrastructure/postgres/initdb"
 );
 const MIGRATIONS_DIRECTORY = join(REPOSITORY_ROOT, "database/migrations");
-const ACCESS_DIRECTORY = join(REPOSITORY_ROOT, "database/access");
+const ROLES_FILE = join(
+	REPOSITORY_ROOT,
+	"infrastructure/postgres/roles/roles.sql"
+);
+const GRANTS_FILE = join(REPOSITORY_ROOT, "database/grants/grants.sql");
 const SECRETS_DIRECTORY = join(REPOSITORY_ROOT, "secrets");
 
 // Built on the first run, then reused from Docker's build cache
@@ -44,7 +48,7 @@ const POSTGRES_COMMAND = [
 
 const READY_LOG_LINE = /database system is ready to accept connections/;
 
-/** A pool on the test database as admin or a login from database/access */
+/** A pool on the test database as admin or a login from roles.sql */
 export function connectAs(
 	container: StartedTestContainer,
 	user: string,
@@ -65,33 +69,36 @@ export function connectAs(
 }
 
 /**
- * Applies database/access with the command compose's access one-shot runs:
- * the roles and logins, then the grants on the tables. It runs inside the
- * container, where the local socket lets the superuser in without a password.
+ * Applies one SQL file with psql, as compose's roles and grants one-shots do.
+ * It runs inside the container, where the local socket lets a role in without
+ * a password.
  */
-async function applyAccess(container: StartedTestContainer) {
+async function applySqlFile(
+	container: StartedTestContainer,
+	username: string,
+	filePath: string
+) {
 	const result = await container.exec(
 		[
 			"psql",
-			"--username=postgres",
+			`--username=${username}`,
 			"--dbname=txn_agg",
 			"--set=ON_ERROR_STOP=1",
 			"--single-transaction",
-			"--file=/access/roles.sql",
-			"--file=/access/grants.sql"
+			`--file=${filePath}`
 		],
 		{ env: { SECRET_DIR: "/secrets" } }
 	);
 
 	if (result.exitCode !== 0) {
-		throw new Error(`Applying database/access failed: ${result.output}`);
+		throw new Error(`Applying ${filePath} failed: ${result.output}`);
 	}
 }
 
 /**
- * A fresh Postgres with every migration and database/access applied. admin
- * owns the tables, as in compose, so it runs the migrations and inserts each
- * test's rows. The code under test runs as api_write, the API's own login.
+ * A fresh Postgres with the roles, every migration and the grants applied.
+ * admin owns the tables, as in compose, so it runs the migrations and inserts
+ * each test's rows. The code under test runs as api_write, the API's own login.
  */
 export async function startTestDatabase() {
 	const image = await GenericContainer.fromDockerfile(
@@ -107,18 +114,24 @@ export async function startTestDatabase() {
 		.withCommand(POSTGRES_COMMAND)
 		.withCopyDirectoriesToContainer([
 			{ source: INITDB_DIRECTORY, target: "/docker-entrypoint-initdb.d" },
-			{ source: ACCESS_DIRECTORY, target: "/access" },
 			{ source: SECRETS_DIRECTORY, target: "/secrets" }
+		])
+		.withCopyFilesToContainer([
+			{ source: ROLES_FILE, target: "/roles.sql" },
+			{ source: GRANTS_FILE, target: "/grants.sql" }
 		])
 		.withExposedPorts(5432)
 		.withWaitStrategy(Wait.forLogMessage(READY_LOG_LINE, 2))
 		.withStartupTimeout(120_000)
 		.start();
 
+	// Compose's order: the roles as the superuser, then the migrations and the
+	// grants as admin
+	await applySqlFile(container, "postgres", "/roles.sql");
 	const adminPool = connectAs(container, "admin", "admin_password");
 	const adminDatabase = drizzle(adminPool);
 	await migrate(adminDatabase, { migrationsFolder: MIGRATIONS_DIRECTORY });
-	await applyAccess(container);
+	await applySqlFile(container, "admin", "/grants.sql");
 
 	const apiPool = connectAs(container, "api_write", "api_write_password");
 	const apiDatabase = drizzle(apiPool);

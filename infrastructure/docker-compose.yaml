@@ -35,7 +35,7 @@
 #   otel-collector    obs      -      4317/4318  OTLP gRPC / HTTP (apps push traces here)
 #   postgres-exporter obs      -      9187       Postgres statistics as metrics; Prometheus scrapes
 #
-#   No ports (one-shots): kafka-init, schemas-register, migrate, access, producer-*
+#   No ports (one-shots): kafka-init, schemas-register, roles, migrate, grants, producer-*
 
 # The name the project had at the repo root: container, image, network and
 # volume names stay transaction-aggregator-*, not infrastructure-*.
@@ -50,8 +50,8 @@ x-consumer: &consumer
   pull_policy: build
   restart: unless-stopped
   depends_on:
-    # access runs after migrate, so the tables and the consumer's login both exist
-    access: { condition: service_completed_successfully }
+    # The last database step: the tables, the consumer's login and its grants exist
+    grants: { condition: service_completed_successfully }
     schemas-register: { condition: service_completed_successfully }
     kafka-init: { condition: service_completed_successfully }
   volumes:
@@ -199,7 +199,8 @@ services:
   # Custom build = postgres:18 base (pinned) + pg_cron + pg_stat_statements.
   # initdb/ holds superuser bootstrap ONLY (the databases, their owners and
   # CREATE EXTENSION ...); it runs solely on an EMPTY volume. All schema lives in
-  # the migrations, and every other role and grant in database/access.
+  # the migrations, every other role in postgres/roles, and the grants in
+  # database/grants.
   postgres:
     build:
       context: ./postgres
@@ -257,22 +258,19 @@ services:
     restart: "no"
     networks: [txn-network]
 
-  # Who may log in and what each role may do (database/access): roles.sql is
-  # the group roles and the logins, with their passwords from secrets/, and
-  # grants.sql is what each group role may do on the migrations' tables. psql
-  # applies both in one transaction, after the migrations, because a grant
-  # needs its table. Every statement is safe to repeat, so this runs on
-  # every make up, and make access applies a change to a running database. It
-  # connects as the superuser, the only role that may create roles. The
-  # Postgres image is reused because it has psql.
-  access:
+  # The platform's step: who exists (postgres/roles/roles.sql). The group roles,
+  # the logins with their passwords from secrets/, their memberships and who
+  # may connect. It runs as the superuser, the only role that may create roles,
+  # and needs no table, so it does not wait for the migrations. Safe to repeat:
+  # make roles re-applies it. The Postgres image is reused because it has psql.
+  roles:
     build:
       context: ./postgres
       dockerfile: Dockerfile
     pull_policy: build
-    container_name: access
+    container_name: roles
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -285,11 +283,44 @@ services:
       - psql
       - --set=ON_ERROR_STOP=1
       - --single-transaction
-      - --file=/access/roles.sql
-      - --file=/access/grants.sql
+      - --file=/roles.sql
     volumes:
-      - ../database/access:/access:ro
+      - ./postgres/roles/roles.sql:/roles.sql:ro
       - ../secrets:/secrets:ro
+    restart: "no"
+    networks: [txn-network]
+
+  # The application's step: what each group role may do on the tables
+  # (database/grants/grants.sql). It runs as admin, which owns the tables and may
+  # create no role, after the migrations and after roles, because a grant needs
+  # both its table and its role. Safe to repeat: make grants re-applies it.
+  grants:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    pull_policy: build
+    container_name: grants
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      roles: { condition: service_completed_successfully }
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: txn_agg
+      PGUSER: admin
+      SECRET_DIR: /secrets
+      DATABASE_PASSWORD_SECRET_NAME: admin_password
+    # psql takes its password from PGPASSWORD, not from a file, so the shell
+    # reads the file into it
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        PGPASSWORD="$$(cat "$$SECRET_DIR/$$DATABASE_PASSWORD_SECRET_NAME")"
+        psql --set=ON_ERROR_STOP=1 --single-transaction --file=/grants.sql
+    volumes:
+      - ../database/grants/grants.sql:/grants.sql:ro
+      # Only its own password, not the whole secrets folder
+      - ../secrets/admin_password:/secrets/admin_password:ro
     restart: "no"
     networks: [txn-network]
 
@@ -484,8 +515,8 @@ services:
     pull_policy: build
     container_name: api
     depends_on:
-      # access runs after migrate, so the tables and the API's login both exist
-      access: { condition: service_completed_successfully }
+      # The last database step: the tables, the API's login and its grants exist
+      grants: { condition: service_completed_successfully }
       # Tokens are verified against Keycloak's JWKS; no answers before that works
       keycloak: { condition: service_healthy }
     ports:
@@ -588,8 +619,8 @@ services:
       # Only its own password, not the whole secrets folder the apps mount
       - ../secrets/postgres_exporter_password:/secrets/postgres_exporter_password:ro
     depends_on:
-      # Its login exists once access has run
-      access: { condition: service_completed_successfully }
+      # Its login and its grants exist once grants has run
+      grants: { condition: service_completed_successfully }
     networks: [txn-network]
 
   prometheus:

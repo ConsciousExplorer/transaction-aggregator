@@ -1,7 +1,8 @@
 -- What each group role may do on the objects the migrations create.
--- Split from roles.sql because every statement here names a schema or a table:
--- this file changes with a migration, and needs only the owner's rights.
--- Safe to re-run (make access).
+-- Kept with the migrations because every statement names a schema or a table:
+-- this file changes with a migration, and runs as admin, which owns them.
+-- The roles themselves are in infrastructure/postgres/roles/roles.sql.
+-- Safe to re-run (make grants).
 
 
 -- Read: every table in txn_agg, including ones added later

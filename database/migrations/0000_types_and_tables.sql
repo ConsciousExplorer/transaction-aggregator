@@ -1,7 +1,7 @@
 -- Custom SQL migration file, put your code below! --
 
 -- The application's tables get their own schema, so privileges are granted on
--- it as a whole. The grants are not here: database/access holds every one.
+-- it as a whole. The grants are not here: database/grants holds every one.
 CREATE SCHEMA txn_agg;
 
 CREATE TYPE txn_agg.transaction_type AS ENUM ('card', 'debit_order', 'eft', 'internal_transfer');

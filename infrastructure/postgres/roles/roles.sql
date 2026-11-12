@@ -1,7 +1,8 @@
 -- Who exists: the group roles, the logins and who may connect.
--- Split from grants.sql because nothing here names a table: this file changes
--- when someone needs access, grants.sql changes with a migration.
--- Safe to re-run (make access).
+-- Kept with the infrastructure because nothing here names a table: this file
+-- changes when someone needs access, and only the superuser may create roles.
+-- What each group role may do on the tables is in database/grants/grants.sql.
+-- Safe to re-run (make roles).
 
 
 -- Group roles: carry the privileges, can't log in

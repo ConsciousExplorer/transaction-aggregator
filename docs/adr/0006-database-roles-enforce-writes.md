@@ -1,7 +1,7 @@
 # 0006. Database roles decide who can write what
 
 - **Status:** Accepted
-- **Where it lives:** [`roles.sql`](../../database/access/roles.sql), [`grants.sql`](../../database/access/grants.sql), [`database-roles.test.ts`](../../apps/api/test/integration/database-roles.test.ts)
+- **Where it lives:** [`roles.sql`](../../infrastructure/postgres/roles/roles.sql), [`grants.sql`](../../database/grants/grants.sql), [`database-roles.test.ts`](../../apps/api/test/integration/database-roles.test.ts)
 - **Related:** [0004](0004-versioned-rules-read-time-overrides.md), [0005](0005-one-partitioned-table.md)
 
 ## Context
@@ -34,7 +34,7 @@ Three consequences of that table:
 
 **Only migrations change the categories and rules:** the apps can only read those tables, and `admin`, which runs the migrations, owns everything. `PUBLIC` is revoked on the database and on `public`.
 
-**Roles and grants are kept apart from the migrations.** Two SQL files in `database/access` hold them: `roles.sql` is who exists (the group roles, the logins and their memberships), and `grants.sql` is what each group role may do on the tables. They run after the migrations on every start, each statement is safe to repeat, and `make access` applies them to a running database, so a new login or a changed password needs no migration. Passwords are read from the secrets folder, never written in the SQL.
+**Roles and grants are kept apart from the migrations.** They are two SQL files with two owners, split the way an organisation splits them. `roles.sql` is the platform's: who exists (the group roles, the logins and their memberships). It sits with the infrastructure and runs as the superuser. `grants.sql` is the application's: what each group role may do on the tables. It sits beside the migrations and runs as `admin`, which owns the tables and may create no role. Both run on every start, each statement is safe to repeat, and `make roles` or `make grants` applies one to a running database, so a new login or a changed password needs no migration. Passwords are read from the secrets folder, never written in the SQL.
 
 **A test proves both sides.** `database-roles.test.ts` connects as the real logins against a Postgres built from the repo's own image. It checks that:
 
@@ -58,6 +58,6 @@ Three consequences of that table:
 - "The API can't change a fact" is a grant, and a test checks it.
 - **A leaked API credential is contained:** it can read data and change preferences, but it can't alter or destroy transactions.
 - **New tables need explicit grants:** every new table needs its write grants added to `grants.sql` by hand, in the same change as its migration. Reads come from the default privilege.
-- **Access only grows by itself:** the access files add roles and grants and never remove them. Dropping a login or taking a privilege back is done by hand.
+- **Access only grows by itself:** the two files add roles and grants and never remove them. Dropping a login or taking a privilege back is done by hand.
 - **Archived remaps never go away:** `user_category_overrides` isn't partitioned, so its archived rows stay for good.
 - **`api_read` serves tooling only:** no running service logs in with it. The API's drizzle-kit `pull` and `studio` scripts do, so they read the schema without any write grant.
