@@ -1,5 +1,5 @@
-# main's guard on the Avro schemas: every schema must still read the records
-# written with the version it replaces, as the registry's BACKWARD setting
+# main's guard on the Avro schemas: the version a schema replaces must still
+# read the records written with it, as the registry's FORWARD_TRANSITIVE setting
 # requires. The consumer's workflow already checks its generated types on every
 # push.
 name: schemas
@@ -56,7 +56,7 @@ jobs:
       - run: npm ci
       # A pull request compares with its target branch; a push to main with the
       # commit before the push
-      - name: Each schema reads the records of the version it replaces
+      - name: The version each schema replaces reads its records
         env:
           BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: npm run schema:check -- "$BASE_REF"

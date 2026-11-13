@@ -570,24 +570,25 @@ pre .comment { color: var(--muted); }
 
 <section class="wide">
 	<h2>What breaks an Avro schema</h2>
-	<p>The schemas face the other way. The registry is set to BACKWARD: a new version must be able to read the records written with the version it replaces, because those records are still on Kafka. The registry refuses a version that can't, so CI runs the same check first, without a registry, using <code>avsc</code>'s resolver. It checks each <code>schemas/&lt;name&gt;.avsc</code> against the same file on main, and each <code>schemas/v&lt;N&gt;/&lt;name&gt;.avsc</code> against the top-level schema it evolves from. Each row below was tried on <code>schemas/card.avsc</code> with that resolver.</p>
+	<p>The schemas follow the same rule. The registry is set to FORWARD_TRANSITIVE: every earlier version of a schema must be able to read the records written with a new one, because a consumer built for an old version is still running when a producer starts writing the new one. The registry refuses a version that breaks this, so CI runs the newest step of that check first, without a registry, using <code>avsc</code>'s resolver. It checks that the same file on main can read each <code>schemas/&lt;name&gt;.avsc</code>, and that each top-level schema can read the <code>schemas/v&lt;N&gt;/&lt;name&gt;.avsc</code> that evolves from it. Each row below was tried on <code>schemas/card.avsc</code> with that resolver, and the default one on <code>schemas/v2/card.avsc</code>.</p>
 	<div class="table-wrap">
 		<table>
 			<thead><tr><th>Change</th><th>Tried as</th><th>Result</th><th>Why</th></tr></thead>
 			<tbody>
-				<tr><td>Add a field with a default</td><td><code>merchantCity</code>, <code>["null", "string"]</code>, default <code>null</code></td><td class="verdict pass">passes</td><td>old records get the default</td></tr>
-				<tr><td>Remove a field</td><td>drop <code>posEntryMode</code></td><td class="verdict pass">passes</td><td>the new schema skips it in old records</td></tr>
-				<tr><td>Rename a field, keeping the old name as an alias</td><td><code>entryMode</code> with <code>"aliases": ["posEntryMode"]</code></td><td class="verdict pass">passes</td><td>the alias matches the old name</td></tr>
-				<tr><td>Add an enum symbol</td><td><code>CreditDebitIndicator</code> gains <code>reversal</code></td><td class="verdict pass">passes</td><td>old records only hold the old symbols</td></tr>
-				<tr><td>Widen a type</td><td><code>amount</code> long → double</td><td class="verdict pass">passes</td><td>Avro promotes long to double</td></tr>
-				<tr><td>Add a field without a default</td><td><code>merchantCity</code>, <code>"string"</code></td><td class="verdict fail">fails</td><td>old records have no value for it</td></tr>
-				<tr><td>Rename a field</td><td><code>posEntryMode</code> → <code>entryMode</code></td><td class="verdict fail">fails</td><td>a new field without a default, as above</td></tr>
-				<tr><td>Remove an enum symbol</td><td><code>TransactionType</code> without <code>eft</code></td><td class="verdict fail">fails</td><td>an old record may hold it</td></tr>
-				<tr><td>Change a type</td><td><code>status</code> string → int</td><td class="verdict fail">fails</td><td>a string can't be read as an int</td></tr>
+				<tr><td>Add a field with a default</td><td><code>merchantCity</code>, <code>["null", "string"]</code>, default <code>null</code></td><td class="verdict pass">passes</td><td>the old schema skips a field it doesn't have</td></tr>
+				<tr><td>Add a field without a default</td><td><code>merchantCity</code>, <code>"string"</code></td><td class="verdict pass">passes</td><td>skipped the same way, so the default was never needed</td></tr>
+				<tr><td>Remove an enum symbol</td><td><code>TransactionType</code> without <code>eft</code></td><td class="verdict pass">passes</td><td>the old schema knows every symbol that is left</td></tr>
+				<tr><td>Remove a field that has a default</td><td>drop <code>merchantCountry</code> from <code>schemas/v2/card.avsc</code></td><td class="verdict pass">passes</td><td>the old schema fills in its default</td></tr>
+				<tr><td>Remove a field</td><td>drop <code>posEntryMode</code></td><td class="verdict fail">fails</td><td>the old schema has no value for it</td></tr>
+				<tr><td>Rename a field</td><td><code>posEntryMode</code> → <code>entryMode</code></td><td class="verdict fail">fails</td><td>the old name is gone, as above</td></tr>
+				<tr><td>Rename a field, keeping the old name as an alias</td><td><code>entryMode</code> with <code>"aliases": ["posEntryMode"]</code></td><td class="verdict fail">fails</td><td>an alias helps the schema that declares it, and the old schema doesn't</td></tr>
+				<tr><td>Add an enum symbol</td><td><code>CreditDebitIndicator</code> gains <code>reversal</code></td><td class="verdict fail">fails</td><td>the old schema can't read the new symbol</td></tr>
+				<tr><td>Widen a type</td><td><code>amount</code> long → double</td><td class="verdict fail">fails</td><td>a double can't be read as a long</td></tr>
+				<tr><td>Change a type</td><td><code>status</code> string → int</td><td class="verdict fail">fails</td><td>an int can't be read as a string</td></tr>
 			</tbody>
 		</table>
 	</div>
-	<p>So removing a field breaks the API contract but not an Avro schema, and adding one is the reverse: free in an API response, but an Avro field needs a default. Removing a field the consumer reads still gets caught: the consumer workflow regenerates its types from <code>schemas/</code> and fails if the committed ones differ, and the type-check then fails wherever the code reads the field.</p>
+	<p>So a schema breaks on what breaks the API contract: removing or renaming a field, changing its type, and adding an enum value. Adding a field is free in both. CI compares with main only, and the registry compares with every version it holds, so a removal spread over two versions passes here and is refused when the schema is registered. A field that always had a default is the one removal both let through. If the consumer reads that field it still gets caught: the consumer workflow regenerates its types from <code>schemas/</code> and fails if the committed ones differ, and the type-check then fails wherever the code reads the field.</p>
 	<span class="source">.github/workflows/schemas.yml · apps/consumer/scripts/check-schema-compatibility.ts</span>
 </section>
 

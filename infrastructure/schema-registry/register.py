@@ -19,7 +19,11 @@ from typing import Any
 REGISTRY_URL = os.environ["SCHEMA_REGISTRY_URL"].rstrip("/")
 SCHEMAS_DIR = Path(os.environ.get("SCHEMAS_DIR", "/schemas"))
 TOPIC_PREFIX = os.environ.get("TOPIC_PREFIX", "transactions")
-COMPATIBILITY = os.environ.get("SCHEMA_COMPATIBILITY", "BACKWARD")
+# FORWARD_TRANSITIVE: records written with a new version must be readable with
+# every earlier version, so a consumer built for any of them keeps reading. A
+# field can be added; a field without a default cannot be removed, in one step
+# or several.
+COMPATIBILITY = os.environ.get("SCHEMA_COMPATIBILITY", "FORWARD_TRANSITIVE")
 
 CONTENT_TYPE = "application/vnd.schemaregistry.v1+json"
 

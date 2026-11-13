@@ -179,7 +179,7 @@ pre .comment { color: var(--muted); }
 
 <figure>
 	<div class="figure-scroll">
-		<svg class="flow" viewBox="0 0 1000 1032" role="img" aria-label="A transaction is generated, serialised as Avro and produced to its Kafka topic. The consumer fetches it, deserialises it, batches it, normalises, categorises and inserts it, then commits the offset. Records that won't decode, fail validation, or are rejected by Postgres as bad rows go to the dead-letter topic and are committed. A new schema id or any other database error makes the process exit without committing, and the restart reads the records again.">
+		<svg class="flow" viewBox="0 0 1000 1032" role="img" aria-label="A transaction is generated, serialised as Avro and produced to its Kafka topic. The consumer fetches it, deserialises it, batches it, normalises, categorises and inserts it, then commits the offset. Records that won't decode, fail validation, or are rejected by Postgres as bad rows go to the dead-letter topic and are committed. A schema the registry can't supply or any other database error makes the process exit without committing, and the restart reads the records again.">
 			<defs>
 				<marker id="head-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-ink" d="M0,0 L10,5 L0,10 z"/></marker>
 				<marker id="head-schema" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-schema" d="M0,0 L10,5 L0,10 z"/></marker>
@@ -221,7 +221,7 @@ pre .comment { color: var(--muted); }
 
 			<rect class="box" x="276" y="484" width="344" height="60" rx="6"/>
 			<text class="title" x="448" y="509" text-anchor="middle">Deserialise</text>
-			<text class="sub" x="448" y="528" text-anchor="middle">schema id → a schema loaded at boot</text>
+			<text class="sub" x="448" y="528" text-anchor="middle">schema id → its schema, fetched if new</text>
 
 			<rect class="box" x="276" y="576" width="344" height="60" rx="6"/>
 			<text class="title" x="448" y="601" text-anchor="middle">Batch</text>
@@ -263,12 +263,12 @@ pre .comment { color: var(--muted); }
 			<!-- Schema Registry -->
 			<rect class="box-kafka" x="760" y="116" width="220" height="60" rx="6"/>
 			<text class="title kafka-text" x="870" y="141" text-anchor="middle">Schema Registry</text>
-			<text class="sub" x="870" y="160" text-anchor="middle">&lt;topic&gt;-value · BACKWARD</text>
+			<text class="sub" x="870" y="160" text-anchor="middle">FORWARD_TRANSITIVE per subject</text>
 			<line class="edge-schema" x1="760" y1="146" x2="624" y2="146" marker-end="url(#head-schema)"/>
 			<text class="label" x="692" y="138" text-anchor="middle">pinned schema</text>
 			<polyline class="edge-schema" points="800,176 800,236 690,236 690,500 624,500" marker-end="url(#head-schema)"/>
-			<text class="label" x="698" y="392">every version,</text>
-			<text class="label" x="698" y="406">at boot</text>
+			<text class="label" x="698" y="392">every version at boot,</text>
+			<text class="label" x="698" y="406">a new id when first seen</text>
 
 			<!-- Dead-letter topic -->
 			<rect class="box-dlq" x="760" y="484" width="220" height="312" rx="6"/>
@@ -315,9 +315,9 @@ pre .comment { color: var(--muted); }
 			<text class="sub" x="34" y="658">at the committed</text>
 			<text class="sub" x="34" y="676">offset and reads</text>
 			<text class="sub" x="34" y="694">the batch again</text>
-			<text class="sub" x="34" y="734">a schema added</text>
-			<text class="sub" x="34" y="752">since boot is</text>
-			<text class="sub" x="34" y="770">loaded on restart</text>
+			<text class="sub" x="34" y="734">a missing schema</text>
+			<text class="sub" x="34" y="752">is asked for</text>
+			<text class="sub" x="34" y="770">again on restart</text>
 			<text class="sub" x="34" y="810">re-sent rows are</text>
 			<text class="sub" x="34" y="828">skipped by</text>
 			<text class="sub" x="34" y="846">ON CONFLICT</text>
@@ -350,7 +350,7 @@ pre .comment { color: var(--muted); }
 				<tr><td>Bytes that won't decode</td><td>Dead-lettered with reason <code>deserialisation</code></td><td class="verdict dlq">committed</td></tr>
 				<tr><td>Decodes, but fails validation (bad currency, a field too long, dated more than a day ahead)</td><td>Dead-lettered with reason <code>processing</code>, set aside before the insert runs; the rest of the batch still goes in one statement</td><td class="verdict dlq">committed</td></tr>
 				<tr><td>Postgres rejects the row (SQLSTATE class 22 or 23)</td><td>The batch rolls back and is inserted one row at a time; the bad one is dead-lettered with reason <code>processing</code></td><td class="verdict dlq">committed</td></tr>
-				<tr><td>A schema id the consumer didn't load at boot</td><td>The stream fails, the process exits, and the restart loads the new schema and reads the record again</td><td class="verdict replay">not committed</td></tr>
+				<tr><td>A schema id the consumer hasn't loaded, which the registry can't supply</td><td>The stream fails, the process exits, and the restart asks the registry again and reads the record again</td><td class="verdict replay">not committed</td></tr>
 				<tr><td>Postgres is down, or any other error during the insert</td><td>The flush rejects, the loop ends, the process exits, and the restart reads the batch again</td><td class="verdict replay">not committed</td></tr>
 				<tr><td>The offset commit fails after the insert</td><td>The flush rejects and the process exits; the restart reads the batch again, and the insert skips the stored rows as duplicates</td><td class="verdict replay">not committed</td></tr>
 			</tbody>
@@ -363,10 +363,10 @@ pre .comment { color: var(--muted); }
 	<h2>Step by step</h2>
 	<ol class="steps">
 		<li><b>Generate.</b> Each source has its own producer container. <code>avro-datagen</code> fills the source's schema from the generator hints in it: customers and accounts come from seeded pools (5,000 customers, three accounts each), and timestamps fall in the 18 months before the anchor date. <code>make up</code> pins the seed and anchor, so it sends the same records every time.<span class="source">apps/producers/src/app.py · schemas/*.avsc</span></li>
-		<li><b>Serialise.</b> The serialiser is pinned to the schema the registry holds for <code>&lt;topic&gt;-value</code>, and never registers one itself. The bytes on the wire are a magic byte, the 4-byte schema id, then the Avro body. The schemas were registered once at startup by <code>schemas-register</code>, with the generator hints stripped and compatibility set to BACKWARD.<span class="source">apps/producers/src/producer_core.py build_serializer · infrastructure/schema-registry/register.py</span></li>
+		<li><b>Serialise.</b> The serialiser is pinned to the schema the registry holds for <code>&lt;topic&gt;-value</code>, and never registers one itself. The bytes on the wire are a magic byte, the 4-byte schema id, then the Avro body. The schemas were registered once at startup by <code>schemas-register</code>, with the generator hints stripped and compatibility set to FORWARD_TRANSITIVE.<span class="source">apps/producers/src/producer_core.py build_serializer · infrastructure/schema-registry/register.py</span></li>
 		<li><b>Produce.</b> The key is <code>customerId</code>, the partition key the schema declares, so one customer's records stay in order on one partition. Each record carries a fresh <code>traceparent</code> and an <code>x-producer</code> header. The producer is idempotent with <code>acks=all</code>, and the record's Kafka timestamp is the time it was sent.<span class="source">apps/producers/src/producer_core.py produce_records · apps/producers/src/config.py</span></li>
 		<li><b>Fetch.</b> Each source has its own consumer container and consumer group. It reads from the group's committed offset, at most 1 MiB per fetch, and commits by hand.<span class="source">apps/consumer/src/integrations/events/kafka.ts startBatchConsumer</span></li>
-		<li><b>Deserialise.</b> The consumer loaded every registered version of its subject at boot. It reads the schema id from the record and decodes the body with that schema. Bytes that aren't in this format, or don't decode, continue as poison. A schema id it never loaded stops the consumer instead, because a newer producer is writing a version registered since boot.<span class="source">apps/consumer/src/integrations/events/avro-deserialiser.ts · handlers/handleDeserialisationError.ts</span></li>
+		<li><b>Deserialise.</b> The consumer loaded every registered version of its subject at boot. It reads the schema id from the record and decodes the body with that schema. A schema id it hasn't loaded is fetched from the registry before the fetch is decoded, which is how a producer's new version is picked up without a restart. Bytes that aren't in this format, or don't decode, continue as poison. If the registry can't supply the schema the consumer stops instead, because the record itself may be fine.<span class="source">apps/consumer/src/integrations/events/avro-deserialiser.ts · handlers/handleDeserialisationError.ts</span></li>
 		<li><b>Batch.</b> A batch is whatever is buffered when the loop gets to it, capped at 1,000 records. The broker holds a fetch until 32 KiB are ready or 2 s have passed, so that is where records gather at low rates; the consumer has no timer. The loop awaits each flush, so one runs at a time. The <a href="consumer-batching.html">consumer batching page</a> shows this part in motion.<span class="source">apps/consumer/src/integrations/events/kafka.ts startBatchConsumer, flushBatch</span></li>
 		<li><b>Normalise and validate.</b> Each source's normaliser maps its record onto one canonical transaction: the customer becomes the user, the status is lower-cased, and an EFT beneficiary's account number is cut to its last four digits. The result is checked against the canonical Zod schema, which caps field lengths, requires a three-letter currency and rejects a date more than a day ahead. Each record is prepared on its own, so one that fails here is set aside for the dead-letter topic before any SQL runs, and the rest of the batch is unaffected.<span class="source">apps/consumer/src/domain/transaction-normaliser.ts · schemas/transaction.ts · services/transaction-ingester.ts</span></li>
 		<li><b>Categorise.</b> The rules loaded at boot are tried in order: merchant category code, keyword, credit or debit for the source, then the source's default. A tier for the source's operation sits between keyword and credit or debit, but no seeded rule uses it. If none match, the category is <code>uncategorised</code>, so this step never fails. The winning rule's version and priority are stored with the row.<span class="source">apps/consumer/src/domain/rule-categoriser.ts · database/migrations/0001_seed_categories_and_rules.sql</span></li>

@@ -277,7 +277,7 @@
       "name": "merchantCountry",
       "type": "string",
       "default": "ZA",
-      "doc": "ISO 3166-1 alpha-2 country of the merchant. Added in version 2; the default lets this schema read version 1 records (BACKWARD). The consumer does not read it.",
+      "doc": "ISO 3166-1 alpha-2 country of the merchant. Added in version 2. A reader on version 1 skips it (FORWARD), and the consumer does not read it.",
       "arg.properties": {
         "options": ["ZA", "ZA", "ZA", "ZA", "ZA", "ZA", "ZA", "GB", "US", "NA"]
       }

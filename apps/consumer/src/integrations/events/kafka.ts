@@ -7,6 +7,7 @@ import {
 } from "@opentelemetry/api";
 import {
 	type BaseOptions,
+	type BeforeDeserializationHook,
 	Consumer,
 	type ConsumerOptions,
 	type DeserializationErrorHandler,
@@ -339,6 +340,7 @@ export async function startBatchConsumer(
 	consumer: KafkaConsumer,
 	onBatch: BatchHandler,
 	onDeserialisationFailure: DeserializationErrorHandler,
+	beforeDeserialisation: BeforeDeserializationHook,
 	options: BatchConsumerOptions
 ) {
 	const messageStream = await consumer.consume({
@@ -353,6 +355,9 @@ export async function startBatchConsumer(
 		// the fetch size and the stream's buffer bound the records held in memory
 		maxBytes: options.fetchMaxBytes,
 		autocommit: false,
+		// Runs on every payload of a fetch before any of it is decoded, which
+		// is where a schema registered since startup gets loaded
+		beforeDeserialization: beforeDeserialisation,
 		onDeserializationError: onDeserialisationFailure
 	});
 	const topic = options.topics.join(",");

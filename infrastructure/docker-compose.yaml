@@ -178,7 +178,7 @@ services:
     networks: [txn-network]
 
   # One-shot: strip generator annotations (arg.properties / avro-datagen keys),
-  # set subject compatibility BACKWARD, register the producers' *.avsc under
+  # set subject compatibility FORWARD_TRANSITIVE, register the producers' *.avsc under
   # TopicNameStrategy subjects (<topic>-value).
   schemas-register:
     build: 
