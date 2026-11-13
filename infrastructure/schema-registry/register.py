@@ -19,13 +19,18 @@ from typing import Any
 REGISTRY_URL = os.environ["SCHEMA_REGISTRY_URL"].rstrip("/")
 SCHEMAS_DIR = Path(os.environ.get("SCHEMAS_DIR", "/schemas"))
 TOPIC_PREFIX = os.environ.get("TOPIC_PREFIX", "transactions")
-COMPATIBILITY = os.environ.get("SCHEMA_COMPATIBILITY", "BACKWARD")
+# FORWARD_TRANSITIVE: records written with a new version must be readable with
+# every earlier version, so a consumer built for any of them keeps reading. A
+# field can be added; a field without a default cannot be removed, in one step
+# or several.
+COMPATIBILITY = os.environ.get("SCHEMA_COMPATIBILITY", "FORWARD_TRANSITIVE")
 
 CONTENT_TYPE = "application/vnd.schemaregistry.v1+json"
 
 # Generator-only annotations to drop. partitionKey is deliberately NOT here:
-# it is a contract property the producers read back from the registry to pick
-# the message key (services/producers/src/producer_core.py:resolve_key_fields).
+# it is a contract property that names the message key. The producers strip
+# the same key from their own schema file and look the result up here, so what
+# is dropped must match apps/producers/src/producer_core.py.
 DATAGEN_KEYS = {"arg.properties"}
 
 

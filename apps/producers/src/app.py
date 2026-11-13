@@ -44,7 +44,9 @@ def main():
     schema_registry = SchemaRegistryClient({"url": config.schemaRegistry.url})
     # TopicNameStrategy: the value schema for topic T lives under subject "T-value"
     subject = f"{config.kafka.topic}-value"
-    serializer, schema = build_serializer(schema_registry, subject)
+    serializer, schema = build_serializer(
+        schema_registry, subject, config.generator.schema_path
+    )
     key_fields = resolve_key_fields(schema, config.kafka.key_fields)
 
     producer = Producer(config.kafka.to_producer_config())

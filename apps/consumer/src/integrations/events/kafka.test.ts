@@ -80,6 +80,7 @@ interface RecordedConsumeOptions {
 	minBytes?: number;
 	maxBytes?: number;
 	maxWaitTime?: number;
+	beforeDeserialization?: unknown;
 }
 
 /** A consumer that keeps the options each consume() call was given. */
@@ -113,6 +114,9 @@ function buildOptions(
 function continueAfterDeserialisationError() {
 	return "continue" as never;
 }
+
+// The streams here are fakes that decode nothing, so nothing calls this.
+function loadNothingBeforeDeserialisation() {}
 
 /** Every offset the handler was given, in the order it was given them. */
 function readHandledOffsets(onBatch: Mock<BatchHandler>) {
@@ -203,6 +207,7 @@ suite("startBatchConsumer", () => {
 			buildConsumer(stream),
 			onBatch,
 			continueAfterDeserialisationError,
+			loadNothingBeforeDeserialisation,
 			buildOptions({ batchSize: 100 })
 		);
 
@@ -230,6 +235,7 @@ suite("startBatchConsumer", () => {
 			buildConsumer(stream),
 			onBatch,
 			continueAfterDeserialisationError,
+			loadNothingBeforeDeserialisation,
 			buildOptions({ batchSize: 100 })
 		);
 
@@ -254,6 +260,7 @@ suite("startBatchConsumer", () => {
 			buildRecordingConsumer(Readable.from([buildMessage(1)]), consumeCalls),
 			mock.fn(async (_messages: ClassifiedMessage[]) => {}),
 			continueAfterDeserialisationError,
+			loadNothingBeforeDeserialisation,
 			buildOptions({
 				fetchMinBytes: 32_768,
 				maxWaitTime: 2_000,
@@ -264,6 +271,25 @@ suite("startBatchConsumer", () => {
 		assert.equal(consumeCalls[0]?.minBytes, 32_768);
 		assert.equal(consumeCalls[0]?.maxWaitTime, 2_000);
 		assert.equal(consumeCalls[0]?.maxBytes, 262_144);
+	});
+
+	// The stream runs the hook before it decodes a fetch, which is the only
+	// place a schema registered since startup can be loaded.
+	test("gives the stream the hook that loads a missing schema", async () => {
+		const consumeCalls: RecordedConsumeOptions[] = [];
+
+		await startBatchConsumer(
+			buildRecordingConsumer(Readable.from([buildMessage(1)]), consumeCalls),
+			mock.fn(async (_messages: ClassifiedMessage[]) => {}),
+			continueAfterDeserialisationError,
+			loadNothingBeforeDeserialisation,
+			buildOptions()
+		);
+
+		assert.strictEqual(
+			consumeCalls[0]?.beforeDeserialization,
+			loadNothingBeforeDeserialisation
+		);
 	});
 
 	// A failed batch was never stored, so nothing may be handled or committed
@@ -287,6 +313,7 @@ suite("startBatchConsumer", () => {
 				buildConsumer(buildFetchedStream(messages)),
 				onBatch,
 				continueAfterDeserialisationError,
+				loadNothingBeforeDeserialisation,
 				buildOptions({ batchSize: 1 })
 			),
 			failure
@@ -312,6 +339,7 @@ suite("startBatchConsumer", () => {
 				buildConsumer(Readable.from([buildCommitFailingMessage(1, failure)])),
 				mock.fn(async (_messages: ClassifiedMessage[]) => {}),
 				continueAfterDeserialisationError,
+				loadNothingBeforeDeserialisation,
 				buildOptions({ batchSize: 1 })
 			),
 			failure

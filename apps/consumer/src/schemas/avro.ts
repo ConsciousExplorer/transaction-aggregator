@@ -21,3 +21,8 @@ export const AvroSchemaObject = z.object({
 	id: z.number().int().positive(),
 	schema: AvroSchemaString
 });
+
+/** A lookup by schema id answers with the schema text and no id */
+export const AvroSchemaById = z.object({
+	schema: AvroSchemaString
+});

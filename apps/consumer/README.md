@@ -46,7 +46,8 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 | Same row already stored | `ON CONFLICT DO NOTHING` | Skipped; counted in `duplicates_skipped_total` |
 | Tombstone or empty payload | `classifyMessages` → `tombstone` | Skipped; counted in `tombstones_skipped_total` |
 | Bytes that don't decode as Avro | `handleDeserialisationError` → `CONTINUE` → `poison` | Dead-lettered with `x-dlq-reason: deserialisation` |
-| Schema id not loaded at startup | `handleDeserialisationError` → `FAIL` | Logs the message's topic, partition and offset, then exits without committing; the restart loads the new schema and reads the message again |
+| Schema id not loaded yet | `loadMissingSchema` | Fetches the schema from the registry by its id before the fetch is decoded, then decodes as usual. Nothing restarts |
+| The registry can't supply that schema (unreachable, or no such id) | `handleDeserialisationError` → `FAIL` | Logs the message's topic, partition and offset, then exits without committing; the restart asks the registry again and reads the message again |
 | Record that doesn't map to a valid row | `normaliseTransaction` → `NonRetryableError` | Dead-lettered with `x-dlq-reason: processing` before the batch is inserted; the rest of the batch still goes in one statement |
 | Row Postgres rejects (SQLSTATE class 22 or 23: a bad value or a constraint) | `classifyPostgresError` → `NonRetryableError` | Retried on its own, then dead-lettered with `x-dlq-reason: processing` |
 | Any other Postgres failure (down, timed out, deadlock, read-only standby, bad password, missing grant) | `classifyPostgresError` → `RetryableError` | Exits without committing; the restart replays the batch |
@@ -69,7 +70,7 @@ The dead-letter producer waits for `acks=all`, so a record counts as sent only o
 2. **Tracing**: starts only when `OTEL_SDK_DISABLED=false`.
 3. **PostgreSQL**: creates the pool and runs `SELECT 1`.
 4. **Ruleset**: loads the rules of the version `RULESET_VERSION` names, and fails if `rule_sets` doesn't have it. The batch handler compiles them once, so a record only looks rules up.
-5. **Schema registry**: loads every registered version of `<topic>-value`. Nothing is fetched while a message is being read: a new version is loaded by the restart it causes.
+5. **Schema registry**: loads every registered version of `<topic>-value`. A version registered later is fetched by its id when the first record written with it arrives, without a restart.
 6. **Kafka**: creates the consumer and the dead-letter producer, and fetches metadata with both to prove that the brokers are reachable and the SASL credentials work.
 7. **HTTP server**: serves `/health` and `/metrics` on `PORT`.
 8. **Consume**: starts lag monitoring and the batch loop.
@@ -117,11 +118,11 @@ apps/consumer
     │   ├── events/
     │   │   ├── kafka.ts                   consumer, dead-letter producer, batching, classifyMessages
     │   │   ├── commit.ts                  commits the highest offset per partition
-    │   │   ├── avro-deserialiser.ts       Confluent wire format → value + original bytes
-    │   │   ├── schema-registry.ts         registry client, used at startup
+    │   │   ├── avro-deserialiser.ts       Confluent wire format → value + original bytes; loads a missing schema
+    │   │   ├── schema-registry.ts         registry client: subject versions at startup, a schema by id after
     │   │   └── handlers/
     │   │       ├── transactionBatchHandler.ts      batch policy: insert, fallback, dead-letter
-    │   │       └── handleDeserialisationError.ts   FAIL on an unknown schema id, otherwise CONTINUE
+    │   │       └── handleDeserialisationError.ts   FAIL when a schema can't be loaded, otherwise CONTINUE
     │   ├── database/
     │   │   ├── pool.ts                    pg Pool, Drizzle for the ruleset
     │   │   ├── repositories/              transaction insert (one JSON array), ruleset load (Drizzle)

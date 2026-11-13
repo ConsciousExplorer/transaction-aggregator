@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { afterEach, mock, suite, test } from "node:test";
-import { getSubjectVersion } from "./schema-registry.ts";
+import { getSchemaById, getSubjectVersion } from "./schema-registry.ts";
 
 const REGISTRY = "http://registry.test";
 const SUBJECT = "transactions.card-value";
@@ -25,6 +25,15 @@ suite("schema registry reads", () => {
 		const { id, schema } = await getSubjectVersion(REGISTRY, SUBJECT, 1);
 
 		assert.equal(id, 7);
+		assert.equal(schema, SCHEMA);
+	});
+
+	// A lookup by id answers without the id, unlike a subject version
+	test("a schema id lookup returns its schema text", async () => {
+		respondWith(200, { schema: SCHEMA });
+
+		const { schema } = await getSchemaById(REGISTRY, 7);
+
 		assert.equal(schema, SCHEMA);
 	});
 

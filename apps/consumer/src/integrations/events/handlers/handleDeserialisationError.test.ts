@@ -7,7 +7,10 @@ import {
 	type DeserializationErrorContext,
 	UserError
 } from "@platformatic/kafka";
-import { UnknownSchemaIdError } from "#src/errors/consumer-errors.ts";
+import {
+	SchemaRegistryError,
+	UnknownSchemaIdError
+} from "#src/errors/consumer-errors.ts";
 import { handleDeserialisationError } from "./handleDeserialisationError.ts";
 
 function buildErrorContext(error: unknown) {
@@ -22,16 +25,16 @@ function buildErrorContext(error: unknown) {
 }
 
 /**
- * The lines the handler logs for an unknown schema id, parsed. It runs in a
- * process of its own because test:unit silences logging, and the logger writes
- * straight to the stdout file descriptor.
+ * The lines the handler logs for a schema the registry couldn't supply,
+ * parsed. It runs in a process of its own because test:unit silences logging,
+ * and the logger writes straight to the stdout file descriptor.
  */
-function readLogLinesForUnknownSchemaId() {
+function readLogLinesForMissingSchema() {
 	const script = `
 		const { handleDeserialisationError } = await import("${import.meta.resolve("./handleDeserialisationError.ts")}");
-		const { UnknownSchemaIdError } = await import("${import.meta.resolve("#src/errors/consumer-errors.ts")}");
+		const { SchemaRegistryError } = await import("${import.meta.resolve("#src/errors/consumer-errors.ts")}");
 		handleDeserialisationError({
-			error: new UnknownSchemaIdError("Unknown schema id 9"),
+			error: new SchemaRegistryError("Schema registry request failed: [HTTP 404] /schemas/ids/9", { cause: undefined }),
 			payloadType: "value",
 			topic: "transactions.card",
 			partition: 7,
@@ -52,7 +55,22 @@ function readLogLinesForUnknownSchemaId() {
 }
 
 suite("deserialisation error policy", () => {
-	test("a schema id registered after startup stops the consumer", () => {
+	// The registry was down, or doesn't have the id. The message may be fine,
+	// so it is read again after the restart instead of being dead-lettered.
+	test("a schema the registry couldn't supply stops the consumer", () => {
+		assert.equal(
+			handleDeserialisationError(
+				buildErrorContext(
+					new SchemaRegistryError("Schema registry unreachable", {
+						cause: undefined
+					})
+				)
+			),
+			DeserializationErrorActions.FAIL
+		);
+	});
+
+	test("a schema id that was never loaded stops the consumer", () => {
 		assert.equal(
 			handleDeserialisationError(
 				buildErrorContext(new UnknownSchemaIdError("Unknown schema id 9"))
@@ -61,13 +79,13 @@ suite("deserialisation error policy", () => {
 		);
 	});
 
-	test("stopping on an unknown schema id logs where the message is", () => {
-		const [logLine] = readLogLinesForUnknownSchemaId();
+	test("stopping on a missing schema logs where the message is", () => {
+		const [logLine] = readLogLinesForMissingSchema();
 
 		assert.equal(logLine?.topic, "transactions.card");
 		assert.equal(logLine?.partition, 7);
 		assert.equal(logLine?.offset, "10601");
-		assert.match(logLine?.err.message, /Unknown schema id 9/);
+		assert.match(logLine?.err.message, /\/schemas\/ids\/9/);
 	});
 
 	test("unframed bytes are dead-lettered", () => {

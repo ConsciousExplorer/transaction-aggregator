@@ -6,7 +6,11 @@ import { createFileLogger } from "#src/logger.ts";
 import { config, secrets } from "#src/runtime.ts";
 import { createDatabase, createPool } from "./integrations/database/pool.ts";
 import { loadRuleset } from "./integrations/database/repositories/rule-repository.ts";
-import { createAvroDeserialiser } from "./integrations/events/avro-deserialiser.ts";
+import {
+	createAvroDeserialiser,
+	createMissingSchemaLoader,
+	loadSubjectSchemas
+} from "./integrations/events/avro-deserialiser.ts";
 import { handleDeserialisationError } from "./integrations/events/handlers/handleDeserialisationError.ts";
 import { createTransactionBatchHandler } from "./integrations/events/handlers/transactionBatchHandler.ts";
 import {
@@ -120,10 +124,21 @@ const ruleset = await runStartupCheck("Ruleset", () =>
 	loadRuleset(createDatabase(writerPool), config.rulesetVersion)
 );
 
-const deserialiseValue = await runStartupCheck("SchemaRegistry", () =>
-	createAvroDeserialiser<DomainTransactionSchema>(config.schemaRegistry.url, [
+// The schemas registered so far. The deserialiser reads this map and the
+// loader adds to it when a producer starts writing a newer version.
+const schemaTypes = await runStartupCheck("SchemaRegistry", () =>
+	loadSubjectSchemas(
+		config.schemaRegistry.url,
 		`${config.kafka.topics.main}-value`
-	])
+	)
+);
+
+const deserialiseValue =
+	createAvroDeserialiser<DomainTransactionSchema>(schemaTypes);
+
+const loadMissingSchema = createMissingSchemaLoader(
+	config.schemaRegistry.url,
+	schemaTypes
 );
 
 const kafkaConsumer = createKafkaConsumer(
@@ -217,6 +232,7 @@ try {
 		kafkaConsumer,
 		handleTransactionBatch,
 		handleDeserialisationError,
+		loadMissingSchema,
 		{
 			topics: [config.kafka.topics.main],
 			mode: config.kafka.readMode,

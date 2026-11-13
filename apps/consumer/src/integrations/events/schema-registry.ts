@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { SchemaRegistryError } from "#src/errors/consumer-errors.ts";
-import { AvroSchemaObject } from "#src/schemas/avro.ts";
+import { AvroSchemaById, AvroSchemaObject } from "#src/schemas/avro.ts";
 
 // A registry read is small; a registry that cannot answer within this is down.
 const REGISTRY_TIMEOUT_MS = 5_000;
@@ -52,6 +52,14 @@ export function getSubjectVersion(
 	return fetchFromRegistry(
 		`${registryUrl}/subjects/${subject}/versions/${version}`,
 		AvroSchemaObject
+	);
+}
+
+/** A schema by the id a message's frame names, whatever subject it is under */
+export function getSchemaById(registryUrl: string, schemaId: number) {
+	return fetchFromRegistry(
+		`${registryUrl}/schemas/ids/${schemaId}`,
+		AvroSchemaById
 	);
 }
 

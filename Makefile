@@ -59,9 +59,11 @@ produce-debit-order:
 # Rolls out card schema version 2 (schemas/v2/card.avsc, which adds
 # merchantCountry) producer-first, on a stack that is already up: it registers
 # version 2, then sends CARD_V2_COUNT records written with it. consumer-card
-# only loaded version 1 when it started, so it stops on the first new schema id,
-# restarts, loads both versions and stores the records. make clean wipes the
-# registry, so the next make up is back on version 1.
+# only loaded version 1 when it started, so it fetches version 2 from the
+# registry on the first record that names it, and stores the records without
+# restarting. A producer writes with its own schema file, so a later make
+# produce writes version 1 again, beside the version 2 records. make clean
+# wipes the registry, so the next make up has version 1 only.
 CARD_V2_COUNT ?= 100
 produce-card-v2:
 	$(COMPOSE) run --rm --no-deps -e SCHEMAS_DIR=/schemas/v2 schemas-register

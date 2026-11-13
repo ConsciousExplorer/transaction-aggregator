@@ -3,15 +3,21 @@ import logging
 import secrets
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from pathlib import Path
 from typing import Any, Protocol
 
+from avro_datagen import load_schema
 from confluent_kafka import KafkaException
-from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry import Schema, SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+# The generator's hints. schemas-register drops the same key before it
+# registers a schema, so the text looked up here is the text it registered.
+GENERATOR_ANNOTATION = "arg.properties"
 
 
 class KafkaProducer(Protocol):
@@ -50,18 +56,48 @@ def _mint_traceparent() -> str:
     return f"00-{secrets.token_hex(16)}-{secrets.token_hex(8)}-01"
 
 
+def strip_generator_annotations(node: Any) -> Any:
+    """Returns a copy of a schema tree without the generator's hints."""
+    if isinstance(node, dict):
+        stripped: dict[str, Any] = {}
+        for key, value in node.items():
+            if key != GENERATOR_ANNOTATION:
+                stripped[key] = strip_generator_annotations(value)
+        return stripped
+    if isinstance(node, list):
+        items: list[Any] = []
+        for item in node:
+            items.append(strip_generator_annotations(item))
+        return items
+    return node
+
+
 def build_serializer(
-    sr: SchemaRegistryClient, subject: str
+    sr: SchemaRegistryClient, subject: str, schema_path: str | Path
 ) -> tuple[AvroSerializer, dict[str, Any]]:
     """
-    Fetch the subject's latest schema; return (serializer, parsed schema dict).
-    The serializer is pinned to the registry's schema text: never auto-registers
+    Builds the serializer from this producer's own schema file; returns
+    (serializer, parsed schema dict).
+
+    The records are generated from that file, so they are written with that
+    file's schema, whichever version the registry holds as latest. A producer
+    on an older file keeps writing the older version, and never needs a value
+    for a field a newer version added.
+
+    The registry is asked only for the schema's id. A schema that was never
+    registered under the subject stops the producer here: it never registers
+    one itself.
     """
-    registered_schema = sr.get_latest_version(subject)
-    schema_str = registered_schema.schema.schema_str
-    if schema_str is None:
-        raise ValueError(f"subject {subject!r} has no schema text in the registry")
-    schema_dict: dict[str, Any] = json.loads(schema_str)
+    schema_dict: dict[str, Any] = strip_generator_annotations(load_schema(schema_path))
+    schema_str = json.dumps(schema_dict)
+
+    registered_schema = sr.lookup_schema(subject, Schema(schema_str, "AVRO"))
+    logger.info(
+        "writing with version %s of %s (schema id %s)",
+        registered_schema.version,
+        subject,
+        registered_schema.schema_id,
+    )
 
     serializer = AvroSerializer(
         sr,  # pyright: ignore[reportCallIssue]

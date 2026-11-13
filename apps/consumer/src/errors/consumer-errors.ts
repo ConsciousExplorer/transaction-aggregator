@@ -24,9 +24,9 @@ export class NonRetryableError extends Error {
 }
 
 /**
- * A message names a schema id that was not loaded at startup. Producers only
- * write versions of the topic's subject, and startup loads every version, so
- * the id was registered after this consumer started and a restart loads it.
+ * A message names a schema id that is not among the loaded schemas. The
+ * missing-schema loader fetches an unknown id before the message is decoded,
+ * so this is only thrown when that loader did not run.
  */
 export class UnknownSchemaIdError extends Error {
 	constructor(message: string) {

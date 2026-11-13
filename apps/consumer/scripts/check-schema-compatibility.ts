@@ -1,12 +1,18 @@
-// Fails when a schema can't read records written with the version it replaces:
-// the registry's BACKWARD rule, checked without a registry. The registry
+// Fails when the version a schema replaces can't read records written with it:
+// the newest step of the registry's FORWARD_TRANSITIVE rule, checked without a
+// registry. A reader built for the old version must keep working, so a field
+// may be added but a field without a default may not be removed. The registry
 // refuses an incompatible version, so one must never reach main, where
 // schemas-register would fail on it.
 //
+// The registry also compares a new version with every older one it holds. This
+// script only has the base ref's copy, so a change that breaks a version older
+// than that one is refused by the registry and not here.
+//
 // Two checks:
-// - each top-level schemas/<name>.avsc against the same file on a base ref
-// - each schemas/v<N>/<name>.avsc against schemas/<name>.avsc, the version it
-//   evolves from
+// - the same file on a base ref must read each top-level schemas/<name>.avsc
+// - schemas/<name>.avsc must read each schemas/v<N>/<name>.avsc, the version
+//   that evolves from it
 //
 // Usage: node scripts/check-schema-compatibility.ts [base ref]  (default origin/main)
 import { execFileSync } from "node:child_process";
@@ -49,7 +55,7 @@ function parseSchema(content: string) {
 }
 
 // undefined when the file doesn't exist on the base ref: a new schema has no
-// earlier version to stay compatible with.
+// earlier version whose readers it must keep working.
 function readBaseContent(path: string, baseRef: string) {
 	try {
 		return execFileSync("git", ["show", `${baseRef}:${path}`], {
@@ -83,7 +89,8 @@ function listVersionDirectories() {
 }
 
 // createResolver throws when the reader can't read the writer's records, e.g.
-// an added field without a default or a changed field type.
+// the writer dropped a field the reader has no default for, added an enum
+// symbol or changed a field's type.
 function checkCanRead(reader: string, writer: string, label: string) {
 	try {
 		parseSchema(reader).createResolver(parseSchema(writer));
@@ -106,7 +113,8 @@ function checkAgainstBase(baseRef: string) {
 			continue;
 		}
 		const current = readFileSync(join(SCHEMAS_DIR, file), "utf8");
-		if (!checkCanRead(current, baseContent, `${path} reads ${baseRef}'s records`)) {
+		const label = `${baseRef}'s ${path} reads this version's records`;
+		if (!checkCanRead(baseContent, current, label)) {
 			passed = false;
 		}
 	}
@@ -128,8 +136,8 @@ function checkVersionDirectories() {
 			}
 			const previous = readFileSync(join(SCHEMAS_DIR, file), "utf8");
 			const next = readFileSync(join(SCHEMAS_DIR, directory, file), "utf8");
-			const label = `schemas/${directory}/${file} reads schemas/${file}'s records`;
-			if (!checkCanRead(next, previous, label)) {
+			const label = `schemas/${file} reads schemas/${directory}/${file}'s records`;
+			if (!checkCanRead(previous, next, label)) {
 				passed = false;
 			}
 		}

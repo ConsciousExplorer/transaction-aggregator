@@ -47,7 +47,7 @@ class ProducerSettings(BaseSettings):
         env_file=".env", case_sensitive=False, extra="ignore", frozen=True
     )
 
-    # Sent as the x-producer header with the version: producer-card/0.1.0
+    # Sent as the x-producer header with the version: producer-card/0.2.0
     name: str = Field(validation_alias="PRODUCER_NAME", min_length=1)
     mode: Literal["oneshot", "stream"] = Field(
         default="oneshot", validation_alias="PRODUCER_MODE"

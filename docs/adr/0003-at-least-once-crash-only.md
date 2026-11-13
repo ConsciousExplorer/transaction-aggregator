@@ -42,7 +42,8 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 | A message that fails normalising or validation | Dead-lettered as `processing` before the insert runs; the rest of the batch still goes in one statement |
 | A row Postgres rejects (a `DatabaseError` with SQLSTATE class 22 or 23) | The batch is retried one row at a time, so only the bad row is dead-lettered |
 | Any other database error, a dropped connection, or a statement past its timeout (`DATABASE_STATEMENT_TIMEOUT_MS`) | `RetryableError`: the process exits with code 1 and nothing is committed |
-| A schema id the consumer didn't load at startup | The process exits, and the restart loads the new schema version |
+| A schema id the consumer hasn't loaded | It fetches that schema from the registry before it decodes the message, and carries on |
+| The registry can't supply that schema: it is unreachable, or has no such id | The process exits with nothing committed, and the restart asks again |
 
 **Crash rather than retry.**
 
@@ -66,8 +67,9 @@ INSERT … SELECT … FROM json_populate_recordset(…) ON CONFLICT (transaction
 | A content hash or the Kafka offset as the key | A producer re-send gets a new offset. A hash changes when any field is corrected, and so makes duplicates. |
 | An in-process retry loop with backoff | The restart already retries, with no extra state in the process. |
 | A draining shutdown with flags and timers | It saves a few seconds of replay and adds no correctness. |
-| Fetching an unknown schema from the registry on a miss | It's a second way to load schemas, with its own rules for a 404 versus an outage, for a case a restart already covers. |
+| Exiting on an unknown schema id, so the restart loads it | Every producer rollout restarted every consumer instance, each with a group rebalance. One registry read does the same job. |
 | Dead-lettering a message with an unknown schema id | Every producer rollout would turn into a redrive. |
+| Dead-lettering a message whose schema id the registry doesn't have | It needs a second rule, to tell a 404 from an outage. One rule covers every registry failure: stop, and ask again after the restart. |
 | `pause()` and `resume()` for backpressure | The loop already stops pulling while it waits on a flush. |
 | A linger timer in the consumer, flushing a partial batch 2 s after its first message | The broker already holds a fetch until `fetch.min.bytes` are ready or `fetch.max.wait.ms` has passed, so it gathers the batch. A timer that fires outside the loop needed a promise chain to stop two flushes overlapping, and a failed flush had to poison that chain so nothing committed past it. Flushing when the batch is full or the stream is empty needs none of that. |
 
