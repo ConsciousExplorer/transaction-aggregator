@@ -23,7 +23,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
   - `oneshot`, the default, sends `GENERATOR_COUNT` records covering the 18 months up to `GENERATOR_ANCHOR_DATE`, then exits.
   - `stream` sends `PRODUCER_RATE` records a second until it's stopped, each stamped with the time it was sent.
 - **Repeatable.** In `oneshot` mode, the same `GENERATOR_SEED` and `GENERATOR_ANCHOR_DATE` produce the same records. Without a seed it picks one and logs it, so any run can be repeated.
-- **The registry's schema, never its own.** At startup the serializer is pinned to the topic's latest schema in Schema Registry, and it never registers one. Compose's `schemas-register` step does that.
+- **Its own schema file, registered by someone else.** The serializer writes with the `.avsc` file the records are generated from, and asks Schema Registry only for that schema's id. A producer on an older file keeps writing the older version, whatever the registry's latest is. It never registers a schema: compose's `schemas-register` step does that, and a schema that isn't registered stops the producer at startup.
 - **Keyed by customer.** The message key is the field the schema names in `partitionKey` (`customerId`), so each customer's transactions stay in order on one partition. `KAFKA_KEY_FIELDS` is used only when a schema names none.
 - **Headers.** Every message carries `x-producer` (for example `producer-card/0.1.0`) and a fresh `traceparent`, which the consumer's batch span links to.
 - **Delivery.** Sends use `acks=all` with idempotence on. At the end, or on SIGTERM, the producer flushes what it has queued and logs one line: records produced, errors, undelivered, and the time taken.
@@ -40,7 +40,7 @@ All configuration comes from environment variables, or a `.env` file, validated 
 | `KAFKA_SECURITY_PROTOCOL` | `SASL_SSL` | Compose uses `SASL_PLAINTEXT` |
 | `KAFKA_KEY_FIELDS` | `customerId` | Key fields for a schema without `partitionKey` |
 | `SCHEMA_REGISTRY_URL` | required | Read once at startup |
-| `GENERATOR_SCHEMA_PATH` | `./schemas` | The source's `.avsc` file |
+| `GENERATOR_SCHEMA_PATH` | `./schemas` | The source's `.avsc` file: the records are generated from it and written with it |
 | `GENERATOR_COUNT` | `500` | Records sent in `oneshot` mode |
 | `GENERATOR_SEED` | random | Pin it to send the same records again |
 | `GENERATOR_ANCHOR_DATE` | today | The day the 18 months of history end |
@@ -86,4 +86,5 @@ The unit tests in `tests/` need neither Kafka nor Schema Registry.
 | `test_config.py` | Messages are keyed by `customerId` by default, and `PRODUCER_NAME` is required |
 | `test_event_time_anchor.py` | History spans the 18 months before the anchor date. The same seed and anchor give the same records. Every seed and source draws from the same customers. |
 | `test_producer_stamping.py` | A record is sent as generated, with `x-producer` and a fresh `traceparent` |
+| `test_schema_version.py` | A producer on the older schema file writes the older version while a newer one is registered, and a schema that was never registered stops it |
 | `test_stream.py` | Stream mode sends record *i* at start + *i* / rate without drifting, stamps the send time, and never repeats a transaction id |

@@ -17,7 +17,7 @@ The schemas change over time. `schemas/v2/card.avsc` already adds a field. A con
 **One Avro schema per source, governed by Confluent Schema Registry.**
 
 - The four schemas live in `schemas/*.avsc`. `register.py` registers each one under its topic's subject (`transactions.card-value`) and sets that subject's compatibility to FORWARD_TRANSITIVE: every earlier version must be able to read the records written with a new one. It is the rule an API contract follows. A producer may add a field, and may not take one away from a reader that is already running.
-- Producers never register schemas (`auto.register.schemas: False`). At startup each one fetches its subject's latest version and pins its serializer to it. The registry enforces the rules, and git decides what the schemas are.
+- Producers never register schemas (`auto.register.schemas: False`). Each one writes with its own schema file, the one its records are generated from, and asks the registry only for that schema's id. A producer on an older file keeps writing the older version, whatever the registry's latest is, and a schema that was never registered stops it at startup. The registry enforces the rules, and git decides what the schemas are.
 - The record key is the field the schema names as `partitionKey`: `customerId`. Each customer's transactions stay in order on one partition.
 - The consumer loads every version of its subject at startup. It decodes each message with the writer schema named by the id in the message's frame, and never resolves it against a reader schema of its own: it reads the fields it knows from the decoded record and leaves the rest.
 - A message with an id the consumer hasn't loaded makes it fetch that schema from the registry, once, before the message is decoded. A new version costs no restart. If the registry can't supply the schema the consumer stops, and the restart asks again ([0003](0003-at-least-once-crash-only.md)).
@@ -44,6 +44,7 @@ CI's `schemas` workflow checks the newest step of that rule without a registry. 
 | JSON Schema | Compatibility checks are weak: with an open content model almost any change passes, and with a closed one almost none does. |
 | Plain JSON | There is no compatibility gate. Every record repeats every key name, and `JSON.parse` turns amounts into doubles. |
 | Producers auto-register | A producer could publish a schema nobody reviewed. |
+| Producers pinned to the subject's latest version at startup | A producer that restarts after a newer version is registered would write with a schema it has no values for. That only worked while every added field had a default to fill the gap. |
 | BACKWARD compatibility | It protects a new reader of old records, and lets a producer remove a field a running consumer reads. The consumer decodes each record with the schema it was written with, so old records never needed that protection. |
 | FULL compatibility | It also demands a default on every added field, for the old records no reader here resolves against. |
 | FORWARD compatibility, not transitive | It compares a version with the one before it only. A producer could give a field a default in one version and remove it in the next, and a consumer still reading it would lose it. |

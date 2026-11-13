@@ -61,8 +61,9 @@ produce-debit-order:
 # version 2, then sends CARD_V2_COUNT records written with it. consumer-card
 # only loaded version 1 when it started, so it fetches version 2 from the
 # registry on the first record that names it, and stores the records without
-# restarting. make clean wipes the registry, so the next make up is back on
-# version 1.
+# restarting. A producer writes with its own schema file, so a later make
+# produce writes version 1 again, beside the version 2 records. make clean
+# wipes the registry, so the next make up has version 1 only.
 CARD_V2_COUNT ?= 100
 produce-card-v2:
 	$(COMPOSE) run --rm --no-deps -e SCHEMAS_DIR=/schemas/v2 schemas-register
