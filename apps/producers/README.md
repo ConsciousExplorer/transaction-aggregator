@@ -25,7 +25,7 @@ It is one app in the [transaction-aggregator](../../README.md) monorepo. The sam
 - **Repeatable.** In `oneshot` mode, the same `GENERATOR_SEED` and `GENERATOR_ANCHOR_DATE` produce the same records. Without a seed it picks one and logs it, so any run can be repeated.
 - **Its own schema file, registered by someone else.** The serializer writes with the `.avsc` file the records are generated from, and asks Schema Registry only for that schema's id. A producer on an older file keeps writing the older version, whatever the registry's latest is. It never registers a schema: compose's `schemas-register` step does that, and a schema that isn't registered stops the producer at startup.
 - **Keyed by customer.** The message key is the field the schema names in `partitionKey` (`customerId`), so each customer's transactions stay in order on one partition. `KAFKA_KEY_FIELDS` is used only when a schema names none.
-- **Headers.** Every message carries `x-producer` (for example `producer-card/0.1.0`) and a fresh `traceparent`, which the consumer's batch span links to.
+- **Headers.** Every message carries `x-producer` (for example `producer-card/0.2.0`) and a fresh `traceparent`, which the consumer's batch span links to.
 - **Delivery.** Sends use `acks=all` with idempotence on. At the end, or on SIGTERM, the producer flushes what it has queued and logs one line: records produced, errors, undelivered, and the time taken.
 
 ## Configuration

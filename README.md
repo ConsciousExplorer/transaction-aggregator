@@ -175,7 +175,7 @@ docker compose -f infrastructure/docker-compose.yaml run --rm --no-deps \
 docker exec kafka-01 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:29092 \
   --topic transactions.card --partition 10 --offset 10601 --max-messages 1 \
   --property print.headers=true --property print.value=false
-# x-producer:producer-card/0.1.0,traceparent:00-5c5e0aab3f070cbeeef712fd23bb914d-9d233cc1e94b0602-01
+# x-producer:producer-card/0.2.0,traceparent:00-5c5e0aab3f070cbeeef712fd23bb914d-9d233cc1e94b0602-01
 ```
 
 **3. See that the consumer committed it.** On partition 10 the group's committed offset is one past the record, and the lag is 0, so the record was stored before its offset was committed.
